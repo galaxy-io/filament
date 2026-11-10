@@ -77,26 +77,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	addr := serverAddress()
 	mux := http.NewServeMux()
 	var eventBus eventbus.Bus
-	healthState := health.New(2*time.Second,
-		func(ctx context.Context) error {
-			if err := deps.Store.Ping(ctx); err != nil {
-				return err
-			}
-			if !tenantEnsured.Load() {
-				if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-					return err
-				}
-				tenantEnsured.Store(true)
-			}
-			return nil
-		},
-		func(ctx context.Context) error {
-			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
-				return checker.Ready(ctx)
-			}
-			return nil
-		},
-	)
+	healthState := newServerHealthState(deps.Store, tenantEnsured, func() eventbus.Bus { return eventBus })
 	healthState.Mount(mux)
 	mux.Handle("/version", version.Handler())
 	srv := &http.Server{
@@ -167,6 +148,29 @@ func run(ctx context.Context, migrateOnly bool) error {
 			filament.Field{Key: "event.name", Value: "server.stopping"})
 		return shutdown()
 	}
+}
+
+func newServerHealthState(store filament.DataStore, tenantEnsured *atomic.Bool, bus func() eventbus.Bus) *health.State {
+	return health.New(2*time.Second,
+		func(ctx context.Context) error {
+			if err := store.Ping(ctx); err != nil {
+				return err
+			}
+			if !tenantEnsured.Load() {
+				if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+					return err
+				}
+				tenantEnsured.Store(true)
+			}
+			return nil
+		},
+		func(ctx context.Context) error {
+			if checker, ok := bus().(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
 }
 
 func logHostClose(err error, log filament.Logger) {

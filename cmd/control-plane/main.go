@@ -120,13 +120,7 @@ func run(ctx context.Context) error {
 		streams.Start(ctx)
 		defer streams.Close()
 	}
-	sched.Start(ctx)
-	if reap != nil {
-		reap.Start(ctx)
-	}
-	if retention != nil {
-		retention.Start(ctx)
-	}
+	startControlModules(ctx, sched, reap, retention)
 	healthState.MarkStarted()
 	mode := os.Getenv("DISPATCH_MODE")
 	if mode == "" {
@@ -149,6 +143,16 @@ func run(ctx context.Context) error {
 			return nil
 		}
 		return fmt.Errorf("control-plane health server: %w", err)
+	}
+}
+
+func startControlModules(ctx context.Context, sched *scheduler.Module, reap *reaper.Module, retention *webhookretention.Module) {
+	sched.Start(ctx)
+	if reap != nil {
+		reap.Start(ctx)
+	}
+	if retention != nil {
+		retention.Start(ctx)
 	}
 }
 

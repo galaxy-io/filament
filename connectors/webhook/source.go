@@ -16,12 +16,14 @@ import (
 	"github.com/galaxy-io/filament/webhooks/stream"
 )
 
+// PositionCodec identifies webhook inbox sequence positions.
 const PositionCodec = inbox.PositionCodec
 
 // Attacher connects to the managed inbox. The returned close releases the
 // connection. The receiver provisions the stream, so an attacher never creates it.
 type Attacher func(context.Context) (*inbox.Inbox, func(), error)
 
+// Source reads accepted deliveries from the managed webhook inbox.
 type Source struct {
 	attach Attacher
 	inbox  *inbox.Inbox
@@ -35,6 +37,7 @@ func New(attach Attacher) *Source { return &Source{attach: attach, batch: stream
 // NewWithInbox uses an already open inbox, for local execution and tests.
 func NewWithInbox(i *inbox.Inbox) *Source { return &Source{inbox: i, batch: stream.DefaultBatch()} }
 
+// Spec describes the webhook source connector and its stream capabilities.
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "webhook", DisplayName: "Webhook", Version: "1",
@@ -49,11 +52,13 @@ func (*Source) Spec() filament.ConnectorSpec {
 	}
 }
 
+// Validate checks the source's batch configuration.
 func (*Source) Validate(cfg filament.Config) error {
 	_, err := stream.ParseBatch(cfg)
 	return err
 }
 
+// Configure parses batch settings and attaches to the inbox.
 func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	batch, err := stream.ParseBatch(cfg)
 	if err != nil {
@@ -70,6 +75,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	return err
 }
 
+// TestConnection verifies that the source can attach to the inbox.
 func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
 	temp := New(s.attach)
 	if err := temp.Configure(ctx, cfg); err != nil {
@@ -78,10 +84,12 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	return temp.Teardown(ctx)
 }
 
+// Extract rejects batch extraction because this source requires a continuous run.
 func (*Source) Extract(context.Context, filament.RecordSink, filament.ExtractOpts) error {
 	return filament.ErrContinuousDisabled
 }
 
+// Teardown releases the inbox connection owned by this source.
 func (s *Source) Teardown(context.Context) error {
 	if s.close != nil {
 		s.close()
@@ -91,6 +99,7 @@ func (s *Source) Teardown(context.Context) error {
 	return nil
 }
 
+// PlanReplicationStream binds fixed resources to an inbox consumer.
 func (*Source) PlanReplicationStream(req filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
 	if req.SourceConnectionID == "" || req.ReplicationStreamID == "" || len(req.Resources) == 0 {
 		return filament.ReplicationStreamPlan{}, errors.New("webhook: source, stream, and fixed resources are required")
@@ -112,6 +121,7 @@ func (*Source) PlanReplicationStream(req filament.ReplicationStreamPlanningReque
 	}, nil
 }
 
+// BindReplicationStream verifies the admitted consumer identity.
 func (*Source) BindReplicationStream(config map[string]any, admitted filament.ReplicationStream) (map[string]any, error) {
 	if admitted.ID == "" || admitted.SourceConnectionID == "" ||
 		admitted.ConsumerName != "webhook-"+admitted.ID {
@@ -120,6 +130,7 @@ func (*Source) BindReplicationStream(config map[string]any, admitted filament.Re
 	return maps.Clone(config), nil
 }
 
+// Lookup returns the position codec used by webhook inbox sequences.
 func (*Source) Lookup(name string, version int) (rowmodel.PositionCodec, error) {
 	if name != PositionCodec || version != 0 {
 		return nil, fmt.Errorf("webhook: unknown position codec %s v%d", name, version)
@@ -127,6 +138,7 @@ func (*Source) Lookup(name string, version int) (rowmodel.PositionCodec, error) 
 	return streamkit.Uint64Codec{}, nil
 }
 
+// Schema returns the delivery envelope schema for a resource.
 func (*Source) Schema(_ context.Context, resource string) (rowmodel.Schema, error) {
 	if !webhooks.ValidResourceName(resource) {
 		return rowmodel.Schema{}, errors.New("webhook: invalid resource")

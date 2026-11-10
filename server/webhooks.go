@@ -195,11 +195,14 @@ func (a *Server) webhookEndpointProto(endpoint webhooks.Endpoint, now time.Time)
 	if len(endpoint.ActiveKeyRefs(now)) > 1 && !endpoint.SecondaryKeyExpiresAt.IsZero() {
 		previousExpires = endpoint.SecondaryKeyExpiresAt.UnixMilli()
 	}
+	// A persisted success status is constrained to 200, 202, or 204.
+	// #nosec G115
+	successStatus := int32(endpoint.SuccessStatus)
 	return &ingestionv1.WebhookEndpointConfig{
 		SourceConnectionId: endpoint.SourceID,
 		PipelineId:         endpoint.PipelineID, RouteKey: endpoint.RouteKey, Resources: slices.Clone(endpoint.Resources),
 		Enabled: endpoint.Enabled, Revision: endpoint.Revision,
-		SuccessStatus: int32(endpoint.SuccessStatus), MaxBodyBytes: endpoint.MaxBodyBytes,
+		SuccessStatus: successStatus, MaxBodyBytes: endpoint.MaxBodyBytes,
 		HasSigningSecret: len(endpoint.SecretRefs) > 0, RouteReady: endpoint.RouteReady, Accepting: endpoint.Accepting,
 		DeliveryUrl: a.deliveryURL(endpoint.SourceID),
 		Verifier:    endpoint.Verifier, PreviousKeyExpiresAt: previousExpires,

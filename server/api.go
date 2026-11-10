@@ -103,8 +103,8 @@ func New(worker filament.Worker, store filament.DataStore, orch runSubmitter, bu
 	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
 		s.schedules = schedules
 	}
-	if webhooks, ok := store.(webhooks.EndpointStore); ok {
-		s.webhooks = webhooks
+	if endpointStore, ok := store.(webhooks.EndpointStore); ok {
+		s.webhooks = endpointStore
 	}
 	for _, opt := range opts {
 		opt(s)

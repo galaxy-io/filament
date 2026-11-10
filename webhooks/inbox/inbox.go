@@ -23,6 +23,7 @@ import (
 )
 
 const (
+	// DefaultStream is the JetStream stream that stores webhook deliveries.
 	DefaultStream = "WEBHOOK_INBOX"
 	subjectRoot   = "filament.webhook.v1"
 
@@ -41,9 +42,13 @@ const (
 )
 
 var (
+	// ErrConflict indicates that a delivery ID was reused with different content.
 	ErrConflict = errors.New("webhook delivery ID already exists with different content")
-	ErrInvalid  = errors.New("invalid webhook delivery")
+	// ErrInvalid indicates that a delivery or inbox configuration is invalid.
+	ErrInvalid = errors.New("invalid webhook delivery")
+	// ErrTooLarge indicates that a delivery exceeds the configured inbox message limit.
 	ErrTooLarge = errors.New("webhook delivery exceeds inbox message limit")
+	// ErrNotFound indicates that an accepted delivery was not found.
 	ErrNotFound = errors.New("webhook delivery not found")
 )
 
@@ -144,8 +149,10 @@ func Attach(ctx context.Context, js jetstream.JetStream) (*Inbox, error) {
 	return Open(ctx, js, Config{MaxBytes: cfg.MaxBytes, MaxMsgSize: cfg.MaxMsgSize, Replicas: cfg.Replicas})
 }
 
-// StreamName and Incarnation identify the durable position namespace.
-func (i *Inbox) StreamName() string     { return i.name }
+// StreamName returns the name of the durable inbox stream.
+func (i *Inbox) StreamName() string { return i.name }
+
+// Incarnation returns the stream creation time used to namespace positions.
 func (i *Inbox) Incarnation() time.Time { return i.incarnation }
 
 // MaxBody is the largest body the inbox stores.

@@ -267,6 +267,7 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 |-----|------|---------|-------------|
 | nats.config.jetstream.enabled | bool | `true` | Enable JetStream in the vendored NATS chart. |
 | nats.config.jetstream.fileStore.pvc.size | string | `"10Gi"` | PVC size for the vendored NATS JetStream file store. |
+| nats.config.merge.max_payload | int | `2097152` | Largest NATS message in bytes. Must be at least `server.webhooks.maxMessageBytes`. |
 | nats.container.merge | object | `{"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}}` | Merged into the vendored NATS container spec. Sets resources so the pod is not BestEffort QoS (first evicted under node pressure); the upstream chart sets none. |
 | nats.enabled | bool | `false` | Enable the vendored NATS chart for local or test clusters. See the [NATS chart](https://artifacthub.io/packages/helm/nats/nats) for additional configuration. |
 | nats.fullnameOverride | string | `"filament-nats"` | Full name override for the vendored NATS release. |

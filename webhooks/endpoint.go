@@ -13,8 +13,11 @@ import (
 )
 
 const (
-	DefaultMaxBody       = 1 << 20
-	HardMaxBody          = 16 << 20
+	// DefaultMaxBody is the default maximum webhook body size in bytes.
+	DefaultMaxBody = 1 << 20
+	// HardMaxBody is the largest webhook body any endpoint may accept.
+	HardMaxBody = 16 << 20
+	// DefaultSuccessStatus is returned after a delivery is durably accepted.
 	DefaultSuccessStatus = http.StatusAccepted
 	// SecondaryKeyGrace is how long a replaced signing key keeps verifying.
 	SecondaryKeyGrace = 72 * time.Hour
@@ -22,7 +25,9 @@ const (
 )
 
 var (
-	ErrRouteNotReady   = errors.New("webhook route is not running or does not read every endpoint resource")
+	// ErrRouteNotReady indicates that the configured pipeline cannot consume the endpoint's resources.
+	ErrRouteNotReady = errors.New("webhook route is not running or does not read every endpoint resource")
+	// ErrInvalidEndpoint indicates that an endpoint mutation failed validation.
 	ErrInvalidEndpoint = errors.New("invalid webhook endpoint configuration")
 )
 
@@ -139,8 +144,8 @@ func validSuccessStatus(status int) bool {
 // ValidResourceName reports whether a resource is safe in a webhook URL.
 func ValidResourceName(name string) bool { return validToken(name, maxResourceName) }
 
-func validToken(value string, max int) bool {
-	if value == "" || len(value) > max {
+func validToken(value string, maxLength int) bool {
+	if value == "" || len(value) > maxLength {
 		return false
 	}
 	for _, ch := range value {

@@ -79,6 +79,7 @@ func certifiedSequence(positions *filament.DomainPositions, domain filament.Doma
 	return strconv.ParseUint(string(position.Value), 10, 64)
 }
 
+// LoadWebhookEndpointForTenant returns an endpoint only when it belongs to tenant.
 func (s *Store) LoadWebhookEndpointForTenant(ctx context.Context, tenant filament.TenantID, sourceID string) (webhooks.Endpoint, error) {
 	endpoint, err := s.LoadWebhookEndpoint(ctx, sourceID)
 	if err != nil {
@@ -98,6 +99,9 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 		return webhooks.Endpoint{}, err
 	}
 	resources := mutation.Resources
+	// Validate restricts success status to 200, 202, or 204, all within int16.
+	// #nosec G115
+	successStatus := int16(mutation.SuccessStatus)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return webhooks.Endpoint{}, err
@@ -113,7 +117,7 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
 			Verifier: mutation.Verifier, PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
 			SecretRefs: mutation.SecretRefs, SecondaryKeyExpiresAt: expires, Resources: resources,
-			SuccessStatus: int16(mutation.SuccessStatus), MaxBodyBytes: mutation.MaxBodyBytes,
+			SuccessStatus: successStatus, MaxBodyBytes: mutation.MaxBodyBytes,
 		})
 	} else {
 		// The store owns revisions: each update advances by one and stamps its time.
@@ -123,7 +127,7 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 			UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}, Verifier: mutation.Verifier,
 			PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
 			SecretRefs: mutation.SecretRefs, SecondaryKeyExpiresAt: expires, Resources: resources,
-			SuccessStatus: int16(mutation.SuccessStatus), MaxBodyBytes: mutation.MaxBodyBytes,
+			SuccessStatus: successStatus, MaxBodyBytes: mutation.MaxBodyBytes,
 		})
 	}
 	if err != nil {

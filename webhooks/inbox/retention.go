@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
+// PositionCodec identifies sequence positions in the webhook inbox.
 const PositionCodec = "webhook.inbox.sequence"
 
 // Domain identifies the inbox position for one source and stream incarnation.
