@@ -6,5 +6,6 @@ export const PROBE_QUERY_OPTIONS = {
 } as const;
 
 export const ACTIVE_RUNS_REFETCH_INTERVAL = 3 * 1000;
+export const SCHEDULED_REFETCH_MAX_INTERVAL = 60 * 1000;
 
 export const ACTIVE_PIPELINE_RUNS_PAGE_SIZE = 8;

@@ -52,8 +52,7 @@ export const observabilitySearchSchema = z.object({
   usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
   usagePivot: z.enum(MetricDimension).optional().catch(undefined),
   statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-  runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-  runsStatus: z.enum(RunStatus).optional().catch(undefined),
+  pipelinesPage: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 export type ObservabilitySearch = z.infer<typeof observabilitySearchSchema>;

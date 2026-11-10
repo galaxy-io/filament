@@ -48,7 +48,7 @@ const ObservabilitySetupChecklist: FC = () => {
   };
 
   return (
-    <Box variant={BoxVariant.PRIMARY} height="100%" fillWidth>
+    <Box as="main" variant={BoxVariant.PRIMARY} height="100%" fillWidth>
       <GridBackground
         size={GridBackgroundSize.X_SMALL}
         style={{ [GRID_BACKGROUND_OPACITY_VAR]: OBSERVABILITY_SETUP_GRID_OPACITY }}
@@ -62,7 +62,9 @@ const ObservabilitySetupChecklist: FC = () => {
         >
           <GalaxyFilamentWordmark size={28} />
           <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.CENTER} gap={4} fillWidth>
-            <Text size={TextSize.HEADING_SM}>Let's set up your first pipeline</Text>
+            <Text as="h1" size={TextSize.HEADING_SM}>
+              Let's set up your first pipeline
+            </Text>
             <Text variant={TextVariant.SECONDARY}>Three steps to start moving data.</Text>
           </Flex>
           <FlexItem fillWidth>
