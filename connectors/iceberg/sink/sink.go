@@ -21,6 +21,7 @@ import (
 const (
 	defaultStageBufLimitBytes = 256 << 20 // 256 MiB
 	defaultNamespace          = "default"
+	writeMergeModeKey         = "write.merge.mode"
 )
 
 type writeMode string

@@ -96,6 +96,8 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			"write.format.default":                       "parquet",
 			icetable.MetadataDeleteAfterCommitEnabledKey: "true",
 			icetable.ManifestMergeEnabledKey:             "true",
+			writeMergeModeKey:                            icetable.WriteModeMergeOnRead,
+			icetable.WriteDeleteModeKey:                  icetable.WriteModeMergeOnRead,
 		}),
 	}
 	if s.tableLocationRoot != "" {
