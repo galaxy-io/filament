@@ -19,7 +19,7 @@ import (
 func TestRunReplacesExecutableWithVerifiedRelease(t *testing.T) {
 	t.Parallel()
 	statuses := []string{}
-	archive := releaseArchive(t, []byte("new filament"))
+	archive := releaseArchive(t, "filament", []byte("new filament"))
 	digest := sha256.Sum256(archive)
 	archiveName := "filament_darwin_arm64.tar.gz"
 	client := testHTTPClient(func(request *http.Request) *http.Response {
@@ -95,7 +95,7 @@ func TestRunDoesNotReplaceCurrentRelease(t *testing.T) {
 
 func TestRunRejectsChecksumMismatchWithoutReplacingExecutable(t *testing.T) {
 	t.Parallel()
-	archive := releaseArchive(t, []byte("new filament"))
+	archive := releaseArchive(t, "filament", []byte("new filament"))
 	archiveName := "filament_linux_amd64.tar.gz"
 	client := testHTTPClient(func(request *http.Request) *http.Response {
 		switch request.URL.Path {
@@ -145,12 +145,44 @@ func TestRunRejectsHomebrewManagedExecutable(t *testing.T) {
 	}
 }
 
-func releaseArchive(t *testing.T, binary []byte) []byte {
+func TestInstallWritesTheVerifiedReleaseBinary(t *testing.T) {
+	t.Parallel()
+	archive := releaseArchive(t, "filament-standalone", []byte("engine"))
+	digest := sha256.Sum256(archive)
+	archiveName := "filament-standalone_linux_amd64.tar.gz"
+	client := testHTTPClient(func(request *http.Request) *http.Response {
+		switch request.URL.Path {
+		case "/download/v1.2.0/" + archiveName:
+			return testResponse(http.StatusOK, string(archive))
+		case "/download/v1.2.0/checksums.txt":
+			return testResponse(http.StatusOK, fmt.Sprintf("%s  %s\n", hex.EncodeToString(digest[:]), archiveName))
+		default:
+			return testResponse(http.StatusNotFound, "not found")
+		}
+	})
+	destination := filepath.Join(t.TempDir(), "engine", "1.2.0", "filament-standalone")
+	err := Install(context.Background(), InstallOptions{
+		Client: client, Version: "1.2.0", Binary: "filament-standalone", Destination: destination,
+		GOOS: "linux", GOARCH: "amd64", DownloadURL: "https://example.test/download",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(destination)
+	if err != nil || string(data) != "engine" {
+		t.Fatalf("installed = %q, %v", data, err)
+	}
+	if err := Install(context.Background(), InstallOptions{Client: client, Version: "dev", Binary: "filament-standalone", Destination: destination}); err == nil {
+		t.Fatal("installed a dev version")
+	}
+}
+
+func releaseArchive(t *testing.T, name string, binary []byte) []byte {
 	t.Helper()
 	var data bytes.Buffer
 	compressed := gzip.NewWriter(&data)
 	archive := tar.NewWriter(compressed)
-	if err := archive.WriteHeader(&tar.Header{Name: "filament", Mode: 0o755, Size: int64(len(binary)), Typeflag: tar.TypeReg}); err != nil {
+	if err := archive.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(binary)), Typeflag: tar.TypeReg}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := archive.Write(binary); err != nil {

@@ -11,10 +11,6 @@ import (
 )
 
 func (a *cliApp) discoverSource(ctx context.Context, args []string) error {
-	document, err := a.service.Configuration(ctx)
-	if err != nil {
-		return err
-	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -33,9 +29,9 @@ func (a *cliApp) discoverSource(ctx context.Context, args []string) error {
 		}
 		request.Config, _, err = configPatchFromAllFlags(schema, "source-", parsed.flags, allowed, true)
 	} else {
-		connection, ok := document.Sources[request.Source]
-		if !ok {
-			return fmt.Errorf("source %q does not exist", request.Source)
+		connection, lookupErr := a.service.Connection(ctx, "source", request.Source)
+		if lookupErr != nil {
+			return lookupErr
 		}
 		schema, schemaErr := a.catalog.ConnectionSchema("source", connection.Type)
 		if schemaErr != nil {
