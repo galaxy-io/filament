@@ -1,4 +1,4 @@
-import { type ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { GetResourceColumnsResponse, Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
@@ -17,6 +17,9 @@ import {
   getCursorOptions,
   getDefaultCursor,
   getDefaultReadMode,
+  getEffectiveColumnSelection,
+  getEffectivePartitionSelection,
+  getLockedColumnNames,
   getPipelineResourceStatus,
 } from "@/pages/pipelines/components/resource/utils";
 
@@ -57,6 +60,14 @@ const createResourceRows = ({
   const columnsByResource = new Map(
     (columns?.resources ?? []).map((entry) => [entry.resource, entry.columns]),
   );
+  const partitionsByResource = new Map(
+    (columns?.resources ?? []).map((entry) => [entry.resource, entry.partitions]),
+  );
+  const selectableResources = new Set(
+    (columns?.resources ?? [])
+      .filter((entry) => entry.selectableColumns)
+      .map((entry) => entry.resource),
+  );
 
   const managedResources = new Set(
     (columns?.resources ?? [])
@@ -88,6 +99,22 @@ const createResourceRows = ({
     const cursorField = managedIncremental
       ? ""
       : (state.resourceCursors[sinkId]?.[resource.name] ?? getDefaultCursor(resourceColumns ?? []));
+    const storedColumns = state.resourceColumns[sinkId]?.[resource.name];
+    const lockedColumns = getLockedColumnNames({
+      primaryKey: resource.primaryKey,
+      cursor: cursorField,
+      isCursorLocked: hasReadLevers && readMode === ReadMode.INCREMENTAL,
+    });
+    const selectedColumns = getEffectiveColumnSelection({
+      stored: storedColumns,
+      columns: resourceColumns,
+      locked: lockedColumns,
+    });
+    const partitions = partitionsByResource.get(resource.name) ?? [];
+    const selectedPartitions = getEffectivePartitionSelection({
+      stored: state.resourcePartitions[sinkId]?.[resource.name],
+      partitions,
+    });
 
     return {
       name: resource.name,
@@ -101,6 +128,12 @@ const createResourceRows = ({
       cursorField,
       cursorOptions,
       managedIncremental,
+      columns: resourceColumns ?? [],
+      selectedColumns,
+      lockedColumns,
+      isColumnSelectable: selectableResources.has(resource.name) || storedColumns !== undefined,
+      partitions,
+      selectedPartitions,
       status:
         !hasReadLevers || !isSelected
           ? undefined

@@ -13,6 +13,7 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/convert"
+	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -234,6 +235,9 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 			edgeError(ev, "write_mode", err.Error())
 			return nil
 		}
+		if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			writeMode = filament.DefaultWriteMode(readMode, snkSpec)
+		}
 		ev.EffectiveReadMode = convert.ReadModeToProto(readMode)
 		ev.EffectiveWriteMode = convert.WriteModeToProto(writeMode)
 		supportedReadModes = supportedReadModesFor(srcSpec)
@@ -256,8 +260,144 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 	}
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
+	validateEdgeSelections(ctx, edge, from, *srcConn, srcSpec, chosen, probes, ev)
 	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
 	return nil
+}
+
+// validateEdgeSelections checks the edge's column and partition selections
+// against the read the chosen ingestion type performs.
+func validateEdgeSelections(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, chosen filament.IngestionType, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	incremental := filament.SourcePolicyForIngestion(chosen).Mode == filament.ModeIncremental
+	validateEdgeColumns(ctx, edge, from, srcConn, srcSpec, incremental, probes, ev)
+	validateEdgePartitions(ctx, edge, from, srcConn, incremental, probes, ev)
+}
+
+// validateEdgeColumns checks each column selection against the live schema:
+// the source must support selection, every column must exist, and the primary
+// key and the cursor an incremental read will use, configured or
+// auto-detected, must stay selected.
+func validateEdgeColumns(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, srcSpec filament.ConnectorSpec, needsCursor bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	if len(edge.GetColumns()) == 0 {
+		return
+	}
+	if !srcSpec.Resources.SelectableColumns {
+		edgeError(ev, "columns", fmt.Sprintf("connector %q does not support column selection", srcConn.Connector))
+		return
+	}
+	cursors := map[string]string{}
+	for _, cursor := range edge.GetCursors() {
+		cursors[cursor.GetResource()] = cursor.GetField()
+	}
+	seen := make(map[string]bool, len(edge.GetColumns()))
+	for _, selection := range edge.GetColumns() {
+		resource := selection.GetResource()
+		if seen[resource] {
+			edgeError(ev, "columns", fmt.Sprintf("duplicate column selection for resource %q", resource))
+			continue
+		}
+		seen[resource] = true
+		inspection, err := probes.resource(ctx, from, srcConn, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			return
+		}
+		switch {
+		case inspection.Status == filament.InspectFailed:
+			edgeError(ev, "columns", inspection.Message)
+			continue
+		case inspection.Schema == nil:
+			edgeError(ev, "columns", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
+			return
+		}
+		selected := map[string]bool{}
+		for _, name := range selection.GetColumns() {
+			selected[name] = true
+			if !slices.ContainsFunc(inspection.Schema.Fields, func(f rowmodel.Field) bool { return f.Name == name }) {
+				edgeError(ev, "columns", fmt.Sprintf("resource %q has no column %q", resource, name))
+			}
+		}
+		for _, key := range inspection.PrimaryKey {
+			if !selected[key] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep primary key column %q", resource, key))
+			}
+		}
+		if field := cursors[resource]; field != "" {
+			if !selected[field] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep cursor column %q", resource, field))
+			}
+			continue
+		}
+		if !needsCursor || inspection.ManagedIncremental {
+			continue
+		}
+		for _, column := range inspection.Columns {
+			if column.Recommended && !selected[column.Name] {
+				edgeError(ev, "columns", fmt.Sprintf("column selection for %q must keep auto-detected cursor column %q", resource, column.Name))
+				break
+			}
+		}
+	}
+}
+
+// validateEdgePartitions checks each partition selection against the
+// resource's live partitions. A selection narrows what a full read backfills,
+// so an incremental read, which reads whatever moved past its cursor, rejects
+// one.
+func validateEdgePartitions(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, incremental bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+	if len(edge.GetPartitions()) == 0 {
+		return
+	}
+	if incremental {
+		edgeError(ev, "partitions", "partition selection applies to full reads and change streams, not incremental reads")
+		return
+	}
+	seen := make(map[string]bool, len(edge.GetPartitions()))
+	for _, selection := range edge.GetPartitions() {
+		resource := selection.GetResource()
+		if seen[resource] {
+			edgeError(ev, "partitions", fmt.Sprintf("duplicate partition selection for resource %q", resource))
+			continue
+		}
+		seen[resource] = true
+		inspection, err := probes.resource(ctx, from, srcConn, resource)
+		if err != nil {
+			edgeError(ev, "from_node", fmt.Sprintf("could not inspect source: %v", err))
+			return
+		}
+		if inspection.Status == filament.InspectFailed {
+			edgeError(ev, "partitions", inspection.Message)
+			continue
+		}
+		if len(inspection.Partitions) == 0 {
+			edgeError(ev, "partitions", fmt.Sprintf("resource %q is not partitioned", resource))
+			continue
+		}
+		for _, name := range selection.GetPartitions() {
+			if !slices.Contains(inspection.Partitions, name) {
+				edgeError(ev, "partitions", fmt.Sprintf("resource %q has no partition %q", resource, name))
+			}
+		}
+	}
+}
+
+// selectedSchema narrows a resource schema to an edge's column selection, so
+// transforms are checked against the columns the run will read.
+func selectedSchema(edge *ingestionv1.PipelineEdge, resource string, schema filament.RecordSchema) filament.RecordSchema {
+	for _, selection := range edge.GetColumns() {
+		if selection.GetResource() != resource {
+			continue
+		}
+		out := schema.Clone()
+		out.Fields = out.Fields[:0]
+		for _, field := range schema.Fields {
+			if slices.Contains(selection.GetColumns(), field.Name) {
+				out.Fields = append(out.Fields, field)
+			}
+		}
+		return out
+	}
+	return schema
 }
 
 // validateEdgeTransform compiles the edge's transform against the schema of
@@ -300,7 +440,7 @@ func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, 
 			edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
 			return
 		}
-		if _, _, err := transform.Analyze(def, *inspection.Schema); err != nil {
+		if _, _, err := transform.Analyze(def, selectedSchema(edge, resource, *inspection.Schema)); err != nil {
 			transformErrors(ev, err)
 		}
 	}
@@ -551,18 +691,26 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 		}
 		return err
 	}
+	// A run rejects a node that sets config or secret refs when the schema is
+	// unavailable, so report that here rather than calling the node valid.
+	unavailable := func(err error) error {
+		if len(node.GetSecretRefs()) > 0 || len(node.GetConfig().GetFields()) > 0 {
+			resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: connector schema unavailable: %s", node.GetId(), err.Error())})
+		}
+		return nil
+	}
 	var schema filament.ConfigSchema
 	switch conn.Kind {
 	case filament.ConnectorKindSource:
 		spec, err := a.worker.SourceSpec(ctx, conn.Connector)
 		if err != nil {
-			return nil
+			return unavailable(err)
 		}
 		schema = spec.Config
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {
-			return nil
+			return unavailable(err)
 		}
 		schema = spec.Config
 	default:
@@ -575,6 +723,9 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 			validationErr.Field = fieldErr.Field
 		}
 		resp.Errors = append(resp.Errors, validationErr)
+	}
+	if err := compile.ValidateOverlaySecretRefs(schema, node.GetSecretRefs()); err != nil {
+		resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: %s", node.GetId(), err.Error())})
 	}
 	return nil
 }
@@ -690,8 +841,11 @@ func (p *nodeInspections) resource(ctx context.Context, node *ingestionv1.Pipeli
 }
 
 func (p *nodeInspections) inspect(ctx context.Context, node *ingestionv1.PipelineNode, conn filament.Connection, resources []string) ([]filament.Inspection, error) {
-	config := compile.MergeConfig(conn.Config, convert.StructMap(node.GetConfig()))
-	if err := p.server.resolveConnectionSecrets(ctx, conn, config); err != nil {
+	// Resolve the node's config against the saved connection as the connector
+	// RPCs do.
+	// Inspection only ever runs against sources.
+	config, err := p.server.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, convert.StructMap(node.GetConfig()))
+	if err != nil {
 		return nil, err
 	}
 	return p.server.worker.Inspect(ctx, conn.Connector, filament.NewConfig(config), resources)
@@ -733,6 +887,8 @@ func (a *Server) validateContinuousEdge(ctx context.Context, edge *ingestionv1.P
 	if compile.HasTransform(edge) {
 		edgeError(ev, "transform", "continuous execution does not apply transforms")
 	}
+	validateEdgeColumns(ctx, edge, from, *srcConn, srcSpec, false, probes, ev)
+	validateEdgePartitions(ctx, edge, from, *srcConn, false, probes, ev)
 	var resources []string
 	if edge.Resource != "" {
 		resources = []string{edge.Resource}

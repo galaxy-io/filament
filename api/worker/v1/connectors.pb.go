@@ -581,6 +581,7 @@ type ResourceCapabilities struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	Discoverable      bool                   `protobuf:"varint,1,opt,name=discoverable,proto3" json:"discoverable,omitempty"`
 	PerResourceCursor bool                   `protobuf:"varint,2,opt,name=per_resource_cursor,json=perResourceCursor,proto3" json:"per_resource_cursor,omitempty"`
+	SelectableColumns bool                   `protobuf:"varint,3,opt,name=selectable_columns,json=selectableColumns,proto3" json:"selectable_columns,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -625,6 +626,13 @@ func (x *ResourceCapabilities) GetDiscoverable() bool {
 func (x *ResourceCapabilities) GetPerResourceCursor() bool {
 	if x != nil {
 		return x.PerResourceCursor
+	}
+	return false
+}
+
+func (x *ResourceCapabilities) GetSelectableColumns() bool {
+	if x != nil {
+		return x.SelectableColumns
 	}
 	return false
 }
@@ -1220,10 +1228,11 @@ const file_worker_v1_connectors_proto_rawDesc = "" +
 	"\temits_ops\x18\x01 \x03(\x0e2\x14.worker.v1.OperationR\bemitsOps\x12/\n" +
 	"\x05input\x18\x02 \x01(\x0e2\x19.worker.v1.InputSemanticsR\x05input\x12/\n" +
 	"\bordering\x18\x03 \x03(\x0e2\x13.worker.v1.OrderingR\bordering\x128\n" +
-	"\bdelivery\x18\x04 \x01(\x0e2\x1c.worker.v1.DeliveryGuaranteeR\bdelivery\"j\n" +
+	"\bdelivery\x18\x04 \x01(\x0e2\x1c.worker.v1.DeliveryGuaranteeR\bdelivery\"\x99\x01\n" +
 	"\x14ResourceCapabilities\x12\"\n" +
 	"\fdiscoverable\x18\x01 \x01(\bR\fdiscoverable\x12.\n" +
-	"\x13per_resource_cursor\x18\x02 \x01(\bR\x11perResourceCursor\"\xb8\x02\n" +
+	"\x13per_resource_cursor\x18\x02 \x01(\bR\x11perResourceCursor\x12-\n" +
+	"\x12selectable_columns\x18\x03 \x01(\bR\x11selectableColumns\"\xb8\x02\n" +
 	"\x15WritePolicyCapability\x12+\n" +
 	"\x04mode\x18\x01 \x01(\x0e2\x17.ingestion.v1.WriteModeR\x04mode\x12\x1f\n" +
 	"\vrequires_pk\x18\x02 \x01(\bR\n" +

@@ -100,6 +100,15 @@ message RunPipelineRequest {
   // is stamped onto each run, so editing the pipeline afterwards cannot change
   // a run already requested.
   WorkerConfiguration worker_configuration = 4;
+  // resync_resources names resources read from the beginning again by the
+  // runs this call produces. A bounded run forgets their checkpoints first. A
+  // live continuous run drains and hands over to a successor that snapshots
+  // them again on the same stream.
+  repeated string resync_resources = 5;
+  // resources limits a bounded run to these routed resources. Empty runs every
+  // routed resource. A continuous run, or a change-stream route named in part,
+  // always runs all of its resources, so such a subset is rejected.
+  repeated string resources = 6;
 }
 
 // PipelineEdgeRun ties one compiled pipeline edge to the run it produced.
@@ -149,6 +158,8 @@ message RunInfo {
   ExecutionMode execution_mode = 19;
   // Present for continuous runs. records/bytes above reflect committed progress.
   ExecutionStatus execution_status = 20;
+  // resources this run reads. Empty means every resource its route selects.
+  repeated string resources = 21;
 }
 
 message RunSnapshot {

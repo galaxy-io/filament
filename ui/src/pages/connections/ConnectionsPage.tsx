@@ -40,6 +40,7 @@ import {
   createListConnectionsInput,
   useSuspenseListConnectionsInfiniteQuery,
 } from "@/api/queries/connections";
+import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 interface ConnectionsPageProps {
   kind: ConnectorKind.SOURCE | ConnectorKind.SINK;
@@ -59,7 +60,7 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
   const createTitle = CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind];
 
   const handleOpenCreateConnectorModal = () => {
-    openFlow(Flow.CREATE_CONNECTION, kind);
+    openFlow(Flow.CREATE_CONNECTION, { connectorKind: kind });
   };
 
   const { data, hasNextPage, isFetchingNextPage, fetchNextPage } =
@@ -67,6 +68,17 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
   const kindConnections = useMemo(
     () => data.pages.flatMap((page) => page.connections),
     [data.pages],
+  );
+  const { data: catalog } = useListConnectorsQuery();
+  const previewByConnector = useMemo(
+    () =>
+      new Map(
+        catalog?.connectors.map((connector) => [
+          `${connector.kind}:${connector.name}`,
+          connector.isPreview,
+        ]) ?? [],
+      ),
+    [catalog?.connectors],
   );
   const endRef = useEndReached({
     onEndReached: hasNextPage ? () => void fetchNextPage() : undefined,
@@ -139,6 +151,9 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
               <ConnectionCard
                 key={connection.id}
                 connection={connection}
+                isPreview={
+                  previewByConnector.get(`${connection.kind}:${connection.connector}`) ?? false
+                }
                 pipelineCount={
                   hasPipelineCounts
                     ? (pipelineCountsByConnectionId.get(connection.id) ?? 0)

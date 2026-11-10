@@ -4,7 +4,7 @@ import { styled } from "@linaria/react";
 
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
-import { usePipelineCanvasIsRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsRunning";
+import { usePipelineCanvasActiveRuns } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasActiveRuns";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { PIPELINE_CANVAS_ROUTES_ROW_MIN_WIDTH } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoutesDraftState } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesDraft";
@@ -18,6 +18,7 @@ import {
   PipelineCanvasRoutesListItemKind,
 } from "@/pages/pipelines/canvas/routes/types";
 import { getPipelineCanvasRoutesListItems } from "@/pages/pipelines/canvas/routes/utils";
+import { isPipelineCanvasRouteRunning } from "@/pages/pipelines/canvas/utils";
 
 const ListFrame = styled.div`
   flex: 1;
@@ -54,7 +55,7 @@ const PipelineCanvasRoutesList: FC<PipelineCanvasRoutesListProps> = ({
 }) => {
   const { selectedNodeId, selectedResourceId, selectResource, clearSelection } =
     usePipelineCanvasSelection();
-  const isRunning = usePipelineCanvasIsRunning();
+  const runs = usePipelineCanvasActiveRuns();
 
   const items = useMemo(
     () => getPipelineCanvasRoutesListItems(routes, draftState.draft, draftState.resource),
@@ -94,7 +95,12 @@ const PipelineCanvasRoutesList: FC<PipelineCanvasRoutesListProps> = ({
         route={route}
         isSelected={route.edge.id === selectedResourceId}
         isGroupSelected={route.groupKey === selectedGroupKey}
-        isRunning={isRunning}
+        isRunning={isPipelineCanvasRouteRunning(
+          runs,
+          route.sourceConnection?.id,
+          route.sinkConnection?.id,
+          route.resource,
+        )}
         onSelect={selectResource}
         onAddSink={route.groupSize < draftState.sinkCount ? onAddSink : undefined}
       />

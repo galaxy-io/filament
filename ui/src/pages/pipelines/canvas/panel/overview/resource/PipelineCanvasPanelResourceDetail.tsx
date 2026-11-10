@@ -1,4 +1,4 @@
-import { type FC, Suspense } from "react";
+import { type FC, Suspense, useMemo } from "react";
 
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { CatchBoundary } from "@tanstack/react-router";
@@ -14,16 +14,19 @@ import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 
+import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import PipelineCanvasPanelResourceColumnsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceColumnsSection";
 import PipelineCanvasPanelResourceCursorField from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceCursorField";
 import PipelineCanvasPanelResourceEndpoint from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceEndpoint";
+import PipelineCanvasPanelResourcePartitionsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourcePartitionsSection";
 import PipelineCanvasPanelResourceTransformSection from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSection";
 import PipelineCanvasPanelResourceTransformSectionError from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionError";
 import PipelineCanvasPanelResourceTransformSectionPending from "@/pages/pipelines/canvas/panel/overview/resource/transform/PipelineCanvasPanelResourceTransformSectionPending";
@@ -36,9 +39,17 @@ import {
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
 import {
   getDefaultDestinationResource,
+  getEdgeFieldError,
   getEdgeResourceStatus,
 } from "@/pages/pipelines/canvas/utils";
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
+import {
+  createResourceColumnSelections,
+  createResourcePartitionSelections,
+  getEffectiveColumnSelection,
+  getEffectivePartitionSelection,
+  getLockedColumnNames,
+} from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsProvider from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformDefinition } from "@/pages/pipelines/components/transform/types";
 
@@ -75,6 +86,8 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     cursorOptions,
     defaultCursor,
     isManagedIncremental,
+    isColumnSelectable,
+    partitions,
   } = options;
 
   const {
@@ -112,6 +125,57 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     });
   const handleDestinationChange = (value: string) =>
     setEdgeConfig(edge.id, { readMode, writeMode, cursors, destinationResource: value });
+
+  const selection = edge.data?.columns?.find((candidate) => candidate.resource === resource);
+  const lockedColumnNames = useMemo(
+    () =>
+      getLockedColumnNames({
+        primaryKey: (columns ?? NO_COLUMNS)
+          .filter((column) => column.isPrimaryKey)
+          .map((column) => column.name),
+        cursor: cursor || defaultCursor,
+        isCursorLocked: hasReadLevers && readMode === ReadMode.INCREMENTAL && !isManagedIncremental,
+      }),
+    [columns, cursor, defaultCursor, hasReadLevers, readMode, isManagedIncremental],
+  );
+  const selectedColumnNames = useMemo(
+    () =>
+      getEffectiveColumnSelection({
+        stored: selection?.columns,
+        columns,
+        locked: lockedColumnNames,
+      }),
+    [selection, columns, lockedColumnNames],
+  );
+  const selectedColumns = useMemo(
+    () => (columns ?? NO_COLUMNS).filter((column) => selectedColumnNames.includes(column.name)),
+    [columns, selectedColumnNames],
+  );
+  const columnsError = getEdgeFieldError(verdict, PipelineResourceStatusField.COLUMNS);
+  const handleColumnsChange = (next: ResourceColumn["name"][]) =>
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      columns: createResourceColumnSelections({
+        resource,
+        selected: next,
+        columns: columns ?? NO_COLUMNS,
+      }),
+    });
+
+  const selectedPartitions = getEffectivePartitionSelection({
+    stored: edge.data?.partitions?.find((candidate) => candidate.resource === resource)?.partitions,
+    partitions,
+  });
+  const partitionsError = getEdgeFieldError(verdict, PipelineResourceStatusField.PARTITIONS);
+  const handlePartitionsChange = (next: ResourceColumns["partitions"]) =>
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      partitions: createResourcePartitionSelections({ resource, selected: next, partitions }),
+    });
 
   return (
     <>
@@ -189,6 +253,19 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     fillWidth
                   />
                 )}
+                {hasReadLevers &&
+                  readMode === ReadMode.INCREMENTAL &&
+                  (isManagedIncremental ? (
+                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
+                  ) : (
+                    <PipelineCanvasPanelResourceCursorField
+                      value={cursor ?? ""}
+                      options={cursorOptions}
+                      isDisabled={isReadOnly || isLoading}
+                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
+                      onChange={handleCursorChange}
+                    />
+                  ))}
                 <SelectInput
                   label="Write mode"
                   options={writeModeSelectOptions}
@@ -198,7 +275,10 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   }}
                   placeholder="Select a write mode..."
                   isDisabled={isReadOnly || isLoading}
-                  error={getFieldError(PipelineResourceStatusField.WRITE_MODE)}
+                  error={
+                    getFieldError(PipelineResourceStatusField.WRITE_MODE) ??
+                    getEdgeFieldError(verdict, PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD)
+                  }
                   variant={SelectInputVariant.TERTIARY}
                   fillWidth
                 />
@@ -213,21 +293,27 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     fillWidth
                   />
                 )}
-                {hasReadLevers &&
-                  readMode === ReadMode.INCREMENTAL &&
-                  (isManagedIncremental ? (
-                    <Text size={TextSize.BODY_SM}>Incremental state is managed by the source.</Text>
-                  ) : (
-                    <PipelineCanvasPanelResourceCursorField
-                      value={cursor ?? ""}
-                      options={cursorOptions}
-                      isDisabled={isReadOnly || isLoading}
-                      error={getFieldError(PipelineResourceStatusField.CURSOR)}
-                      onChange={handleCursorChange}
-                    />
-                  ))}
               </Flex>
             </PipelineCanvasPanelSection>
+            {isColumnSelectable && (
+              <PipelineCanvasPanelResourceColumnsSection
+                columns={columns ?? NO_COLUMNS}
+                selected={selectedColumnNames}
+                locked={lockedColumnNames}
+                isDisabled={isReadOnly || isLoading}
+                error={columnsError}
+                onChange={handleColumnsChange}
+              />
+            )}
+            {partitions.length > 0 && (
+              <PipelineCanvasPanelResourcePartitionsSection
+                partitions={partitions}
+                selected={selectedPartitions}
+                isDisabled={isReadOnly || isLoading}
+                error={partitionsError}
+                onChange={handlePartitionsChange}
+              />
+            )}
             {isTransformable &&
               (isLoadingColumns ? (
                 <PipelineCanvasPanelResourceTransformSectionPending />
@@ -241,7 +327,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                       definition={edge.data?.transform}
                       onChange={handleTransformChange}
                       resource={resource}
-                      columns={columns ?? NO_COLUMNS}
+                      columns={selectedColumns}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >

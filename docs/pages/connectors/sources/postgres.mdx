@@ -10,7 +10,7 @@ Connector ID `postgres`
 The PostgreSQL source supports full snapshots, timestamp-based incremental
 reads, and logical-replication CDC. Full reads of tables with primary keys can
 resume from checkpoints. Keyless tables can be read in full, but an interrupted
-read starts that table again. The connector is beta.
+read starts that table again.
 
 ## Configuration
 
@@ -31,8 +31,8 @@ read starts that table again. The connector is beta.
 | `max_conns` | Pipeline | pgx default | Maximum source connections. Set to at least the run's parallelism + 1. |
 | `scan_strategy` | Pipeline | `keyset` | One of `auto`, `keyset`, `bitmap`, `ctid`. See below. |
 | `encoding` | Pipeline | `native` | `native` (typed binary columns, JSON assembled client-side) or `jsonb` (server-side `to_jsonb`). |
-| `publication` | Connection | `filament` | CDC only. Publication name. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `manage_publication` | Connection | `true` | CDC only. Set `false` when an administrator provisions the publication. |
+| `publication` | Connection | | CDC only. The publication an administrator provisioned. Applies when `manage_publication` is `false`. Must match `^[a-z_][a-z0-9_]{0,62}$`. |
 | `snapshot_mode` | Pipeline | `initial` | CDC only. `initial` reads a table in full before streaming it. Applies to bounded and continuous execution. |
 
 ## Read strategies
@@ -108,10 +108,20 @@ CDC when deletes must be replicated.
 CDC streams `pgoutput` over a persistent logical replication slot generated
 for each durable pipeline route. The slot name is managed by Filament and is
 not user configuration. CDC requires `wal_level=logical` and a primary key on
-every selected table. By
-default the connector creates the publication and keeps its table list
-current with `publish = 'insert, update, delete'`. Set
-`manage_publication=false` when an administrator provisions it.
+every selected table. By default the connector creates one publication per
+route, named after the route's slot, and keeps its table list current with
+`publish = 'insert, update, delete'`. The publication is dropped with the slot
+when the route retires. Set `manage_publication=false` and name the
+`publication` when an administrator provisions one instead.
+
+A resource with a column selection reads only those columns in every mode.
+The selection must keep the primary key and any cursor column. On PostgreSQL
+15 and later a managed publication carries the selection as a column list,
+so the replication stream skips the unselected columns. A table with
+`REPLICA IDENTITY FULL`, or an identity index the selection does not fully
+cover, cannot take a column list, so its publication stays whole and the
+connector drops the unselected columns as it decodes. An administrator's
+publication must publish every column the pipeline reads.
 
 CDC pipeline runs also require a datastore with durable replication-stream
 admission. The PostgreSQL datastore provides it; the in-memory datastore does
@@ -185,6 +195,39 @@ repeat after a failure between destination success and checkpoint persistence.
   - `TRUNCATE` of a tracked table fails the run.
   - An update carrying an unchanged TOAST column with no old value is an
     error. Set `REPLICA IDENTITY FULL` on that table.
+</Warning>
+
+## Partitioned tables
+
+A partitioned table is one resource. Discovery lists the parent and hides its
+partitions, and every read emits rows under the parent's name. A full read
+scans each leaf partition, including the leaves of sub-partitions. The `ctid`
+strategy reads a keyed partitioned table in key order instead, since its
+storage is split across partitions. A keyless partitioned table reads by ctid
+under every strategy.
+
+A resource may select which partitions to backfill. A full read, and the
+initial snapshot of a CDC stream, then read only those partitions. The change
+stream still carries every partition, including partitions created later, so a
+row changed in an unselected partition reaches the sink without a backfill.
+Deselect every partition to skip the backfill and stream changes only.
+A full read with a partition selection is not resumable and repeats in full
+after an interruption. Incremental reads do not accept a partition selection.
+
+CDC on a partitioned table needs PostgreSQL 13 or later. A managed publication
+sets `publish_via_partition_root`, so changes arrive under the parent's name.
+An administrator's publication must set it too. Each leaf partition's own
+replica identity applies, so a leaf with `REPLICA IDENTITY FULL` keeps the
+publication whole.
+
+<Warning>
+  Partition maintenance bypasses the change stream in these cases.
+
+  - `ATTACH PARTITION` of a table that already holds rows adds them without
+    WAL inserts. Resync the resource to read them.
+  - `DETACH PARTITION` removes rows without WAL deletes.
+  - A foreign table partition has no WAL and cannot be read by ctid, so a full
+    read or snapshot that includes one fails.
 </Warning>
 
 ## Keyless tables

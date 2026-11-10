@@ -3,6 +3,7 @@ package compile
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -24,8 +25,18 @@ type routeGroup struct {
 	resources     map[string]bool
 	selectors     map[string]bool
 	cursorConfigs map[string]filament.ResourceCursorConfig
-	transforms    map[string]any // resource → steps, merged across the route's edges
+	columns       map[string][]string // resource → selected source columns
+	partitions    map[string][]string // resource → partitions to backfill
+	transforms    map[string]any      // resource → steps, merged across the route's edges
 	destinations  map[string]string
+}
+
+// selectEdges keeps the edges that read one of resources. An edge with no
+// resource reads everything, so a subset run leaves it out.
+func selectEdges(edges []*ingestionv1.PipelineEdge, resources []string) []*ingestionv1.PipelineEdge {
+	return slices.DeleteFunc(slices.Clone(edges), func(edge *ingestionv1.PipelineEdge) bool {
+		return !slices.Contains(resources, edge.GetResource())
+	})
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
@@ -66,6 +77,8 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				resources:     map[string]bool{},
 				selectors:     map[string]bool{},
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
+				columns:       map[string][]string{},
+				partitions:    map[string][]string{},
 				transforms:    map[string]any{},
 				destinations:  map[string]string{},
 			}
@@ -78,6 +91,21 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				return nil, fmt.Errorf("%w: conflicting cursor configuration for resource %q", ErrInvalid, cursor.GetResource())
 			}
 			group.cursorConfigs[cursor.GetResource()] = config
+		}
+		for _, selection := range edge.GetColumns() {
+			columns := slices.Sorted(slices.Values(selection.GetColumns()))
+			if previous, exists := group.columns[selection.GetResource()]; exists && !slices.Equal(previous, columns) {
+				return nil, fmt.Errorf("%w: conflicting column selection for resource %q", ErrInvalid, selection.GetResource())
+			}
+			group.columns[selection.GetResource()] = columns
+		}
+		for _, selection := range edge.GetPartitions() {
+			// An empty selection backfills no partition, so it stays distinct from none.
+			partitions := append([]string{}, slices.Sorted(slices.Values(selection.GetPartitions()))...)
+			if previous, exists := group.partitions[selection.GetResource()]; exists && !slices.Equal(previous, partitions) {
+				return nil, fmt.Errorf("%w: conflicting partition selection for resource %q", ErrInvalid, selection.GetResource())
+			}
+			group.partitions[selection.GetResource()] = partitions
 		}
 		resource := edge.GetResource()
 		if err := mergeTransform(group, edge); err != nil {

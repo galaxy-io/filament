@@ -31,6 +31,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
+	"github.com/galaxy-io/filament/version"
 )
 
 func main() {
@@ -97,6 +98,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 		},
 	)
 	healthState.Mount(mux)
+	mux.Handle("/version", version.Handler())
 	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()

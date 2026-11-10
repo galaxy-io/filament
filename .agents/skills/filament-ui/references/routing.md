@@ -104,14 +104,17 @@ There are **no loaders for page data**. The standalone's auth gates in `beforeLo
 Schemas live in `module/schemas.ts`.
 
 ```ts
-export const observabilitySearchSchema = listSearchParamsSchema
-  .pick({ sortBy: true, sortOrder: true })
-  .extend({
-    timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
-    statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-    runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-    runsStatus: z.enum(RunStatus).optional().catch(undefined),
-  });
+export const observabilitySearchSchema = z.object({
+  timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
+  refreshInterval: z.enum(ObservabilityRefreshInterval).optional().catch(undefined),
+  runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
+  throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
+  throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
+  usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
+  usagePivot: z.enum(MetricDimension).optional().catch(undefined),
+  statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
+  pipelinesPage: z.coerce.number().int().positive().optional().catch(undefined),
+});
 ```
 
 - **Every field is `.optional().catch(undefined)`.** Garbage in the URL becomes `undefined`, never a crash.
@@ -147,7 +150,7 @@ export const useObservabilitySearch = () =>
 
 | Hook | Reads |
 |---|---|
-| `useFilamentLayoutSearch` | the overlay params (`flow`, `connectionId`, `connectorKind`, `connector`, `connectorSearch`) |
+| `useFilamentLayoutSearch` | the overlay params (`flow`, `connectionId`, `pipelineId`, `connectorKind`, `connector`, `connectorSearch`) |
 | `useListSearch`, `usePipelinesSearch`, `useConnectionsSearch` | list params |
 | `useObservabilitySearch` | dashboard view state, with defaults applied |
 | `usePipelineSearch`, `usePipelineCanvasSearch`, `usePipelineHistorySearch` | `version`, the canvas selection, expanded runs |
@@ -167,7 +170,7 @@ void navigate({ to: FilamentPath.PIPELINE_HISTORY, params: { id }, search: { run
 ```
 
 - **`useFilamentSearchUpdate`** writes search on the current route. Always the functional form that spreads `prev`, so a write never drops params it does not own.
-- **`useFilamentNavigate`** navigates from the mount base to a `FilamentPath`. `useFilamentFlowOpen` opens a `Flow` from anywhere, clearing `connectionId`.
+- **`useFilamentNavigate`** navigates from the mount base to a `FilamentPath`. `useFilamentFlowOpen(flow, { connectorKind, pipelineId })` opens a `Flow` from anywhere, clearing `connectionId` and replacing the flow's record params.
 - **`useFilamentMatchRoute`** tells a nav item whether it is active.
 - **Links** use `createFilamentHref(path, params)` with `as={RouterLink}` on DLS components. `RouterLink` (`components/RouterLink.tsx`) adapts `Link` so DLS buttons and tabs take an `href`.
 - **`replace: true` for view state** (search text, sort, expansion, canvas selection) and for closing overlays. Push for navigation the user would want to return to.
@@ -202,6 +205,7 @@ Overlays that open from anywhere are search params on the layout route, rendered
 | `flow=CREATE_CONNECTION` (+ `connectorKind`, `connector`, `connectorSearch`) | the create-connection modal |
 | `flow=EDIT_CONNECTION` + `connectionId` | the edit-connection modal over the drawer |
 | `flow=CREATE_PIPELINE` | the create-pipeline modal |
+| `flow=RUN_PIPELINE` + `pipelineId` | the run modal (custom worker configuration, a resource subset and resyncs) |
 
 ```tsx
 <ConnectionDrawer connectionId={connectionId} isOpen={!!connectionId} onClose={handleCloseDrawer} />

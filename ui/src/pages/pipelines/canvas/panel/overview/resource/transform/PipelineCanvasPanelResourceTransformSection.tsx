@@ -21,7 +21,7 @@ const PipelineCanvasPanelResourceTransformSection: FC = () => {
   const { steps, draft } = usePipelineTransformFieldsState();
   const { openNew } = usePipelineTransformFieldsActions();
   const { isReadOnly } = usePipelineTransformFieldsEnvironment();
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
   const hasContent = draft !== null || steps.length > 0;
 
   return (

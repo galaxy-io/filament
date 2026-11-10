@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/galaxy-io/filament/cmd/internal/version"
+	"github.com/galaxy-io/filament/version"
 )
 
 func (a *cliApp) versionCommand() *cobra.Command {

@@ -30,6 +30,7 @@ interface PipelineCanvasNodeSourceIslandProps {
   error?: Error | null;
   isLoading?: boolean;
   isSelected?: boolean;
+  isRunning?: boolean;
 }
 
 interface PipelineCanvasNodeSourceIslandState {
@@ -45,6 +46,7 @@ const PipelineCanvasNodeSourceIsland: FC<PipelineCanvasNodeSourceIslandProps> = 
   error,
   isLoading = false,
   isSelected,
+  isRunning,
 }) => {
   const [state, setState] = useState<PipelineCanvasNodeSourceIslandState>(DEFAULT_STATE);
 
@@ -67,7 +69,7 @@ const PipelineCanvasNodeSourceIsland: FC<PipelineCanvasNodeSourceIslandProps> = 
   };
 
   return (
-    <IslandWrapper $isSelected={isSelected}>
+    <IslandWrapper $isSelected={isSelected} $isRunning={isRunning}>
       <Flex
         alignItems={AlignItems.CENTER}
         gap={8}

@@ -29,7 +29,7 @@ func SourceToProto(spec filament.ConnectorSpec) *workerv1.Source {
 	out := &workerv1.Source{
 		Spec:      SourceSpecToProto(spec),
 		Policies:  sourcePoliciesToProto(spec.SourcePolicies),
-		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor},
+		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor, SelectableColumns: spec.Resources.SelectableColumns},
 	}
 	for _, mode := range spec.Modes {
 		out.ReadModes = append(out.ReadModes, ReadModeToProto(mode))
@@ -64,6 +64,7 @@ func SourceFromProto(source *workerv1.Source) (filament.ConnectorSpec, error) {
 	spec.Resources = filament.ResourceCapabilities{
 		Discoverable:      source.GetResources().GetDiscoverable(),
 		PerResourceCursor: source.GetResources().GetPerResourceCursor(),
+		SelectableColumns: source.GetResources().GetSelectableColumns(),
 	}
 	if stream := source.GetStream(); stream != nil {
 		caps := &filament.StreamCapabilities{}
@@ -224,6 +225,7 @@ func InspectionsToProto(inspections []filament.Inspection) []*workerv1.Inspectio
 			Ranked:             inspection.Ranked,
 			ManagedIncremental: inspection.ManagedIncremental,
 			Schema:             schemaToProto(inspection.Schema),
+			Partitions:         inspection.Partitions,
 		})
 	}
 	return out
@@ -246,6 +248,7 @@ func InspectionsFromProto(inspections []*workerv1.Inspection) ([]filament.Inspec
 			Ranked:             inspection.GetRanked(),
 			ManagedIncremental: inspection.GetManagedIncremental(),
 			Schema:             schemaFromProto(inspection.GetName(), inspection.GetSchema()),
+			Partitions:         inspection.GetPartitions(),
 		})
 	}
 	return out, nil

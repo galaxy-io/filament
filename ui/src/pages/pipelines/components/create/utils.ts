@@ -18,6 +18,8 @@ export const createInitialCreatePipelineModalState = (): CreatePipelineModalStat
   resourceSelection: {},
   resourceReadModes: {},
   resourceCursors: {},
+  resourceColumns: {},
+  resourcePartitions: {},
   resourceWriteModes: {},
   sinkWriteModes: {},
   nodeConfigs: {},
@@ -26,7 +28,6 @@ export const createInitialCreatePipelineModalState = (): CreatePipelineModalStat
   description: "",
   schedule: {
     ...PIPELINE_SCHEDULE_DEFAULT_STATE,
-    isEnabled: true,
     cron: CREATE_PIPELINE_MODAL_DEFAULT_CRON,
   },
   notifiers: [],

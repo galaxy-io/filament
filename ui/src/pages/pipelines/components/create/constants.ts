@@ -5,8 +5,6 @@ import { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb
 
 import { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
 
-export const CREATE_PIPELINE_MODAL_SIDEBAR_WIDTH = 240;
-
 export const CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT = 4;
 export const CREATE_PIPELINE_MODAL_CONNECTION_ROW_HEIGHT = 40;
 export const CREATE_PIPELINE_MODAL_CONNECTION_CARET_WIDTH = 12;
@@ -14,6 +12,11 @@ export const CREATE_PIPELINE_MODAL_CONNECTION_CARET_WIDTH = 12;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_READ_MODE = 180;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_CURSOR = 180;
 export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_WRITE_MODE = 160;
+export const CREATE_PIPELINE_MODAL_COLUMN_WIDTH_OPEN = 36;
+export const CREATE_PIPELINE_MODAL_OPEN_CARET_SIZE = 12;
+export const CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_WIDTH = 440;
+export const CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_FIELD_HEIGHT = 32;
+export const CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_LABEL_WIDTH = 96;
 
 export const CREATE_PIPELINE_MODAL_STEP_ORDER: CreatePipelineModalStep[] = [
   CreatePipelineModalStep.CONNECTIONS,
@@ -71,8 +74,8 @@ export const EXECUTION_MODE_TO_LABEL_MAP: Record<ExecutionMode, string> = {
 
 export const EXECUTION_MODE_TO_DESCRIPTION_MAP: Record<ExecutionMode, string> = {
   [ExecutionMode.UNSPECIFIED]: "",
-  [ExecutionMode.BOUNDED]: "Reads available data then stops.",
-  [ExecutionMode.CONTINUOUS]: "Streams new data until stopped.",
+  [ExecutionMode.BOUNDED]: "Reads available data then stops",
+  [ExecutionMode.CONTINUOUS]: "Streams new data until stopped",
 };
 
 export const EXECUTION_MODE_TO_DETAILS_MAP: Record<ExecutionMode, string> = {

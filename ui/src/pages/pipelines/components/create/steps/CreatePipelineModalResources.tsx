@@ -19,10 +19,16 @@ import {
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalResourcesTable from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTable";
 import CreatePipelineModalResourcesTabs from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesTabs";
+import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 import PipelineResourceCreateForm from "@/pages/pipelines/components/resource/PipelineResourceCreateForm";
 import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
 import { IS_DEBUG } from "@/constants";
+
+interface CreatePipelineModalResourcesProps {
+  activeRow?: CreatePipelineModalResourceRow;
+  onActiveResourceChange: (name?: CreatePipelineModalResourceRow["name"]) => void;
+}
 
 interface CreatePipelineModalResourcesState {
   search: string;
@@ -34,7 +40,10 @@ const DEFAULT_RESOURCES_STATE: CreatePipelineModalResourcesState = {
   isCreating: false,
 };
 
-const CreatePipelineModalResources: FC = () => {
+const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
+  activeRow,
+  onActiveResourceChange,
+}) => {
   const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
     useCreatePipelineModalState();
   const { addResource } = useCreatePipelineModalActions();
@@ -115,7 +124,11 @@ const CreatePipelineModalResources: FC = () => {
           <Divider />
         </>
       )}
-      <CreatePipelineModalResourcesTable rows={filteredRows} />
+      <CreatePipelineModalResourcesTable
+        rows={filteredRows}
+        activeRow={activeRow}
+        onActiveResourceChange={onActiveResourceChange}
+      />
     </Flex>
   );
 };

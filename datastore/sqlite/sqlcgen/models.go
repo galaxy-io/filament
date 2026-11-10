@@ -222,19 +222,21 @@ type Secret struct {
 }
 
 type StreamAttempt struct {
-	Token           int64
-	StreamID        string
-	TenantID        string
-	ExecutionID     string
-	DesiredRevision int64
-	RequestTtlUs    int64
-	StartedAt       int64
-	ClaimedAt       sql.NullInt64
-	RunSpec         string
-	ExpiresAt       int64
-	EndedAt         sql.NullInt64
-	Termination     sql.NullString
-	Reason          string
+	Token            int64
+	StreamID         string
+	TenantID         string
+	ExecutionID      string
+	DesiredRevision  int64
+	RequestTtlUs     int64
+	StartedAt        int64
+	ClaimedAt        sql.NullInt64
+	RunSpec          string
+	ExpiresAt        int64
+	EndedAt          sql.NullInt64
+	Termination      sql.NullString
+	Reason           string
+	DispatchVersion  string
+	YieldRequestedAt sql.NullInt64
 }
 
 type StreamEpoch struct {

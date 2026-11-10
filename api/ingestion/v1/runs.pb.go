@@ -515,8 +515,17 @@ type RunPipelineRequest struct {
 	// is stamped onto each run, so editing the pipeline afterwards cannot change
 	// a run already requested.
 	WorkerConfiguration *WorkerConfiguration `protobuf:"bytes,4,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// resync_resources names resources read from the beginning again by the
+	// runs this call produces. A bounded run forgets their checkpoints first. A
+	// live continuous run drains and hands over to a successor that snapshots
+	// them again on the same stream.
+	ResyncResources []string `protobuf:"bytes,5,rep,name=resync_resources,json=resyncResources,proto3" json:"resync_resources,omitempty"`
+	// resources limits a bounded run to these routed resources. Empty runs every
+	// routed resource. A continuous run, or a change-stream route named in part,
+	// always runs all of its resources, so such a subset is rejected.
+	Resources     []string `protobuf:"bytes,6,rep,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunPipelineRequest) Reset() {
@@ -573,6 +582,20 @@ func (x *RunPipelineRequest) GetOptions() *RunOptions {
 func (x *RunPipelineRequest) GetWorkerConfiguration() *WorkerConfiguration {
 	if x != nil {
 		return x.WorkerConfiguration
+	}
+	return nil
+}
+
+func (x *RunPipelineRequest) GetResyncResources() []string {
+	if x != nil {
+		return x.ResyncResources
+	}
+	return nil
+}
+
+func (x *RunPipelineRequest) GetResources() []string {
+	if x != nil {
+		return x.Resources
 	}
 	return nil
 }
@@ -780,8 +803,10 @@ type RunInfo struct {
 	ExecutionMode ExecutionMode `protobuf:"varint,19,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
 	// Present for continuous runs. records/bytes above reflect committed progress.
 	ExecutionStatus *ExecutionStatus `protobuf:"bytes,20,opt,name=execution_status,json=executionStatus,proto3" json:"execution_status,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// resources this run reads. Empty means every resource its route selects.
+	Resources     []string `protobuf:"bytes,21,rep,name=resources,proto3" json:"resources,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -950,6 +975,13 @@ func (x *RunInfo) GetExecutionMode() ExecutionMode {
 func (x *RunInfo) GetExecutionStatus() *ExecutionStatus {
 	if x != nil {
 		return x.ExecutionStatus
+	}
+	return nil
+}
+
+func (x *RunInfo) GetResources() []string {
+	if x != nil {
+		return x.Resources
 	}
 	return nil
 }
@@ -1693,13 +1725,15 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"rate_limit\x18\x04 \x01(\v2\x18.ingestion.v1.RatePolicyR\trateLimit\x121\n" +
 	"\x14snapshot_parallelism\x18\x05 \x01(\x05R\x13snapshotParallelism\x12)\n" +
 	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\x12B\n" +
-	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xe2\x01\n" +
+	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xab\x02\n" +
 	"\x12RunPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12!\n" +
 	"\fclient_token\x18\x02 \x01(\tR\vclientToken\x122\n" +
 	"\aoptions\x18\x03 \x01(\v2\x18.ingestion.v1.RunOptionsR\aoptions\x12T\n" +
-	"\x14worker_configuration\x18\x04 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\"f\n" +
+	"\x14worker_configuration\x18\x04 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\x12)\n" +
+	"\x10resync_resources\x18\x05 \x03(\tR\x0fresyncResources\x12\x1c\n" +
+	"\tresources\x18\x06 \x03(\tR\tresources\"f\n" +
 	"\x0fPipelineEdgeRun\x12*\n" +
 	"\x11pipeline_edge_key\x18\x01 \x01(\tR\x0fpipelineEdgeKey\x12'\n" +
 	"\x03run\x18\x02 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\"Q\n" +
@@ -1710,7 +1744,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x03 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\xf7\x05\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\x95\x06\n" +
 	"\aRunInfo\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1f\n" +
@@ -1737,7 +1771,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x12B\n" +
 	"\x0eexecution_mode\x18\x13 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12H\n" +
-	"\x10execution_status\x18\x14 \x01(\v2\x1d.ingestion.v1.ExecutionStatusR\x0fexecutionStatus\"\x8b\x01\n" +
+	"\x10execution_status\x18\x14 \x01(\v2\x1d.ingestion.v1.ExecutionStatusR\x0fexecutionStatus\x12\x1c\n" +
+	"\tresources\x18\x15 \x03(\tR\tresources\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +

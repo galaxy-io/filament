@@ -1,9 +1,3 @@
-import { usePipelineParams } from "@/module/hooks";
+import { usePipelineCanvasActiveRuns } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasActiveRuns";
 
-import { useListActivePipelineRunsQuery } from "@/api/queries/runs";
-
-export const usePipelineCanvasIsRunning = () => {
-  const { id } = usePipelineParams();
-  const { data } = useListActivePipelineRunsQuery(id);
-  return (data?.runs.length ?? 0) > 0;
-};
+export const usePipelineCanvasIsRunning = () => usePipelineCanvasActiveRuns().length > 0;
