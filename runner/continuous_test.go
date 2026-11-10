@@ -677,4 +677,12 @@ func TestContinuousBoundaryAmortizesFreshSessions(t *testing.T) {
 	if got := continuousBoundary(filament.RunOptions{EpochBoundary: &custom}, single); got != custom {
 		t.Fatal(got)
 	}
+	preferred := filament.Boundary{MaxRecords: 1_000_000, MaxWait: time.Minute, MaxAge: time.Minute}
+	tuned := filament.SinkSpec{Capabilities: filament.SinkCapabilities{PreferredEpochBoundary: &preferred}}
+	if got := continuousBoundary(filament.RunOptions{}, tuned); got != preferred {
+		t.Fatal(got)
+	}
+	if got := continuousBoundary(filament.RunOptions{EpochBoundary: &custom}, tuned); got != custom {
+		t.Fatal(got)
+	}
 }

@@ -87,4 +87,7 @@ type SinkCapabilities struct {
 	// PreferredFlushInterval is used when the pipeline does not explicitly
 	// choose a flush interval. Zero uses the engine default.
 	PreferredFlushInterval time.Duration
+	// PreferredEpochBoundary is used for continuous runs when the run does not
+	// set Options.EpochBoundary. Nil uses the engine default for the session kind.
+	PreferredEpochBoundary *Boundary
 }

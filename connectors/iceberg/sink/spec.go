@@ -1,6 +1,8 @@
 package iceberg
 
 import (
+	"time"
+
 	"github.com/galaxy-io/filament"
 	icebergcatalog "github.com/galaxy-io/filament/connectors/iceberg/internal/catalog"
 )
@@ -22,6 +24,14 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Capabilities: filament.SinkCapabilities{
 			Schematized:         true,
 			PreferredBatchBytes: defaultStageBufLimitBytes,
+			// Every epoch is a table snapshot, so epochs run longer than the
+			// fresh-session default and fit the stage buffer without spilling.
+			PreferredEpochBoundary: &filament.Boundary{
+				MaxRecords: 1_000_000,
+				MaxBytes:   defaultStageBufLimitBytes,
+				MaxWait:    time.Minute,
+				MaxAge:     time.Minute,
+			},
 			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,

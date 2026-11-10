@@ -139,6 +139,14 @@ func SinkToProto(spec filament.SinkSpec) *workerv1.Sink {
 	if caps.PreferredFlushInterval != 0 {
 		out.Capabilities.PreferredFlushInterval = durationpb.New(caps.PreferredFlushInterval)
 	}
+	if b := caps.PreferredEpochBoundary; b != nil {
+		out.Capabilities.PreferredEpochBoundary = &workerv1.Boundary{
+			MaxRecords: int64(b.MaxRecords),
+			MaxBytes:   b.MaxBytes,
+			MaxWait:    durationpb.New(b.MaxWait),
+			MaxAge:     durationpb.New(b.MaxAge),
+		}
+	}
 
 	return out
 }
@@ -159,6 +167,14 @@ func SinkFromProto(sink *workerv1.Sink) (filament.SinkSpec, error) {
 	}
 	if caps.GetPreferredFlushInterval() != nil {
 		spec.Capabilities.PreferredFlushInterval = caps.GetPreferredFlushInterval().AsDuration()
+	}
+	if b := caps.GetPreferredEpochBoundary(); b != nil {
+		spec.Capabilities.PreferredEpochBoundary = &filament.Boundary{
+			MaxRecords: int(b.GetMaxRecords()),
+			MaxBytes:   b.GetMaxBytes(),
+			MaxWait:    b.GetMaxWait().AsDuration(),
+			MaxAge:     b.GetMaxAge().AsDuration(),
+		}
 	}
 	if spec.Capabilities.WritePolicies, err = writePoliciesFromProto(caps.GetWritePolicies()); err != nil {
 		return filament.SinkSpec{}, fmt.Errorf("sink %q: %w", spec.Name, err)
