@@ -11,6 +11,9 @@ import {
 
 import { OBSERVABILITY_RUNS_DEFAULT_STATUSES } from "@/pages/observability/components/runs/constants";
 import {
+  OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP,
+  OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP,
+  OBSERVABILITY_DEFAULT_PIPELINES_PAGE,
   OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
   OBSERVABILITY_DEFAULT_RUNS_VIEW,
   OBSERVABILITY_DEFAULT_TIMEFRAME,
@@ -129,6 +132,12 @@ export const useObservabilitySearch = () =>
         timeframe: parsed.timeframe ?? OBSERVABILITY_DEFAULT_TIMEFRAME,
         refreshInterval: parsed.refreshInterval ?? OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
         runs: parsed.runs ?? OBSERVABILITY_DEFAULT_RUNS_VIEW,
+        throughput: parsed.throughput ?? OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP.throughput,
+        throughputPivot:
+          parsed.throughputPivot ?? OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP.throughputPivot,
+        usage: parsed.usage ?? OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP.usage,
+        usagePivot: parsed.usagePivot ?? OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP.usagePivot,
+        pipelinesPage: parsed.pipelinesPage ?? OBSERVABILITY_DEFAULT_PIPELINES_PAGE,
         statuses: parsed.statuses ?? OBSERVABILITY_RUNS_DEFAULT_STATUSES,
       };
     },
