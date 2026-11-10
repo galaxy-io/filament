@@ -1,0 +1,120 @@
+
+version: 1
+name: airtable
+display_name: Airtable
+description: Cloud-based platform for building collaborative databases and applications, organizing structured information, and automating workflows.
+
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-airtable-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-airtable-light.svg
+
+config:
+  access_token: {type: secret, required: true, help: Airtable personal access token.}
+
+defaults:
+  method: GET
+  response:
+    strict_records: true
+
+connection:
+  base_url: https://api.airtable.com
+  auth:
+    bearer: config.access_token
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 2
+    burst: 1
+
+resources:
+  # 1. Discover accessible bases.
+  - name: bases
+    path: /v0/meta/bases
+    records: $.bases
+    primary_key: [id]
+    capture:
+      base_id: id
+    fields:
+      id: string
+      name: string
+      permission_level:
+        path: permissionLevel
+        type: string
+      raw:
+        path: $
+        type: json
+        mode: remainder
+
+  # 2. Discover tables and their schemas for each base.
+  - name: tables
+    path: /v0/meta/bases/{base_id}/tables
+    for_each: bases
+    params:
+      base_id: parent.base_id
+    records: $.tables
+    primary_key: [id]
+    capture:
+      base_id: parent.base_id
+      table_id: id
+    fields:
+      base_id:
+        path: parent.base_id
+        type: string
+      id: string
+      name: string
+      description: string?
+      primary_field_id:
+        path: primaryFieldId
+        type: string
+        nullable: true
+      fields:
+        path: fields
+        type: json
+      views:
+        path: views
+        type: json
+      raw:
+        path: $
+        type: json
+        mode: remainder
+
+  # 3. Retrieve all records from each table.
+  - name: records
+    path: /v0/{base_id}/{table_id}
+    for_each: tables
+    params:
+      base_id: parent.base_id
+      table_id: parent.table_id
+    query:
+      pageSize: "100"
+    records: $.records
+    primary_key: [base_id, table_id, id]
+    fields:
+      base_id:
+        path: parent.base_id
+        type: string
+      table_id:
+        path: parent.table_id
+        type: string
+      id: string
+      created_time:
+        path: createdTime
+        type: timestamptz
+        nullable: true
+      fields:
+        path: fields
+        type: json
+        nullable: true
+      raw:
+        path: $
+        type: json
+        mode: remainder
+    pagination:
+      cursor:
+        response: offset
+        request: query.offset
+        null_terminates: true
+
+discovery:
+  mode: static
+  default_resources: [bases, tables, records]
