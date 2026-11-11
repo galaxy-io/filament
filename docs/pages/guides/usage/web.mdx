@@ -25,10 +25,15 @@ Three objects make up the model, and the navbar follows them:
 
 ## Observability
 
-The landing page. Records and bytes moved, run durations, and success rate
-over a timeframe you pick, plus a feed of recent runs across every pipeline.
-The charts come from the metrics service, which aggregates the same run rows
-the rest of the app reads.
+The landing page. A banner names any pipeline whose latest run failed, with
+its raw error one click away. Three tiles cover runs, throughput and usage
+over the timeframe you pick, each with a chart and the pipelines behind it.
+Throughput and usage can split their chart by pipeline or by status.
+Throughput switches between records and volume, usage between CPU and
+memory, and runs between past and upcoming, which History follows. Below them, the pipelines that need
+attention get a bar per hour or day beside what is scheduled next and every source and sink with the pipelines
+that use it. History lists every run. The charts come from the metrics
+service, which aggregates the same run rows the rest of the app reads.
 
 <Frame caption="Observability, the landing page">
   <img className="block dark:hidden" src="/assets/images/filament-observability-light.png" alt="Observability dashboard in light mode" />
