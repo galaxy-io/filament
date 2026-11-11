@@ -9,5 +9,5 @@ import (
 
 func init() {
 	registry.RegisterPositionCodec(source.PositionCodec, 0, source.OffsetCodec{})
-	registry.RegisterSource("rabbitmq", filament.MaturityAlpha, func() filament.Source { return source.New() })
+	registry.RegisterSource("rabbitmq", false, func() filament.Source { return source.New() })
 }

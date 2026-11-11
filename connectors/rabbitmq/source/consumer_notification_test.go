@@ -10,7 +10,7 @@ import (
 // OpenStream registers NotifyClose after NewConsumer returns. A connection can
 // close in between. This regression test documents the required upstream
 // notification contract; it must fail rather than silently accept a lost close.
-// Do not treat it as evidence that the current client already retains events.
+// The pinned RabbitMQ client must retain the event across registration.
 func TestConsumerCloseBeforeNotificationRegistration(t *testing.T) {
 	coordinator := rmq.NewCoordinator()
 	consumer, err := coordinator.NewConsumer(nil, rmq.NewConsumerOptions().SetManualCommit(), nil)
