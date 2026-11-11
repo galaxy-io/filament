@@ -25,8 +25,8 @@ const (
 )
 
 var (
-	// ErrRouteNotReady indicates that the configured pipeline cannot consume the endpoint's resources.
-	ErrRouteNotReady = errors.New("webhook route is not running or does not read every endpoint resource")
+	// ErrRouteNotReady indicates that the endpoint's route names a pipeline that does not exist.
+	ErrRouteNotReady = errors.New("webhook route names a pipeline that does not exist")
 	// ErrInvalidEndpoint indicates that an endpoint mutation failed validation.
 	ErrInvalidEndpoint = errors.New("invalid webhook endpoint configuration")
 )

@@ -7,7 +7,6 @@ export enum FilamentPath {
   PIPELINE_SETTINGS = "./pipelines/$id/settings",
   SOURCES = "./sources",
   SINKS = "./sinks",
-  WEBHOOK_GUIDE = "./webhooks/$id",
   SETTINGS_TEAM = "./settings/team",
   SETTINGS_SERVICE_ACCOUNTS = "./settings/service-accounts",
 }

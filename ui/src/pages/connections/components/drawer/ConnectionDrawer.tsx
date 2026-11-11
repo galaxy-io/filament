@@ -17,12 +17,14 @@ import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorNameChips from "@/components/connections/ConnectorNameChips";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
+import { isWebhookConnector } from "@/components/webhooks/utils";
 
 import ConnectionDrawerActions from "@/pages/connections/components/drawer/ConnectionDrawerActions";
 import ConnectionDrawerHeader from "@/pages/connections/components/drawer/ConnectionDrawerHeader";
 import ConnectionDrawerJsonSection from "@/pages/connections/components/drawer/ConnectionDrawerJsonSection";
 import ConnectionDrawerPipelines from "@/pages/connections/components/drawer/ConnectionDrawerPipelines";
 import ConnectionDrawerWebhook from "@/pages/connections/components/drawer/ConnectionDrawerWebhook";
+import ConnectionDrawerWebhookSecrets from "@/pages/connections/components/drawer/ConnectionDrawerWebhookSecrets";
 
 import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
 
@@ -71,6 +73,8 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
       return <PendingLayout />;
     }
 
+    const isWebhook = isWebhookConnector(connection.connector);
+
     return (
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
         <KeyValueList>
@@ -117,15 +121,19 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
           emptyHeader="No configuration"
           emptyMessage="This connection has no configuration values."
         />
-        <ConnectionDrawerJsonSection
-          header="Secrets"
-          icon={KeyIcon}
-          data={connection.secretRefs}
-          emptyHeader="No secrets"
-          emptyMessage="This connection has no secret references."
-        />
+        {isWebhook ? (
+          <ConnectionDrawerWebhookSecrets connection={connection} />
+        ) : (
+          <ConnectionDrawerJsonSection
+            header="Secrets"
+            icon={KeyIcon}
+            data={connection.secretRefs}
+            emptyHeader="No secrets"
+            emptyMessage="This connection has no secret references."
+          />
+        )}
+        {isWebhook && <ConnectionDrawerWebhook connection={connection} />}
         <ConnectionDrawerPipelines connectionId={connection.id} />
-        {connection.connector === "webhook" && <ConnectionDrawerWebhook connection={connection} />}
       </Flex>
     );
   };

@@ -148,9 +148,6 @@ export const useGetConnectionQuery = ({
   return useQuery(IngestionService.method.getConnection, input, options);
 };
 
-export const useSuspenseGetConnectionQuery = ({ input }: { input: GetConnectionRequest }) =>
-  useSuspenseQuery(IngestionService.method.getConnection, input);
-
 export const useCreateConnectionMutation = (
   options: UseMutationOptions<
     typeof IngestionService.method.createConnection.input,

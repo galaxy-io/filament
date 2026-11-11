@@ -42,6 +42,8 @@ func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "webhook", DisplayName: "Webhook", Version: "1",
 		Description:     "Receive signed webhook deliveries through Filament's durable inbox.",
+		DarkLogoURL:     "https://cdn.getgalaxy.io/sources/source-icon-webhook-dark.svg",
+		LightLogoURL:    "https://cdn.getgalaxy.io/sources/source-icon-webhook-light.svg",
 		WebhookVerifier: webhooks.GenericHMAC,
 		Stream: &filament.StreamCapabilities{
 			Input:    filament.InputMessages,

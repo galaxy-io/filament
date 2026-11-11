@@ -53,8 +53,6 @@ export const sourcesRouteOptions = createFilamentRouteOptions(connectionsRouteOp
 
 export const sinksRouteOptions = createFilamentRouteOptions(connectionsRouteOptions);
 
-export const webhookGuideRouteOptions = createFilamentRouteOptions({});
-
 export const pipelineRouteOptions = createFilamentRouteOptions({
   validateSearch: pipelineSearchSchema,
   errorComponent: FilamentPipelineErrorComponent,

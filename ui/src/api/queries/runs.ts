@@ -43,6 +43,7 @@ import {
   createListPipelinesQueryKey,
   useGetPipelineQuery,
 } from "@/api/queries/pipelines";
+import { createGetWebhookEndpointQueryKey } from "@/api/queries/webhooks";
 import {
   batchIterable,
   getNextPageParam,
@@ -292,6 +293,9 @@ export const useRunPipelineMutation = (
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(undefined, transport),
       });
+      void queryClient.invalidateQueries({
+        queryKey: createGetWebhookEndpointQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -319,6 +323,9 @@ export const useSignalRunMutation = (
       });
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetWebhookEndpointQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
