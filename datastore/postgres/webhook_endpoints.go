@@ -92,8 +92,9 @@ func (s *Store) LoadWebhookEndpointForTenant(ctx context.Context, tenant filamen
 }
 
 // PutWebhookEndpoint persists receiver configuration under an optimistic
-// revision and refuses enablement until the bound route reads every
-// configured resource.
+// revision. An enabled endpoint need not have a ready route. The receiver
+// answers 503 while no pipeline reads the source and stores deliveries once
+// one does, and routeReady reports whether the bound route reads them all.
 func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.EndpointMutation) (webhooks.Endpoint, error) {
 	if err := mutation.Validate(); err != nil {
 		return webhooks.Endpoint{}, err
@@ -151,9 +152,6 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 		return webhooks.Endpoint{}, filament.ErrNotFound
 	}
 	endpoint := endpointFromRow(row)
-	if endpoint.Enabled && !endpoint.RouteReady {
-		return webhooks.Endpoint{}, webhooks.ErrRouteNotReady
-	}
 	if err := tx.Commit(ctx); err != nil {
 		return webhooks.Endpoint{}, err
 	}

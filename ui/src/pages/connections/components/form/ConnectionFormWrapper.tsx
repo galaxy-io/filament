@@ -6,6 +6,7 @@ interface ConnectionFormWrapperProps {
   isOpen: boolean;
   header: ReactNode;
   footer?: ReactNode;
+  isDismissable?: boolean;
   onClose: () => void;
 }
 
@@ -13,6 +14,7 @@ const ConnectionFormWrapper: FC<PropsWithChildren<ConnectionFormWrapperProps>> =
   isOpen,
   header,
   footer,
+  isDismissable = true,
   onClose,
   children,
 }) => (
@@ -20,6 +22,7 @@ const ConnectionFormWrapper: FC<PropsWithChildren<ConnectionFormWrapperProps>> =
     isOpen={isOpen}
     header={header}
     footer={footer}
+    isDismissable={isDismissable}
     onOpenChange={(isOpen) => {
       if (!isOpen) onClose();
     }}

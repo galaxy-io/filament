@@ -13,24 +13,17 @@ import Widget from "@galaxy-io/dls/widget/Widget";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
-import ConnectorPreviewChip from "@/components/connections/ConnectorPreviewChip";
 import ConnectorTile from "@/components/connections/ConnectorTile";
 
 import { formatVersion } from "@/utils/format";
 
 interface ConnectionCardProps {
   connection: Connection;
-  isPreview: boolean;
   pipelineCount: number | undefined;
   onClick: () => void;
 }
 
-const ConnectionCard: FC<ConnectionCardProps> = ({
-  connection,
-  isPreview,
-  pipelineCount,
-  onClick,
-}) => {
+const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount, onClick }) => {
   const pipelineLabel =
     pipelineCount === undefined ? EMPTY_VALUE : pluralize("pipeline", pipelineCount, true);
 
@@ -54,10 +47,7 @@ const ConnectionCard: FC<ConnectionCardProps> = ({
             {connection.name}
           </Text>
         </Flex>
-        <Flex alignItems={AlignItems.CENTER} gap={4}>
-          <ConnectorPreviewChip isPreview={isPreview} />
-          <ConnectionKindChip kind={connection.kind} size={ChipSize.SMALL} />
-        </Flex>
+        <ConnectionKindChip kind={connection.kind} size={ChipSize.SMALL} />
       </Flex>
       <Flex alignItems={AlignItems.START}>
         <Chip icon={FlowArrowIcon} label={pipelineLabel} variant={ChipVariant.SECONDARY} />
