@@ -1,6 +1,6 @@
 // Package local implements the CLI's local mode: the remote target pointed at
-// a deployment embedded in this process, a YAML document applied into it, and
-// a direct runner for inline and override runs.
+// the local engine, a YAML document applied into it, and untracked inline and
+// override runs in a short-lived engine process.
 package local
 
 import (
@@ -16,9 +16,9 @@ import (
 
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	"github.com/galaxy-io/filament/cmd/internal/cli/engine"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
-	"github.com/galaxy-io/filament/registry"
 )
 
 var (
@@ -26,38 +26,24 @@ var (
 	_ cliapp.RawConfigurationTarget = (*Target)(nil)
 )
 
-// Target is the embedded deployment as the CLI sees it. Reads, writes,
-// discovery, and saved-pipeline runs go to the deployment; the document is
-// an input applied into it; inline and override runs execute directly.
+// Target is the local engine as the CLI sees it. Reads, writes, discovery,
+// and saved-pipeline runs go to the engine's API; the document is an input
+// applied into it; inline and override runs execute in engine.Inline.
 type Target struct {
 	*remote.Target
-	sources filament.SourceRegistry
-	store   Store
-	secrets filament.Secrets
-	runMu   sync.Mutex
-	runs    map[string]*runSession
+	store  Store
+	engine *engine.Engine
+	runMu  sync.Mutex
+	runs   map[string]*runSession
 }
 
-// NewTarget wraps the deployment. secrets receives plaintext secret values
-// the document carries, so the deployment resolves them by reference.
-func NewTarget(store Store, deployment *remote.Target, secrets filament.Secrets, opts ...Option) *Target {
-	target := &Target{Target: deployment, store: store, secrets: secrets, sources: registry.DefaultSources, runs: map[string]*runSession{}}
-	for _, option := range opts {
-		option(target)
-	}
-	return target
+// NewTarget wraps the engine's API. A nil engine refuses inline runs.
+func NewTarget(store Store, deployment *remote.Target, local *engine.Engine) *Target {
+	return &Target{Target: deployment, store: store, engine: local, runs: map[string]*runSession{}}
 }
 
-// Option configures the local runner.
-type Option func(*Target)
-
-// WithSources uses the same startup catalog for direct runs as the deployment.
-func WithSources(sources filament.SourceRegistry) Option {
-	return func(target *Target) { target.sources = sources }
-}
-
-// SubmitRun sends saved pipelines to the deployment and everything else,
-// inline specs and override flags, to the direct runner.
+// SubmitRun sends saved pipelines to the engine's API and everything else,
+// inline specs and override flags, to an untracked engine run.
 func (t *Target) SubmitRun(ctx context.Context, submission model.RunSubmission) (model.RunGroup, error) {
 	if submission.Pipeline != nil && !submission.Override {
 		return t.Target.SubmitRun(ctx, submission)
@@ -76,7 +62,7 @@ func (t *Target) TailRun(ctx context.Context, group model.RunGroup, observe func
 // SignalRun signals a run wherever it was submitted.
 func (t *Target) SignalRun(ctx context.Context, ref model.RunRef, signal filament.Signal) error {
 	if t.hasSession(ref.ID) {
-		return t.signalLocal(ctx, ref, signal)
+		return t.signalLocal(ref, signal)
 	}
 	return t.Target.SignalRun(ctx, ref, signal)
 }

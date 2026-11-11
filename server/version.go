@@ -9,7 +9,7 @@ import (
 	"github.com/galaxy-io/filament/version"
 )
 
-// GetVersion returns the version information for this server.
+// GetVersion returns the server's build version, commit and date.
 func (*Server) GetVersion(context.Context, *connect.Request[ingestionv1.GetVersionRequest]) (*connect.Response[ingestionv1.GetVersionResponse], error) {
 	return connect.NewResponse(&ingestionv1.GetVersionResponse{
 		Version: version.Version, Commit: version.Commit, Date: version.Date,
