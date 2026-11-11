@@ -1,0 +1,105 @@
+| Field | Value |
+|---|---|
+| title | Airtable source connector |
+| sidebarTitle | Airtable |
+| description | Read bases, tables, table schemas, and records from Airtable with Filament. |
+| icon | [https://cdn.getgalaxy.io/sources/source-icon-airtable-dark.svg](https://cdn.getgalaxy.io/sources/source-icon-airtable-dark.svg) |
+
+Connector ID `airtable`
+
+The Airtable source reads accessible bases, their tables and schemas, and records from those tables. It uses an [HTTP manifest](https://github.com/galaxy-io/filament/tree/main/connectors/http/manifests/airtable). This connector is in preview and targets Airtable's unversioned Web API.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `access_token` | Connection | | Required. Secret. Airtable personal access token. |
+
+Create a personal access token from the [Airtable developer hub](https://airtable.com/developers/web/api/introduction). The token must have access to the bases you want to read.
+
+The connector requires the `schema.bases:read` and `data.records:read` scopes for reading base and table metadata and retrieving records, respectively. The token must also be granted access to the relevant bases.
+
+Every request goes to `https://api.airtable.com`. Requests authenticate using the token as a Bearer credential.
+
+## Resources
+
+All resources are selected by default. Selecting a child also reads its parents, but only selected resources are written to the destination.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `bases` | `GET /v0/meta/bases` | |
+| `tables` | `GET /v0/meta/bases/{base_id}/tables` | `bases` |
+| `records` | `GET /v0/{base_id}/{table_id}` | `tables` |
+
+### Bases
+
+The `bases` resource discovers bases accessible to the authenticated personal access token.
+
+Each row includes the base ID, name, permission level, and a `raw` JSON column containing unmapped response properties.
+
+The base ID is captured and propagated to the `tables` resource.
+
+### Tables
+
+The `tables` resource reads table metadata for every discovered base.
+
+Each row includes:
+
+- The parent `base_id`.
+- The table ID and name.
+- The table description, when present.
+- The primary field ID, when present.
+- The table's field definitions as JSON.
+- The table's views as JSON.
+- A `raw` JSON column containing unmapped response properties.
+
+Airtable returns field definitions as part of the table metadata response. Field definitions are retained as JSON rather than flattened into individual columns, preserving their types, configuration, and other metadata.
+
+Table IDs are scoped to their bases. The `base_id` is therefore retained alongside the table ID and propagated to the `records` resource.
+
+### Records
+
+The `records` resource retrieves records from every discovered table.
+
+Each row includes:
+
+- The parent `base_id`.
+- The parent `table_id`.
+- The Airtable record ID.
+- The record creation timestamp (`createdTime`), when present.
+- The record's `fields` object as JSON.
+- A `raw` JSON column containing unmapped response properties.
+
+Airtable records have flexible schemas: fields vary between tables and may contain different data types. The connector preserves the record's `fields` object as JSON rather than assuming a fixed set of columns across all tables.
+
+Record identity is represented by the composite key `base_id`, `table_id`, and `id`, keeping records unambiguous across different tables and bases.
+
+## Coverage limits
+
+- **Base visibility**. Only bases accessible to the personal access token are returned. The connector cannot read bases the token has not been granted access to.
+- **Table schemas**. Field definitions and views are retrieved through the table metadata endpoint. They are preserved as JSON rather than exposed as separate resources.
+- **Record fields**. Record values are returned in Airtable's flexible `fields` object. The connector does not create a separate destination column for every Airtable field.
+- **Record deletions**. The connector performs reads and does not provide deletion events. A record that is no longer returned by Airtable is not independently represented as a deletion event.
+- **Incremental reads**. The connector currently performs full reads. It does not implement incremental synchronization using `createdTime`, because that timestamp represents record creation rather than a reliable record modification watermark.
+- **Related data**. The connector reads base, table, and record data. It does not independently retrieve comments, attachments, or other related information through additional endpoints.
+
+## Modes
+
+All resources perform full reads.
+
+Use **full upsert** to refresh existing rows and insert newly discovered rows, or **full replace** to replace the destination's contents with the latest complete read.
+
+The connector does not currently support incremental record synchronization. Airtable's `createdTime` is not a substitute for a record modification timestamp.
+
+## Behavior
+
+- **Authentication**. Every request sends the configured personal access token as a Bearer credential. Authentication and permission errors fail the read.
+- **Base discovery**. The connector starts with `GET /v0/meta/bases` and discovers accessible bases.
+- **Parent selection**. Tables are fetched once per discovered base. Records are fetched once per discovered table.
+- **Pagination**. Record retrieval uses Airtable's `pageSize` parameter, configured to 100 records per request. The connector follows the top-level `offset` value returned by Airtable, passing it as the `offset` query parameter on the next request. Pagination ends when no further offset is returned.
+- **Table metadata**. The table metadata endpoint returns field definitions and views alongside table information. These nested structures are retained as JSON.
+- **Record fields**. Airtable may omit empty fields from record responses. The `fields` JSON column preserves the values Airtable actually returns.
+- **Rate limiting**. Requests are paced at two per second by the connector configuration. Airtable documents a limit of five requests per second per base and 50 requests per second per personal access token. Limits are shared with other clients using the same token. The HTTP engine handles throttled requests and retries according to its retry behavior.
+
+See [Airtable API documentation](https://airtable.com/developers/web/api/introduction), [authentication](https://airtable.com/developers/web/api/authentication), [list bases](https://airtable.com/developers/web/api/list-bases), [list tables](https://airtable.com/developers/web/api/list-tables), and [list records](https://airtable.com/developers/web/api/list-records) for API details.
+
