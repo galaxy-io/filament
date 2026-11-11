@@ -1,6 +1,8 @@
 import type { FC } from "react";
 
-import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
+import { FlaskIcon } from "@phosphor-icons/react";
+
+import Chip, { ChipSize } from "@galaxy-io/dls/chips/Chip";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -11,9 +13,9 @@ interface ConnectorPreviewChipProps {
 const ConnectorPreviewChip: FC<ConnectorPreviewChipProps> = ({ isPreview }) =>
   isPreview ? (
     <Chip
-      label="Preview"
+      icon={FlaskIcon}
+      ariaLabel="This connector is in preview"
       tooltip="This connector is in preview"
-      variant={ChipVariant.TERTIARY}
       size={ChipSize.SMALL}
     />
   ) : null;
