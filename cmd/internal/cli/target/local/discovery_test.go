@@ -24,11 +24,13 @@ import (
 type passwordDiscoverySource struct{ filament.Source }
 
 func (*passwordDiscoverySource) Spec() filament.ConnectorSpec {
-	return filament.ConnectorSpec{Name: "password-fixture", Modes: []filament.ReadMode{filament.ModeFull},
+	return filament.ConnectorSpec{
+		Name: "password-fixture", Modes: []filament.ReadMode{filament.ModeFull},
 		SourcePolicies: filament.SourcePolicies(filament.IngestionFullAppend),
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "password", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection},
-		}}}
+		}},
+	}
 }
 
 func (*passwordDiscoverySource) Validate(filament.Config) error { return nil }
