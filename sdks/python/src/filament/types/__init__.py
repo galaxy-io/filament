@@ -69,6 +69,8 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1get_pipeline_version_response import IngestionV1GetPipelineVersionResponse
     from .ingestion_v1get_resource_columns_response import IngestionV1GetResourceColumnsResponse
     from .ingestion_v1get_run_response import IngestionV1GetRunResponse
+    from .ingestion_v1get_version_request import IngestionV1GetVersionRequest
+    from .ingestion_v1get_version_response import IngestionV1GetVersionResponse
     from .ingestion_v1list_connections_response import IngestionV1ListConnectionsResponse
     from .ingestion_v1list_connectors_response import IngestionV1ListConnectorsResponse
     from .ingestion_v1list_pipeline_notifiers_response import IngestionV1ListPipelineNotifiersResponse
@@ -206,6 +208,8 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1GetPipelineVersionResponse": ".ingestion_v1get_pipeline_version_response",
     "IngestionV1GetResourceColumnsResponse": ".ingestion_v1get_resource_columns_response",
     "IngestionV1GetRunResponse": ".ingestion_v1get_run_response",
+    "IngestionV1GetVersionRequest": ".ingestion_v1get_version_request",
+    "IngestionV1GetVersionResponse": ".ingestion_v1get_version_response",
     "IngestionV1ListConnectionsResponse": ".ingestion_v1list_connections_response",
     "IngestionV1ListConnectorsResponse": ".ingestion_v1list_connectors_response",
     "IngestionV1ListPipelineNotifiersResponse": ".ingestion_v1list_pipeline_notifiers_response",
@@ -367,6 +371,8 @@ __all__ = [
     "IngestionV1GetPipelineVersionResponse",
     "IngestionV1GetResourceColumnsResponse",
     "IngestionV1GetRunResponse",
+    "IngestionV1GetVersionRequest",
+    "IngestionV1GetVersionResponse",
     "IngestionV1ListConnectionsResponse",
     "IngestionV1ListConnectorsResponse",
     "IngestionV1ListPipelineNotifiersResponse",
