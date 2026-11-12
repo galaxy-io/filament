@@ -5,7 +5,7 @@ The shells Filament has and the rules a screen inside one follows. Reuse a shell
 | You are building | Shell | Reference screen |
 |---|---|---|
 | A top-level list (one row or card per entity, search, a primary "New X") | `PageLayout` with `header`, `actions` and a `ListSearch` `toolbar` | `pages/pipelines/PipelinesPage.tsx`, `pages/connections/ConnectionsPage.tsx` |
-| A dashboard | `PageLayout` with `actions`, a `ScrollArea` of `Widget`s | `pages/observability/ObservabilityPage.tsx`, see [dashboards.md](./dashboards.md) |
+| The landing dashboard | `PageLayout` with the wordmark as `header`, `actions` and a failures `Alert isBanner`, then a `ScrollArea` of a flat band of three tiles, a block of `Widget`s sized by the paged run wall, and the History table | `pages/observability/ObservabilityPage.tsx`, see [dashboards.md](./dashboards.md) |
 | An entity with sub-pages | `PageLayout` with a node `header`, `actions`, `banner` and `tabs`, children in the `Outlet` | `pages/pipelines/PipelinePage.tsx` and its canvas, history and settings children |
 | A settings surface for one entity | a `ScrollArea` of collapsible `Widget` sections, each with its own Save | `pages/pipelines/PipelineSettingsPage.tsx` |
 | Details of an item while the list stays visible | DLS `Drawer` opened by a search param | `pages/connections/components/drawer/ConnectionDrawer.tsx` |
@@ -19,7 +19,7 @@ The shells Filament has and the rules a screen inside one follows. Reuse a shell
 
 `MainLayoutSidebar` is a DLS `SidebarNav` with `hasDividers={false}`, `ariaLabel` "Filament", one item per `FilamentNavItem` (`module/nav.ts` maps each to a label, icon, path and keywords), and a footer with the host's `sidebarFooter` above DLS `PoweredBy`. A new top-level destination is one `FilamentNavItem` member with an entry in each map, a `FilamentPath`, a `*RouteOptions` and its route files.
 
-Every page renders DLS `PageLayout`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
+Every page renders DLS `PageLayout`. The one exception is the Observability setup checklist, a full-page onboarding screen with no header row that renders its own `main` and `h1`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
 
 ## List page
 
@@ -109,17 +109,20 @@ PipelineCanvasPanelLayout          ResizablePanels hasDividers, storageKey filam
 - The sidebar shows Overview with nothing selected. Selecting a node or a connection shows its detail in place, with Back, Delete and Close in one header row. Selecting opens the sidebar, clicking empty canvas clears the selection. Open or closed is the `showPanel` search param.
 - Every pane title row is `PipelineCanvasPanelHeader`, 41px tall. Extra controls go in `actions` before Delete and Close, and `hasDivider` draws the hairline under it.
 - The open panel button is a `MEDIUM` `SECONDARY` icon button. On Canvas it sits top-right in the row of the view switcher, 16px in. On Routes it is the last toolbar item. It hides while the sidebar is open.
-- Activity never opens by itself. Its header shows a square `PipelineRunStatusSwatch` and Running while a run is active, and only the caret toggles it. The feed is mono `BODY_SM`, virtualized and follows new lines. Wheel up, ↑, PageUp, Home or grabbing the scrollbar unpins it, and within 24px of the bottom it follows again. While unpinned the visible lines stay put and new events only append.
-- Open or closed is the `showActivity` search param, the same way `showPanel` drives the sidebar. Nothing but the caret sets it, so a run never opens Activity. Sizes persist in the two storage keys, never in the URL.
-- The panel chrome (open panel, Back, Delete, Close, activity caret) carries no tooltips, only `ariaLabel` ([product.md](./product.md#interaction-rules)).
+- The Routes toolbar never wraps. It measures its own width with `useElementWidth` and gives way in order. The sinks filter and then the search shrink to their minimums, Add route becomes a plus button, the view switcher drops its labels, and last the sinks filter hides. The toolbar clips its own content, so the frame before it measures never scrolls the pane. The breakpoints are named constants in `routes/constants.ts`.
+- Route rows shrink their source and sink islands down to a minimum. The list scrolls sideways only below that floor, and only the list scrolls, never the toolbar or the page.
+- Activity never opens by itself. Its header shows a square `PipelineRunStatusSwatch` and Running while a run is active. The whole header row is the toggle, a stretched button under the row the way a collapsible `Widget` header works, with the caret as a plain icon. The feed is mono `BODY_SM`, virtualized and follows new lines. Wheel up, ↑, PageUp, Home or grabbing the scrollbar unpins it, and within 24px of the bottom it follows again. While unpinned the visible lines stay put and new events only append.
+- Open or closed is the `showActivity` search param, the same way `showPanel` drives the sidebar. Nothing but the header sets it, so a run never opens Activity. Sizes persist in the two storage keys, never in the URL.
+- The panel chrome (open panel, Back, Delete, Close, the activity header) carries no tooltips, only `ariaLabel` ([product.md](./product.md#interaction-rules)).
 
 ## Modal
 
 - Opened by `?flow=` and rendered by `FilamentLayout`. It stays mounted, takes `isOpen`, `onClose` and its record as props, and keys its provider with `useOverlaySession(isOpen)` so each open starts fresh while the exit still animates.
-- `ModalSize.MEDIUM` for a form or a dialog, `X_LARGE` for a chooser or a multi-step wizard.
+- `ModalSize.MEDIUM` for a form or a dialog. A chooser or a multi-step wizard is `isFullscreen` with a `header` title row ("New pipeline", "New source"), its navigation in `sidebar`, its actions in `footer` and `hasDividers`. The body is `isFlush` and each step owns its padding.
+- Detail on one row of a fullscreen body opens in the Modal `aside`, a panel beside the dialog that gives the body room instead of covering it. Its title row is a `MEDIUM` `BaseHeader` padded 12 and 16 so it lines up with the dialog's title row, and anything that must stay in reach sits in a pinned footer under a `Divider`. The wizard drops its `sidebar` while the aside is open so the body keeps its width. The columns pane on the resources step is the reference (`CreatePipelineModalResourcesColumnsPane`).
 - The same shell shows every state. Error is an `ErrorLayout` with a Close button inside the body, loading is `PendingLayout`, loaded is the provider and the content.
 - The footer is end-aligned, Back or Cancel `SECONDARY` first and the one `PRIMARY` action last. A pending action uses the button's `isLoading`.
-- A wizard's sidebar is a DLS `Stepper`. While Next is disabled the footer shows a red "Invalid" `Chip` whose `tooltip` lists the blocking hints.
+- A wizard's sidebar is a DLS `Stepper` in the Modal `sidebar` slot, which draws the column, its fill and its hairline. While Next is disabled the footer shows a red "Invalid" `Chip` whose `tooltip` lists the blocking hints.
 
 ## Confirmation
 

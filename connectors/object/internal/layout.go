@@ -62,6 +62,7 @@ func renderPartition(tmpl *template.Template, data partitionData) (string, error
 type Layout struct {
 	prefix    string
 	run       filament.RunID
+	writeID   filament.RunID
 	startedAt time.Time
 	partition *template.Template
 	extension string
@@ -70,10 +71,13 @@ type Layout struct {
 // NewLayout creates an immutable object layout for a run.
 func NewLayout(prefix string, partition *template.Template, extension string, run filament.RunSpec) Layout {
 	startedAt := run.StartedAt
+	if !run.SinkWriteStartedAt.IsZero() {
+		startedAt = run.SinkWriteStartedAt
+	}
 	if startedAt.IsZero() {
 		startedAt = time.Now()
 	}
-	return Layout{prefix: prefix, run: run.Run, startedAt: startedAt, partition: partition, extension: extension}
+	return Layout{prefix: prefix, run: run.Run, writeID: run.SinkWriteIdentity(), startedAt: startedAt, partition: partition, extension: extension}
 }
 
 // Object returns the key for a resource object.
@@ -83,13 +87,18 @@ func (l Layout) Object(resource string) (string, error) {
 		return "", err
 	}
 	if partition == "" {
-		return l.join(resource, string(l.run)+l.extension), nil
+		return l.join(resource, string(l.writeID)+l.extension), nil
 	}
-	return l.join(resource, partition, string(l.run)+l.extension), nil
+	return l.join(resource, partition, string(l.writeID)+l.extension), nil
 }
 
 // Success returns the run success-marker key.
-func (l Layout) Success() string { return l.join(runsDir, string(l.run), successMarker) }
+func (l Layout) Success() string {
+	if l.writeID != l.run {
+		return l.join(runsDir, string(l.run), string(l.writeID), successMarker)
+	}
+	return l.join(runsDir, string(l.run), successMarker)
+}
 
 // Run returns the run identifier captured by the layout.
 func (l Layout) Run() filament.RunID { return l.run }

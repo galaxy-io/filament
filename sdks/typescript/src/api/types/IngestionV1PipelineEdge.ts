@@ -25,4 +25,25 @@ export interface IngestionV1PipelineEdge {
     writeMode?: Filament.IngestionV1WriteMode | undefined;
     /** Optional destination name for this resource in any execution mode; source identity is unchanged. */
     destinationResource?: string | undefined;
+    /**
+     * transform is the edge's transform definition as a JSON object matching
+     *  the transform grammar, keyed by resource. A resource-specific edge may
+     *  only define its own resource. Empty means rows pass through unchanged.
+     */
+    transform?: Filament.GoogleProtobufStruct | undefined;
+    /**
+     * columns narrows the columns read from each resource. An all-resource edge
+     *  may configure several resources; a resource-specific edge may configure
+     *  only its own resource. An omitted resource reads every column.
+     */
+    columns?: Filament.IngestionV1ResourceColumnSelection[] | undefined;
+    /**
+     * partitions narrows the partitions a full read or a change stream's
+     *  initial snapshot backfills from each partitioned resource. The change
+     *  stream still carries every partition, including ones created later. An
+     *  all-resource edge may configure several resources; a resource-specific
+     *  edge may configure only its own resource. An omitted resource backfills
+     *  every partition, and an empty selection backfills none.
+     */
+    partitions?: Filament.IngestionV1ResourcePartitionSelection[] | undefined;
 }

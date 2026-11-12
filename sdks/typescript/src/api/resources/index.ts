@@ -4,6 +4,8 @@ export * from "./connection/client/requests/index.js";
 export * as connection from "./connection/index.js";
 export * from "./connector/client/requests/index.js";
 export * as connector from "./connector/index.js";
+export * from "./ingestionV1Ingestionservice/client/requests/index.js";
+export * as ingestionV1Ingestionservice from "./ingestionV1Ingestionservice/index.js";
 export * from "./member/client/requests/index.js";
 export * as member from "./member/index.js";
 export * from "./metrics/client/requests/index.js";

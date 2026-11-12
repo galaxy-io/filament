@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/schema"
 )
@@ -21,6 +23,7 @@ import (
 // deletes). The server must allow local_infile. It implements
 // filament.Schematized; the engine only runs schema discovery for sinks that do.
 type Sink struct {
+	sinkstate.SingleWrite
 	evolution schema.Policy
 	db        *sql.DB
 	run       filament.RunID
@@ -164,31 +167,30 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Commit releases the pool. Successful batches are already durable.
+// Commit confirms batches that are already durable. Close releases the pool.
 func (t *Sink) Commit(context.Context) error {
-	t.release()
 	return nil
 }
 
-// Abort empties every ensured table (the run failed, so leave a clean-empty state
-// rather than a half-load) and releases the pool. Best-effort on a cancel-free
-// context so cleanup runs even when the failure cancelled ctx.
+// Abort clears only non-resumable replacement tables. Durable append, merge,
+// and upsert effects must survive cleanup of a later failed write.
 func (t *Sink) Abort(ctx context.Context) error {
-	defer t.release()
 	if t.db == nil {
 		return nil
 	}
 	// A resumable table keeps its partial load so a later resume can finish it — don't
 	// truncate. (The engine also skips Abort on a resumable failure; this guards any
 	// other Abort path.)
-	cleanup := context.WithoutCancel(ctx)
-	for _, tbl := range t.tables {
-		if tbl.resumable {
+	var cleanupErr error
+	for resource, tbl := range t.tables {
+		if t.modeFor(resource) != filament.WriteReplace || tbl.resumable {
 			continue
 		}
-		_, _ = t.db.ExecContext(cleanup, "TRUNCATE "+tbl.qualified)
+		if _, err := t.db.ExecContext(ctx, "TRUNCATE "+tbl.qualified); err != nil {
+			cleanupErr = errors.Join(cleanupErr, fmt.Errorf("truncate %s: %w", resource, err))
+		}
 	}
-	return nil
+	return cleanupErr
 }
 
 func (t *Sink) release() {
@@ -197,3 +199,6 @@ func (t *Sink) release() {
 		t.db = nil
 	}
 }
+
+// Close releases session resources without reverting durable writes.
+func (t *Sink) Close(ctx context.Context) error { t.release(); return nil }

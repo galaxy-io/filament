@@ -1,0 +1,91 @@
+resources:
+  - name: appointment_assignments
+    path: /dispatch/v2/tenant/{{ config.tenant_id }}/export/appointment-assignments
+    primary_key: [id]
+    fields:
+      id: int64
+      technicianId: int64?
+      technicianName: string?
+      assignedById: int64?
+      assignedOn: string?
+      status: string?
+      isPaused: bool?
+      jobId: int64?
+      appointmentId: int64?
+      createdOn: string?
+      modifiedOn: string?
+      active: bool?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: appointment_assignments_export_token
+  - name: non_job_appointments
+    path: /dispatch/v2/tenant/{{ config.tenant_id }}/non-job-appointments
+    primary_key: [id]
+    fields:
+      id: int64
+      technicianId: int64?
+      start: string?
+      name: string?
+      duration: string?
+      timesheetCodeId: int64?
+      summary: string?
+      clearDispatchBoard: bool?
+      clearTechnicianView: bool?
+      removeTechnicianFromCapacityPlanning: bool?
+      allDay: bool?
+      showOnTechnicianSchedule: bool?
+      active: bool?
+      createdOn: string?
+      modifiedOn: string?
+      createdById: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      activeOnly: "false"
+      includeTotal: "true"
+      sort: "+Id"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+  - name: technician_shifts
+    path: /dispatch/v2/tenant/{{ config.tenant_id }}/technician-shifts
+    primary_key: [id]
+    fields:
+      id: int64
+      shiftType: string?
+      title: string?
+      note: string?
+      active: bool?
+      technicianId: int64?
+      start: string?
+      end: string?
+      timesheetCodeId: int64?
+      createdOn: string?
+      modifiedOn: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 5000
+          more: hasMore

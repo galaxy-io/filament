@@ -6,8 +6,11 @@ import pydantic
 import typing_extensions
 from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel
 from ..core.serialization import FieldMetadata
+from .google_protobuf_struct import GoogleProtobufStruct
 from .ingestion_v1read_mode import IngestionV1ReadMode
+from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
 from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
+from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
 from .ingestion_v1write_mode import IngestionV1WriteMode
 
 
@@ -52,6 +55,30 @@ class IngestionV1PipelineEdge(UniversalBaseModel):
     ] = None
     """
     Optional destination name for this resource in any execution mode; source identity is unchanged.
+    """
+
+    transform: typing.Optional[GoogleProtobufStruct] = pydantic.Field(default=None)
+    """
+    transform is the edge's transform definition as a JSON object matching
+     the transform grammar, keyed by resource. A resource-specific edge may
+     only define its own resource. Empty means rows pass through unchanged.
+    """
+
+    columns: typing.Optional[typing.List[IngestionV1ResourceColumnSelection]] = pydantic.Field(default=None)
+    """
+    columns narrows the columns read from each resource. An all-resource edge
+     may configure several resources; a resource-specific edge may configure
+     only its own resource. An omitted resource reads every column.
+    """
+
+    partitions: typing.Optional[typing.List[IngestionV1ResourcePartitionSelection]] = pydantic.Field(default=None)
+    """
+    partitions narrows the partitions a full read or a change stream's
+     initial snapshot backfills from each partitioned resource. The change
+     stream still carries every partition, including ones created later. An
+     all-resource edge may configure several resources; a resource-specific
+     edge may configure only its own resource. An omitted resource backfills
+     every partition, and an empty selection backfills none.
     """
 
     if IS_PYDANTIC_V2:

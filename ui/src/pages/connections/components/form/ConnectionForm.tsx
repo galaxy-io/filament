@@ -14,7 +14,6 @@ import Box from "@galaxy-io/dls/layout/Box";
 import ErrorLayout from "@galaxy-io/dls/layout/ErrorLayout";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
-import { ModalSize } from "@galaxy-io/dls/modal/Modal";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
@@ -33,7 +32,7 @@ import { getConnectionScopedFields, isFieldVisible } from "@/components/fields/u
 
 import { getConnectorVersions } from "@/pages/connections/components/create/utils";
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
-import ConnectionFormMaturityAlert from "@/pages/connections/components/form/ConnectionFormMaturityAlert";
+import ConnectionFormPreviewAlert from "@/pages/connections/components/form/ConnectionFormPreviewAlert";
 import {
   useConnectionFormActions,
   useConnectionFormState,
@@ -292,12 +291,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     const header = isNotFound ? "Connector not found" : "Failed to load connector";
 
     return (
-      <ConnectionFormWrapper
-        isOpen={isOpen}
-        size={ModalSize.MEDIUM}
-        header={header}
-        onClose={onClose}
-      >
+      <ConnectionFormWrapper isOpen={isOpen} header={header} onClose={onClose}>
         <ErrorLayout
           header={header}
           description={
@@ -322,7 +316,6 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     return (
       <ConnectionFormWrapper
         isOpen={isOpen}
-        size={ModalSize.MEDIUM}
         header={connectionId ? "Edit connection" : "New connection"}
         onClose={onClose}
       >
@@ -334,7 +327,6 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   return (
     <ConnectionFormWrapper
       isOpen={isOpen}
-      size={ModalSize.MEDIUM}
       header={
         <ConnectionFormHeader
           connectorName={connectorName}
@@ -362,12 +354,13 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       onClose={onClose}
     >
       <Flex alignItems={AlignItems.START} direction={FlexDirection.COLUMN} gap={16} fillWidth>
-        <ConnectionFormMaturityAlert
-          connectorName={connectorName}
-          connectorKind={connectorKind}
-          connectorMaturity={connector.maturity}
-          connectorApiVersion={connector.apiVersion}
-        />
+        {connector.isPreview && (
+          <ConnectionFormPreviewAlert
+            connectorName={connectorName}
+            connectorKind={connectorKind}
+            connectorApiVersion={connector.apiVersion}
+          />
+        )}
         {unplacedErrors.map((error) => (
           <Box key={`${error.field}:${error.message}`} fillWidth>
             <Alert variant={AlertVariant.ERROR}>{error.message}</Alert>

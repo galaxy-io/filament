@@ -26,8 +26,6 @@ const ObservabilityPageActions: FC = () => {
     void updateSearch((prev) => ({
       ...prev,
       timeframe,
-      runsBucket: undefined,
-      runsStatus: undefined,
     }));
   };
 

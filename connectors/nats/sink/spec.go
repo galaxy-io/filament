@@ -12,6 +12,9 @@ func (*Sink) Spec() filament.SinkSpec {
 		policies[i].Atomicity = filament.AtomicityRecord
 		policies[i].Durability = filament.DurabilityAfterApply
 	}
+	// Preserve the unrestricted, record-durable append contract used by
+	// existing continuous runs, alongside bounded ingestion policies.
+	policies = append([]filament.WritePolicyCapability{{Mode: filament.WriteAppend, AcceptsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Atomicity: filament.AtomicityRecord, Durability: filament.DurabilityAfterApply}}, policies...)
 	return filament.SinkSpec{
 		Name: "nats", DisplayName: connection.DisplayName, Version: "1",
 		DarkLogoURL: connection.DarkLogoURL, LightLogoURL: connection.LightLogoURL,
@@ -26,8 +29,8 @@ func (*Sink) Spec() filament.SinkSpec {
 		}...)},
 		Capabilities: filament.SinkCapabilities{
 			EncodedIntegrity: true, PreferredBatchRows: 1000, PreferredBatchBytes: 4 << 20,
-			WritePolicies: policies,
-			Stream:        &filament.StreamingSinkCapabilities{WritePolicies: []filament.WritePolicyCapability{{Mode: filament.WriteAppend, AcceptsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Atomicity: filament.AtomicityRecord, Durability: filament.DurabilityAfterApply}}},
+			WritePolicies:   policies,
+			ReusableSession: true,
 		},
 	}
 }

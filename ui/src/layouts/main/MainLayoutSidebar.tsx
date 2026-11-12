@@ -17,7 +17,11 @@ import {
 } from "@/module/nav";
 import { createFilamentHref } from "@/module/paths";
 
+import { useGetVersionQuery } from "@/api/queries/version";
+
 import { GITHUB_REPO_URL } from "@/constants";
+
+import { formatServerVersion } from "@/utils/format";
 
 interface MainLayoutSidebarProps {
   footer?: ReactNode;
@@ -25,6 +29,9 @@ interface MainLayoutSidebarProps {
 
 const MainLayoutSidebar: FC<MainLayoutSidebarProps> = ({ footer }) => {
   const matchRoute = useFilamentMatchRoute();
+  const { data: versionData } = useGetVersionQuery();
+
+  const version = versionData?.version ? formatServerVersion(versionData.version) : undefined;
 
   const activeItem = FILAMENT_NAV_ITEMS.find((item) =>
     matchRoute(FILAMENT_NAV_ITEM_TO_PATH_MAP[item], { fuzzy: true }),
@@ -43,9 +50,11 @@ const MainLayoutSidebar: FC<MainLayoutSidebarProps> = ({ footer }) => {
             height={t.size.control.xLarge}
           >
             <PoweredBy
+              label={null}
               wordmark={PoweredByWordmark.FILAMENT}
               href={GITHUB_REPO_URL}
-              ariaLabel="Filament on GitHub"
+              ariaLabel={"Filament on GitHub"}
+              trailing={version}
             />
             <AppFrameToggle />
           </Flex>

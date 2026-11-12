@@ -21,6 +21,11 @@ can confirm what the service actually returns. Other connectors and community
 reports are corroboration, not substitutes for the API contract. A community post
 on an official domain is still an observation with limited scope.
 
+Established connectors for the same product, such as Airbyte or Fivetran, and the
+provider's own warehouse export are useful for a different question. Their
+settings and table lists show what data teams expect to configure and receive.
+Use them to check scope and configuration, not request details.
+
 Distinguish these kinds of evidence in working notes:
 
 - **Documented:** the endpoint explicitly describes the behavior or schema.
@@ -47,6 +52,7 @@ these details in concise working notes or the existing plan:
 |---|---|
 | Purpose and row | What does one output row represent? Definition, instance, event, aggregate, or snapshot? |
 | Request | Exact method, path, required parameters, body encoding, version headers, and field selectors? |
+| Inputs | Does any required value have to come from the user? Can another endpoint list it, or can a fixed value or API default stand in? |
 | Response | Array path or singleton object? Are detail fields absent from the listing? |
 | Identity | Globally stable ID, parent-scoped ID, documented composite key, or no stable key? |
 | Pagination | Cursor path and injection target, termination signal, page size, hard result cap, and ordering? |
@@ -65,7 +71,8 @@ configuration differs from receiving webhook events. Explain those boundaries.
 
 Verify the base URL, including regional, tenant-specific, or account-provided
 hosts. Do not assume a global example host works for every customer. Add host
-configuration only when needed. Check version and Accept headers, credential
+configuration only when needed. Every other setting needs the justification in
+[pitfalls.md](pitfalls.md#configuration-surface). Check version and Accept headers, credential
 creation steps, credential lifetime, and scopes.
 
 Keep credentials secret in the config schema. Distinguish personal, workspace,
@@ -103,7 +110,9 @@ for a dedicated paginated endpoint. A `413` workaround that drops requested
 data is not complete extraction.
 
 Check required date windows and whether omitted bounds mean all history, a
-provider default, or an error. Do not invent a start date. Account for content
+provider default, or an error. Do not invent a recent start date that silently
+truncates history. A fixed date earlier than any account can hold is different.
+It covers everything and avoids a user setting, as long as the API accepts it. Account for content
 selectors, retention periods, processing delays, soft deletion, and whether
 private or archived records are available.
 

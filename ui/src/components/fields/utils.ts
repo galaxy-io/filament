@@ -49,7 +49,8 @@ export const isFieldVisible = (
   if (!field.visibleWhen) return true;
 
   const value = siblings[field.visibleWhen.field];
-  return typeof value === "string" && field.visibleWhen.values.includes(value);
+  if (typeof value !== "string" && typeof value !== "boolean") return false;
+  return field.visibleWhen.values.includes(String(value));
 };
 
 export const isJsonObject = (value: JsonValue): value is Record<string, JsonValue> => {

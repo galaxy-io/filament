@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -26,7 +27,8 @@ func (*commitTestSource) PlanResume(context.Context, []string, map[string]filame
 // commitFailSink completes every write, then fails Commit, recording Abort calls.
 type commitFailSink struct {
 	incrementalTestSink
-	aborts atomic.Int32
+	aborts         atomic.Int32
+	begins, closes atomic.Int32
 }
 
 func (s *commitFailSink) Commit(context.Context) error { return errors.New("commit boom") }
@@ -258,6 +260,9 @@ func TestRunOneCommitFailureAborts(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("no resource.failed fact published")
+	}
+	if sink.begins.Load() != 1 || sink.closes.Load() != 1 {
+		t.Fatalf("begin=%d close=%d", sink.begins.Load(), sink.closes.Load())
 	}
 	if got := sink.aborts.Load(); got != 1 {
 		t.Fatalf("Abort calls = %d, want 1", got)
@@ -560,5 +565,68 @@ func TestRunOneMixedUpsertUsesAppendForKeylessResource(t *testing.T) {
 	}
 	if sink.opened.IngestionTypes["keyless"] != filament.IngestionFullAppend {
 		t.Fatal("sink received unresolved keyless ingestion type")
+	}
+}
+
+func (s *commitFailSink) Begin(context.Context) error   { s.begins.Add(1); return nil }
+func (s *commitFailSink) Close(context.Context) error   { s.closes.Add(1); return nil }
+func (*controlledTestSink) Begin(context.Context) error { return nil }
+func (*controlledTestSink) Close(context.Context) error { return nil }
+func (*mixedUpsertSink) Begin(context.Context) error    { return nil }
+func (*mixedUpsertSink) Close(context.Context) error    { return nil }
+
+type blockingBeginSink struct {
+	controlledTestSink
+	started chan struct{}
+}
+
+func (s *blockingBeginSink) Begin(ctx context.Context) error {
+	close(s.started)
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestControlDuringSinkBegin(t *testing.T) {
+	for _, stop := range []bool{false, true} {
+		t.Run(fmt.Sprint(stop), func(t *testing.T) {
+			bus := inproc.New()
+			facts, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer facts.Close()
+			sink := &blockingBeginSink{started: make(chan struct{})}
+			sources := registry.NewSources()
+			sources.Register("test", func() filament.Source { return &commitTestSource{} })
+			sinks := registry.NewSinks()
+			sinks.Register("test-sink", func() filament.Sink { return sink })
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				RunOne(context.Background(), Deps{Bus: bus, DataStore: sqlite.NewMemory(), Sources: sources, Sinks: sinks}, filament.RunSpec{Tenant: "t1", Run: "r1", Source: filament.Ref{Connector: "test"}, Sink: filament.Ref{Connector: "test-sink"}, Resources: []string{"users"}, IngestionTypes: map[string]filament.IngestionType{"users": filament.IngestionFullAppend}})
+			}()
+			select {
+			case <-sink.started:
+			case <-time.After(5 * time.Second):
+				t.Fatal("Begin not called")
+			}
+			env := events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}
+			want := events.RunPaused.Name()
+			if stop {
+				err = events.Emit(context.Background(), bus, events.RunCancelRequested, env, events.RunCancelRequestedEvent{})
+				want = events.RunCanceled.Name()
+			} else {
+				err = events.Emit(context.Background(), bus, events.RunPauseRequested, env, events.RunPauseRequestedEvent{})
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			waitForFact(t, facts, want)
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("run did not stop")
+			}
+		})
 	}
 }

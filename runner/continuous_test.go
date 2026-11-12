@@ -45,6 +45,7 @@ func (s *continuousTestStore) EndAttempt(_ context.Context, r filament.EndAttemp
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state.Attempt.Termination = r.Termination
+	s.state.Attempt.Reason = r.Reason
 	return nil
 }
 
@@ -153,32 +154,29 @@ type continuousTestSink struct {
 }
 
 func (*continuousTestSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}, WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}}
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true, WritePolicies: filament.WriteCapabilities(filament.IngestionFullAppend)}}
 }
 func (*continuousTestSink) Open(context.Context, filament.RunSpec) error { return nil }
-func (s *continuousTestSink) BeginEpoch(_ context.Context, r filament.EpochRef) error {
-	s.ref = r
+func (s *continuousTestSink) Begin(_ context.Context) error {
+	s.ref.Epoch++
 	s.rows = 0
 	return nil
 }
 
 func (s *continuousTestSink) Apply(_ context.Context, b *arrowbatch.Batch, o filament.ApplyOptions) (filament.WriteReceipt, error) {
-	if o.Epoch == nil || *o.Epoch != s.ref {
-		return filament.WriteReceipt{}, filament.ErrEpochMismatch
-	}
 	s.rows += int64(b.NumRows())
 	return filament.WriteReceipt{Rows: b.NumRows(), WriteCRC: b.IntegrityCRC()}, nil
 }
 
-func (s *continuousTestSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
+func (s *continuousTestSink) Commit(context.Context) error {
 	if s.fail {
-		return nil, errors.New("sink failed")
+		return errors.New("sink failed")
 	}
 	s.commits++
-	return []filament.EpochReceipt{{Resource: "events", Rows: s.rows}}, nil
+	return nil
 }
-func (*continuousTestSink) AbortEpoch(context.Context, filament.EpochRef) error { return nil }
-func (*continuousTestSink) CloseSession(context.Context) error                  { return nil }
+func (*continuousTestSink) Abort(context.Context) error { return nil }
+func (*continuousTestSink) Close(context.Context) error { return nil }
 
 func continuousFixture(t *testing.T) (ContinuousConfig, *continuousTestStore, *continuousTestSource, *continuousTestSink) {
 	t.Helper()
@@ -297,6 +295,32 @@ func TestContinuousIdleStopAndLeaseLoss(t *testing.T) {
 	}
 }
 
+func TestContinuousYieldDrainsAndRecordsUpgrade(t *testing.T) {
+	cfg, store, src, _ := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.opened = make(chan struct{})
+	src.idle = true
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	store.mu.Lock()
+	store.state.Attempt.YieldRequested = true
+	store.mu.Unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Desired != filament.StreamEnabled {
+		t.Fatal("yield changed the stream's desired state")
+	}
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != filament.AttemptReasonUpgrade {
+		t.Fatalf("yield ended %s %q, want clean yielded for upgrade", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
 func TestContinuousPauseBeforeStartupEndsAttempt(t *testing.T) {
 	cfg, store, _, sink := continuousFixture(t)
 	store.state.Desired = filament.StreamPaused
@@ -319,7 +343,7 @@ type keyedContinuousSink struct {
 }
 
 func (*keyedContinuousSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}}}
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true, WritePolicies: filament.WriteCapabilities(filament.IngestionFullUpsert)}}
 }
 
 func (s *keyedContinuousSink) Open(_ context.Context, spec filament.RunSpec) error {
@@ -454,7 +478,7 @@ type orderedContinuousSink struct {
 }
 
 func (*orderedContinuousSink) Spec() filament.SinkSpec {
-	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{Stream: &filament.StreamingSinkCapabilities{WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}}}
+	return filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true, WritePolicies: filament.WriteCapabilities(filament.IngestionCDCMerge)}}
 }
 
 func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
@@ -468,8 +492,8 @@ func (s *orderedContinuousSink) Apply(ctx context.Context, b *arrowbatch.Batch, 
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
 
-func (*orderedContinuousSink) CommitEpoch(context.Context, filament.EpochRef) ([]filament.EpochReceipt, error) {
-	return []filament.EpochReceipt{{Resource: "events", Rows: 2}, {Resource: "other", Rows: 1}}, nil
+func (*orderedContinuousSink) Commit(context.Context) error {
+	return nil
 }
 
 func TestContinuousNegotiatedMergePreservesCrossResourceOrder(t *testing.T) {
@@ -530,6 +554,35 @@ func (s *inferredSchemaSink) Apply(ctx context.Context, b *arrowbatch.Batch, opt
 	return s.continuousTestSink.Apply(ctx, b, opts)
 }
 
+// A stream materializes the same lineage columns as a bounded run.
+func TestContinuousMaterializesAuditColumns(t *testing.T) {
+	lineage := []string{rowmodel.AuditRunIDField, rowmodel.AuditRunStartedAtField}
+	change := append(slices.Clone(lineage), rowmodel.AuditOperationField, rowmodel.AuditSourcePositionField, rowmodel.AuditSequenceField)
+	for _, tc := range []struct {
+		ingestion filament.IngestionType
+		want      []string
+	}{
+		{filament.IngestionFullAppend, lineage},
+		{filament.IngestionCDCMerge, change},
+		{filament.IngestionCDCAppend, change},
+	} {
+		cfg, _, _, sink := continuousFixture(t)
+		cfg.Spec.IngestionTypes = map[string]filament.IngestionType{"events": tc.ingestion}
+		typed := &inferredSchemaSink{continuousTestSink: sink}
+		cfg.Sink = typed
+		if err := RunContinuous(t.Context(), cfg); err != nil {
+			t.Fatalf("%s: %v", tc.ingestion, err)
+		}
+		got := []string{}
+		for _, f := range typed.ensured.Fields {
+			got = append(got, f.Name)
+		}
+		if want := append([]string{"value"}, tc.want...); !slices.Equal(got, want) {
+			t.Fatalf("%s: ensured columns %v, want %v", tc.ingestion, got, want)
+		}
+	}
+}
+
 func TestContinuousEnsuresInferredSchemaBeforeApply(t *testing.T) {
 	for _, reject := range []bool{false, true} {
 		cfg, store, src, sink := continuousFixture(t)
@@ -543,5 +596,85 @@ func TestContinuousEnsuresInferredSchemaBeforeApply(t *testing.T) {
 		} else if err != nil || typed.calls != 2 || sink.commits != 2 {
 			t.Fatalf("schema preparation calls=%d commits=%d: %v", typed.calls, sink.commits, err)
 		}
+	}
+}
+
+type finiteContinuousSink struct {
+	continuousTestSink
+	closed   int
+	closeErr error
+	run      filament.RunSpec
+}
+
+func (s *finiteContinuousSink) Spec() filament.SinkSpec {
+	spec := s.continuousTestSink.Spec()
+	spec.Capabilities.ReusableSession = false
+	return spec
+}
+
+func (s *finiteContinuousSink) Open(_ context.Context, r filament.RunSpec) error {
+	s.run = r
+	return nil
+}
+func (s *finiteContinuousSink) Close(context.Context) error { s.closed++; return s.closeErr }
+
+func TestContinuousUsesFreshFiniteSinks(t *testing.T) {
+	for _, phase := range []string{"success", "commit failure", "close failure"} {
+		t.Run(phase, func(t *testing.T) {
+			cfg, store, src, _ := continuousFixture(t)
+			first := &finiteContinuousSink{}
+			second := &finiteContinuousSink{}
+			if phase == "commit failure" {
+				first.fail = true
+			}
+			if phase == "close failure" {
+				first.closeErr = errors.New("close uncertain")
+			}
+			created := 0
+			cfg.Sink = first
+			cfg.NewSink = func() (filament.Sink, error) { created++; return second, nil }
+			err := RunContinuous(context.Background(), cfg)
+			if phase != "success" {
+				if err == nil || src.ack != 0 || store.cert != nil || created != 0 {
+					t.Fatalf("failed boundary advanced: err=%v ack=%d cert=%v created=%d", err, src.ack, store.cert, created)
+				}
+
+				want := filament.AttemptClean
+				if phase == "close failure" {
+					want = filament.AttemptUnproven
+				}
+				if store.state.Attempt.Termination != want {
+					t.Fatalf("termination=%v want=%v", store.state.Attempt.Termination, want)
+				}
+				if first.closed != 1 {
+					t.Fatalf("close calls=%d", first.closed)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if src.ack != 2 || created != 1 || first.commits != 1 || second.commits != 1 || first.closed != 1 || second.closed != 1 {
+				t.Fatalf("acks=%d created=%d commits=%d/%d closes=%d/%d", src.ack, created, first.commits, second.commits, first.closed, second.closed)
+			}
+			if first.run.Run != cfg.Spec.Run || second.run.Run != cfg.Spec.Run || first.run.SinkWriteID == second.run.SinkWriteID || first.run.StreamAttempt != nil || second.run.StreamAttempt != nil {
+				t.Fatal("write identities leaked or reused")
+			}
+		})
+	}
+}
+
+func TestContinuousBoundaryAmortizesFreshSessions(t *testing.T) {
+	single := filament.SinkSpec{}
+	reusable := filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true}}
+	if got := continuousBoundary(filament.RunOptions{}, single); got.MaxWait != 30*time.Second || got.MaxAge != 30*time.Second || got.MaxRecords != 100_000 {
+		t.Fatal(got)
+	}
+	if got := continuousBoundary(filament.RunOptions{}, reusable); got.MaxWait != time.Second || got.MaxAge != time.Second || got.MaxRecords != 1000 {
+		t.Fatal(got)
+	}
+	custom := filament.Boundary{MaxRecords: 10, MaxWait: 2 * time.Second}
+	if got := continuousBoundary(filament.RunOptions{EpochBoundary: &custom}, single); got != custom {
+		t.Fatal(got)
 	}
 }

@@ -93,6 +93,8 @@ encryption to protect resolved connection credentials in transit.
 | server.autoscaling.maxReplicas | int | `10` | Maximum server replicas when autoscaling is enabled. |
 | server.autoscaling.minReplicas | int | `1` | Minimum server replicas when autoscaling is enabled. |
 | server.autoscaling.targetCpu | int | `80` | Target average CPU utilization percentage for server autoscaling. |
+| server.extraEnv | list | `[]` | Extra environment variables for the server container, as a list of EnvVar entries. |
+| server.extraEnvFrom | list | `[]` | Extra `envFrom` sources for the server container, as a list of `configMapRef` or `secretRef` entries. |
 | server.image.pullPolicy | string | `"IfNotPresent"` | Server image pull policy. |
 | server.image.pullSecrets | list | `[]` | Image pull secrets for the server Deployment. |
 | server.image.repository | string | `"ghcr.io/galaxy-io/filament/server"` | Server image repository. |
@@ -217,7 +219,7 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 | auth.keycloak.clientId | string | `"filament"` | Filament's confidential client, stored as `AUTH_CLIENT_ID`. |
 | auth.keycloak.clientSecret | string | required unless `keycloak.existingSecret` is set | The client's secret, stored as `AUTH_CLIENT_SECRET` in the dedicated Keycloak Secret. Supply a stable value; the chart never generates it. |
 | auth.keycloak.issuer | string | required when `auth.type=keycloak` and `keycloak.enabled=false` | Realm URL, `https://<host>/realms/<realm>`, stored as `AUTH_ISSUER`. Must match what the realm advertises. Derived from `keycloak.hostname` when vendored. Keycloak 26 or newer. |
-| auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel` and `keycloak`. |
+| auth.type | string | `"zitadel"` | Identity provider. Valid values are `zitadel`, `keycloak` and `proxy`. |
 | auth.uiOrigin | string | `""` | Origin the UI is served from, stored in the ConfigMap as `AUTH_UI_ORIGIN`; normally the ingress host. An https origin marks the session cookie Secure. |
 | auth.zitadel.existingSecret | string | `""` | Server-only Secret containing `AUTH_PAT` for external Zitadel, plus `AUTH_BOOTSTRAP_ADMIN_PASSWORD` when bootstrapping an admin. Kept apart from `existingSecret`, which every worker receives. Unset, the chart creates a dedicated Secret from `auth.zitadel.pat` and `auth.bootstrap.adminPassword`. Vendored Zitadel mints its own PAT. |
 | auth.zitadel.issuer | string | required when `auth.enabled=true` | Issuer URL Filament reaches the provider at, stored in the ConfigMap as `AUTH_ISSUER`. Only the server talks to Zitadel, so an in-cluster name is fine, but it must equal the issuer Zitadel advertises or discovery fails. |

@@ -21,7 +21,6 @@ import "@xyflow/react/dist/style.css";
 
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
-  PIPELINE_CANVAS_FIT_VIEW_OPTIONS,
   PIPELINE_CANVAS_MINIMAP_HEIGHT,
   PIPELINE_CANVAS_MINIMAP_LEFT,
   PIPELINE_CANVAS_MINIMAP_WIDTH,
@@ -33,7 +32,7 @@ import {
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
 import { canConnectEdge, expandConnection } from "@/pages/pipelines/canvas/graph/rules";
-import { usePipelineCanvasIsRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsRunning";
+import { usePipelineCanvasRunningEdgeIds } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasRunningEdgeIds";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
 import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
@@ -192,12 +191,13 @@ const PipelineCanvasFlow: FC = () => {
     [selectedNodes, state.nodes, isReadOnly],
   );
 
-  const isRunning = usePipelineCanvasIsRunning();
+  const runningEdgeIds = usePipelineCanvasRunningEdgeIds(state.edges, state.nodes);
 
   const { invalidEdgeIds } = usePipelineCanvasValidation();
   const styledEdges = useMemo(
-    () => mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme, isRunning, invalidEdgeIds),
-    [selectedEdges, selectedNodes, theme, isRunning, invalidEdgeIds],
+    () =>
+      mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme, runningEdgeIds, invalidEdgeIds),
+    [selectedEdges, selectedNodes, theme, runningEdgeIds, invalidEdgeIds],
   );
 
   return (
@@ -221,8 +221,6 @@ const PipelineCanvasFlow: FC = () => {
         panOnScroll
         snapToGrid
         snapGrid={PIPELINE_CANVAS_SNAP_GRID}
-        fitView
-        fitViewOptions={PIPELINE_CANVAS_FIT_VIEW_OPTIONS}
         deleteKeyCode={isReadOnly ? null : ["Backspace", "Delete"]}
         proOptions={{ hideAttribution: true }}
       >

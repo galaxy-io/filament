@@ -28,6 +28,7 @@ export type ListSearchParams = z.infer<typeof listSearchParamsSchema>;
 export const filamentLayoutSearchSchema = z.object({
   flow: z.enum(Flow).optional().catch(undefined),
   connectionId: z.string().optional().catch(undefined),
+  pipelineId: z.string().optional().catch(undefined),
   connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
   connectorSearch: z.string().optional().catch(undefined),
@@ -51,8 +52,7 @@ export const observabilitySearchSchema = z.object({
   usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
   usagePivot: z.enum(MetricDimension).optional().catch(undefined),
   statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-  runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-  runsStatus: z.enum(RunStatus).optional().catch(undefined),
+  pipelinesPage: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 export type ObservabilitySearch = z.infer<typeof observabilitySearchSchema>;

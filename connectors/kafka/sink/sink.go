@@ -13,7 +13,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/connectors/kafka/internal/client"
-	"github.com/galaxy-io/filament/internal/stream"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 type producer interface {
@@ -23,16 +23,14 @@ type producer interface {
 
 // Sink serializes Apply calls; callbacks own encoded data, never borrowed Arrow buffers.
 type Sink struct {
-	mu                           sync.Mutex
-	producer                     producer
-	cfg                          config
-	checkTopic                   func(context.Context, string) (map[int32]bool, error)
-	opened, closed, continuous   bool
-	failure, uncertain, closeErr error
-	lifecycle                    stream.SinkLifecycle
-	receipts                     map[string]filament.EpochReceipt
-	closeOnce                    sync.Once
-	closeDone                    chan struct{}
+	mu         sync.Mutex
+	producer   producer
+	cfg        config
+	checkTopic func(context.Context, string) (map[int32]bool, error)
+	uncertain  error
+	lifecycle  sinkstate.Lifecycle
+	closeOnce  sync.Once
+	closeDone  chan struct{}
 }
 
 // New returns a fresh connector instance.
@@ -43,7 +41,6 @@ func (*Sink) Name() string { return "kafka" }
 
 var (
 	_ filament.Sink              = (*Sink)(nil)
-	_ filament.StreamingSink     = (*Sink)(nil)
 	_ filament.ConfigValidatable = (*Sink)(nil)
 	_ filament.LiveValidatable   = (*Sink)(nil)
 )
@@ -57,11 +54,8 @@ func (*Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
 func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.opened {
+	if s.lifecycle.Opened() {
 		return errors.New("kafka sink: already opened")
-	}
-	if err := run.ValidateStreamAttempt(); err != nil {
-		return err
 	}
 	cfg := filament.NewConfig(run.Sink.Config)
 	opts, err := client.Options(cfg)
@@ -75,14 +69,6 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	for _, p := range run.WritePolicies {
 		if p.Capability.Mode != filament.WriteAppend {
 			return errors.New("kafka sink: only append supported")
-		}
-	}
-	continuous := run.Options.Execution.Normalize() == filament.ExecutionContinuous
-	var lifecycle stream.SinkLifecycle
-	if continuous {
-		lifecycle, err = stream.NewSinkLifecycle(*run.StreamAttempt)
-		if err != nil {
-			return err
 		}
 	}
 	opts = append(opts, c.producerOptions()...)
@@ -133,19 +119,13 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return err
 	}
 	s.producer, s.checkTopic, s.cfg = cl, check, c
-	s.continuous, s.lifecycle = continuous, lifecycle
-	s.opened = true
+	s.lifecycle.Open()
 	ready = true
 	return nil
 }
 
 func (s *Sink) fail(err error) error {
-	if s.failure == nil {
-		s.failure = err
-	}
-	if s.continuous {
-		s.lifecycle.Fail(err)
-	}
+	s.lifecycle.Fail(err)
 	return err
 }
 
@@ -154,18 +134,8 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var empty filament.WriteReceipt
-	if !s.opened || s.closed {
-		return empty, errors.New("kafka sink: session is not open")
-	}
-	if s.failure != nil {
-		return empty, s.failure
-	}
-	if s.continuous {
-		if err := s.lifecycle.CheckApply(opts.Epoch); err != nil {
-			return empty, err
-		}
-	} else if opts.Epoch != nil {
-		return empty, filament.ErrEpochMismatch
+	if err := s.lifecycle.CheckApply(); err != nil {
+		return empty, err
 	}
 	if err := ctx.Err(); err != nil {
 		return empty, s.fail(err)
@@ -213,46 +183,8 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	}
 	topic, _ := s.cfg.route(b.Resource)
 	receipt := filament.WriteReceipt{URI: "kafka://" + topic, Rows: b.NumRows(), Bytes: acc.bytes, WriteCRC: b.IntegrityCRC(), EncodedCRC: &crc}
-	if s.continuous {
-		r := s.receipts[b.Resource]
-		r.Resource = b.Resource
-		r.Rows += int64(receipt.Rows)
-		r.Bytes += receipt.Bytes
-		s.receipts[b.Resource] = r
-	}
+
 	return receipt, nil
-}
-
-// Commit finalizes a bounded run without changing already acknowledged records.
-func (s *Sink) Commit(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.continuous {
-		return filament.ErrEpochMismatch
-	}
-	if !s.opened {
-		return errors.New("kafka sink: session is not open")
-	}
-	if s.closed {
-		return s.closeErr
-	}
-	return s.close(ctx)
-}
-
-// Abort stops a bounded run without retracting accepted records.
-func (s *Sink) Abort(ctx context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.continuous {
-		return filament.ErrEpochMismatch
-	}
-	if !s.opened {
-		return nil
-	}
-	if s.closed {
-		return s.closeErr
-	}
-	return s.close(ctx)
 }
 
 // Shutdown is bounded by caller context. A timed-out close remains unsuccessful.
@@ -272,10 +204,4 @@ func (s *Sink) cleanupPublisher(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-}
-
-func (s *Sink) close(ctx context.Context) error {
-	s.closeErr = errors.Join(s.failure, s.uncertain, s.cleanupPublisher(ctx))
-	s.closed = true
-	return s.closeErr
 }

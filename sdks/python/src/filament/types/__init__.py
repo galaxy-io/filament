@@ -44,7 +44,6 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1config_schema import IngestionV1ConfigSchema
     from .ingestion_v1connection import IngestionV1Connection
     from .ingestion_v1connector_kind import IngestionV1ConnectorKind
-    from .ingestion_v1connector_maturity import IngestionV1ConnectorMaturity
     from .ingestion_v1connector_spec import IngestionV1ConnectorSpec
     from .ingestion_v1create_connection_response import IngestionV1CreateConnectionResponse
     from .ingestion_v1create_pipeline_notifier_response import IngestionV1CreatePipelineNotifierResponse
@@ -70,12 +69,15 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1get_pipeline_version_response import IngestionV1GetPipelineVersionResponse
     from .ingestion_v1get_resource_columns_response import IngestionV1GetResourceColumnsResponse
     from .ingestion_v1get_run_response import IngestionV1GetRunResponse
+    from .ingestion_v1get_version_request import IngestionV1GetVersionRequest
+    from .ingestion_v1get_version_response import IngestionV1GetVersionResponse
     from .ingestion_v1list_connections_response import IngestionV1ListConnectionsResponse
     from .ingestion_v1list_connectors_response import IngestionV1ListConnectorsResponse
     from .ingestion_v1list_pipeline_notifiers_response import IngestionV1ListPipelineNotifiersResponse
     from .ingestion_v1list_pipeline_versions_response import IngestionV1ListPipelineVersionsResponse
     from .ingestion_v1list_pipelines_response import IngestionV1ListPipelinesResponse
     from .ingestion_v1list_runs_response import IngestionV1ListRunsResponse
+    from .ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
     from .ingestion_v1notification_type import IngestionV1NotificationType
     from .ingestion_v1notifier import IngestionV1Notifier
     from .ingestion_v1notifier_event import IngestionV1NotifierEvent
@@ -98,8 +100,10 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1requirement_kind import IngestionV1RequirementKind
     from .ingestion_v1resource import IngestionV1Resource
     from .ingestion_v1resource_column import IngestionV1ResourceColumn
+    from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
     from .ingestion_v1resource_columns import IngestionV1ResourceColumns
     from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
+    from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
     from .ingestion_v1resource_validation import IngestionV1ResourceValidation
     from .ingestion_v1run_event import IngestionV1RunEvent
     from .ingestion_v1run_event_fields import IngestionV1RunEventFields
@@ -116,12 +120,16 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1sorting_request import IngestionV1SortingRequest
     from .ingestion_v1tail_run_request import IngestionV1TailRunRequest
     from .ingestion_v1tail_run_response import IngestionV1TailRunResponse
+    from .ingestion_v1transform_argument import IngestionV1TransformArgument
+    from .ingestion_v1transform_expression_type import IngestionV1TransformExpressionType
+    from .ingestion_v1transform_function import IngestionV1TransformFunction
     from .ingestion_v1update_connection_response import IngestionV1UpdateConnectionResponse
     from .ingestion_v1update_pipeline_notifier_response import IngestionV1UpdatePipelineNotifierResponse
     from .ingestion_v1update_pipeline_response import IngestionV1UpdatePipelineResponse
     from .ingestion_v1update_pipeline_schedule_response import IngestionV1UpdatePipelineScheduleResponse
     from .ingestion_v1validate_config_response import IngestionV1ValidateConfigResponse
     from .ingestion_v1validate_pipeline_response import IngestionV1ValidatePipelineResponse
+    from .ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
     from .ingestion_v1validation_error import IngestionV1ValidationError
     from .ingestion_v1worker_configuration import IngestionV1WorkerConfiguration
     from .ingestion_v1worker_resources import IngestionV1WorkerResources
@@ -175,7 +183,6 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ConfigSchema": ".ingestion_v1config_schema",
     "IngestionV1Connection": ".ingestion_v1connection",
     "IngestionV1ConnectorKind": ".ingestion_v1connector_kind",
-    "IngestionV1ConnectorMaturity": ".ingestion_v1connector_maturity",
     "IngestionV1ConnectorSpec": ".ingestion_v1connector_spec",
     "IngestionV1CreateConnectionResponse": ".ingestion_v1create_connection_response",
     "IngestionV1CreatePipelineNotifierResponse": ".ingestion_v1create_pipeline_notifier_response",
@@ -201,12 +208,15 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1GetPipelineVersionResponse": ".ingestion_v1get_pipeline_version_response",
     "IngestionV1GetResourceColumnsResponse": ".ingestion_v1get_resource_columns_response",
     "IngestionV1GetRunResponse": ".ingestion_v1get_run_response",
+    "IngestionV1GetVersionRequest": ".ingestion_v1get_version_request",
+    "IngestionV1GetVersionResponse": ".ingestion_v1get_version_response",
     "IngestionV1ListConnectionsResponse": ".ingestion_v1list_connections_response",
     "IngestionV1ListConnectorsResponse": ".ingestion_v1list_connectors_response",
     "IngestionV1ListPipelineNotifiersResponse": ".ingestion_v1list_pipeline_notifiers_response",
     "IngestionV1ListPipelineVersionsResponse": ".ingestion_v1list_pipeline_versions_response",
     "IngestionV1ListPipelinesResponse": ".ingestion_v1list_pipelines_response",
     "IngestionV1ListRunsResponse": ".ingestion_v1list_runs_response",
+    "IngestionV1ListTransformFunctionsResponse": ".ingestion_v1list_transform_functions_response",
     "IngestionV1NotificationType": ".ingestion_v1notification_type",
     "IngestionV1Notifier": ".ingestion_v1notifier",
     "IngestionV1NotifierEvent": ".ingestion_v1notifier_event",
@@ -229,8 +239,10 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1RequirementKind": ".ingestion_v1requirement_kind",
     "IngestionV1Resource": ".ingestion_v1resource",
     "IngestionV1ResourceColumn": ".ingestion_v1resource_column",
+    "IngestionV1ResourceColumnSelection": ".ingestion_v1resource_column_selection",
     "IngestionV1ResourceColumns": ".ingestion_v1resource_columns",
     "IngestionV1ResourceCursorConfig": ".ingestion_v1resource_cursor_config",
+    "IngestionV1ResourcePartitionSelection": ".ingestion_v1resource_partition_selection",
     "IngestionV1ResourceValidation": ".ingestion_v1resource_validation",
     "IngestionV1RunEvent": ".ingestion_v1run_event",
     "IngestionV1RunEventFields": ".ingestion_v1run_event_fields",
@@ -247,12 +259,16 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1SortingRequest": ".ingestion_v1sorting_request",
     "IngestionV1TailRunRequest": ".ingestion_v1tail_run_request",
     "IngestionV1TailRunResponse": ".ingestion_v1tail_run_response",
+    "IngestionV1TransformArgument": ".ingestion_v1transform_argument",
+    "IngestionV1TransformExpressionType": ".ingestion_v1transform_expression_type",
+    "IngestionV1TransformFunction": ".ingestion_v1transform_function",
     "IngestionV1UpdateConnectionResponse": ".ingestion_v1update_connection_response",
     "IngestionV1UpdatePipelineNotifierResponse": ".ingestion_v1update_pipeline_notifier_response",
     "IngestionV1UpdatePipelineResponse": ".ingestion_v1update_pipeline_response",
     "IngestionV1UpdatePipelineScheduleResponse": ".ingestion_v1update_pipeline_schedule_response",
     "IngestionV1ValidateConfigResponse": ".ingestion_v1validate_config_response",
     "IngestionV1ValidatePipelineResponse": ".ingestion_v1validate_pipeline_response",
+    "IngestionV1ValidateTransformResponse": ".ingestion_v1validate_transform_response",
     "IngestionV1ValidationError": ".ingestion_v1validation_error",
     "IngestionV1WorkerConfiguration": ".ingestion_v1worker_configuration",
     "IngestionV1WorkerResources": ".ingestion_v1worker_resources",
@@ -330,7 +346,6 @@ __all__ = [
     "IngestionV1ConfigSchema",
     "IngestionV1Connection",
     "IngestionV1ConnectorKind",
-    "IngestionV1ConnectorMaturity",
     "IngestionV1ConnectorSpec",
     "IngestionV1CreateConnectionResponse",
     "IngestionV1CreatePipelineNotifierResponse",
@@ -356,12 +371,15 @@ __all__ = [
     "IngestionV1GetPipelineVersionResponse",
     "IngestionV1GetResourceColumnsResponse",
     "IngestionV1GetRunResponse",
+    "IngestionV1GetVersionRequest",
+    "IngestionV1GetVersionResponse",
     "IngestionV1ListConnectionsResponse",
     "IngestionV1ListConnectorsResponse",
     "IngestionV1ListPipelineNotifiersResponse",
     "IngestionV1ListPipelineVersionsResponse",
     "IngestionV1ListPipelinesResponse",
     "IngestionV1ListRunsResponse",
+    "IngestionV1ListTransformFunctionsResponse",
     "IngestionV1NotificationType",
     "IngestionV1Notifier",
     "IngestionV1NotifierEvent",
@@ -384,8 +402,10 @@ __all__ = [
     "IngestionV1RequirementKind",
     "IngestionV1Resource",
     "IngestionV1ResourceColumn",
+    "IngestionV1ResourceColumnSelection",
     "IngestionV1ResourceColumns",
     "IngestionV1ResourceCursorConfig",
+    "IngestionV1ResourcePartitionSelection",
     "IngestionV1ResourceValidation",
     "IngestionV1RunEvent",
     "IngestionV1RunEventFields",
@@ -402,12 +422,16 @@ __all__ = [
     "IngestionV1SortingRequest",
     "IngestionV1TailRunRequest",
     "IngestionV1TailRunResponse",
+    "IngestionV1TransformArgument",
+    "IngestionV1TransformExpressionType",
+    "IngestionV1TransformFunction",
     "IngestionV1UpdateConnectionResponse",
     "IngestionV1UpdatePipelineNotifierResponse",
     "IngestionV1UpdatePipelineResponse",
     "IngestionV1UpdatePipelineScheduleResponse",
     "IngestionV1ValidateConfigResponse",
     "IngestionV1ValidatePipelineResponse",
+    "IngestionV1ValidateTransformResponse",
     "IngestionV1ValidationError",
     "IngestionV1WorkerConfiguration",
     "IngestionV1WorkerResources",

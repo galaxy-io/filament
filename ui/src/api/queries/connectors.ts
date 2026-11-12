@@ -1,3 +1,4 @@
+import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
@@ -5,17 +6,21 @@ import {
   type UseQueryOptions,
   useMutation,
   useQuery,
+  useTransport,
 } from "@connectrpc/connect-query";
+import { useIsFetching } from "@tanstack/react-query";
 
-import type {
-  DiscoverResourcesRequest,
-  DiscoverResourcesResponse,
-  GetConnectorRequest,
-  GetConnectorResponse,
-  GetResourceColumnsRequest,
-  GetResourceColumnsResponse,
-  ListConnectorsRequest,
-  ListConnectorsResponse,
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import {
+  type DiscoverResourcesRequest,
+  DiscoverResourcesRequestSchema,
+  type DiscoverResourcesResponse,
+  type GetConnectorRequest,
+  type GetConnectorResponse,
+  type GetResourceColumnsRequest,
+  type GetResourceColumnsResponse,
+  type ListConnectorsRequest,
+  type ListConnectorsResponse,
 } from "@/gen/ingestion/v1/connectors_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 
@@ -61,6 +66,18 @@ export const createDiscoverResourcesQueryKey = (
     transport,
     cardinality: "finite",
   });
+};
+
+export const useIsDiscoveringResources = (connectionId: Connection["id"] = "") => {
+  const transport = useTransport();
+  return (
+    useIsFetching({
+      queryKey: createDiscoverResourcesQueryKey(
+        create(DiscoverResourcesRequestSchema, { connectionId }),
+        transport,
+      ),
+    }) > 0
+  );
 };
 
 export const useDiscoverResourcesQuery = ({

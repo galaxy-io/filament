@@ -1,3 +1,6 @@
+import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
+import { t } from "@galaxy-io/dls/theme/tokens/t";
+
 import type { PipelineCanvasNodeIslandMeasurements } from "@/pages/pipelines/canvas/nodes/types";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
@@ -50,3 +53,17 @@ export const subscribePipelineCanvasNodeMeasurements = (listener: () => void) =>
 
 export const getPipelineCanvasNodeMeasurements = (nodeId: CanvasNode["id"]) =>
   pipelineCanvasNodeMeasurementsMap.get(nodeId);
+
+export const getPipelineCanvasNodeBorderColor = (
+  isSelected: boolean,
+  isRunning: boolean,
+): string => {
+  if (isSelected) return t.color.solid.primary.background;
+  if (isRunning) return t.color.solid.primary.hovered;
+  return t.color.border.primary;
+};
+
+export const getPipelineCanvasNodeOutline = (isSelected: boolean, isRunning: boolean): string =>
+  isSelected || isRunning
+    ? `${HAIRLINE_WIDTH} solid ${getPipelineCanvasNodeBorderColor(isSelected, isRunning)}`
+    : "none";

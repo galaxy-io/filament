@@ -73,7 +73,11 @@ func TestLiveNATSSchemaMigrationAndRestart(t *testing.T) {
 				spec.Source = filament.Ref{Connector: "nats", Config: map[string]any{"url": url}}
 				spec.Sink = filament.Ref{Connector: "postgres", Config: map[string]any{"dsn": testDSN(t), "schema": namespace, "schema_evolution": policy}}
 				spec.IngestionTypes = map[string]filament.IngestionType{"events": filament.IngestionFullAppend}
-				spec.WritePolicies = map[string]filament.WritePolicy{"events": {Capability: pgsink.New().Spec().Capabilities.Stream.WritePolicies[0]}}
+				plan, err := filament.PlanContinuousWrite(natssource.New().Spec(), pgsink.New().Spec(), filament.WriteAppend)
+				if err != nil {
+					t.Fatal(err)
+				}
+				spec.WritePolicies = map[string]filament.WritePolicy{"events": plan.Policy}
 				return runner.RunContinuous(ctx, runner.ContinuousConfig{Enabled: true, Spec: spec, Store: f.store, Source: natssource.New(), Sink: pgsink.New(), Codecs: codecs, Boundary: filament.Boundary{MaxRecords: records, MaxWait: 50 * time.Millisecond}, LeaseTTL: time.Minute, DrainTimeout: time.Second, MaxEpochs: epochs})
 			}
 			state := func() (filament.StreamState, filament.EpochCertificate) {

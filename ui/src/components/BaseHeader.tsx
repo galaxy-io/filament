@@ -8,7 +8,7 @@ import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
-import type { Space } from "@galaxy-io/dls/theme/enums";
+import type { FontFamily, Space } from "@galaxy-io/dls/theme/enums";
 
 export enum BaseHeaderSize {
   SMALL = "SMALL",
@@ -18,6 +18,7 @@ export enum BaseHeaderSize {
 
 interface BaseHeaderProps {
   title: string;
+  family?: FontFamily;
   size?: BaseHeaderSize;
   icon?: PhosphorIcon;
   description?: string;
@@ -45,6 +46,7 @@ const BASE_HEADER_SIZE_TO_GAP_MAP: Record<BaseHeaderSize, Space> = {
 
 const BaseHeader: FC<BaseHeaderProps> = ({
   title,
+  family,
   icon,
   description,
   actions,
@@ -80,6 +82,7 @@ const BaseHeader: FC<BaseHeaderProps> = ({
           <FlexItem grow={1} minWidth={0}>
             <Text
               size={BASE_HEADER_SIZE_TO_TITLE_SIZE_MAP[size]}
+              family={family}
               weight={TextWeight.MEDIUM}
               lineClamp={1}
             >
@@ -100,7 +103,7 @@ const BaseHeader: FC<BaseHeaderProps> = ({
             icon={XIcon}
             ariaLabel="Close"
             tooltip="Close"
-            variant={ButtonVariant.SECONDARY}
+            variant={ButtonVariant.TERTIARY}
             size={ButtonSize.SMALL}
             onClick={onClose}
           />

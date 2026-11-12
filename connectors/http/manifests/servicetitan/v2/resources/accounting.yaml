@@ -1,0 +1,753 @@
+resources:
+  - name: gl_accounts
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/gl-accounts
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      number: string?
+      externalId: string?
+      description: string?
+      type: string?
+      subtype: string?
+      active: bool?
+      isIntacctGroup: bool?
+      isIntacctBankAccount: bool?
+      source: string?
+      defaultAccountType: string?
+      isIntacctGlGroup: bool?
+      createdOn: string?
+      modifiedOn: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 1000
+          more: hasMore
+  - name: journal_entries
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/journal-entries
+    primary_key: []
+    fields:
+      id: string?
+      createdOn: string
+      modifiedOn: string
+      number: int32
+      name: string?
+      source: string
+      status: string
+      syncStatus: string
+      versionId: int32
+      lastSyncVersionId: int32?
+      message: string?
+      postDate: string?
+      exportedOn: string?
+      exportedBy: json?
+      customFields: json?
+      url: string?
+      isEmpty: bool
+      raw: {path: $, type: json, mode: remainder}
+    capture: {journal_entry_id: id}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 500
+          more: hasMore
+  - name: journal_entry_details
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/journal-entries/{journal_entry_id}/details
+    params: {journal_entry_id: parent.journal_entry_id}
+    for_each: journal_entries
+    primary_key: []
+    fields:
+      journalEntryId: {path: parent.journal_entry_id, type: string}
+      postDate: string?
+      account: json
+      debit: string
+      credit: string
+      memo: string?
+      quantity: string?
+      unitAmount: string?
+      externalObjects: json?
+      transaction: json?
+      businessUnit: json?
+      customer: json?
+      vendor: json?
+      inventoryLocation: json?
+      job: json?
+      customerLocation: json?
+      paymentType: json?
+      project: json?
+      serviceAgreement: json?
+      appliedTo: json?
+      sku: json?
+      transactionDate: string?
+      budgetCodeId: int64?
+      internalCostType: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 500
+          more: hasMore
+  - name: invoices
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/invoices
+    primary_key: [id]
+    fields:
+      id: int64
+      modifiedOn: string?
+      createdOn: string?
+      adjustmentToId: int64?
+      job: json?
+      projectId: int64?
+      businessUnit: json?
+      batch: json?
+      invoiceConfiguration: string?
+      discountTotal: string?
+      items: json?
+      total: string?
+      active: bool?
+      paidOn: string?
+      depositedOn: string?
+      balance: string?
+      dueDate: string?
+      summary: string?
+      customer: json?
+      location: json?
+      locationAddress: json?
+      salesTax: string?
+      salesTaxCode: json?
+      subTotal: string?
+      taxZoneId: int64?
+      syncStatus: string?
+      invoiceDate: string?
+      invoiceType: json?
+      budgetCodeId: int64?
+      customFields: json?
+      membershipId: int64?
+      materialSkuId: int64?
+      customerAddress: json?
+      referenceNumber: string?
+      termName: string?
+      createdBy: string?
+      employeeInfo: json?
+      commissionEligibilityDate: string?
+      royalty: json?
+      sentStatus: string?
+      reviewStatus: string?
+      assignedTo: json?
+      importId: string?
+      exportId: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: invoices_export_token
+  - name: invoice_items
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/invoice-items
+    primary_key: [id]
+    fields:
+      type: string?
+      description: string?
+      id: int64
+      cost: string?
+      addOn: bool?
+      order: int64?
+      price: string?
+      skuId: int64?
+      total: string?
+      active: bool?
+      skuName: string?
+      taxable: bool?
+      quantity: string?
+      createdOn: string?
+      inventory: bool?
+      invoiceId: int64?
+      itemGroup: json?
+      totalCost: string?
+      modifiedOn: string?
+      budgetCodeId: int64?
+      isChargeable: bool?
+      membershipTypeId: int64?
+      generalLedgerAccount: json?
+      assetAccount: json_string?
+      businessUnit: json?
+      costOfSaleAccount: json_string?
+      createdById: int64?
+      displayInAmount: bool?
+      displayName: string?
+      estimateItemId: int64?
+      exportId: string?
+      importId: string?
+      installedEquipmentId: int64?
+      inventoryLocation: string?
+      inventoryLocationId: int64?
+      inventoryStatus: string?
+      memberPrice: string?
+      serviceDate: string?
+      soldHours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      technicianId: int64?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: invoice_items_export_token
+  - name: payments
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/payments
+    primary_key: [id]
+    fields:
+      type: string?
+      id: int64
+      date: string?
+      memo: string?
+      total: string?
+      active: bool?
+      authCode: string?
+      customer: json?
+      appliedTo: json?
+      createdBy: string?
+      createdOn: string?
+      modifiedOn: string?
+      syncStatus: string?
+      checkNumber: string?
+      businessUnit: json?
+      customFields: json?
+      referenceNumber: string?
+      refundedPaymentId: int64?
+      generalLedgerAccount: json?
+      batch: json?
+      deposit: string?
+      typeId: string?
+      unappliedAmount: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: payments_export_token
+  - name: bank_deposits
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/bank-deposits
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      depositStatus: string?
+      syncStatus: string?
+      exportSubstatus: json?
+      batch: json?
+      createdOn: string
+      createdBy: string?
+      modifiedOn: string?
+      active: bool
+      importId: string?
+      depositDate: string
+      reviewStatus: string?
+      reviewedOn: string?
+      grossAmount: string
+      netAmount: string
+      fees: string?
+      bankAccount: json?
+      feeAccount: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture: {deposit_id: id}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: bank_deposit_transactions
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/bank-deposits/{bank_deposit_id}/transactions
+    params: {bank_deposit_id: parent.deposit_id}
+    for_each: bank_deposits
+    primary_key: [bankDepositId, id]
+    fields:
+      bankDepositId: {path: parent.deposit_id, type: int64}
+      id: int64
+      syncStatus: string?
+      referenceNumber: string?
+      date: string?
+      type: string?
+      typeId: string?
+      total: string?
+      unappliedAmount: string?
+      memo: string?
+      userMemo: string?
+      systemMemo: string?
+      customer: json?
+      businessUnit: json?
+      deposit: json?
+      batch: json?
+      createdBy: string?
+      generalLedgerAccount: json?
+      appliedTo: json?
+      customFields: json?
+      authCode: string?
+      checkNumber: string?
+      modifiedOn: string
+      createdOn: string
+      active: bool
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: credit_memos
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/credit-memos
+    primary_key: [id]
+    fields:
+      id: int64
+      date: string
+      referenceNumber: string?
+      subTotal: string
+      salesTax: string
+      salesTaxCode: json?
+      total: string
+      balance: string
+      appliedTo: json?
+      customer: json?
+      customerAddress: json?
+      location: json?
+      locationAddress: json?
+      businessUnit: json?
+      syncStatus: string?
+      batch: json?
+      customFields: json?
+      createdOn: string
+      createdBy: string?
+      modifiedOn: string
+      modifiedBy: string?
+      description: string?
+      active: bool
+      importId: string?
+      exportId: string?
+      exportSubstatus: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: credit_memo_items
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/credit-memos/credit-memo-items
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool
+      description: string?
+      quantity: string
+      cost: string
+      price: string
+      type: string?
+      skuName: string?
+      skuId: int64
+      total: string
+      taxable: bool
+      revenueGeneralLedgerAccount: json?
+      expensesGeneralLedgerAccount: json?
+      createdOn: string
+      createdBy: string?
+      businessUnit: json?
+      creditMemoId: int64
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: ap_bills
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/ap-bills
+    primary_key: [id]
+    fields:
+      id: int64
+      purchaseOrderId: int64?
+      syncStatus: string?
+      status: string?
+      source: string?
+      billType: string?
+      postDate: string?
+      referenceNumber: string?
+      vendorNumber: string?
+      summary: string?
+      billDate: string?
+      earlyDiscountDate: string?
+      billAmount: string?
+      vendorInvoiceTotal: string?
+      taxAmount: string?
+      shippingAmount: string?
+      landedCostMethod: string
+      otherAmount: string?
+      preTaxDiscountAmount: string?
+      preTaxCharge: string?
+      postTaxDiscountAmount: string?
+      postTaxCharge: string?
+      createdBy: string?
+      createdOn: string?
+      modifiedOn: string?
+      termName: string?
+      dueDate: string?
+      doNotPay: bool
+      dateCanceled: string?
+      canceledBy: json?
+      shipToDescription: string?
+      batch: json?
+      businessUnit: json?
+      taxZone: json?
+      vendor: json?
+      remittanceVendorInfo: json?
+      shipTo: json?
+      budgetCodeId: int64?
+      items: json?
+      expenseItems: json?
+      customFields: json?
+      jobId: int64?
+      jobNumber: string?
+      dateReconciled: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      billType: "ApBill"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: ap_credits
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/ap-credits
+    primary_key: [id]
+    fields:
+      id: int64
+      inventoryReturnId: int64?
+      jobId: int64?
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      date: string
+      canceledOn: string?
+      number: string?
+      referenceNumber: string?
+      memo: string?
+      amount: string
+      appliedAmount: string
+      status: string
+      syncStatus: string
+      exportSubstatus: json?
+      batch: json?
+      businessUnit: json?
+      remittanceVendor: json?
+      vendor: json?
+      paymentStatus: string
+      splits: json
+      budgetCodeId: int64?
+      customFields: json?
+      items: json?
+      expenseItems: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: ap_payments
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/ap-payments
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool?
+      createdOn: string
+      modifiedOn: string
+      date: string
+      approvedDate: string?
+      method: string
+      name: string?
+      printCheck: bool?
+      amount: string
+      errorMessage: string?
+      status: string
+      syncStatus: string
+      exportSubstatus: json?
+      batch: json?
+      glAccount: json?
+      businessUnit: json?
+      vendor: json?
+      remittanceVendor: json?
+      splits: json
+      customFields: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: expense_transactions
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/expense-transactions
+    primary_key: [id]
+    fields:
+      id: int64
+      expenseTransactionId: string
+      number: string?
+      date: string?
+      total: string?
+      tax: string?
+      shipping: string?
+      summary: string?
+      createdOn: string?
+      modifiedOn: string?
+      syncStatus: string?
+      expenseStatus: string?
+      needsReview: bool?
+      providerRequirementsMet: bool?
+      vendor: json?
+      businessUnit: json?
+      job: json?
+      project: json?
+      batch: json?
+      debitAccount: json?
+      creditCardAccount: json?
+      isRefund: bool
+      reversesExpenseTransactionId: string?
+      cardNumberLast4: string?
+      externalSource: string?
+      externalId: string?
+      employeeId: int64?
+      merchantCategory: string?
+      receiptStatus: string?
+      lineItems: json?
+      accountingFields: json?
+      customFields: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: inventory_bills
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/inventory-bills/paginated
+    primary_key: [id]
+    fields:
+      id: int64
+      purchaseOrderId: int64?
+      syncStatus: string?
+      referenceNumber: string?
+      vendorNumber: string?
+      summary: string?
+      billDate: string?
+      billAmount: string?
+      taxAmount: string?
+      shippingAmount: string?
+      landedCostMethod: string
+      otherAmount: string?
+      createdBy: string?
+      createdOn: string?
+      modifiedOn: string?
+      termName: string?
+      dueDate: string?
+      shipToDescription: string?
+      postDate: string?
+      batch: json?
+      businessUnit: json?
+      taxZone: json?
+      vendor: json?
+      shipTo: json?
+      budgetCodeId: int64?
+      items: json?
+      customFields: json?
+      jobId: int64?
+      jobNumber: string?
+      dateReconciled: string?
+      exportSubstatus: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: journal_entry_summaries
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/journal-entries/{journal_entry_id}/summary
+    params: {journal_entry_id: parent.journal_entry_id}
+    for_each: journal_entries
+    primary_key: []
+    fields:
+      journalEntryId: {path: parent.journal_entry_id, type: string}
+      postDate: string?
+      account: json
+      credit: string
+      debit: string
+      memo: string?
+      businessUnit: json?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: payment_types
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/payment-types
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      modifiedOn: string?
+      createdOn: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: payment_terms
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/payment-terms
+    primary_key: []
+    fields:
+      id: int64?
+      name: string?
+      dueDayType: string
+      dueDay: int64?
+      isCustomerDefault: bool
+      isVendorDefault: bool
+      active: bool
+      inUse: bool?
+      modifiedOn: string
+      createdOn: string
+      paymentTermDiscountModel: json
+      interestSettings: json
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: tax_zones
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/tax-zones
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string?
+      color: int64?
+      isTaxRateSeparated: bool
+      isMultipleTaxZone: bool
+      rates: json
+      createdOn: string
+      modifiedOn: string
+      active: bool
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore
+  - name: gl_account_types
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/gl-accounts/types
+    primary_key: [id]
+    fields:
+      id: int64
+      parentTypeId: int64?
+      name: string?
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore

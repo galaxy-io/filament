@@ -150,10 +150,18 @@ func rejectUnknownFlags(flags map[string][]string, allowed map[string]bool) erro
 	return nil
 }
 
+// addUnsetTargets lets --unset name each flag in names to remove its field
+// from patch.
+func addUnsetTargets(targets map[string]func(), names map[string]string, patch *cliapp.ConfigPatch) {
+	for flagName, configName := range names {
+		targets[flagName] = func() { patch.Unset = append(patch.Unset, configName) }
+	}
+}
+
 func applyFieldUnsets(flags map[string][]string, targets map[string]func(), allowed map[string]bool) error {
 	allowed["unset"] = true
 	for _, raw := range flags["unset"] {
-		for _, requested := range splitComma(raw) {
+		for _, requested := range cliapp.SplitComma(raw) {
 			requested = strings.TrimPrefix(requested, "--")
 			unset, ok := targets[requested]
 			if !ok {
@@ -166,17 +174,4 @@ func applyFieldUnsets(flags map[string][]string, targets map[string]func(), allo
 		}
 	}
 	return nil
-}
-
-func splitComma(value string) []string {
-	seen := map[string]bool{}
-	result := []string{}
-	for _, item := range strings.Split(value, ",") {
-		item = strings.TrimSpace(item)
-		if item != "" && !seen[item] {
-			seen[item] = true
-			result = append(result, item)
-		}
-	}
-	return result
 }

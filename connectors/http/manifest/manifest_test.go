@@ -6,6 +6,39 @@ import (
 	"testing"
 )
 
+func TestFixedDecimalRoundingDeclaration(t *testing.T) {
+	const base = `version: 1
+name: rounding
+display_name: Rounding
+description: Decimal rounding fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection: {base_url: https://example.com}
+resources:
+  - name: rows
+    path: /rows
+    fields:
+      value: %s
+`
+	for _, tc := range []struct {
+		declaration string
+		valid       bool
+	}{
+		{`{type: decimal, precision: 38, scale: 9, rounding: half_even}`, true},
+		{`{type: decimal, precision: 38, scale: 9, rounding: half_up}`, false},
+		{`{type: decimal, rounding: half_even}`, false},
+		{`{type: string, rounding: half_even}`, false},
+	} {
+		m, err := Parse([]byte(fmt.Sprintf(base, tc.declaration)))
+		if (err == nil) != tc.valid {
+			t.Fatalf("declaration=%s, err=%v, valid=%t", tc.declaration, err, tc.valid)
+		}
+		if tc.valid && m.Resources[0].Fields[0].Rounding != "half_even" {
+			t.Fatalf("rounding policy was lost: %#v", m.Resources[0].Fields[0])
+		}
+	}
+}
+
 func TestOAuthClientAuthentication(t *testing.T) {
 	const base = `
 version: 1

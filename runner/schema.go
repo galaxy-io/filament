@@ -48,10 +48,7 @@ func ensureSchema(ctx context.Context, sch filament.Schematized, spec filament.R
 		schema = plan.Schema()
 	}
 	ingestionType := filament.TypeFor(spec.IngestionTypes, res)
-	if ingestionType == filament.IngestionCDCAppend {
-		schema = rowmodel.AsCDCAppendHistory(schema)
-	}
-	schema, err := rowmodel.WithAuditFields(schema, filament.IsCDCIngestion(ingestionType))
+	schema, err := auditSchema(schema, filament.IsCDCIngestion(ingestionType), ingestionType == filament.IngestionCDCAppend)
 	if err != nil {
 		return fmt.Errorf("schema for %q: %w", res, err)
 	}
@@ -60,6 +57,16 @@ func ensureSchema(ctx context.Context, sch filament.Schematized, spec filament.R
 		return fmt.Errorf("ensure schema for %q: %w", res, err)
 	}
 	return nil
+}
+
+// auditSchema shapes a source schema into the destination layout. CDC append
+// keeps every change as history, and every run materializes its lineage, so
+// the sink table and the batches the pipeline builds always agree.
+func auditSchema(schema rowmodel.Schema, cdc, cdcAppend bool) (rowmodel.Schema, error) {
+	if cdcAppend {
+		schema = rowmodel.AsCDCAppendHistory(schema)
+	}
+	return rowmodel.WithAuditFields(schema, cdc)
 }
 
 // loadSinkSchemas fetches metadata only for sinks that require typed DDL.

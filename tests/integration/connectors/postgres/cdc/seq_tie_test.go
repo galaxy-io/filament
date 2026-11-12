@@ -24,7 +24,7 @@ func TestReproSeqTie(t *testing.T) {
 	}
 	src := pgsource.New()
 	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
-		"dsn": pg.DSN(), "slot_name": "filament_seq_tie", "publication": "filament_seq_tie",
+		"dsn": pg.DSN(), "slot_name": "filament_seq_tie",
 	})); err != nil {
 		t.Fatal(err)
 	}

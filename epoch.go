@@ -2,7 +2,6 @@ package filament
 
 import (
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
@@ -47,17 +46,6 @@ func (e EpochRef) Validate() error {
 	return nil
 }
 
-// ValidateApply checks explicit session binding, not destination-side fencing.
-func (e EpochRef) ValidateApply(opts ApplyOptions) error {
-	if err := e.Validate(); err != nil {
-		return err
-	}
-	if opts.Epoch == nil || *opts.Epoch != e {
-		return ErrEpochMismatch
-	}
-	return nil
-}
-
 // EpochKey identifies a certificate across attempts within a stream generation.
 type EpochKey struct {
 	StreamID          string
@@ -79,6 +67,9 @@ type InboxClaimRef struct {
 type Coverage struct {
 	Positions DomainPositions
 	Claims    []InboxClaimRef
+	// Activated names pending members whose baseline this coverage completes.
+	// Certifying it makes them active members of the stream.
+	Activated []string `json:",omitempty"`
 }
 
 // ValidateRepresentation checks representation only; it cannot prove contiguous processing,
@@ -101,10 +92,13 @@ func (c Coverage) ValidateRepresentation() error {
 	return nil
 }
 
-// Clone returns independently owned positions and claims.
+// Clone returns independently owned positions, claims and activations.
 func (c Coverage) Clone() Coverage {
 	c.Positions = c.Positions.Clone()
 	c.Claims = append([]InboxClaimRef(nil), c.Claims...)
+	if c.Activated != nil {
+		c.Activated = append([]string(nil), c.Activated...)
+	}
 	return c
 }
 
@@ -122,6 +116,10 @@ func (c Coverage) Canonicalize(r CodecResolver) (Coverage, error) {
 		c.Positions[domain] = v
 	}
 	slices.SortFunc(c.Claims, func(a, b InboxClaimRef) int { return strings.Compare(a.RowID, b.RowID) })
+	if c.Activated != nil {
+		slices.Sort(c.Activated)
+		c.Activated = slices.Compact(c.Activated)
+	}
 	return c, nil
 }
 
@@ -143,18 +141,6 @@ func NewClaimCoverage(claims []InboxClaimRef) (Coverage, error) {
 		return Coverage{}, err
 	}
 	return c.Clone(), nil
-}
-
-// StreamingSink extends an opened Sink with a native reusable epoch lifecycle.
-// CommitEpoch waits for negotiated durability. AbortEpoch discards only tentative
-// effects. CloseSession succeeds only when no later destination effects remain
-// possible; a timeout or mere client resource release must return an error.
-// Calls are serialized initially. No legacy Commit/Abort adaptation is implied.
-type StreamingSink interface {
-	BeginEpoch(context.Context, EpochRef) error
-	CommitEpoch(context.Context, EpochRef) ([]EpochReceipt, error)
-	AbortEpoch(context.Context, EpochRef) error
-	CloseSession(context.Context) error
 }
 
 // ReceiptEvidence is destination-owned evidence, not comparable source progress.
