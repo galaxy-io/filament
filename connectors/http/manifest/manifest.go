@@ -650,6 +650,15 @@ type IncrementalSpec struct {
 	// prefixed. FHIR search needs `_lastUpdated=ge<ts>` — a bare timestamp
 	// carries `eq` semantics and would silently return the wrong result set.
 	ValuePrefix string `yaml:"value_prefix,omitempty"`
+	// ValueDateFormat reformats a time-comparator watermark before it is
+	// injected, so APIs that reject RFC3339 can still be filtered. It is a
+	// Go time layout (for example "2006-01-02 15:04") or the special value
+	// "epoch_millis" / "epoch_seconds", which renders the watermark as
+	// Unix time. The stored checkpoint and all comparisons keep the raw
+	// RFC3339 value; only the wire representation changes. Jira JQL date
+	// fields accept an unquoted epoch-milliseconds number, which no raw
+	// RFC3339 watermark can express.
+	ValueDateFormat string `yaml:"value_date_format,omitempty"`
 }
 
 // DurableCheckpointKey returns the stable storage key for this watermark.

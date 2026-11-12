@@ -171,8 +171,11 @@ func parseTime(w arrowbatch.RowWriter, raw json.RawMessage) error {
 }
 
 // timestampLayouts are the spellings APIs commonly use, tried in order.
+// The numeric-offset form (no colon, for example +0500) is what Jira Cloud
+// emits for created and updated.
 var timestampLayouts = []string{
 	time.RFC3339Nano,
+	"2006-01-02T15:04:05.999999999-0700",
 	"2006-01-02T15:04:05.999999999",
 	"2006-01-02 15:04:05.999999999Z07:00",
 	"2006-01-02 15:04:05.999999999",

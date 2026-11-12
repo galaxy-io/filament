@@ -169,6 +169,7 @@
               "pages/connectors/sources/heyreach",
               "pages/connectors/sources/hubspot",
               "pages/connectors/sources/instantly",
+              "pages/connectors/sources/jira",
               "pages/connectors/sources/linear",
               "pages/connectors/sources/mailchimp",
               "pages/connectors/sources/metronome",

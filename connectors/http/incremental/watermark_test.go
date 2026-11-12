@@ -112,3 +112,62 @@ func TestTrackerNoValuePrefixIsUnchanged(t *testing.T) {
 		t.Fatalf("query _lastUpdated = %q, want the raw watermark", got)
 	}
 }
+
+// Jira JQL rejects RFC3339 but accepts an unquoted epoch-milliseconds
+// number. value_date_format renders the watermark for the wire only; the
+// checkpoint and comparisons keep the raw RFC3339 value.
+func TestTrackerValueDateFormatEpochMillis(t *testing.T) {
+	spec := manifest.IncrementalSpec{
+		CursorField:     "updated",
+		StartParam:      "jql",
+		InjectInto:      "body",
+		Comparator:      "time",
+		ValueDateFormat: "epoch_millis",
+		ValuePrefix:     "updated >= ",
+		ValueSuffix:     " ORDER BY updated ASC",
+	}
+	tr, err := New(spec, "issues", "2024-11-06T12:00:00Z")
+	if err != nil {
+		t.Fatalf("new tracker: %v", err)
+	}
+	if got := tr.Scope()["jql"]; got != "updated >= 1730894400000 ORDER BY updated ASC" {
+		t.Fatalf("scope = %q, want epoch-millis JQL", got)
+	}
+	req := httptest.NewRequest("POST", "https://example.atlassian.net/rest/api/3/search/jql", nil)
+	overrides, err := tr.Apply(req)
+	if err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if got, _ := overrides["jql"].(string); got != "updated >= 1730894400000 ORDER BY updated ASC" {
+		t.Fatalf("body override = %q, want epoch-millis JQL", got)
+	}
+	if _, err := tr.ObserveChecked(map[string]any{"updated": "2024-11-07T12:00:00Z"}); err != nil {
+		t.Fatalf("observe: %v", err)
+	}
+	if got := tr.Current(); got != "2024-11-07T12:00:00Z" {
+		t.Fatalf("checkpoint = %q, want the raw advanced watermark", got)
+	}
+}
+
+// A Go layout reformats the wire value the same way, and the format is
+// rejected without the time comparator.
+func TestTrackerValueDateFormatLayoutAndComparatorGuard(t *testing.T) {
+	spec := manifest.IncrementalSpec{
+		CursorField:     "updated",
+		StartParam:      "since",
+		InjectInto:      "query",
+		Comparator:      "time",
+		ValueDateFormat: "2006-01-02 15:04",
+	}
+	tr, err := New(spec, "issues", "2024-11-06T12:34:56Z")
+	if err != nil {
+		t.Fatalf("new tracker: %v", err)
+	}
+	if got := tr.Scope()["since"]; got != "2024-11-06 12:34" {
+		t.Fatalf("scope = %q, want layout-formatted watermark", got)
+	}
+	spec.Comparator = "lex"
+	if _, err := New(spec, "issues", "2024-11-06T12:34:56Z"); err == nil {
+		t.Fatal("new tracker with value_date_format and lex comparator: want error, got nil")
+	}
+}

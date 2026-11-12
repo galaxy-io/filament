@@ -404,6 +404,9 @@ func (m *Manifest) validateSemantics() error {
 			if r.Incremental.OverlapSeconds > 0 && r.Incremental.Comparator != "time" && r.Incremental.Comparator != "numeric" {
 				_ = agg.Addf(path+".incremental.overlap_seconds", "requires comparator time or numeric")
 			}
+			if r.Incremental.ValueDateFormat != "" && r.Incremental.Comparator != "time" {
+				_ = agg.Addf(path+".incremental.value_date_format", "requires comparator time")
+			}
 			if err := validateIncrementalInitial(*r.Incremental); err != nil {
 				_ = agg.Addf(path+".incremental.initial", "%v", err)
 			}
