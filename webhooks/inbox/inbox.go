@@ -88,8 +88,8 @@ type Inbox struct {
 	maxMsgSize  int32
 }
 
-// Open creates a missing inbox stream or validates the existing stream's
-// safety-critical configuration. It never modifies a live stream.
+// Open creates a missing inbox stream, expands its capacity when requested,
+// and validates the existing stream's safety-critical configuration.
 func Open(ctx context.Context, js jetstream.JetStream, cfg Config) (*Inbox, error) {
 	if js == nil || cfg.MaxBytes <= 0 || cfg.MaxMsgSize <= HeaderAllowance || cfg.Replicas < 1 || cfg.Replicas > 5 {
 		return nil, fmt.Errorf("inbox: %w: stream configuration", ErrInvalid)
@@ -124,10 +124,26 @@ func Open(ctx context.Context, js jetstream.JetStream, cfg Config) (*Inbox, erro
 	if len(got.Subjects) != 1 || got.Subjects[0] != want.Subjects[0] ||
 		got.Retention != want.Retention || got.Storage != want.Storage ||
 		got.Discard != want.Discard || !got.DiscardNewPerSubject ||
-		got.MaxMsgsPerSubject != 1 || got.MaxBytes != want.MaxBytes ||
-		got.MaxMsgSize != want.MaxMsgSize || got.Replicas != want.Replicas ||
+		got.MaxMsgsPerSubject != 1 || got.MaxBytes <= 0 || got.MaxMsgSize <= HeaderAllowance ||
+		got.Replicas != want.Replicas ||
 		got.MaxAge != 0 || (got.MaxMsgs != 0 && got.MaxMsgs != -1) {
 		return nil, errors.New("inbox: existing stream has incompatible retention or capacity")
+	}
+	if got.MaxBytes < want.MaxBytes || got.MaxMsgSize < want.MaxMsgSize {
+		incarnation := info.Created
+		got.MaxBytes = max(got.MaxBytes, want.MaxBytes)
+		got.MaxMsgSize = max(got.MaxMsgSize, want.MaxMsgSize)
+		stream, err = js.UpdateStream(ctx, got)
+		if err != nil {
+			return nil, fmt.Errorf("inbox: expand stream capacity: %w", err)
+		}
+		info, err = stream.Info(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("inbox: inspect expanded stream: %w", err)
+		}
+		if !info.Created.Equal(incarnation) || info.Config.MaxBytes < want.MaxBytes || info.Config.MaxMsgSize < want.MaxMsgSize {
+			return nil, errors.New("inbox: stream capacity update did not apply")
+		}
 	}
 	return &Inbox{js: js, stream: stream, name: DefaultStream, incarnation: info.Created, maxMsgSize: cfg.MaxMsgSize}, nil
 }

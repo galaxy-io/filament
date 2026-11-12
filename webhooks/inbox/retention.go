@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
@@ -183,7 +182,7 @@ func (i *Inbox) firstAfter(ctx context.Context, cutoff time.Time, last uint64) (
 		return 0, err
 	}
 	msg, err := consumer.Next(jetstream.FetchMaxWait(time.Second))
-	if errors.Is(err, jetstream.ErrNoMessages) || errors.Is(err, nats.ErrTimeout) || errors.Is(err, context.DeadlineExceeded) {
+	if errors.Is(err, jetstream.ErrNoMessages) {
 		return last + 1, nil
 	}
 	if err != nil {

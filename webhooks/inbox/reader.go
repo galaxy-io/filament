@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	readerPrefetchMessages = 512
-	readerPrefetchBytes    = 8 << 20
+	readerPrefetchBytes = 8 << 20
 )
 
 // Reader reads one endpoint's deliveries in stream order from a position the
@@ -19,8 +18,8 @@ const (
 // acknowledges: certified progress lives with the caller, and retention, not
 // acknowledgement, removes messages.
 //
-// One ephemeral consumer prefetches in the background, bounded by message
-// count and bytes, so Next usually returns from a local buffer.
+// One ephemeral consumer prefetches in the background, bounded by bytes,
+// so Next usually returns from a local buffer.
 type Reader struct {
 	messages jetstream.MessagesContext
 	tenant   string
@@ -38,6 +37,13 @@ func (i *Inbox) Reader(ctx context.Context, tenant, endpoint string, certified u
 	if !expectedIncarnation.IsZero() && !expectedIncarnation.Equal(i.incarnation) {
 		return nil, errors.New("inbox: stream incarnation changed")
 	}
+	info, err := i.stream.Info(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("inbox: inspect stream: %w", err)
+	}
+	if !info.Created.Equal(i.incarnation) {
+		return nil, errors.New("inbox: stream incarnation changed")
+	}
 	cfg := jetstream.OrderedConsumerConfig{
 		FilterSubjects: []string{endpointFilter(tenant, endpoint)},
 		DeliverPolicy:  jetstream.DeliverAllPolicy,
@@ -52,7 +58,7 @@ func (i *Inbox) Reader(ctx context.Context, tenant, endpoint string, certified u
 	}
 	// The byte budget must hold at least one message of the largest size.
 	budget := max(readerPrefetchBytes, 2*int(i.maxMsgSize))
-	messages, err := consumer.Messages(jetstream.PullMaxMessagesWithBytesLimit(readerPrefetchMessages, budget))
+	messages, err := consumer.Messages(jetstream.PullMaxBytes(budget))
 	if err != nil {
 		return nil, fmt.Errorf("inbox: start reader: %w", err)
 	}
