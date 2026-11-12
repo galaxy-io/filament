@@ -10,7 +10,6 @@ from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel, update
 from ..core.serialization import FieldMetadata
 from .ingestion_v1config_schema import IngestionV1ConfigSchema
 from .ingestion_v1connector_kind import IngestionV1ConnectorKind
-from .ingestion_v1connector_maturity import IngestionV1ConnectorMaturity
 from .ingestion_v1replication_mode import IngestionV1ReplicationMode
 
 
@@ -41,7 +40,6 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     schema_field: typing_extensions.Annotated[
         typing.Optional[str], FieldMetadata(alias="schemaField"), pydantic.Field(alias="schemaField")
     ] = None
-    maturity: typing.Optional[IngestionV1ConnectorMaturity] = None
     api_version: typing_extensions.Annotated[
         typing.Optional[str], FieldMetadata(alias="apiVersion"), pydantic.Field(alias="apiVersion")
     ] = None
@@ -56,6 +54,10 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     """
     Concrete registration selected by a source catalog alias; empty otherwise.
     """
+
+    is_preview: typing_extensions.Annotated[
+        typing.Optional[bool], FieldMetadata(alias="isPreview"), pydantic.Field(alias="isPreview")
+    ] = None
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

@@ -8,12 +8,14 @@ import (
 
 	"github.com/galaxy-io/filament"
 	snowflakeconnection "github.com/galaxy-io/filament/connectors/snowflake/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const sinkName = "snowflake"
 
 // Sink owns the Snowflake sessions and the typed tables prepared for a run.
 type Sink struct {
+	sinkstate.SingleWrite
 	db       *sql.DB
 	run      filament.RunID
 	database string
@@ -88,7 +90,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	}
 
 	s.db = db
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.database = database
 	s.schema = schema
 	s.policies = run.WritePolicies
@@ -96,16 +98,14 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	return nil
 }
 
-// Commit closes the session. Schema DDL is committed by Snowflake when issued.
+// Commit confirms writes. Snowflake commits schema DDL when issued.
 func (s *Sink) Commit(context.Context) error {
-	s.release()
 	return nil
 }
 
-// Abort removes partial full-replacement data and closes the session. Other
+// Abort removes partial full-replacement data. Other
 // modes are replay-safe or must retain pre-existing destination rows.
 func (s *Sink) Abort(ctx context.Context) error {
-	defer s.release()
 	if s.db == nil {
 		return nil
 	}
@@ -134,3 +134,6 @@ func (s *Sink) release() {
 	s.policies = nil
 	s.tables = nil
 }
+
+// Close releases session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { s.release(); return nil }

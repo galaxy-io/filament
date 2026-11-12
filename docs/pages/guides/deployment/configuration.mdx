@@ -152,8 +152,8 @@ Filament does not export logs through OTLP.
 
 | Variable | Default | Description |
 |---|---|---|
-| `AUTH_PROVIDER` | unset | Unset disables authentication. Supported providers are `zitadel` and `keycloak` |
-| `AUTH_ISSUER` | — | Issuer URL. The Zitadel base URL, or the Keycloak realm URL in the form `https://<host>/realms/<realm>`. Required when `AUTH_PROVIDER` is set |
+| `AUTH_PROVIDER` | unset | Unset disables authentication. Supported providers are `zitadel`, `keycloak` and `proxy` |
+| `AUTH_ISSUER` | — | Issuer URL. The Zitadel base URL, or the Keycloak realm URL in the form `https://<host>/realms/<realm>`. Required when `AUTH_PROVIDER` is `zitadel` or `keycloak` |
 | `AUTH_PAT` | — | Zitadel machine-user personal access token. Required when `AUTH_PROVIDER=zitadel` |
 | `AUTH_CLIENT_ID` | — | Filament's confidential client in the Keycloak realm. Required when `AUTH_PROVIDER=keycloak` |
 | `AUTH_CLIENT_SECRET` | — | That client's secret. Required when `AUTH_PROVIDER=keycloak` |
@@ -165,9 +165,24 @@ Filament does not export logs through OTLP.
 | `AUTH_BOOTSTRAP_CLIENT_ID` | unset | Admin service account on the bootstrap tenant, so an SDK can act before any person signs in. Keycloak only; set with `AUTH_BOOTSTRAP_CLIENT_SECRET` or not at all |
 | `AUTH_BOOTSTRAP_CLIENT_SECRET` | unset | Secret that service account authenticates with, chosen by you |
 | `AUTH_UI_ORIGIN` | `http://localhost:5173` | Origin that serves the web application. An `https://` origin enables secure session cookies |
+| `AUTH_PROXY_TENANT` | unset | Gateway tenant this deployment serves when `AUTH_PROVIDER=proxy`. Requests naming any other tenant are refused. Unset serves every tenant the gateway names |
 
 <Warning>
 When `AUTH_PROVIDER` is unset, the API and web application are unauthenticated.
+</Warning>
+
+#### Gateway headers
+
+With `AUTH_PROVIDER=proxy`, Filament trusts identity from an authenticating gateway in front of it, such as oauth2-proxy or Pomerium. Sign-in happens at the gateway. The gateway sets these headers on every request.
+
+| Header | Description |
+|---|---|
+| `X-Forwarded-Tenant` | Tenant the caller belongs to. Required. A single-tenant gateway sends a fixed value |
+| `X-Forwarded-User` | Stable user ID. Required unless `X-Forwarded-Service` is set |
+| `X-Forwarded-Service` | Name of a trusted service calling on its own behalf |
+
+<Warning>
+Filament verifies nothing in these headers. The gateway must strip any copy a client sends, and only the gateway may reach the server. Anything else that can reach it can act as any user.
 </Warning>
 
 Only the server reads authentication variables.

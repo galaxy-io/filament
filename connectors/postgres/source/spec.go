@@ -14,6 +14,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-postgres-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-postgres-light.svg",
 		Version:      "2",
+		Stream:       &filament.StreamCapabilities{Input: filament.InputChanges, EmitsOps: []filament.Operation{filament.OpInsert, filament.OpUpdate, filament.OpDelete}, Ordering: []filament.Ordering{filament.OrderingGlobalStrict, filament.OrderingTransaction}, Delivery: filament.DeliveryReplayableAtLeastOnce},
 		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental, filament.ModeCDC},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
@@ -40,14 +41,14 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: "ctid", Label: "CTID + xmin"},
 			}, Scope: filament.ScopePipeline, Help: "Read strategy"},
 			{
-				Name: "publication", Type: filament.FieldString, Default: defaultPublication, Scope: filament.ScopeConnection,
-				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Logical replication publication used by CDC",
-			},
-			{
 				Name: "manage_publication", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection,
 				VisibleWhen: &filament.FieldCondition{Field: "replication", Values: []string{replicationCDC}},
-				Help:        "Create the CDC publication and add selected tables when needed",
+				Help:        "Create one publication per pipeline route with its selected tables and columns",
+			},
+			{
+				Name: "publication", Type: filament.FieldString, Scope: filament.ScopeConnection,
+				VisibleWhen: &filament.FieldCondition{Field: "manage_publication", Values: []string{"false"}},
+				Help:        "Publication an administrator provisioned for CDC",
 			},
 			{
 				Name: "snapshot_mode", Type: filament.FieldEnum, Default: string(filament.SnapshotInitial), Enum: []filament.EnumOption{
@@ -58,6 +59,6 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				Help:        "Initial reads a table in full before streaming its changes; None streams from the current position only",
 			},
 		}...)},
-		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true, SelectableColumns: true},
 	}
 }

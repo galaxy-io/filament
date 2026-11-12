@@ -1,11 +1,11 @@
 ---
 title: "Streaming connectors"
-description: "Implement reusable source sessions and sink epochs with explicit recovery boundaries"
+description: "Implement source sessions and finite sink writes with explicit recovery boundaries"
 ---
 
-A streaming connector keeps a session open across many commits. Its most
-important job is to explain when a portion of the input is complete and when
-the corresponding output is durable. The runner uses those two promises to
+A continuous source keeps its session open across many commits. The source
+reports when a portion of the input is complete. The sink reports when its
+finite write is durable. The runner uses those two promises to
 decide where a later attempt may safely resume.
 
 Start with the [streaming lifecycle](/pages/guides/concepts/streaming) for the
@@ -18,8 +18,8 @@ they produce, and what ordering and replay guarantees they offer. Continuous
 planning currently requires replayable, at-least-once input. A best-effort feed
 cannot promise to recover the messages lost during a worker interruption.
 
-Sinks declare continuous write policies separately from bounded policies.
-Supporting bounded upserts does not automatically provide streaming upserts.
+Sinks declare one set of write policies for both execution modes. Continuous
+runs use finite writes through those same policies.
 The planner checks operations, ordering, durability, and required primary keys
 before writing. Replace is unavailable for continuous execution because it
 needs a finite snapshot and a completion boundary.
@@ -102,29 +102,51 @@ This check matters when an old worker wakes up after losing its lease. Knowing
 the correct bookmark does not give it permission to change the provider's
 consumer state.
 
-## Implement the sink's epoch lifecycle
+## Implement finite sink writes
 
-A streaming sink opens once, then repeats three steps: begin an epoch, apply
-its batches, and commit it. `StreamingSink` supplies that lifecycle through
-`BeginEpoch`, `CommitEpoch`, and `AbortEpoch`; `CloseSession` ends the reusable
-session. The runner does not adapt bounded `Commit` and `Abort` methods into
-streaming behavior.
+Bounded and continuous runs use the same sink contract. `Open` acquires a
+session. `Begin` starts a finite write, `Apply` writes its batches, and `Commit`
+confirms their advertised durability. `Abort` discards tentative work and
+`Close` releases session resources, including after a failed `Open`.
 
-Bind each batch to the active epoch and reject mismatched identities. Keep the
-same Arrow and encoded integrity obligations as a bounded sink. When commit
-returns, the writes must have reached the durability promised by the selected
-policy, and the per-resource receipts must describe the completed work.
+Declare write modes once in `SinkCapabilities.WritePolicies`. Continuous
+planning checks source operations, keys, ordering, and destination durability.
+Replacement requires a finite snapshot and is not admitted for continuous runs.
 
-For PostgreSQL append, this means starting a transaction, copying the batches
-into it, and returning receipts after transaction commit. For NATS append,
-messages are already acknowledged by the destination during batch application;
-the epoch commit summarizes that accepted work. These implementations have
-different visibility and rollback behavior even though they use the same
-runner lifecycle.
+Set `ReusableSession` only after implementing and testing repeated `Begin`
+and `Commit` calls on one open session. Otherwise the runner creates a fresh
+sink for each boundary, closes it after commit, and restores known schemas on
+the next instance. This repeats client and schema setup. It does not turn a
+single-write connector into a reusable connector.
 
-Aborting discards only tentative effects. It cannot undo messages already
-published or earlier committed epochs. Document that boundary so users can
-reason about retries and duplicates.
+The default boundary targets are 1,000 records or one second for reusable
+sinks and 100,000 records or 30 seconds for fresh instances. An explicit
+`RunOptions.EpochBoundary` overrides those defaults. Sources may return a safe
+boundary earlier or finish an in-progress transaction before returning.
+
+`RunSpec.Run` and `StartedAt` retain the logical run's identity and start time.
+The runner supplies `SinkWriteID` and `SinkWriteStartedAt` for each destination
+session. Use `RunSpec.SinkWriteIdentity()` for staging and artifact names. It
+falls back to the logical run ID for bounded runs. A write ID is not a stable
+event deduplication key. Object sinks retain the logical run ID in templates
+and manifests, while continuous date partitions use the finite write's time.
+
+The runner owns source epochs, leases, and positions. Sinks receive ordinary
+write policies without source ownership. The runner verifies every `Apply`
+receipt, waits for `Commit`, persists the certificate, and only then acknowledges
+the source. Single-write sessions also close before certification.
+
+A policy with `DurabilityAfterApply` confirms each successful batch independently.
+A policy with `DurabilityAfterCommit` stages its writes until commit. Continuous
+planning prefers a compatible commit-durable alternative when one is available.
+Saved policies must still match a supported alternative exactly.
+
+PostgreSQL offers transaction-durable append, upsert, and merge policies for
+continuous writes. Its bounded policies remain batch-durable. Kafka and NATS
+acknowledge individual publications during `Apply`. Both behaviors fit the
+same sink lifecycle. `Abort` must preserve previously durable writes. A replay
+can still duplicate append data if destination commit succeeded before the
+runner saved its certificate.
 
 ## Add live message schema support
 
@@ -184,8 +206,8 @@ alone does not establish continuous sink support.
 
 The MySQL bounded sink demonstrates this adapter with independently committed
 DDL. It applies approved additions together and reacquires its table lock
-before verification. Its schema-policy support does not advertise continuous
-epoch support.
+before verification. Continuous runs can use compatible write policies through
+fresh sink instances. Independently committed DDL is not rolled back with a failed write.
 
 ### Schema diagnostics
 
@@ -216,14 +238,18 @@ importing a production connector or opening a database. Run it with
 
 ## Make shutdown an honest promise
 
-A successful `CloseSession` means no later destination effects remain possible
-from that session. Releasing a local client or reaching a timeout does not
-establish that promise if remote requests could still finish.
+`Close` releases the session and joins pending local work. Return an error
+when remote effects may still be outstanding or their shutdown cannot be
+established. The runtime records an unproven termination and blocks automatic
+takeover in that case.
 
-Return an error when shutdown is uncertain. The runtime records that
-uncertainty and blocks automatic takeover. Similarly, matching an epoch ID in
-memory does not prove destination-side owner fencing: that stronger capability
-requires the destination to check ownership atomically with its effects.
+An `Apply` or `Commit` error does not by itself prove that cleanup failed.
+Local validation errors can end cleanly. PostgreSQL can also establish clean
+termination after a confirmed rollback. Lost publication acknowledgements or
+uncertain commit outcomes need connector-specific handling. The runner relies
+on the sink's cleanup result rather than turning every write error into an
+unproven termination. A clean close does not establish owner fencing or
+exactly-once delivery.
 
 ## Test interruptions at the boundaries
 

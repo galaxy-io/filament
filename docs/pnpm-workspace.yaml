@@ -1,6 +1,8 @@
 overrides:
-  qs: ^6.15.2
-  sharp: ^0.35.0
+  qs: ^6.16.1
+  axios: ^1.20.0
+  katex: ^0.18.2
+  sharp: ^0.35.5
   js-yaml@4: ^4.3.2
   adm-zip: ^0.6.1
 

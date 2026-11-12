@@ -190,6 +190,13 @@ func inspectResource(ctx context.Context, source filament.Source, resource strin
 		}
 		ranked, inspection.Ranked = columns, true
 	}
+	if partitioned, ok := source.(filament.PartitionSelector); ok {
+		partitions, err := partitioned.Partitions(ctx, resource)
+		if err != nil {
+			return failed(fmt.Errorf("partitions of %q: %w", resource, err))
+		}
+		inspection.Partitions = partitions
+	}
 	if !hasSchema {
 		if !inspection.Ranked {
 			inspection.Status = filament.InspectUnsupported
@@ -211,6 +218,9 @@ func inspectResource(ctx context.Context, source filament.Source, resource strin
 }
 
 func (l local) PlanReplicationStream(_ context.Context, name string, req filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
+	if err := req.Execution.Validate(); err != nil {
+		return filament.ReplicationStreamPlan{}, err
+	}
 	source, err := l.source(name)
 	if err != nil {
 		return filament.ReplicationStreamPlan{}, err

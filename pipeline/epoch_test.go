@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/streamkit"
 )
 
@@ -87,5 +88,26 @@ func TestEpochSealInvalidatedByLaterRows(t *testing.T) {
 	streamRow(t, streamBuilder(t, p, "users"), 1)
 	if _, err := p.SealEpoch(); !errors.Is(err, filament.ErrIncompleteCoverage) {
 		t.Fatalf("stale control sealed: %v", err)
+	}
+}
+
+type shortReceiptSink struct{ fakeSink }
+
+func (*shortReceiptSink) Apply(_ context.Context, b *arrowbatch.Batch, _ filament.ApplyOptions) (filament.WriteReceipt, error) {
+	return filament.WriteReceipt{Rows: 0, WriteCRC: b.IntegrityCRC()}, nil
+}
+
+func TestEpochCannotCertifyIncompleteSinkReceipt(t *testing.T) {
+	p := streamForTest(t, &shortReceiptSink{}, filament.OrderingNone)
+	ref := filament.EpochRef{Attempt: filament.AttemptRef{RunID: "run", ExecutionID: "execution", StreamID: "stream", Generation: 1, Token: 1}, Epoch: 1, MembershipRevision: 1}
+	if err := p.BindEpoch(ref); err != nil {
+		t.Fatal(err)
+	}
+	streamRow(t, streamBuilder(t, p, "users"), 1)
+	if _, err := p.Barrier(t.Context(), boundary(filament.ProgressBoundary)); err == nil {
+		t.Fatal("short receipt accepted")
+	}
+	if _, err := p.SealEpoch(); err == nil {
+		t.Fatal("incomplete write certified")
 	}
 }

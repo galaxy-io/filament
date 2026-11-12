@@ -198,7 +198,10 @@ result has that type. Division by zero and integer overflow fail the batch.
 Both sides share one type, at least one is a column, and a literal widens to
 the column's type. Orderable types are the integer and float types, `decimal`,
 `date`, `time`, `timestamp`, and `timestamptz`. A null on either side compares
-to null.
+to null. A decimal with no precision, or with precision above 38, is carried as
+text and still compares as a number, so `1.0` equals `1.00` and `10` is greater
+than `9`. `NaN` is above every number and `Infinity` and `-Infinity` sit at the
+ends, as PostgreSQL orders them.
 
 ### Logic
 

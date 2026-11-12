@@ -17,17 +17,17 @@ import (
 var ErrUnknownProvider = errors.New("registry: unknown provider")
 
 type registration[P any] struct {
-	factory  func() P
-	maturity filament.ConnectorMaturity
+	factory   func() P
+	isPreview bool
 }
 
 type providerRegistry[P, S any] struct {
-	kind        string
-	mu          sync.RWMutex
-	factories   map[string]registration[P]
-	aliases     map[string]string
-	specOf      func(P) S
-	setMaturity func(*S, filament.ConnectorMaturity)
+	kind       string
+	mu         sync.RWMutex
+	factories  map[string]registration[P]
+	aliases    map[string]string
+	specOf     func(P) S
+	setPreview func(*S, bool)
 	// contracts reports a capability the spec declares but the type does not
 	// implement. Registration refuses it so spec readers never need the instance.
 	contracts func(P) error
@@ -36,30 +36,27 @@ type providerRegistry[P, S any] struct {
 func newProviderRegistry[P, S any](
 	kind string,
 	specOf func(P) S,
-	setMaturity func(*S, filament.ConnectorMaturity),
+	setPreview func(*S, bool),
 	contracts func(P) error,
 ) *providerRegistry[P, S] {
 	return &providerRegistry[P, S]{
-		kind:        kind,
-		factories:   make(map[string]registration[P]),
-		aliases:     make(map[string]string),
-		specOf:      specOf,
-		setMaturity: setMaturity,
-		contracts:   contracts,
+		kind:       kind,
+		factories:  make(map[string]registration[P]),
+		aliases:    make(map[string]string),
+		specOf:     specOf,
+		setPreview: setPreview,
+		contracts:  contracts,
 	}
 }
 
-func (r *providerRegistry[P, S]) register(name string, maturity filament.ConnectorMaturity, factory func() P) {
-	switch maturity {
-	case filament.MaturityAlpha, filament.MaturityBeta, filament.MaturityStable:
-	default:
-		panic("registry: invalid " + r.kind + " maturity for " + name + ": " + string(maturity))
-	}
+func (r *providerRegistry[P, S]) register(name string, isPreview bool, factory func() P) {
 	if factory == nil {
 		panic("registry: nil " + r.kind + " factory for " + name)
 	}
-	if err := r.contracts(factory()); err != nil {
-		panic("registry: " + r.kind + " " + name + ": " + err.Error())
+	if r.contracts != nil {
+		if err := r.contracts(factory()); err != nil {
+			panic("registry: " + r.kind + " " + name + ": " + err.Error())
+		}
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -69,7 +66,7 @@ func (r *providerRegistry[P, S]) register(name string, maturity filament.Connect
 	if _, dup := r.aliases[name]; dup {
 		panic("registry: " + r.kind + " already registered: " + name)
 	}
-	r.factories[name] = registration[P]{factory: factory, maturity: maturity}
+	r.factories[name] = registration[P]{factory: factory, isPreview: isPreview}
 }
 
 func (r *providerRegistry[P, S]) resolve(name string) (P, error) {
@@ -98,7 +95,7 @@ func (r *providerRegistry[P, S]) spec(name string) (S, error) {
 		return zero, fmt.Errorf("%w: %s %q", ErrUnknownProvider, r.kind, name)
 	}
 	spec := r.specOf(registration.factory())
-	r.setMaturity(&spec, registration.maturity)
+	r.setPreview(&spec, registration.isPreview)
 	return spec, nil
 }
 
@@ -107,7 +104,7 @@ func (r *providerRegistry[P, S]) specs() []S {
 	out := make([]S, len(registrations))
 	for i, registration := range registrations {
 		out[i] = r.specOf(registration.factory())
-		r.setMaturity(&out[i], registration.maturity)
+		r.setPreview(&out[i], registration.isPreview)
 	}
 	return out
 }
@@ -166,7 +163,7 @@ func NewSources() *Sources {
 	return &Sources{providers: newProviderRegistry(
 		"source",
 		func(source filament.Source) filament.ConnectorSpec { return source.Spec() },
-		func(spec *filament.ConnectorSpec, maturity filament.ConnectorMaturity) { spec.Maturity = maturity },
+		func(spec *filament.ConnectorSpec, isPreview bool) { spec.IsPreview = isPreview },
 		sourceContracts,
 	)}
 }
@@ -242,13 +239,13 @@ func (r *Sources) Only(names []string) (*Sources, error) {
 
 // Register adds a factory under name. It panics on a nil factory or a duplicate
 func (r *Sources) Register(name string, factory filament.SourceFactory) {
-	r.RegisterWithMaturity(name, filament.MaturityAlpha, factory)
+	r.RegisterWithPreview(name, true, factory)
 }
 
-// RegisterWithMaturity adds a source factory and its catalog maturity under
-// name. It panics on an invalid maturity, a nil factory, or a duplicate name.
-func (r *Sources) RegisterWithMaturity(name string, maturity filament.ConnectorMaturity, factory filament.SourceFactory) {
-	r.providers.register(name, maturity, factory)
+// RegisterWithPreview adds a source factory and its catalog preview flag under
+// name. It panics on a nil factory or a duplicate name.
+func (r *Sources) RegisterWithPreview(name string, isPreview bool, factory filament.SourceFactory) {
+	r.providers.register(name, isPreview, factory)
 }
 
 // RegisterAlias adds a lookup name for an existing concrete source registration.
@@ -279,7 +276,7 @@ func (r *Sources) Resolve(name string) (filament.Source, error) {
 	return r.providers.resolve(name)
 }
 
-// Spec returns one registered source's catalog spec with its maturity marker.
+// Spec returns one registered source's catalog spec with its preview flag.
 func (r *Sources) Spec(name string) (filament.ConnectorSpec, error) {
 	return r.providers.spec(name)
 }
@@ -312,7 +309,7 @@ func (r *Sources) Specs() []filament.ConnectorSpec {
 		spec := registration.factory().Spec()
 		spec.Name = name
 		spec.AliasTarget = aliases[name]
-		spec.Maturity = registration.maturity
+		spec.IsPreview = registration.isPreview
 		specs = append(specs, spec)
 	}
 	return specs
@@ -328,21 +325,9 @@ func NewSinks() *Sinks {
 	return &Sinks{providers: newProviderRegistry(
 		"sink",
 		func(sink filament.Sink) filament.SinkSpec { return sink.Spec() },
-		func(spec *filament.SinkSpec, maturity filament.ConnectorMaturity) { spec.Maturity = maturity },
+		func(spec *filament.SinkSpec, isPreview bool) { spec.IsPreview = isPreview },
 		sinkContracts,
 	)}
-}
-
-// sinkContracts requires a sink that declares streaming capabilities to
-// implement the native epoch contract.
-func sinkContracts(sink filament.Sink) error {
-	if sink.Spec().Capabilities.Stream == nil {
-		return nil
-	}
-	if _, ok := sink.(filament.StreamingSink); !ok {
-		return errors.New("declares streaming capabilities but does not implement filament.StreamingSink")
-	}
-	return nil
 }
 
 var _ filament.SinkRegistry = (*Sinks)(nil)
@@ -358,13 +343,13 @@ func (r *Sinks) Only(names []string) (*Sinks, error) {
 
 // Register adds a factory under name. Panics on nil factory or duplicate name.
 func (r *Sinks) Register(name string, factory filament.SinkFactory) {
-	r.RegisterWithMaturity(name, filament.MaturityAlpha, factory)
+	r.RegisterWithPreview(name, true, factory)
 }
 
-// RegisterWithMaturity adds a sink factory and its catalog maturity under name.
-// It panics on an invalid maturity, a nil factory, or a duplicate name.
-func (r *Sinks) RegisterWithMaturity(name string, maturity filament.ConnectorMaturity, factory filament.SinkFactory) {
-	r.providers.register(name, maturity, factory)
+// RegisterWithPreview adds a sink factory and its catalog preview flag under name.
+// It panics on a nil factory, or a duplicate name.
+func (r *Sinks) RegisterWithPreview(name string, isPreview bool, factory filament.SinkFactory) {
+	r.providers.register(name, isPreview, factory)
 }
 
 // Resolve constructs a fresh sink instance for name.
@@ -372,7 +357,7 @@ func (r *Sinks) Resolve(name string) (filament.Sink, error) {
 	return r.providers.resolve(name)
 }
 
-// Spec returns one registered sink's catalog spec with its maturity marker.
+// Spec returns one registered sink's catalog spec with its preview flag.
 func (r *Sinks) Spec(name string) (filament.SinkSpec, error) {
 	return r.providers.spec(name)
 }
@@ -380,4 +365,13 @@ func (r *Sinks) Spec(name string) (filament.SinkSpec, error) {
 // Specs returns every registered sink's spec, sorted by name.
 func (r *Sinks) Specs() []filament.SinkSpec {
 	return r.providers.specs()
+}
+
+func sinkContracts(s filament.Sink) error {
+	if s.Spec().Capabilities.ReusableSession {
+		if _, single := s.(interface{ SingleWriteOnly() }); single {
+			return fmt.Errorf("reusable session capability requires repeatable write boundaries")
+		}
+	}
+	return nil
 }

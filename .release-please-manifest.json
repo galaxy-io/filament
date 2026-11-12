@@ -1,6 +1,6 @@
 {
-  ".": "0.28.0",
-  "sdks/python": "0.4.0",
-  "sdks/typescript": "0.4.0",
-  "ui": "0.5.0"
+  ".": "0.40.2",
+  "sdks/python": "0.8.0",
+  "sdks/typescript": "0.8.0",
+  "ui": "0.12.0"
 }

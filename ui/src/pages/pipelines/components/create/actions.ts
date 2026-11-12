@@ -1,6 +1,6 @@
 import type { ExecutionMode, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { Resource, ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { CreatePipelineModalStep } from "@/pages/pipelines/components/create/types";
@@ -20,6 +20,9 @@ export enum CreatePipelineModalActionType {
   SET_RESOURCE_SELECTION = "SET_RESOURCE_SELECTION",
   SET_RESOURCE_READ_MODE = "SET_RESOURCE_READ_MODE",
   SET_RESOURCE_CURSOR = "SET_RESOURCE_CURSOR",
+  SET_RESOURCE_COLUMNS = "SET_RESOURCE_COLUMNS",
+  SET_RESOURCE_PARTITIONS = "SET_RESOURCE_PARTITIONS",
+  SET_RESOURCE_WRITE_MODE = "SET_RESOURCE_WRITE_MODE",
   SET_SINK_WRITE_MODE = "SET_SINK_WRITE_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
   SET_NAME = "SET_NAME",
@@ -81,6 +84,29 @@ export interface SetResourceCursorAction {
     resource: Resource["name"];
     cursorField: ResourceColumn["name"];
   };
+}
+
+export interface SetResourceColumnsAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_COLUMNS;
+  payload: {
+    sinkId: Connection["id"];
+    resource: Resource["name"];
+    columns: ResourceColumn["name"][];
+  };
+}
+
+export interface SetResourcePartitionsAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_PARTITIONS;
+  payload: {
+    sinkId: Connection["id"];
+    resource: Resource["name"];
+    partitions: ResourceColumns["partitions"];
+  };
+}
+
+export interface SetResourceWriteModeAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE;
+  payload: { sinkId: Connection["id"]; resource: Resource["name"]; writeMode: WriteMode };
 }
 
 export interface SetSinkWriteModeAction {
@@ -155,6 +181,9 @@ export type CreatePipelineModalAction =
   | SetResourceSelectionAction
   | SetResourceReadModeAction
   | SetResourceCursorAction
+  | SetResourceColumnsAction
+  | SetResourcePartitionsAction
+  | SetResourceWriteModeAction
   | SetSinkWriteModeAction
   | SetNodeConfigAction
   | SetNameAction

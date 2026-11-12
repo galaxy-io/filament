@@ -7,12 +7,13 @@ description: "Read ServiceTitan exports and supporting operational resources wit
 
 Connector ID `servicetitan`
 
-The ServiceTitan source uses the v2 REST APIs and is **alpha**. It covers
-53 resources. Shared pagination, projection, and checkpoint behavior have
+The ServiceTitan source uses the v2 REST APIs. It provides 72 selectable
+resources across accounting, jobs, inventory, customers, and other ServiceTitan
+API families. Shared pagination, projection, and checkpoint behavior have
 regression coverage. Live tenant reads have not been validated.
 
-The source is backed by an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
-Use `servicetitan@v2` to select API v2; `servicetitan` resolves to this default version.
+Use `servicetitan@v2` to select API v2. `servicetitan` resolves to this
+default version.
 
 ## Configuration
 
@@ -28,7 +29,7 @@ Create an application with read permissions for the resources you select and
 connect it to the tenant. Credentials and app access must match the environment.
 Filament obtains and renews a client-credentials access token and sends the
 application key in `ST-App-Key`. Connection testing reads the first jobs export
-page; it does not establish access to every API family. See the official
+page. It does not establish access to every API family. See the official
 [API documentation](https://developer.servicetitan.io/docs/apis).
 
 ## Resources
@@ -53,15 +54,34 @@ credentials and tenant. Related resources can share a scope.
 | Customers | [`customer_contacts`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportContacts_CustomersContacts) | `tn.crm.customers:r` |
 | Customers | [`location_contacts`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportContacts_LocationsContacts) | `tn.crm.locations:r` |
 | Accounting | [`gl_accounts`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/GlAccounts_GetList) | `tn.acc.glaccounts:r` |
+| Accounting | [`journal_entries`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/JournalEntries_GetList) | `tn.acc.journalentries:r` |
+| Accounting | [`journal_entry_details`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/JournalEntries_GetDetails) | `tn.acc.journalentries:r` |
+| Accounting | [`journal_entry_summaries`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/JournalEntries_GetSummary) | `tn.acc.journalentries:r` |
 | Accounting | [`invoices`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/Export_Invoices) | `tn.acc.invoices:r` |
 | Accounting | [`invoice_items`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/Export_InvoiceItems) | `tn.acc.invoiceitems:r` |
 | Accounting | [`payments`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/Export_Payments) | `tn.acc.payments:r` |
+| Accounting | [`bank_deposits`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/Deposits_GetList) | `tn.acc.bankdeposits:r` |
+| Accounting | [`bank_deposit_transactions`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/Deposits_GetTransactionsList) | `tn.acc.bankdeposits:r` |
+| Accounting | [`credit_memos`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/CreditMemos_GetCreditMemosList) | `tn.acc.creditmemos:r` |
+| Accounting | [`credit_memo_items`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/CreditMemos_GetCreditMemosItemsList) | `tn.acc.creditmemos:r` |
+| Accounting | [`ap_bills`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/ApBills_GetListPaginated) | `tn.acc.apbills:r` |
+| Accounting | [`ap_credits`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/ApCredits_GetList) | `tn.acc.apcredits:r` |
+| Accounting | [`ap_payments`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/ApPayments_GetList) | `tn.acc.appayments:r` |
+| Accounting | [`expense_transactions`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/ExpenseTransactions_GetListPaginated) | `tn.acc.expensetransactions:r` |
+| Accounting | [`inventory_bills`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/InventoryBills_GetListPaginated) | `tn.acc.inventorybills:r` |
+| Accounting | [`payment_types`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/PaymentTypes_GetList) | `tn.acc.paymenttypes:r` |
+| Accounting | [`payment_terms`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/PaymentTerms_GetList) | `tn.acc.paymentterms:r` |
+| Accounting | [`tax_zones`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/TaxZones_GetList) | `tn.acc.taxzones:r` |
+| Accounting | [`gl_account_types`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/GlAccounts_GetTypeList) | `tn.acc.glaccounts:r` |
 | Inventory | [`vendors`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Vendors_GetList) | `tn.inv.vendors:r` |
 | Inventory | [`inventory_templates`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/InventoryTemplates_GetList) | `tn.inv.inventorytemplates:r` |
 | Inventory | [`inventory_adjustments`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Adjustments) | `tn.inv.adjustments:r` |
 | Inventory | [`purchase_orders`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_PurchaseOrders) | `tn.inv.purchaseorders:r` |
 | Inventory | [`inventory_returns`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Returns) | `tn.inv.returns:r` |
 | Inventory | [`inventory_transfers`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Transfers) | `tn.inv.transfers:r` |
+| Inventory | [`inventory_receipts`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Receipts_GetList) | `tn.inv.receipts:r` |
+| Equipment Systems | [`installed_equipment`](https://developer.servicetitan.io/docs/apis/tenant-equipment-systems-v2/endpoints/Export_ExportInstalledEquipment) | `tn.eqs.installedequipment:r` |
+| Equipment Systems | [`equipment_systems`](https://developer.servicetitan.io/docs/apis/tenant-equipment-systems-v2/endpoints/Export_ExportEquipmentSystems) | `tn.eqs.equipmentsystems:r` |
 | Pricebook | [`pricebook_categories`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Categories) | `tn.pb.categories:r` |
 | Pricebook | [`pricebook_services`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Services) | `tn.pb.services:r` |
 | Pricebook | [`pricebook_equipment`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Equipment) | `tn.pb.equipment:r` |
@@ -94,103 +114,82 @@ credentials and tenant. Related resources can share a scope.
 | Memberships | [`membership_status_changes`](https://developer.servicetitan.io/docs/apis/tenant-memberships-v2/endpoints/Export_MembershipStatusChanges) | `tn.mem.memberships:r` |
 | Estimates | [`estimates`](https://developer.servicetitan.io/docs/apis/tenant-salestech-v2/endpoints/EstimatesExport_Estimates) | `tn.sal.estimates:r` |
 
-Select the resources your application can access. Other ServiceTitan resources,
-including reporting, forms, equipment systems, and newer export feeds, are outside
-the current resource set.
+The default selection includes jobs, customers, common exports, and reference
+streams. Bank deposits,
+credit memos, AP transactions, expense transactions, inventory bills and
+receipts, journal summaries, and payment and tax reference tables are available
+to select individually. Grant each selected resource's read scope on the
+ServiceTitan application.
 
-`appointment_assignments` contains one technician assignment to an appointment.
-`non_job_appointments` contains one technician non-job appointment.
-`vendors` and `gl_accounts` contain one vendor and one general ledger account per
-row. `inventory_templates` contains one template with nested items and location
-IDs. These five resources use the ServiceTitan `id` as their primary key.
+Other ServiceTitan resources, including reporting and forms, are outside this
+resource set.
 
-Vendor addresses, contact information, custom fields, and returned external data
-remain JSON. Application-specific vendor external data requires an
-`externalDataApplicationGuid` selector that this connector does not configure.
+### Accounting and inventory relationships
+
+`journal_entries` provides `syncStatus`, including `OutOfSync`, plus
+`versionId` and `lastSyncVersionId` for checking whether an entry changed after
+sync. `journal_entry_details` provides account, transaction, job, and pricebook
+item detail. `journal_entry_summaries` provides totals by account and business
+unit. The detail and summary endpoints are read for each journal entry with an
+ID. Their rows include `journalEntryId` but have no API-provided line ID.
+
+`bank_deposit_transactions` reads each deposit's transactions and includes
+`bankDepositId`. `credit_memo_items` links to `credit_memos` through
+`creditMemoId`. AP bills and expense transactions include their items as JSON.
+`inventory_receipts` uses the receipt list, which includes item GL accounts.
+The `ap_bills` resource selects ServiceTitan's `ApBill` bill type, while
+`inventory_bills` has no bill type filter.
+
+`vendors`, `gl_accounts`, `inventory_templates`, `installed_equipment`, and
+`equipment_systems` provide reference and equipment data for interpreting
+transactions and jobs. Vendor addresses, contact details, custom fields, and
+external data remain JSON. Vendor external data for a particular application
+requires an `externalDataApplicationGuid` selector, which this connector does
+not expose.
 
 ## Modes
 
-All resources support full reads. Incremental reads are available for 43.
-41 export resources use ServiceTitan's opaque `continueFrom` token.
-`non_job_timesheets` and `payrolls` use `modifiedOnOrAfter` with a fixed lower
-bound throughout pagination and `sort=+ModifiedOn`.
+All 72 resources support full reads. Incremental reads are available for 45
+export and timestamp based resources. ServiceTitan export feeds use the opaque
+`continueFrom` token. `non_job_timesheets` and `payrolls` use
+`modifiedOnOrAfter` and sort by modification time. Use incremental upsert for
+mutable export records. The first incremental run reads the complete export
+before saving a checkpoint.
 
-Full reads are the only supported mode for `job_types`, `campaigns`,
-`campaign_costs`, `campaign_categories`, `technician_shifts`,
-`membership_status_changes`, `non_job_appointments`, `vendors`,
-`gl_accounts`, and `inventory_templates`.
+Full reads are the only supported mode for these resources:
 
-`appointment_assignments` uses an export cursor for incremental reads. `non_job_appointments`,
-`vendors`, `gl_accounts`, and `inventory_templates` use full reads to refresh
-their current state. Use full
-replace when destination rows must reflect removals from the source.
+- Accounting resources other than `invoices`, `invoice_items`, and `payments`.
+- `vendors`, `inventory_templates`, and `inventory_receipts`.
+- `job_types`, `campaigns`, `campaign_costs`, `campaign_categories`,
+  `technician_shifts`, `non_job_appointments`, and
+  `membership_status_changes`.
 
-Use incremental upsert for mutable export records. No cursor-column selection
-or lookback is supported for export tokens. The first incremental run walks the
-complete export. A preceding full run does not seed its incremental token.
-Subsequent successful runs resume at the saved token. Append writes can retain
-replayed records after failures; they do not produce a deduplicated current view.
-
-`gross_pay_items` uses the gross pay item `id` as its primary key and saves the
-export's `continueFrom` token for incremental reads. `payrollId` identifies the
-parent payroll and must not be used to deduplicate its earnings items.
-ServiceTitan permits null item IDs; keyed writes reject such records without
-advancing the run's checkpoint. Use full read with replace for accounts containing
-items without IDs. See the [official payroll schema](https://developer.servicetitan.io/api/docs/apis/tenant-payroll-v2).
-
-For existing pipelines, select incremental read and upsert write explicitly.
-The first incremental run establishes the export checkpoint with a complete read.
-Changing the key does not repair rows already overwritten by payroll-level
-upserts or remove duplicate rows left by previous append runs; rebuild affected
-destination data from a complete export before relying on incremental updates.
-
-Use **full replace** for `technician_shifts`.
-Technician shifts can be hard-deleted upstream, requiring
-replacement to remove missing rows. Ordinary export upserts do not infer deletes
-from records absent in a delta.
+Use full replace for `journal_entries`, `journal_entry_details`,
+`journal_entry_summaries`, and `payment_terms`. ServiceTitan allows null IDs for
+journal entries and payment terms, so these resources have no primary key.
+Neither journal entry child resource has a stable line key. Full replace also
+removes rows missing from current-state lists when ServiceTitan deletes records.
+Use it for `technician_shifts`, which can be deleted upstream.
 
 ## Behavior
 
-Export requests set `includeRecentChanges=false`, accepting ServiceTitan's
-approximately 15-minute export visibility delay. Each page uses `hasMore` and
-`continueFrom`, including empty pages. The terminal token is delivered separately
-from rows and becomes durable only after successful run commit. Failed runs
-replay from the prior committed token. Missing or malformed envelopes and cursor
-cycles fail the run. Invalid saved tokens are not silently discarded.
+Export requests use `includeRecentChanges=false`, accepting ServiceTitan's
+approximately 15-minute export visibility delay. A saved export token advances
+only after a successful run. Failed runs replay from the previous checkpoint.
+Append writes can retain duplicates after a replay, so use upsert for mutable
+export records.
 
-`appointments`, `job_types`, `campaigns`, `technician_shifts`,
-`non_job_timesheets`, `payrolls`, `appointment_assignments`, `vendors`,
-`gl_accounts`, and `inventory_templates` request `active=Any` on every page.
-`non_job_appointments` uses `activeOnly=false` for the same purpose.
-These are the resources whose endpoints support the active filter. Appointment
-exports already return all items by default. The other nine endpoints default
-to active records only. See the ServiceTitan
-[JPM](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2),
-[Marketing](https://developer.servicetitan.io/docs/apis/tenant-marketing-v2),
-[Dispatch](https://developer.servicetitan.io/docs/apis/tenant-dispatch-v2), and
-[Payroll](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2) API references.
-For existing pipelines, run full reads of `non_job_timesheets` and `payrolls`
-to backfill inactive records older than the saved modification watermarks.
-Adding the explicit filter to `appointments` changes its saved cursor identity,
-so its next incremental run restarts the export from the beginning.
+Where supported, list requests include inactive records with `active=Any` or
+`activeOnly=false`. Paginated lists use `hasMore`. Export feeds use
+`continueFrom`. Requests share a 45-per-second limiter within each run and
+retry throttling and server errors.
 
-`non_job_appointments`, `vendors`, `gl_accounts`, `inventory_templates`,
-and the two timestamp streams use 1,000-row pages. Other paginated full reads
-use 5,000-row pages. `includeTotal=true` is sent on each transactional page.
-Exports do not send `pageSize`. Requests share a 45-per-second limiter across
-all resource readers in a run, with a burst of one. There is one reader per selected resource (up to
-53). Adding readers does not multiply the request budget. Separate runs and
-pipelines have independent limiters. Requests use the HTTP engine's retry
-handling for throttling and server errors.
-
-Nested arrays and objects stay JSON. Date/time values remain strings, preserving
-seven-digit fractional seconds. Integer IDs use 64-bit integers, and decimal values travel as text to
-preserve digits. The trailing `raw` column retains unprojected properties.
-`job_history` keeps one row per `jobId`, its complete `history` array, and nullable
-`lastEventDate`, the lexical maximum nonempty event date.
+Nested arrays and objects remain JSON. Dates and times remain strings. Integer
+IDs use 64-bit integers. Many accounting amounts are projected as strings to
+preserve their decimal representation. The `raw` column retains unprojected properties.
+`job_history` contains one row per job, with the complete `history` array.
 
 Export upserts use Filament's insertion-order version policy. If an export
-returns an older version after a newer version, the older record can replace
-the newer destination row. Rows are not ordered by `modifiedOn` or
-`lastEventDate`. Begin with a fresh backfill and keep separate tenants in
-separate destination tables or namespaces.
+returns an older version after a newer one, the older record can replace the
+newer destination row. Keep separate tenants in separate destination tables or
+namespaces.

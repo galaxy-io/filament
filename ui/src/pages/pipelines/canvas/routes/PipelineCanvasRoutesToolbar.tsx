@@ -1,9 +1,10 @@
-import { type FC, useMemo } from "react";
+import { type FC, useMemo, useRef } from "react";
 
 import { PlusIcon } from "@phosphor-icons/react";
 import pluralize from "pluralize";
 
 import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import { useElementWidth } from "@galaxy-io/dls/hooks/useElementWidth";
 import { InputVariant } from "@galaxy-io/dls/inputs/Input";
 import MultiSelectInput, {
   MultiSelectInputSize,
@@ -11,8 +12,7 @@ import MultiSelectInput, {
 } from "@galaxy-io/dls/inputs/MultiSelectInput";
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
-import Box from "@galaxy-io/dls/layout/Box";
-import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
+import Flex, { AlignItems, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text from "@galaxy-io/dls/text/Text";
 
@@ -26,8 +26,14 @@ import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePi
 import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasViewSwitcher";
 import PipelineCanvasPanelOpenButton from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelOpenButton";
 import {
+  PIPELINE_CANVAS_ROUTES_SEARCH_MIN_WIDTH,
   PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH,
+  PIPELINE_CANVAS_ROUTES_SINK_FILTER_MIN_WIDTH,
+  PIPELINE_CANVAS_ROUTES_SINK_FILTER_SHRINK,
   PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH,
+  PIPELINE_CANVAS_ROUTES_TOOLBAR_COMPACT_WIDTH,
+  PIPELINE_CANVAS_ROUTES_TOOLBAR_ICON_ONLY_WIDTH,
+  PIPELINE_CANVAS_ROUTES_TOOLBAR_NO_SINK_FILTER_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import { usePipelineCanvasRoutesSinks } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesSinks";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
@@ -47,6 +53,15 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
 }) => {
   const { sinkIds, setSinkIds } = usePipelineCanvasSelection();
   const sinks = usePipelineCanvasRoutesSinks();
+  const toolbarRef = useRef<HTMLElement>(null);
+  const toolbarWidth = useElementWidth(toolbarRef);
+  const isCompact =
+    toolbarWidth !== undefined && toolbarWidth < PIPELINE_CANVAS_ROUTES_TOOLBAR_COMPACT_WIDTH;
+  const isIconOnly =
+    toolbarWidth !== undefined && toolbarWidth < PIPELINE_CANVAS_ROUTES_TOOLBAR_ICON_ONLY_WIDTH;
+  const hasSinkFilter =
+    toolbarWidth === undefined ||
+    toolbarWidth >= PIPELINE_CANVAS_ROUTES_TOOLBAR_NO_SINK_FILTER_WIDTH;
 
   const sinkOptions = useMemo<SelectOption[]>(
     () =>
@@ -72,14 +87,23 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
 
   return (
     <Flex
+      ref={toolbarRef}
       alignItems={AlignItems.CENTER}
       gap={12}
       padding={PIPELINE_CANVAS_VIEW_SWITCHER_INSET}
       shrink={0}
+      minWidth={0}
+      overflow="hidden"
       fillWidth
     >
-      <PipelineCanvasViewSwitcher />
-      <Box width={PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH}>
+      <FlexItem shrink={0}>
+        <PipelineCanvasViewSwitcher isIconOnly={isIconOnly} />
+      </FlexItem>
+      <FlexItem
+        shrink={1}
+        basis={PIPELINE_CANVAS_ROUTES_SEARCH_WIDTH}
+        minWidth={PIPELINE_CANVAS_ROUTES_SEARCH_MIN_WIDTH}
+      >
         <SearchInput
           ariaLabel="Search resources"
           variant={InputVariant.SECONDARY}
@@ -88,32 +112,41 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
           placeholder="Search resources..."
           fillWidth
         />
-      </Box>
-      <Box width={PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH}>
-        <MultiSelectInput
-          ariaLabel="Sinks"
-          fillWidth
-          options={sinkOptions}
-          selectAllLabel="All sinks"
-          value={selectedSinkIds}
-          onChange={handleSinksChange}
-          placeholder="Sinks..."
-          variant={MultiSelectInputVariant.SECONDARY}
-          size={MultiSelectInputSize.MEDIUM}
-          renderValue={(options) => <Text>{pluralize("sink", options.length, true)}</Text>}
-        />
-      </Box>
-      <FlexItem grow={1} />
-      {canAddRoute && (
-        <Button
-          label="Add route"
-          icon={PlusIcon}
-          variant={ButtonVariant.SECONDARY}
-          size={ButtonSize.MEDIUM}
-          onClick={onAddRoute}
-        />
+      </FlexItem>
+      {hasSinkFilter && (
+        <FlexItem
+          shrink={PIPELINE_CANVAS_ROUTES_SINK_FILTER_SHRINK}
+          basis={PIPELINE_CANVAS_ROUTES_SINK_FILTER_WIDTH}
+          minWidth={PIPELINE_CANVAS_ROUTES_SINK_FILTER_MIN_WIDTH}
+        >
+          <MultiSelectInput
+            ariaLabel="Sinks"
+            fillWidth
+            options={sinkOptions}
+            selectAllLabel="All sinks"
+            value={selectedSinkIds}
+            onChange={handleSinksChange}
+            placeholder="Sinks..."
+            variant={MultiSelectInputVariant.SECONDARY}
+            size={MultiSelectInputSize.MEDIUM}
+            renderValue={(options) => <Text>{pluralize("sink", options.length, true)}</Text>}
+          />
+        </FlexItem>
       )}
-      <PipelineCanvasPanelOpenButton />
+      <Flex alignItems={AlignItems.CENTER} justifyContent={JustifyContent.END} gap={12} grow={1}>
+        {canAddRoute && (
+          <Button
+            icon={PlusIcon}
+            variant={ButtonVariant.SECONDARY}
+            size={ButtonSize.MEDIUM}
+            onClick={onAddRoute}
+            {...(isCompact
+              ? { ariaLabel: "Add route", tooltip: "Add route" }
+              : { label: "Add route" })}
+          />
+        )}
+        <PipelineCanvasPanelOpenButton />
+      </Flex>
     </Flex>
   );
 };

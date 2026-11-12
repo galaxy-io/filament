@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	registry.RegisterSink("nats", filament.MaturityAlpha, func() filament.Sink { return sink.New() })
+	registry.RegisterSink("nats", false, func() filament.Sink { return sink.New() })
 	registry.RegisterPositionCodec(source.PositionCodec, 0, streamkit.Uint64Codec{})
-	registry.RegisterSource("nats", filament.MaturityBeta, func() filament.Source { return source.New() })
+	registry.RegisterSource("nats", false, func() filament.Source { return source.New() })
 }

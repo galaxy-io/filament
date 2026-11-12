@@ -13,6 +13,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/databricks/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const sinkName = "databrickszerobus"
@@ -38,6 +39,7 @@ type clientFactory func(r connection.Resolved, compression string) (ingestClient
 // Sink is the Databricks Zerobus sink. One stream is opened per resource in
 // EnsureSchema; Apply ingests batches; Commit flushes and closes all streams.
 type Sink struct {
+	sinkstate.SingleWrite
 	newClient   clientFactory
 	newExecutor executorFactory
 
@@ -148,7 +150,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 
 // Commit flushes every open stream to durability, then closes them.
 func (s *Sink) Commit(ctx context.Context) error {
-	defer s.release()
+	defer clear(s.streams)
 	if s.client == nil {
 		return nil
 	}
@@ -173,7 +175,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 // Abort closes streams without waiting for a durable flush. Zerobus delivers
 // at-least-once, so batches already acknowledged remain in the table.
 func (s *Sink) Abort(ctx context.Context) error {
-	defer s.release()
+	defer clear(s.streams)
 	if s.client == nil {
 		return nil
 	}
@@ -184,7 +186,7 @@ func (s *Sink) Abort(ctx context.Context) error {
 }
 
 // release drops stream references and closes the client and executor. It runs
-// on both Commit and Abort so the sink holds no open handles afterward.
+// from Close after all per-write stream handles have been released.
 func (s *Sink) release() {
 	for k := range s.streams {
 		delete(s.streams, k)
@@ -207,3 +209,6 @@ func (s *Sink) execFactory() executorFactory {
 	}
 	return newStatementExecutor
 }
+
+// Close releases local session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { err := s.Abort(ctx); s.release(); return err }

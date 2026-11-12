@@ -16,6 +16,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/motherduck/internal/connection"
+	"github.com/galaxy-io/filament/internal/sinkstate"
 )
 
 const (
@@ -37,6 +38,7 @@ func (p *pooledConnection) exec(ctx context.Context, query string) error {
 // is borrowed by one goroutine at a time because DuckDB connections are not
 // safe for concurrent use.
 type Sink struct {
+	sinkstate.SingleWrite
 	// resolve turns connection config into a database to open. The tests
 	// point it at a local file to exercise the engine without a token.
 	resolve func(filament.Config) (connection.Resolved, error)
@@ -140,7 +142,7 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	s.connections = connections
 	s.database = database
 	s.schema = schema
-	s.run = run.Run
+	s.run = run.SinkWriteIdentity()
 	s.policies = run.WritePolicies
 	s.written.Store(0)
 	s.tablesMu.Lock()
@@ -155,7 +157,6 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if s.db == nil {
 		return nil
 	}
-	defer s.release()
 	if err := s.closeAppenders(); err != nil {
 		return fmt.Errorf("%s sink: close appenders: %w", s.Name(), err)
 	}
@@ -206,12 +207,11 @@ func (s *Sink) commitTable(ctx context.Context, conn *pooledConnection, tbl *tab
 	return nil
 }
 
-// Abort closes appenders, drops run-scoped stages, and releases the database.
+// Abort closes appenders and drops run-scoped stages.
 func (s *Sink) Abort(ctx context.Context) error {
 	if s.db == nil {
 		return nil
 	}
-	defer s.release()
 	var first error
 	if err := s.closeAppenders(); err != nil {
 		first = fmt.Errorf("%s sink: close appenders: %w", s.Name(), err)
@@ -337,3 +337,6 @@ func stageTableName(table string, run filament.RunID) string {
 	}
 	return table + "__stage_" + string(runes)
 }
+
+// Close releases session resources without reverting durable writes.
+func (s *Sink) Close(ctx context.Context) error { s.release(); return nil }

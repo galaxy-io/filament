@@ -1,17 +1,22 @@
 import type { JsonValue } from "@bufbuild/protobuf";
+import type { Rect } from "@xyflow/react";
 
 import type { Theme } from "@galaxy-io/dls/theme/tokens/types";
 
 import type { EdgeValidation } from "@/gen/ingestion/v1/capabilities_pb";
 import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { ResourceColumn, ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 import type { PipelineEdge } from "@/gen/ingestion/v1/pipelines_pb";
+import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 
 import { isJsonObject } from "@/components/fields/utils";
 import type { PipelineFlowEndpoints } from "@/components/pipelines/utils";
 
-import { PIPELINE_CANVAS_EDGE_Z_INDEX } from "@/pages/pipelines/canvas/constants";
+import {
+  PIPELINE_CANVAS_EDGE_Z_INDEX,
+  PIPELINE_CANVAS_SOURCE_NODE_EXPECTED_HEIGHT,
+} from "@/pages/pipelines/canvas/constants";
 import type { PipelineCanvasEdgeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeResources";
 import type {
   CanvasEdge,
@@ -49,6 +54,12 @@ export const getEdgeModeOptions = (
   effectiveReadMode: verdict?.effectiveReadMode ?? ReadMode.UNSPECIFIED,
   effectiveWriteMode: verdict?.effectiveWriteMode ?? WriteMode.UNSPECIFIED,
 });
+
+export const getEdgeFieldError = (
+  verdict: EdgeValidation | undefined,
+  field: ValidationError["field"],
+): ValidationError["message"] | undefined =>
+  verdict?.errors.find((error) => error.field === field)?.message;
 
 type PipelineCanvasEdgeStatusResources = Pick<
   PipelineCanvasEdgeResources,
@@ -94,19 +105,6 @@ export const getEdgeResourceStatus = (
   });
 };
 
-export const hasSiblingIncrementalRead = (
-  edges: CanvasEdge[],
-  { source, target }: Pick<CanvasEdge, "source" | "target">,
-  excludedEdgeId?: CanvasEdge["id"],
-): boolean =>
-  edges.some(
-    (edge) =>
-      edge.source === source &&
-      edge.target === target &&
-      edge.id !== excludedEdgeId &&
-      edge.data?.readMode === ReadMode.INCREMENTAL,
-  );
-
 const getTransformEntryStepCount = (entry: JsonValue | undefined): number =>
   entry !== undefined && isJsonObject(entry) && Array.isArray(entry.steps) ? entry.steps.length : 0;
 
@@ -131,16 +129,45 @@ export const mapElementsToSelected = <T extends { id: string; selected?: boolean
 export const getDefaultDestinationResource = (resource: PipelineEdge["resource"]): string =>
   resource.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
 
+export const getPipelineCanvasRevealBounds = (
+  bounds: Rect,
+  nodes: CanvasNode[],
+  isDiscovering: boolean,
+): Rect => {
+  if (!isDiscovering) return bounds;
+  const bottom = nodes
+    .filter((node) => node.type === PipelineCanvasNodeType.SOURCE)
+    .reduce(
+      (max, node) => Math.max(max, node.position.y + PIPELINE_CANVAS_SOURCE_NODE_EXPECTED_HEIGHT),
+      bounds.y + bounds.height,
+    );
+  return { ...bounds, height: bottom - bounds.y };
+};
+
+export const isPipelineCanvasRouteRunning = (
+  runs: RunInfo[],
+  sourceConnectionId: Connection["id"] | undefined,
+  sinkConnectionId: Connection["id"] | undefined,
+  resource: PipelineEdge["resource"],
+): boolean =>
+  runs.some(
+    (run) =>
+      run.sourceConnectionId === sourceConnectionId &&
+      run.sinkConnectionId === sinkConnectionId &&
+      (run.resources.length === 0 || run.resources.includes(resource)),
+  );
+
 export const mapEdgesToStyledEdges = (
   edges: CanvasEdge[],
   nodes: CanvasNode[],
   theme: Theme,
-  isRunning: boolean,
+  runningEdgeIds: Set<CanvasEdge["id"]>,
   invalidEdgeIds: Set<CanvasEdge["id"]>,
 ): CanvasEdge[] => {
   const selectedNodeIds = new Set(nodes.filter((node) => node.selected).map((node) => node.id));
 
   return edges.map((edge) => {
+    const isRunning = runningEdgeIds.has(edge.id);
     const isConnectedToSelected =
       selectedNodeIds.has(edge.source) || selectedNodeIds.has(edge.target);
     const isHighlighted = edge.selected || isConnectedToSelected;

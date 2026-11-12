@@ -9,6 +9,8 @@ import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
+import { PIPELINE_CANVAS_PANEL_HEADER_HEIGHT } from "@/pages/pipelines/canvas/panel/constants";
+
 interface PipelineCanvasPanelHeaderProps {
   title: string;
   description?: string;
@@ -33,7 +35,14 @@ const PipelineCanvasPanelHeader: FC<PipelineCanvasPanelHeaderProps> = ({
   onDelete,
 }) => (
   <>
-    <Flex alignItems={AlignItems.CENTER} gap={8} padding={[8, 12]} shrink={0} fillWidth>
+    <Flex
+      alignItems={AlignItems.CENTER}
+      gap={8}
+      padding={[8, 12]}
+      minHeight={PIPELINE_CANVAS_PANEL_HEADER_HEIGHT}
+      shrink={0}
+      fillWidth
+    >
       {onBack && (
         <FlexItem shrink={0}>
           <Button
