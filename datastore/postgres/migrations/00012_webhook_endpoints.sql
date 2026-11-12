@@ -10,7 +10,7 @@ CREATE TABLE webhook_endpoints (
   enabled BOOLEAN NOT NULL DEFAULT false,
   verifier TEXT NOT NULL DEFAULT 'generic_hmac_sha256' CHECK (verifier <> ''),
   secret_refs TEXT[] NOT NULL DEFAULT '{}',
-  secondary_key_expires_at TIMESTAMPTZ,
+  previous_key_expires_at TIMESTAMPTZ,
   resources TEXT[] NOT NULL DEFAULT '{}',
   success_status SMALLINT NOT NULL DEFAULT 202 CHECK (success_status IN (200, 202, 204)),
   max_body_bytes BIGINT NOT NULL DEFAULT 1048576

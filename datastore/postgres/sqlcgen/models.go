@@ -380,18 +380,18 @@ type User struct {
 }
 
 type WebhookEndpoint struct {
-	SourceConnectionID    string
-	TenantID              string
-	PipelineID            pgtype.Text
-	RouteKey              pgtype.Text
-	ConfigRevision        int64
-	Enabled               bool
-	Verifier              string
-	SecretRefs            []string
-	SecondaryKeyExpiresAt pgtype.Timestamptz
-	Resources             []string
-	SuccessStatus         int16
-	MaxBodyBytes          int64
-	CreatedAt             pgtype.Timestamptz
-	UpdatedAt             pgtype.Timestamptz
+	SourceConnectionID   string
+	TenantID             string
+	PipelineID           pgtype.Text
+	RouteKey             pgtype.Text
+	ConfigRevision       int64
+	Enabled              bool
+	Verifier             string
+	SecretRefs           []string
+	PreviousKeyExpiresAt pgtype.Timestamptz
+	Resources            []string
+	SuccessStatus        int16
+	MaxBodyBytes         int64
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }

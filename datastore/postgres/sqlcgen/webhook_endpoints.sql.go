@@ -30,7 +30,7 @@ func (q *Queries) DeleteWebhookEndpointsOfDeletedSources(ctx context.Context, de
 
 const getWebhookEndpointBySource = `-- name: GetWebhookEndpointBySource :one
 SELECT e.source_connection_id, e.tenant_id, e.config_revision, e.enabled,
-  e.verifier, e.secret_refs, e.secondary_key_expires_at, e.resources,
+  e.verifier, e.secret_refs, e.previous_key_expires_at, e.resources,
   e.success_status, e.max_body_bytes, e.pipeline_id, e.route_key,
   rs.desired_state AS route_desired_state, rs.run_spec,
   EXISTS (
@@ -47,30 +47,35 @@ LEFT JOIN replication_streams rs ON rs.pipeline_id = e.pipeline_id
   AND rs.route_key = e.route_key AND rs.tenant_id = e.tenant_id
   AND rs.source_connection_id = e.source_connection_id
   AND rs.status = 0 AND p.id IS NOT NULL
-WHERE e.source_connection_id = $1
+WHERE e.tenant_id = $1 AND e.source_connection_id = $2
   AND c.kind = 'source' AND NOT c.is_deleted
 `
 
-type GetWebhookEndpointBySourceRow struct {
-	SourceConnectionID    string
-	TenantID              string
-	ConfigRevision        int64
-	Enabled               bool
-	Verifier              string
-	SecretRefs            []string
-	SecondaryKeyExpiresAt pgtype.Timestamptz
-	Resources             []string
-	SuccessStatus         int16
-	MaxBodyBytes          int64
-	PipelineID            pgtype.Text
-	RouteKey              pgtype.Text
-	RouteDesiredState     pgtype.Text
-	RunSpec               []byte
-	Accepting             bool
+type GetWebhookEndpointBySourceParams struct {
+	TenantID           string
+	SourceConnectionID string
 }
 
-func (q *Queries) GetWebhookEndpointBySource(ctx context.Context, sourceConnectionID string) (*GetWebhookEndpointBySourceRow, error) {
-	row := q.db.QueryRow(ctx, getWebhookEndpointBySource, sourceConnectionID)
+type GetWebhookEndpointBySourceRow struct {
+	SourceConnectionID   string
+	TenantID             string
+	ConfigRevision       int64
+	Enabled              bool
+	Verifier             string
+	SecretRefs           []string
+	PreviousKeyExpiresAt pgtype.Timestamptz
+	Resources            []string
+	SuccessStatus        int16
+	MaxBodyBytes         int64
+	PipelineID           pgtype.Text
+	RouteKey             pgtype.Text
+	RouteDesiredState    pgtype.Text
+	RunSpec              []byte
+	Accepting            bool
+}
+
+func (q *Queries) GetWebhookEndpointBySource(ctx context.Context, arg GetWebhookEndpointBySourceParams) (*GetWebhookEndpointBySourceRow, error) {
+	row := q.db.QueryRow(ctx, getWebhookEndpointBySource, arg.TenantID, arg.SourceConnectionID)
 	var i GetWebhookEndpointBySourceRow
 	err := row.Scan(
 		&i.SourceConnectionID,
@@ -79,7 +84,7 @@ func (q *Queries) GetWebhookEndpointBySource(ctx context.Context, sourceConnecti
 		&i.Enabled,
 		&i.Verifier,
 		&i.SecretRefs,
-		&i.SecondaryKeyExpiresAt,
+		&i.PreviousKeyExpiresAt,
 		&i.Resources,
 		&i.SuccessStatus,
 		&i.MaxBodyBytes,
@@ -95,7 +100,7 @@ func (q *Queries) GetWebhookEndpointBySource(ctx context.Context, sourceConnecti
 const insertWebhookEndpoint = `-- name: InsertWebhookEndpoint :execrows
 INSERT INTO webhook_endpoints (
   source_connection_id, tenant_id, verifier, pipeline_id, route_key, enabled,
-  secret_refs, secondary_key_expires_at, resources, success_status, max_body_bytes
+  secret_refs, previous_key_expires_at, resources, success_status, max_body_bytes
 ) VALUES (
   $1, $2, $3, $4, $5, $6,
   $7, $8, $9, $10, $11
@@ -104,17 +109,17 @@ ON CONFLICT (source_connection_id) DO NOTHING
 `
 
 type InsertWebhookEndpointParams struct {
-	SourceConnectionID    string
-	TenantID              string
-	Verifier              string
-	PipelineID            pgtype.Text
-	RouteKey              pgtype.Text
-	Enabled               bool
-	SecretRefs            []string
-	SecondaryKeyExpiresAt pgtype.Timestamptz
-	Resources             []string
-	SuccessStatus         int16
-	MaxBodyBytes          int64
+	SourceConnectionID   string
+	TenantID             string
+	Verifier             string
+	PipelineID           pgtype.Text
+	RouteKey             pgtype.Text
+	Enabled              bool
+	SecretRefs           []string
+	PreviousKeyExpiresAt pgtype.Timestamptz
+	Resources            []string
+	SuccessStatus        int16
+	MaxBodyBytes         int64
 }
 
 func (q *Queries) InsertWebhookEndpoint(ctx context.Context, arg InsertWebhookEndpointParams) (int64, error) {
@@ -126,7 +131,7 @@ func (q *Queries) InsertWebhookEndpoint(ctx context.Context, arg InsertWebhookEn
 		arg.RouteKey,
 		arg.Enabled,
 		arg.SecretRefs,
-		arg.SecondaryKeyExpiresAt,
+		arg.PreviousKeyExpiresAt,
 		arg.Resources,
 		arg.SuccessStatus,
 		arg.MaxBodyBytes,
@@ -191,27 +196,27 @@ const updateWebhookEndpoint = `-- name: UpdateWebhookEndpoint :execrows
 UPDATE webhook_endpoints SET config_revision = $1,
   updated_at = $2, verifier = $3, pipeline_id = $4,
   route_key = $5, enabled = $6, secret_refs = $7,
-  secondary_key_expires_at = $8, resources = $9,
+  previous_key_expires_at = $8, resources = $9,
   success_status = $10, max_body_bytes = $11
 WHERE source_connection_id = $12 AND tenant_id = $13
   AND config_revision = $14
 `
 
 type UpdateWebhookEndpointParams struct {
-	NextRevision          int64
-	UpdatedAt             pgtype.Timestamptz
-	Verifier              string
-	PipelineID            pgtype.Text
-	RouteKey              pgtype.Text
-	Enabled               bool
-	SecretRefs            []string
-	SecondaryKeyExpiresAt pgtype.Timestamptz
-	Resources             []string
-	SuccessStatus         int16
-	MaxBodyBytes          int64
-	SourceConnectionID    string
-	TenantID              string
-	ExpectedRevision      int64
+	NextRevision         int64
+	UpdatedAt            pgtype.Timestamptz
+	Verifier             string
+	PipelineID           pgtype.Text
+	RouteKey             pgtype.Text
+	Enabled              bool
+	SecretRefs           []string
+	PreviousKeyExpiresAt pgtype.Timestamptz
+	Resources            []string
+	SuccessStatus        int16
+	MaxBodyBytes         int64
+	SourceConnectionID   string
+	TenantID             string
+	ExpectedRevision     int64
 }
 
 func (q *Queries) UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEndpointParams) (int64, error) {
@@ -223,7 +228,7 @@ func (q *Queries) UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEn
 		arg.RouteKey,
 		arg.Enabled,
 		arg.SecretRefs,
-		arg.SecondaryKeyExpiresAt,
+		arg.PreviousKeyExpiresAt,
 		arg.Resources,
 		arg.SuccessStatus,
 		arg.MaxBodyBytes,
