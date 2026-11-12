@@ -101,6 +101,15 @@ func TestNumericWire(t *testing.T) {
 		{decimal128.FromI64(100000000), 0, numericWire(numericPos, 2, 0, 1)},                     // 100000000
 		{decimal128.FromI64(12345678), 4, numericWire(numericPos, 0, 4, 1234, 5678)},             // 1234.5678
 		{decimal128.FromI64(1), 4, numericWire(numericPos, -1, 4, 1)},                            // 0.0001
+		{decimal128.FromI64(1234), -2, numericWire(numericPos, 1, 0, 12, 3400)},                  // 1234 at scale -2 is 123400 at scale 0
+		{decimal128.FromI64(-1234), -2, numericWire(numericNeg, 1, 0, 12, 3400)},                 // -1234 at scale -2
+		{decimal128.FromI64(0), -2, numericWire(numericPos, 0, 0)},                               // 0 at scale -2
+		{decimal128.FromI64(5), -3, numericWire(numericPos, 0, 0, 5000)},                         // 5 at scale -3 is one group
+		{decimal128.FromI64(1), -1, numericWire(numericPos, 0, 0, 10)},                           // 1 at scale -1
+		{decimal128.FromI64(1234), -4, numericWire(numericPos, 1, 0, 1234)},                      // 1234 at scale -4
+		{decimal128.FromI64(1), -1000, numericWire(numericPos, 250, 0, 1)},                       // 10^1000, the scale floor
+		{decimal128.FromI64(0), -1000, numericWire(numericPos, 0, 0)},                            // 0 at the scale floor
+		{decimal128.FromI64(123456789), -1, numericWire(numericPos, 2, 0, 12, 3456, 7890)},       // 123456789 at scale -1 spans three groups
 		{decimal128.New(0, 1<<63), 0, numericWire(numericPos, 4, 0, 922, 3372, 368, 5477, 5808)}, // 2^63
 	}
 	for _, c := range cases {
