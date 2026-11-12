@@ -49,6 +49,14 @@ var _ arrowbatch.Inlet = (*inlet)(nil)
 func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (arrowbatch.RowWriter, error) {
 	p := in.p
 	key := partKey{resource: resource, part: part}
+	gate := p.gate(resource)
+	// Only a source that stops quarantined resources is told. Any other
+	// source gets a working builder whose chunks are dropped at send.
+	if p.policy.SourceStopsQuarantined {
+		if err := gate.failure(); err != nil {
+			return nil, err
+		}
+	}
 	p.registryMu.Lock()
 	defer p.registryMu.Unlock()
 	if err := rowmodel.ValidateReservedFields(supplied); err != nil {
@@ -95,7 +103,7 @@ func (in *inlet) Builder(resource string, part int, supplied rowmodel.Schema) (a
 	if registered.plan != nil {
 		out = p.transformCh
 	}
-	b := arrowbatch.NewBuilder(want, p.alloc, p.opts, &slot{p: p, out: out, resource: resource, part: part})
+	b := arrowbatch.NewBuilder(want, p.alloc, p.opts, &slot{p: p, out: out, resource: resource, part: part, gate: gate})
 	p.builders[key] = b
 	if p.audit == nil {
 		return b, nil
@@ -140,6 +148,7 @@ type slot struct {
 	resource string
 	part     int
 	seq      uint64
+	gate     *resourceGate
 }
 
 var _ arrowbatch.Receiver = (*slot)(nil)
@@ -156,6 +165,9 @@ func (s *slot) Chunk(b *arrowbatch.Batch) error {
 		b.Cursor = cursorOf(s.resource, s.part, b.Last, int(rows))
 	}
 	if err := s.send(b); err != nil {
+		if errors.Is(err, errDropped) {
+			return nil
+		}
 		return err
 	}
 	s.p.publish(events.NewFact(events.BatchBuffered, events.Envelope{Resource: s.resource},
@@ -181,6 +193,9 @@ func (s *slot) Drained(meta filament.RowMeta, total int) error {
 	b := arrowbatch.NewMarker()
 	b.Resource, b.Part, b.Cursor = s.resource, s.part, cursor
 	if err := s.send(b); err != nil {
+		if errors.Is(err, errDropped) {
+			return nil
+		}
 		b.Release()
 		return err
 	}
@@ -196,11 +211,27 @@ func (s *slot) send(b *arrowbatch.Batch) error {
 		ref := *s.p.stream.epoch
 		epoch = &ref
 	}
-	return s.p.send(s.out, queuedBatch{batch: b, epoch: epoch})
+	err := s.p.send(s.out, queuedBatch{batch: b, epoch: epoch, gate: s.gate})
+	if err != nil && !s.p.policy.SourceStopsQuarantined && errors.Is(err, filament.ErrResourceQuarantined) {
+		// The source would treat the error as fatal: take ownership, drop the
+		// batch, and let the builder carry on as if it had been queued.
+		b.Release()
+		return errDropped
+	}
+	return err
 }
 
-// send queues item on ch, blocking on backpressure, until the pipeline gives up.
+// send queues item on ch, blocking on backpressure, until the pipeline gives up
+// or the item's resource is quarantined. A quarantined resource's builder gets
+// a *filament.ResourceError and stops; every other resource keeps sending.
 func (p *Pipeline) send(ch chan queuedBatch, item queuedBatch) error {
+	var quarantined <-chan struct{} // nil for controls: blocks forever
+	if item.gate != nil {
+		quarantined = item.gate.done
+		if err := item.gate.failure(); err != nil {
+			return err
+		}
+	}
 	select {
 	case ch <- item:
 		return nil
@@ -209,6 +240,8 @@ func (p *Pipeline) send(ch chan queuedBatch, item queuedBatch) error {
 			return err
 		}
 		return ErrPipelineClosed
+	case <-quarantined:
+		return item.gate.failure()
 	}
 }
 

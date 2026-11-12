@@ -21,6 +21,7 @@ type queuedBatch struct {
 	batch    *arrowbatch.Batch
 	epoch    *filament.EpochRef
 	complete chan BarrierReceipt
+	gate     *resourceGate // nil for controls, which are never quarantined
 }
 
 // Barrier flushes builders on their owning goroutine, queues an owned control,

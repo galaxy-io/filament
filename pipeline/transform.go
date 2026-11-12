@@ -40,7 +40,7 @@ func (p *Pipeline) transformer(ctx context.Context) {
 	for item := range p.transformCh {
 		// Mirror the writer: once the pipeline has failed, queued batches are
 		// drained and released, never transformed.
-		if p.Err() != nil {
+		if p.Err() != nil || item.gate.quarantined() {
 			item.batch.Release()
 			continue
 		}
@@ -55,7 +55,7 @@ func (p *Pipeline) transformBatch(ctx context.Context, item queuedBatch) {
 	defer func() {
 		if r := recover(); r != nil {
 			b.Release()
-			p.setErr(fmt.Errorf("transform %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack()))
+			p.report(Failure{Resource: b.Resource, Scope: ScopeSession, Err: fmt.Errorf("transform %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack())})
 		}
 	}()
 	if !b.Drained && b.Control == nil {
@@ -67,7 +67,7 @@ func (p *Pipeline) transformBatch(ctx context.Context, item queuedBatch) {
 			rows, err := plan.Apply(ctx, p.alloc, b.Rows())
 			if err != nil {
 				b.Release()
-				p.setErr(fmt.Errorf("transform %s seq %d: %w", b.Resource, b.Seq, err))
+				p.report(Failure{Resource: b.Resource, Scope: ScopeResource, Err: fmt.Errorf("transform %s seq %d: %w", b.Resource, b.Seq, err)})
 				return
 			}
 			out := b.WithRows(rows)
