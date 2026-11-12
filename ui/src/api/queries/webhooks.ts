@@ -24,7 +24,7 @@ import { createDiscoverResourcesQueryKey } from "@/api/queries/connectors";
 import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
 
 const getWebhookEndpointRefetchInterval = (endpoint: WebhookEndpointConfig | undefined) =>
-  endpoint?.enabled && endpoint.pipelineId && !(endpoint.accepting && endpoint.routeReady)
+  endpoint?.enabled && endpoint.pipelineId && (endpoint.accepting || !endpoint.routeReady)
     ? ACTIVE_RUNS_REFETCH_INTERVAL
     : false;
 

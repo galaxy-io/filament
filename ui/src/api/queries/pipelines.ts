@@ -27,6 +27,7 @@ import type { ListSearchParams } from "@/module/schemas";
 
 import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
 import { createListRunsQueryKey } from "@/api/queries/runs";
+import { createGetWebhookEndpointQueryKey } from "@/api/queries/webhooks";
 import {
   createListSearchInput,
   getNextPageParam,
@@ -199,6 +200,9 @@ export const useUpdatePipelineMutation = (
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(undefined, transport),
       });
+      void queryClient.invalidateQueries({
+        queryKey: createGetWebhookEndpointQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -223,6 +227,9 @@ export const useDeletePipelineMutation = (
       });
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetWebhookEndpointQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },
