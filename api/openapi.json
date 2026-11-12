@@ -5881,6 +5881,11 @@
           "mintSecret": {
             "type": "boolean",
             "title": "mint_secret"
+          },
+          "expectedPipelineVersionId": {
+            "type": "string",
+            "title": "expected_pipeline_version_id",
+            "description": "When set, the endpoint write must use the pipeline's current version.\n Pipeline graph synchronization sends this to reject stale saves."
           }
         },
         "title": "PutWebhookEndpointRequest",

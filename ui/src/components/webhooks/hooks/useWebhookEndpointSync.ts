@@ -5,7 +5,7 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import type { Pipeline, PipelineGraph } from "@/gen/ingestion/v1/pipelines_pb";
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   createPutWebhookEndpointRequest,
@@ -27,8 +27,9 @@ import { getErrorMessage, ignoreNotFoundError } from "@/utils/errors";
 interface WebhookEndpointSyncInput {
   sourceConnection: Connection | null | undefined;
   pipelineId: Pipeline["id"];
-  graph: PipelineGraph | undefined;
 }
+
+const pendingSyncs = new Map<string, Promise<void>>();
 
 export const useWebhookEndpointSync = () => {
   const { toast } = useToast();
@@ -36,13 +37,28 @@ export const useWebhookEndpointSync = () => {
   const transport = useTransport();
   const { mutateAsync: putEndpoint } = usePutWebhookEndpointMutation();
 
-  return async ({ sourceConnection, pipelineId, graph }: WebhookEndpointSyncInput) => {
+  const sync = async ({ sourceConnection, pipelineId }: WebhookEndpointSyncInput) => {
     if (!sourceConnection || !isWebhookConnector(sourceConnection.connector)) return;
 
     const sourceConnectionId = sourceConnection.id;
-    const routeKeys = getWebhookSourceRouteKeys(graph, sourceConnectionId);
 
     try {
+      const pipeline = await queryClient
+        .fetchQuery({
+          ...createGetPipelineQueryOptions({
+            input: createGetPipelineInput(pipelineId),
+            transport,
+          }),
+          staleTime: 0,
+        })
+        .then((response) => response.pipeline, ignoreNotFoundError);
+      if (pipeline?.deletedAt !== 0n) return;
+      const currentVersion = pipeline.currentVersion;
+      if (!currentVersion?.graph) return;
+      const graph = currentVersion.graph;
+      const expectedPipelineVersionId = currentVersion.id;
+      const routeKeys = getWebhookSourceRouteKeys(graph, sourceConnectionId);
+
       const endpoint = await queryClient
         .fetchQuery({
           ...createGetWebhookEndpointQueryOptions({
@@ -61,6 +77,7 @@ export const useWebhookEndpointSync = () => {
               sourceConnectionId,
               endpoint,
               patch: { resources: [], enabled: false },
+              expectedPipelineVersionId,
             }),
           );
         }
@@ -115,6 +132,7 @@ export const useWebhookEndpointSync = () => {
           sourceConnectionId,
           endpoint,
           patch: { pipelineId, routeKey, resources, enabled: true },
+          expectedPipelineVersionId,
         }),
       );
     } catch (error) {
@@ -124,5 +142,17 @@ export const useWebhookEndpointSync = () => {
         description: getErrorMessage(error, "Failed to update the webhook endpoint"),
       });
     }
+  };
+
+  return (input: WebhookEndpointSyncInput) => {
+    const sourceId = input.sourceConnection?.id;
+    if (!sourceId) return Promise.resolve();
+    const previous = pendingSyncs.get(sourceId) ?? Promise.resolve();
+    const current = previous.then(() => sync(input));
+    pendingSyncs.set(sourceId, current);
+    void current.finally(() => {
+      if (pendingSyncs.get(sourceId) === current) pendingSyncs.delete(sourceId);
+    });
+    return current;
   };
 };

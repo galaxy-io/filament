@@ -104,7 +104,7 @@ const PipelinePageEditActions: FC = () => {
             header: "Pipeline saved",
             variant: ToastVariant.SUCCESS,
           });
-          void syncWebhookEndpoint({ sourceConnection, pipelineId: id, graph: version?.graph });
+          void syncWebhookEndpoint({ sourceConnection, pipelineId: id });
         },
         onError: (error) => {
           toast({

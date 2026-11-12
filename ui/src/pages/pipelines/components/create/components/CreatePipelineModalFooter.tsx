@@ -89,7 +89,7 @@ const CreatePipelineModalFooter: FC = () => {
         });
 
         createPipelineVersion(versionRequest, {
-          onSuccess: async ({ version }) => {
+          onSuccess: async () => {
             toast({
               variant: ToastVariant.SUCCESS,
               header: "Pipeline created",
@@ -97,7 +97,6 @@ const CreatePipelineModalFooter: FC = () => {
             await syncWebhookEndpoint({
               sourceConnection: state.sourceConnection,
               pipelineId,
-              graph: version?.graph,
             });
             void handleFinish(pipelineId, state.notifiers);
           },

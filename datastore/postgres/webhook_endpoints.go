@@ -108,6 +108,21 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 		return webhooks.Endpoint{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+	if mutation.ExpectedPipelineVersionID != "" {
+		var currentVersion pgtype.Text
+		err = tx.QueryRow(ctx, `SELECT current_version_id::text FROM pipelines
+			WHERE tenant_id = $1 AND id = $2 AND NOT is_deleted FOR UPDATE`,
+			string(mutation.Tenant), mutation.PipelineID).Scan(&currentVersion)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return webhooks.Endpoint{}, webhooks.ErrRouteNotReady
+		}
+		if err != nil {
+			return webhooks.Endpoint{}, fmt.Errorf("load current pipeline version: %w", err)
+		}
+		if !currentVersion.Valid || currentVersion.String != mutation.ExpectedPipelineVersionID {
+			return webhooks.Endpoint{}, filament.ErrVersionConflict
+		}
+	}
 	q := s.q.WithTx(tx)
 	pipeline := pgtype.Text{String: mutation.PipelineID, Valid: mutation.PipelineID != ""}
 	route := pgtype.Text{String: mutation.RouteKey, Valid: mutation.RouteKey != ""}

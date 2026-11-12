@@ -101,11 +101,13 @@ export const createPutWebhookEndpointRequest = ({
   endpoint,
   patch = {},
   mintSecret = false,
+  expectedPipelineVersionId,
 }: {
   sourceConnectionId: Connection["id"];
   endpoint: WebhookEndpointConfig | undefined;
   patch?: Partial<Pick<WebhookEndpointConfig, "pipelineId" | "routeKey" | "resources" | "enabled">>;
   mintSecret?: boolean;
+  expectedPipelineVersionId?: string;
 }) =>
   create(PutWebhookEndpointRequestSchema, {
     endpoint: create(WebhookEndpointConfigSchema, {
@@ -120,4 +122,5 @@ export const createPutWebhookEndpointRequest = ({
     }),
     expectedRevision: endpoint?.revision ?? 0n,
     mintSecret,
+    expectedPipelineVersionId,
   });

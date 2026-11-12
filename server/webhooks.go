@@ -78,6 +78,7 @@ func (a *Server) PutWebhookEndpoint(ctx context.Context, req *connect.Request[in
 		SecretRefs: previous.SecretRefs, SecondaryKeyExpiresAt: previous.SecondaryKeyExpiresAt,
 		SuccessStatus: int(in.GetSuccessStatus()), MaxBodyBytes: in.GetMaxBodyBytes(),
 		ExpectedRevision: expected, Resources: slices.Clone(in.GetResources()),
+		ExpectedPipelineVersionID: req.Msg.GetExpectedPipelineVersionId(),
 	}
 	mutation.ApplyDefaults()
 	if a.receiver.MaxBody > 0 && mutation.MaxBodyBytes > a.receiver.MaxBody {

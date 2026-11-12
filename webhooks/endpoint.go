@@ -70,18 +70,19 @@ func (e Endpoint) ActiveKeyRefs(now time.Time) []string {
 // EndpointMutation is a tenant-scoped, revision-fenced configuration write.
 // The caller stores signing secrets before persisting their references.
 type EndpointMutation struct {
-	Tenant                filament.TenantID
-	SourceID              string
-	Verifier              string
-	PipelineID            string
-	RouteKey              string
-	Resources             []string
-	Enabled               bool
-	SecretRefs            []string
-	SecondaryKeyExpiresAt time.Time
-	SuccessStatus         int
-	MaxBodyBytes          int64
-	ExpectedRevision      int64
+	Tenant                    filament.TenantID
+	SourceID                  string
+	Verifier                  string
+	PipelineID                string
+	RouteKey                  string
+	Resources                 []string
+	Enabled                   bool
+	SecretRefs                []string
+	SecondaryKeyExpiresAt     time.Time
+	SuccessStatus             int
+	MaxBodyBytes              int64
+	ExpectedRevision          int64
+	ExpectedPipelineVersionID string
 }
 
 // ApplyDefaults fills the values a caller may omit.
@@ -110,6 +111,8 @@ func (m EndpointMutation) Validate() error {
 		return invalid("tenant and source are required")
 	case m.ExpectedRevision < 0:
 		return invalid("expected revision is negative")
+	case m.ExpectedPipelineVersionID != "" && m.PipelineID == "":
+		return invalid("expected pipeline version requires a pipeline")
 	case (m.PipelineID == "") != (m.RouteKey == ""):
 		return invalid("pipeline and route are set together")
 	case m.Enabled && (m.PipelineID == "" || len(m.Resources) == 0):
