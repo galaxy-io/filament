@@ -1874,6 +1874,69 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetVersion": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetVersion",
+        "description": "The build version stamped into the server binary.",
+        "operationId": "ingestion.v1.IngestionService.GetVersion",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetVersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/ListConnections": {
       "post": {
         "tags": [
@@ -4642,6 +4705,30 @@
           }
         },
         "title": "GetRunResponse",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetVersionRequest": {
+        "type": "object",
+        "title": "GetVersionRequest",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetVersionResponse": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "version"
+          },
+          "commit": {
+            "type": "string",
+            "title": "commit"
+          },
+          "date": {
+            "type": "string",
+            "title": "date"
+          }
+        },
+        "title": "GetVersionResponse",
         "additionalProperties": false
       },
       "ingestion.v1.ListConnectionsRequest": {

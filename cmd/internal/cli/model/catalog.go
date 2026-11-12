@@ -2,7 +2,8 @@ package model
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 
 	"github.com/galaxy-io/filament"
 )
@@ -13,11 +14,13 @@ type Catalog struct {
 	Sinks   map[string]filament.SinkSpec
 }
 
-// SourceNames returns registered source connector names in stable order.
-func (c Catalog) SourceNames() []string { return sortedCatalogKeys(c.Sources) }
-
-// SinkNames returns registered sink connector names in stable order.
-func (c Catalog) SinkNames() []string { return sortedCatalogKeys(c.Sinks) }
+// Names returns the source or sink connector names in stable order.
+func (c Catalog) Names(kind string) []string {
+	if kind == "sink" {
+		return slices.Sorted(maps.Keys(c.Sinks))
+	}
+	return slices.Sorted(maps.Keys(c.Sources))
+}
 
 // Description returns connector help text for a source or sink connector.
 func (c Catalog) Description(kind, connector string) (string, bool) {
@@ -43,13 +46,4 @@ func (c Catalog) ConnectionSchema(kind, connector string) (filament.ConfigSchema
 		return filament.ConfigSchema{}, fmt.Errorf("unknown sink connector %q", connector)
 	}
 	return spec.Config, nil
-}
-
-func sortedCatalogKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }
