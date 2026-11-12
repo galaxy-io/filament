@@ -197,23 +197,26 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 		if _, connector, err = connectorForSavedConnection(conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, connector); err != nil {
 			return nil, err
 		}
-		// The generic webhook source has no catalog of its own: its resources
-		// are the ones configured on its endpoint. Connectors that also receive
-		// webhooks still discover their own resources.
-		if connector == "webhook" && a.webhooks != nil {
-			endpoint, err := a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, id)
-			if errors.Is(err, filament.ErrNotFound) {
-				return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{}), nil
-			}
+		if a.webhooks != nil {
+			spec, err := a.worker.SourceSpec(ctx, connector)
 			if err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
+				return nil, connectorError(err)
 			}
-			names := slices.Sorted(slices.Values(endpoint.Resources))
-			resources := make([]*ingestionv1.Resource, 0, len(names))
-			for _, name := range names {
-				resources = append(resources, &ingestionv1.Resource{Name: name, IsSelectable: true})
+			if spec.Resources.WebhookEndpointBacked {
+				endpoint, err := a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, id)
+				if errors.Is(err, filament.ErrNotFound) {
+					return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{}), nil
+				}
+				if err != nil {
+					return nil, connect.NewError(connect.CodeInternal, err)
+				}
+				names := slices.Sorted(slices.Values(endpoint.Resources))
+				resources := make([]*ingestionv1.Resource, 0, len(names))
+				for _, name := range names {
+					resources = append(resources, &ingestionv1.Resource{Name: name, IsSelectable: true})
+				}
+				return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{Resources: resources}), nil
 			}
-			return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{Resources: resources}), nil
 		}
 		if config, err = a.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, config); err != nil {
 			return nil, err

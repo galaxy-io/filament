@@ -403,7 +403,7 @@ const (
 )
 
 // ResourceCapabilities advertises what a source can do per resource.
-type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns bool }
+type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns, WebhookEndpointBacked bool }
 
 // ExtractOpts scopes one extraction: which resources, how fast. Read behavior
 // per resource is carried by the checkpoint plan handed to ExtractFrom, not by

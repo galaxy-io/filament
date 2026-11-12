@@ -50,7 +50,8 @@ func (*Source) Spec() filament.ConnectorSpec {
 			Ordering: []filament.Ordering{filament.OrderingNone},
 			Delivery: filament.DeliveryReplayableAtLeastOnce,
 		},
-		Config: filament.ConfigSchema{Fields: stream.BatchFields()},
+		Config:    filament.ConfigSchema{Fields: stream.BatchFields()},
+		Resources: filament.ResourceCapabilities{WebhookEndpointBacked: true},
 	}
 }
 
