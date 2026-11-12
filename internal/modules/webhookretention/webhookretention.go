@@ -114,7 +114,7 @@ func (m *Module) Subscriptions() []host.Subscription { return nil }
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	store, ok := d.DataStore.(ReleaseStore)
 	if !ok {
-		return errors.New("webhook retention requires the PostgreSQL datastore")
+		return errors.New("webhook retention requires a datastore with webhook releases")
 	}
 	m.store, m.mx = store, d.Metrics
 	if d.Log != nil {

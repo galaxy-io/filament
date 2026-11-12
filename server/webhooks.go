@@ -24,7 +24,7 @@ func (a *Server) GetWebhookEndpoint(ctx context.Context, req *connect.Request[in
 		return nil, err
 	}
 	if a.webhooks == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("webhook endpoints require PostgreSQL"))
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("webhook endpoints require an endpoint store"))
 	}
 	if req.Msg.GetSourceConnectionId() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("source connection ID is required"))
@@ -46,7 +46,7 @@ func (a *Server) PutWebhookEndpoint(ctx context.Context, req *connect.Request[in
 		return nil, err
 	}
 	if a.webhooks == nil || a.secrets == nil {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("webhook endpoints require PostgreSQL and secrets"))
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("webhook endpoints require an endpoint store and secrets"))
 	}
 	in := req.Msg.GetEndpoint()
 	expected := req.Msg.GetExpectedRevision()

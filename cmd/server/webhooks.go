@@ -46,7 +46,7 @@ func webhooksFromEnv(ctx context.Context, store any, secrets filament.Secrets, m
 	}
 	loader, ok := store.(webhooks.EndpointLoader)
 	if !ok || secrets == nil {
-		return nil, nil, errors.New("webhooks require a PostgreSQL endpoint store and secrets provider")
+		return nil, nil, errors.New("webhooks require an endpoint store and secrets provider")
 	}
 	cfg, err := webhookInboxConfigFromEnv()
 	if err != nil {
