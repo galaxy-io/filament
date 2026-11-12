@@ -12,34 +12,24 @@ import (
 )
 
 func (a *cliApp) pipelineCommand() *cobra.Command {
-	cmd := &cobra.Command{
+	cmd := a.targetGroup(&cobra.Command{
 		Use:   "pipeline",
 		Short: "Manage saved pipelines",
-		Long: `Manage saved pipelines.
-
-An omitted --resources selection means all resources discovered by the source.
-Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
---unset to remove optional connector fields from an existing pipeline.`,
-		PersistentPreRunE: a.prepareTarget,
-	}
+		Long:  "Manage saved pipelines.\n\n" + pipelineGuidance,
+	}, "pipeline")
 	change := func(operation string) func(context.Context, []string) error {
 		return func(ctx context.Context, args []string) error {
 			return a.changePipeline(ctx, operation, args)
 		}
 	}
-	help := func(operation string) func(context.Context, []string) error {
-		return func(ctx context.Context, args []string) error {
-			return a.printPipelineOperationHelp(ctx, operation, args)
-		}
-	}
 	cmd.AddCommand(
 		a.dynamicCommand(
 			"create <name> --source NAME --sink NAME [--resources LIST] [flags]",
-			"Save a pipeline", help("create"), change("create"),
+			"Save a pipeline", a.printPipelineOperationHelp, change("create"),
 		),
 		a.dynamicCommand(
 			"edit <name> [flags] [--unset source-FIELD|sink-FIELD]",
-			"Change a saved pipeline", help("edit"), change("edit"),
+			"Change a saved pipeline", a.printPipelineOperationHelp, change("edit"),
 		),
 		a.pipelineListCommand(),
 	)
@@ -58,9 +48,8 @@ Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
 }
 
 func (a *cliApp) changePipeline(ctx context.Context, operation string, args []string) error {
-	document, err := a.service.Configuration(ctx)
-	if err != nil {
-		return err
+	if operation == "create" && len(args) == 0 && a.renderer().Interactive() {
+		return a.openInteractive(ctx, "pipeline", operation)
 	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
@@ -71,13 +60,14 @@ func (a *cliApp) changePipeline(ctx context.Context, operation string, args []st
 		return fmt.Errorf("pipeline name is required; example: filament pipeline create users-copy --source production --sink warehouse --resources users,audit --sync-mode full --write-mode replace")
 	}
 	var existing *climodel.Pipeline
-	if current, ok := document.Pipelines[name]; ok {
+	if operation == "edit" {
+		current, err := a.service.Pipeline(ctx, name)
+		if err != nil {
+			return err
+		}
 		existing = &current
 	}
-	if operation == "edit" && existing == nil {
-		return fmt.Errorf("pipeline %q does not exist", name)
-	}
-	request, err := a.pipelineRequestFromFlags(operation, name, existing, parsed.flags, document)
+	request, err := a.pipelineRequestFromFlags(ctx, operation, name, existing, parsed.flags)
 	if err != nil {
 		return err
 	}
@@ -88,12 +78,8 @@ func (a *cliApp) changePipeline(ctx context.Context, operation string, args []st
 }
 
 func (a *cliApp) deletePipeline(ctx context.Context, name string, force bool) error {
-	document, err := a.service.Configuration(ctx)
-	if err != nil {
+	if _, err := a.service.Pipeline(ctx, name); err != nil {
 		return err
-	}
-	if _, ok := document.Pipelines[name]; !ok {
-		return fmt.Errorf("pipeline %q does not exist", name)
 	}
 	if !force {
 		confirmed, err := a.confirmDelete("pipeline", name)
@@ -104,11 +90,11 @@ func (a *cliApp) deletePipeline(ctx context.Context, name string, force bool) er
 	if err := a.service.DeleteSavedPipeline(ctx, name); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(a.statusWriter(), "Deleted pipeline %q.\n", name)
+	_, err := fmt.Fprintf(a.statusWriter(), "Deleted pipeline %q.\n", name)
 	return err
 }
 
-func (a *cliApp) pipelineRequestFromFlags(operation, name string, existing *climodel.Pipeline, flags map[string][]string, document climodel.Document) (cliapp.SavePipelineRequest, error) {
+func (a *cliApp) pipelineRequestFromFlags(ctx context.Context, operation, name string, existing *climodel.Pipeline, flags map[string][]string) (cliapp.SavePipelineRequest, error) {
 	request := cliapp.SavePipelineRequest{Create: operation == "create", Name: name}
 	if existing != nil {
 		request.Source = existing.Source.Ref
@@ -121,7 +107,7 @@ func (a *cliApp) pipelineRequestFromFlags(operation, name string, existing *clim
 		request.Sink = value
 	}
 	if raw, present := flagValue(flags, "resources"); present {
-		resources := splitComma(raw)
+		resources := cliapp.SplitComma(raw)
 		request.Resources = &resources
 	}
 	request.SyncMode = lastFlag(flags, "sync-mode")
@@ -129,10 +115,13 @@ func (a *cliApp) pipelineRequestFromFlags(operation, name string, existing *clim
 	if request.Source == "" || request.Sink == "" {
 		return request, fmt.Errorf("pipeline %q: --source and --sink are required", name)
 	}
-	source, sourceOK := document.Sources[request.Source]
-	sink, sinkOK := document.Sinks[request.Sink]
-	if !sourceOK || !sinkOK {
-		return request, fmt.Errorf("pipeline %q: --source and --sink must name saved connections", name)
+	source, err := a.service.Connection(ctx, "source", request.Source)
+	if err != nil {
+		return request, fmt.Errorf("pipeline %q: %w", name, err)
+	}
+	sink, err := a.service.Connection(ctx, "sink", request.Sink)
+	if err != nil {
+		return request, fmt.Errorf("pipeline %q: %w", name, err)
 	}
 	allowed := map[string]bool{
 		"source": true, "sink": true, "resources": true, "sync-mode": true, "write-mode": true,
@@ -146,14 +135,8 @@ func (a *cliApp) pipelineRequestFromFlags(operation, name string, existing *clim
 		return request, err
 	}
 	unsetTargets := map[string]func(){}
-	for flagName, configName := range sourceUnsets {
-		configName := configName
-		unsetTargets[flagName] = func() { sourcePatch.Unset = append(sourcePatch.Unset, configName) }
-	}
-	for flagName, configName := range sinkUnsets {
-		configName := configName
-		unsetTargets[flagName] = func() { sinkPatch.Unset = append(sinkPatch.Unset, configName) }
-	}
+	addUnsetTargets(unsetTargets, sourceUnsets, &sourcePatch)
+	addUnsetTargets(unsetTargets, sinkUnsets, &sinkPatch)
 	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
 		return request, err
 	}

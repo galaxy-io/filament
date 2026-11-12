@@ -6,6 +6,8 @@ from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.request_options import RequestOptions
 from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
+from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
+from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
 from ..types.ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
 from .raw_client import AsyncRawIngestionV1IngestionserviceClient, RawIngestionV1IngestionserviceClient
@@ -28,6 +30,49 @@ class IngestionV1IngestionserviceClient:
         RawIngestionV1IngestionserviceClient
         """
         return self._raw_client
+
+    def getversion(
+        self,
+        *,
+        request: IngestionV1GetVersionRequest,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetVersionResponse:
+        """
+        The build version stamped into the server binary.
+
+        Parameters
+        ----------
+        request : IngestionV1GetVersionRequest
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetVersionResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.ingestion_v1ingestionservice.getversion(
+            connect_timeout_ms=1000.0,
+            request={"key": "value"},
+        )
+        """
+        _response = self._raw_client.getversion(
+            request=request, connect_timeout_ms=connect_timeout_ms, request_options=request_options
+        )
+        return _response.data
 
     def listtransformfunctions(
         self,
@@ -136,6 +181,57 @@ class AsyncIngestionV1IngestionserviceClient:
         AsyncRawIngestionV1IngestionserviceClient
         """
         return self._raw_client
+
+    async def getversion(
+        self,
+        *,
+        request: IngestionV1GetVersionRequest,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetVersionResponse:
+        """
+        The build version stamped into the server binary.
+
+        Parameters
+        ----------
+        request : IngestionV1GetVersionRequest
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetVersionResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.ingestion_v1ingestionservice.getversion(
+                connect_timeout_ms=1000.0,
+                request={"key": "value"},
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.getversion(
+            request=request, connect_timeout_ms=connect_timeout_ms, request_options=request_options
+        )
+        return _response.data
 
     async def listtransformfunctions(
         self,
