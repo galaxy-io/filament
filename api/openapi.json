@@ -1874,6 +1874,69 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetVersion": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetVersion",
+        "description": "The build version stamped into the server binary.",
+        "operationId": "ingestion.v1.IngestionService.GetVersion",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetVersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/ListConnections": {
       "post": {
         "tags": [
@@ -3570,7 +3633,7 @@
         "enum": [
           "NULL_VALUE"
         ],
-        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n `Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`."
+        "description": "Represents a JSON `null`.\n\n `NullValue` is a sentinel, using an enum with only one value to represent\n the null value for the `Value` type union.\n\n A field of type `NullValue` with any value other than `0` is considered\n invalid. Most ProtoJSON serializers will emit a `Value` with a `null_value`\n set as a JSON `null` regardless of the integer value, and so will round trip\n to a `0` value."
       },
       "google.protobuf.Struct": {
         "type": "object",
@@ -3835,16 +3898,6 @@
         ],
         "description": "ConnectorKind distinguishes a source from a sink in the catalog."
       },
-      "ingestion.v1.ConnectorMaturity": {
-        "type": "string",
-        "title": "ConnectorMaturity",
-        "enum": [
-          "CONNECTOR_MATURITY_UNSPECIFIED",
-          "CONNECTOR_MATURITY_ALPHA",
-          "CONNECTOR_MATURITY_BETA",
-          "CONNECTOR_MATURITY_STABLE"
-        ]
-      },
       "ingestion.v1.ConnectorSpec": {
         "type": "object",
         "properties": {
@@ -3899,14 +3952,6 @@
             "type": "string",
             "title": "schema_field"
           },
-          "maturity": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ingestion.v1.ConnectorMaturity"
-              }
-            ],
-            "title": "maturity"
-          },
           "apiVersion": {
             "type": "string",
             "title": "api_version"
@@ -3915,6 +3960,10 @@
             "type": "string",
             "title": "alias_target",
             "description": "Concrete registration selected by a source catalog alias; empty otherwise."
+          },
+          "isPreview": {
+            "type": "boolean",
+            "title": "is_preview"
           }
         },
         "title": "ConnectorSpec",
@@ -4656,6 +4705,30 @@
           }
         },
         "title": "GetRunResponse",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetVersionRequest": {
+        "type": "object",
+        "title": "GetVersionRequest",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetVersionResponse": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "version"
+          },
+          "commit": {
+            "type": "string",
+            "title": "commit"
+          },
+          "date": {
+            "type": "string",
+            "title": "date"
+          }
+        },
+        "title": "GetVersionResponse",
         "additionalProperties": false
       },
       "ingestion.v1.ListConnectionsRequest": {
@@ -5413,6 +5486,14 @@
             },
             "title": "columns",
             "description": "columns narrows the columns read from each resource. An all-resource edge\n may configure several resources; a resource-specific edge may configure\n only its own resource. An omitted resource reads every column."
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ResourcePartitionSelection"
+            },
+            "title": "partitions",
+            "description": "partitions narrows the partitions a full read or a change stream's\n initial snapshot backfills from each partitioned resource. The change\n stream still carries every partition, including ones created later. An\n all-resource edge may configure several resources; a resource-specific\n edge may configure only its own resource. An omitted resource backfills\n every partition, and an empty selection backfills none."
           }
         },
         "title": "PipelineEdge",
@@ -5845,6 +5926,14 @@
             "type": "boolean",
             "title": "selectable_columns",
             "description": "The source reads only the columns an edge selects."
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "partitions",
+            "description": "The resource's partitions an edge may select; empty when it is not partitioned."
           }
         },
         "title": "ResourceColumns",
@@ -5868,6 +5957,24 @@
           }
         },
         "title": "ResourceCursorConfig",
+        "additionalProperties": false
+      },
+      "ingestion.v1.ResourcePartitionSelection": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "resource"
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "partitions"
+          }
+        },
+        "title": "ResourcePartitionSelection",
         "additionalProperties": false
       },
       "ingestion.v1.ResourceValidation": {

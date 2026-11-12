@@ -13,7 +13,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/internal/convert"
 )
 
@@ -122,6 +121,7 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 	ctx, cancel := context.WithTimeout(ctx, connectorRPCTimeout)
 	defer cancel()
 
+	kind, connector := req.Msg.GetKind(), req.Msg.GetConnector()
 	config := convert.StructMap(req.Msg.GetConfig())
 	if id := req.Msg.GetConnectionId(); id != "" {
 		conn, err := a.store.LoadConnection(ctx, tenant, id)
@@ -131,16 +131,18 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 			}
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		if err := a.resolveConnectionSecrets(ctx, conn, conn.Config); err != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		if kind, connector, err = connectorForSavedConnection(conn, kind, connector); err != nil {
+			return nil, err
 		}
-		config = overlayConfig(conn.Config, config)
+		if config, err = a.savedConnectionConfig(ctx, conn, kind, config); err != nil {
+			return nil, err
+		}
 	}
-	ref, ok := connectorRefFromProto(req.Msg.GetKind(), req.Msg.GetConnector())
+	ref, ok := connectorRefFromProto(kind, connector)
 	if !ok {
 		return connect.NewResponse(validationError("connector kind is required")), nil
 	}
-	schema, err := a.schemaFor(ctx, req.Msg.GetKind(), ref.Name)
+	schema, err := a.schemaFor(ctx, kind, ref.Name)
 	if err != nil {
 		return nil, connectorError(err)
 	}
@@ -192,13 +194,12 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 			}
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		if connector == "" {
-			connector = conn.Connector
+		if _, connector, err = connectorForSavedConnection(conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, connector); err != nil {
+			return nil, err
 		}
-		if err := a.resolveConnectionSecrets(ctx, conn, conn.Config); err != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		if config, err = a.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, config); err != nil {
+			return nil, err
 		}
-		config = overlayConfig(conn.Config, config)
 	}
 
 	resources, err := a.worker.Discover(ctx, connector, filament.NewConfig(config), filament.DiscoverOpts{Refresh: req.Msg.GetRefresh()})
@@ -231,12 +232,11 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			}
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		if connector == "" {
-			connector = conn.Connector
+		if _, connector, err = connectorForSavedConnection(conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, connector); err != nil {
+			return nil, err
 		}
-		config = compile.MergeConfig(conn.Config, config)
-		if err := a.resolveConnectionSecrets(ctx, conn, config); err != nil {
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		if config, err = a.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, config); err != nil {
+			return nil, err
 		}
 	}
 	resources := append([]string(nil), req.Msg.GetResources()...)
@@ -264,9 +264,25 @@ func (a *Server) GetResourceColumns(ctx context.Context, req *connect.Request[in
 			Columns:            convert.CursorColumnsToProto(inspection.Columns),
 			ManagedIncremental: inspection.ManagedIncremental,
 			SelectableColumns:  spec.Resources.SelectableColumns,
+			Partitions:         inspection.Partitions,
 		})
 	}
 	return connect.NewResponse(response), nil
+}
+
+// connectorForSavedConnection returns the kind and connector a request
+// against a saved connection runs. The request may leave either empty, but
+// may not name different ones: the connection's secrets were saved for its
+// own connector.
+func connectorForSavedConnection(conn filament.Connection, kind ingestionv1.ConnectorKind, connector string) (ingestionv1.ConnectorKind, string, error) {
+	savedKind := convert.ConnectorKindToProto(conn.Kind)
+	if kind != ingestionv1.ConnectorKind_CONNECTOR_KIND_UNSPECIFIED && kind != savedKind {
+		return 0, "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q is %s, not %s", conn.ID, savedKind, kind))
+	}
+	if connector != "" && connector != conn.Connector {
+		return 0, "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection %q uses connector %q, not %q", conn.ID, conn.Connector, connector))
+	}
+	return savedKind, conn.Connector, nil
 }
 
 // connectorRefFromProto names a connector for the worker; ok is false when the

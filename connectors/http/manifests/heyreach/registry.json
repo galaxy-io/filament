@@ -4,7 +4,7 @@
   "default_version": "unversioned",
   "versions": {
     "unversioned": {
-      "maturity": "alpha"
+      "is_preview": true
     }
   }
 }

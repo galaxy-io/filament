@@ -104,14 +104,17 @@ There are **no loaders for page data**. The standalone's auth gates in `beforeLo
 Schemas live in `module/schemas.ts`.
 
 ```ts
-export const observabilitySearchSchema = listSearchParamsSchema
-  .pick({ sortBy: true, sortOrder: true })
-  .extend({
-    timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
-    statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-    runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-    runsStatus: z.enum(RunStatus).optional().catch(undefined),
-  });
+export const observabilitySearchSchema = z.object({
+  timeframe: z.enum(ObservabilityTimeframe).optional().catch(undefined),
+  refreshInterval: z.enum(ObservabilityRefreshInterval).optional().catch(undefined),
+  runs: z.enum(ObservabilityRunsView).optional().catch(undefined),
+  throughput: z.enum(ObservabilityThroughputView).optional().catch(undefined),
+  throughputPivot: z.enum(MetricDimension).optional().catch(undefined),
+  usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
+  usagePivot: z.enum(MetricDimension).optional().catch(undefined),
+  statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
+  pipelinesPage: z.coerce.number().int().positive().optional().catch(undefined),
+});
 ```
 
 - **Every field is `.optional().catch(undefined)`.** Garbage in the URL becomes `undefined`, never a crash.

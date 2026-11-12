@@ -24,6 +24,7 @@ import {
   type ResourceColumnSelection,
   type ResourceCursorConfig,
   ResourceCursorConfigSchema,
+  type ResourcePartitionSelection,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type {
@@ -34,7 +35,10 @@ import type {
 import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifierState } from "@/pages/pipelines/components/notifier/types";
 import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/notifier/utils";
-import { createResourceColumnSelections } from "@/pages/pipelines/components/resource/utils";
+import {
+  createResourceColumnSelections,
+  createResourcePartitionSelections,
+} from "@/pages/pipelines/components/resource/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 
 const createNodes = (
@@ -86,6 +90,18 @@ const createColumns = (row: CreatePipelineModalResourceRow): ResourceColumnSelec
       })
     : [];
 
+const createPartitions = (
+  row: CreatePipelineModalResourceRow,
+  readMode: ReadMode,
+): ResourcePartitionSelection[] =>
+  readMode === ReadMode.INCREMENTAL
+    ? []
+    : createResourcePartitionSelections({
+        resource: row.name,
+        selected: row.selectedPartitions,
+        partitions: row.partitions,
+      });
+
 const createSinkEdges = ({
   sourceId,
   rows,
@@ -109,6 +125,7 @@ const createSinkEdges = ({
         writeMode: hasReadLevers ? row.writeMode : sink.writeMode,
         cursors: hasReadLevers ? createCursors([row], readMode) : [],
         columns: createColumns(row),
+        partitions: createPartitions(row, readMode),
       });
     });
 

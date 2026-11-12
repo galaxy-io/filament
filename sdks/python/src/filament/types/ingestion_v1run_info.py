@@ -95,6 +95,11 @@ class IngestionV1RunInfo(UniversalBaseModel):
     Present for continuous runs. records/bytes above reflect committed progress.
     """
 
+    resources: typing.Optional[typing.List[str]] = pydantic.Field(default=None)
+    """
+    resources this run reads. Empty means every resource its route selects.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:

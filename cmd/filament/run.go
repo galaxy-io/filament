@@ -2,32 +2,37 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
-	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-func (a *cliApp) runCommandDefinition() *cobra.Command {
-	cmd := a.dynamicCommand(
-		"run <pipeline> [flags] | run --source-connector NAME --sink-connector NAME [flags]",
-		"Run a saved pipeline or an inline transfer, or list past runs", a.printRunHelp, a.runCommand,
+func (a *cliApp) runCommand() *cobra.Command {
+	var cmd *cobra.Command
+	cmd = a.dynamicCommand(
+		"run <pipeline> [--resources LIST] [--sync-mode MODE] [--write-mode MODE] [--unset KIND-FIELD] | --source-connector NAME --sink-connector NAME [flags]",
+		"Run a saved pipeline or an inline transfer, or list past runs", a.printRunHelp,
+		func(ctx context.Context, args []string) error {
+			if len(args) > 0 {
+				return a.startRun(ctx, args)
+			}
+			// Bare run picks a pipeline interactively, or explains itself.
+			if a.renderer().Interactive() {
+				return a.openInteractive(ctx, "run", "run")
+			}
+			return a.printRunHelp(ctx, cmd, args)
+		},
 	)
 	cmd.PersistentPreRunE = a.prepareTarget
 	cmd.AddCommand(a.runListCommand())
 	return cmd
 }
 
-func (a *cliApp) runCommand(ctx context.Context, args []string) (runErr error) {
-	if len(args) == 0 {
-		return a.printRunHelp(ctx, args)
-	}
+func (a *cliApp) startRun(ctx context.Context, args []string) error {
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
 		return err
@@ -41,29 +46,6 @@ func (a *cliApp) runCommand(ctx context.Context, args []string) (runErr error) {
 	}
 	if err != nil {
 		return err
-	}
-	if name != "" && a.target.Target.Kind == contexts.KindLocal {
-		unlock, err := a.lockLocalRuns()
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if ctx.Err() != nil {
-				// Stop the runner before folding its obituary. The embedded
-				// tracker has already stopped with the cancelled CLI context.
-				if a.stopEmbedded != nil {
-					a.stopEmbedded()
-					a.stopEmbedded = nil
-				}
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				runErr = errors.Join(runErr, a.recoverLocalRuns(cleanupCtx))
-				cancel()
-			}
-			unlock()
-		}()
-		if err := a.recoverLocalRuns(ctx); err != nil {
-			return err
-		}
 	}
 	if interactive := a.renderer(); interactive.Interactive() {
 		return interactive.RunRequest(ctx, request)
@@ -119,7 +101,7 @@ func (a *cliApp) directRunRequest(flags map[string][]string) (cliapp.RunRequest,
 	request.Inline.Source.Config = sourcePatch.Values
 	request.Inline.Sink.Config = sinkPatch.Values
 	if raw, present := flagValue(flags, "resources"); present {
-		request.Inline.Resources = splitComma(raw)
+		request.Inline.Resources = cliapp.SplitComma(raw)
 		if len(request.Inline.Resources) == 0 {
 			return request, fmt.Errorf("--resources must contain at least one resource")
 		}
@@ -136,15 +118,11 @@ func (a *cliApp) savedRunRequest(ctx context.Context, name string, flags map[str
 			return request, fmt.Errorf("named pipeline %q cannot be combined with --%s", name, topologyFlag)
 		}
 	}
-	document, err := a.service.Configuration(ctx)
+	pipeline, err := a.service.Pipeline(ctx, name)
 	if err != nil {
 		return request, err
 	}
-	pipeline, ok := document.Pipelines[name]
-	if !ok {
-		return request, fmt.Errorf("pipeline %q does not exist", name)
-	}
-	overrides, err := a.pipelineRequestFromFlags("edit", name, &pipeline, flags, document)
+	overrides, err := a.pipelineRequestFromFlags(ctx, "edit", name, &pipeline, flags)
 	if err != nil {
 		return request, err
 	}

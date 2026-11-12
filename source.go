@@ -64,6 +64,19 @@ type ColumnSelector interface {
 	SelectColumns(columns map[string][]string) error
 }
 
+// PartitionSelector lets a source backfill only some partitions of a
+// partitioned resource. Partitions lists a resource's partitions, empty when
+// it is not partitioned. The engine calls SelectPartitions like
+// SelectColumns, keyed by source resource name: a full read or a change
+// stream's initial snapshot of a listed resource reads only those
+// partitions, while the change stream still carries every partition. A
+// resource absent from the map reads every partition, and an empty selection
+// reads none.
+type PartitionSelector interface {
+	Partitions(ctx context.Context, resource string) ([]string, error)
+	SelectPartitions(partitions map[string][]string) error
+}
+
 // ResumePlanner builds the initial per-resource checkpoint plan for a resumable run:
 // the shard layout (PK split) plus any cursor carried over from prev. The engine
 // persists the returned plan before extraction so a later resume sees a complete,
@@ -301,7 +314,7 @@ type ConnectorSpec struct {
 	LightLogoURL   string
 	Version        string
 	APIVersion     string
-	Maturity       ConnectorMaturity
+	IsPreview      bool
 	Modes          []ReadMode
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema

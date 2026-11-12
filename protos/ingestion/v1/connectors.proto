@@ -19,17 +19,12 @@ message ConnectorSpec {
   string dark_logo_url = 8;
   string light_logo_url = 9;
   string schema_field = 10;
-  ConnectorMaturity maturity = 11;
+  reserved 11;
+  reserved "maturity";
   string api_version = 12;
   // Concrete registration selected by a source catalog alias; empty otherwise.
   string alias_target = 13;
-}
-
-enum ConnectorMaturity {
-  CONNECTOR_MATURITY_UNSPECIFIED = 0;
-  CONNECTOR_MATURITY_ALPHA = 1;
-  CONNECTOR_MATURITY_BETA = 2;
-  CONNECTOR_MATURITY_STABLE = 3;
+  bool is_preview = 14;
 }
 
 message ListConnectorsRequest {
@@ -118,6 +113,8 @@ message ResourceColumns {
   bool managed_incremental = 3;
   // The source reads only the columns an edge selects.
   bool selectable_columns = 4;
+  // The resource's partitions an edge may select; empty when it is not partitioned.
+  repeated string partitions = 5;
 }
 
 message GetResourceColumnsResponse {

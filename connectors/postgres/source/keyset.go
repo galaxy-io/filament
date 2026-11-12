@@ -47,8 +47,9 @@ type keyShard struct {
 
 // PlanResume builds the per-resource keyset plan: the shard layout plus any cursor
 // carried over from prev. A resource without a primary key maps to nil (non-resumable;
-// read whole via ctid). The engine persists this plan so a later resume reuses the same
-// stable shard boundaries.
+// read whole via ctid), and so does one with a partition selection, which the ctid
+// reader narrows to the selected partitions. The engine persists this plan so a later
+// resume reuses the same stable shard boundaries.
 func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
 	plan := make(map[string]filament.Checkpoint, len(resources))
 	for _, table := range resources {
@@ -56,8 +57,8 @@ func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[st
 		if err != nil {
 			return nil, fmt.Errorf("lookup pk %q: %w", table, err)
 		}
-		if len(pks) == 0 {
-			plan[table] = nil // no key → not resumable
+		if _, narrowed := s.partitions[table]; len(pks) == 0 || narrowed {
+			plan[table] = nil // no key or narrowed partitions → not resumable
 			continue
 		}
 		// Resume: reuse the persisted layout verbatim (stable boundaries, advanced keys,
@@ -74,7 +75,19 @@ func (s *Source) PlanResume(ctx context.Context, resources []string, prev map[st
 		}
 		var ks checkpoint.KeysetCheckpoint
 		var err2 error
-		switch s.resolveMode(ctx, table) {
+		mode := s.resolveMode(ctx, table)
+		if mode == ModeCtidXmin {
+			// The ctid checkpoint addresses one heap, and a partitioned table has one
+			// per partition, so it reads in key order instead.
+			_, partitioned, err := s.leaves(ctx, table)
+			if err != nil {
+				return nil, err
+			}
+			if partitioned {
+				mode = ModeKeyset
+			}
+		}
+		switch mode {
 		case ModeBitmap:
 			ks = s.planBitmap(ctx, table, pks)
 		case ModeCtidXmin:

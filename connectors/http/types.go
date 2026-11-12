@@ -24,7 +24,7 @@ import (
 type valueParser func(w arrowbatch.RowWriter, raw json.RawMessage) error
 
 // typeFor picks a field's parser from its logical type.
-func typeFor(f rowmodel.Field) valueParser {
+func typeFor(f rowmodel.Field, rounding string) valueParser {
 	switch f.Logical {
 	case rowmodel.LogicalBool:
 		return parseBool
@@ -40,7 +40,7 @@ func typeFor(f rowmodel.Field) valueParser {
 		return parseFloat(64, func(w arrowbatch.RowWriter, v float64) { w.Float64(v) })
 	case rowmodel.LogicalDecimal:
 		if f.Precision > 0 {
-			return parseFixedDecimal(f.Precision, f.Scale)
+			return parseFixedDecimal(f.Precision, f.Scale, rounding)
 		}
 		return parseNumberText
 	case rowmodel.LogicalJSON:
@@ -209,8 +209,8 @@ func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	return fmt.Errorf("%q is not a timestamp", s)
 }
 
-// parseFixedDecimal rejects rounding and overflow before appending financial data.
-func parseFixedDecimal(precision, scale int) valueParser {
+// parseFixedDecimal keeps strict conversion by default and rounds only when declared.
+func parseFixedDecimal(precision, scale int, rounding string) valueParser {
 	return func(w arrowbatch.RowWriter, raw json.RawMessage) error {
 		value, err := unquoted(raw)
 		if err != nil {
@@ -232,10 +232,24 @@ func parseFixedDecimal(precision, scale int) valueParser {
 		}
 		factor := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(scale)), nil)
 		number.Mul(number, new(big.Rat).SetInt(factor))
-		if !number.IsInt() || len(new(big.Int).Abs(number.Num()).String()) > precision {
+		if !number.IsInt() && rounding != "half_even" {
 			return invalid
 		}
-		w.Decimal(decimal128.FromBigInt(number.Num()))
+		unscaled := new(big.Int)
+		if number.IsInt() {
+			unscaled.Set(number.Num())
+		} else {
+			remainder := new(big.Int)
+			unscaled.QuoRem(number.Num(), number.Denom(), remainder)
+			comparison := new(big.Int).Mul(new(big.Int).Abs(remainder), big.NewInt(2)).Cmp(number.Denom())
+			if comparison > 0 || comparison == 0 && new(big.Int).Abs(unscaled).Bit(0) == 1 {
+				unscaled.Add(unscaled, big.NewInt(int64(number.Sign())))
+			}
+		}
+		if len(new(big.Int).Abs(unscaled).String()) > precision {
+			return invalid
+		}
+		w.Decimal(decimal128.FromBigInt(unscaled))
 		return nil
 	}
 }

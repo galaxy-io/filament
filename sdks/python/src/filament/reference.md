@@ -2126,6 +2126,31 @@ worker_configuration overrides the pipeline's own for this call only, field
 <dl>
 <dd>
 
+**resync_resources:** `typing.Optional[typing.List[str]]` 
+
+resync_resources names resources read from the beginning again by the
+ runs this call produces. A bounded run forgets their checkpoints first. A
+ live continuous run drains and hands over to a successor that snapshots
+ them again on the same stream.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**resources:** `typing.Optional[typing.List[str]]` 
+
+resources limits a bounded run to these routed resources. Empty runs every
+ routed resource. A continuous run, or a change-stream route named in part,
+ always runs all of its resources, so such a subset is rejected.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>
@@ -3085,6 +3110,91 @@ Optional CAS for continuous desired state. A stale revision is rejected.
 </details>
 
 ## ingestion.v1.IngestionService
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getversion</a>(...) -> IngestionV1GetVersionResponse</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+The build version stamped into the server binary.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.getversion(
+    connect_timeout_ms=1000,
+    request={
+        "key": "value"
+    },
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**request:** `IngestionV1GetVersionRequest` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">listtransformfunctions</a>(...) -> IngestionV1ListTransformFunctionsResponse</code></summary>
 <dl>
 <dd>
