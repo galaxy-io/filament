@@ -51,5 +51,9 @@ message PutWebhookEndpointResponse {
   string minted_secret = 2;
 }
 
-message GetWebhookEndpointRequest { string source_connection_id = 1; }
-message GetWebhookEndpointResponse { WebhookEndpointConfig endpoint = 1; }
+message GetWebhookEndpointRequest {
+  string source_connection_id = 1;
+}
+message GetWebhookEndpointResponse {
+  WebhookEndpointConfig endpoint = 1;
+}
