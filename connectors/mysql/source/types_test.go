@@ -78,6 +78,16 @@ func TestParseDate(t *testing.T) {
 			input:   "0000-00-00garbage",
 			wantErr: true,
 		},
+		{
+			name:    "day past the end of the month",
+			input:   "2024-02-31",
+			wantErr: true,
+		},
+		{
+			name:    "month out of range",
+			input:   "2024-13-01",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -144,6 +154,11 @@ func TestParseDatetime(t *testing.T) {
 		{
 			name:    "invalid datetime",
 			input:   "invalid-datetime",
+			wantErr: true,
+		},
+		{
+			name:    "minute out of range",
+			input:   "2024-05-01 12:60:00",
 			wantErr: true,
 		},
 	}
