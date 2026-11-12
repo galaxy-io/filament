@@ -119,14 +119,14 @@ Register a factory so each run receives a fresh instance:
 func init() {
     registry.RegisterSource(
         "mysource",
-        filament.MaturityAlpha,
+        true,
         func() filament.Source { return New() },
     )
 }
 ```
 
-Consumers include the connector with a blank import. Start at `alpha`, then
-raise maturity when the connector has been exercised end to end.
+Consumers include the connector with a blank import. Set `is_preview` to
+`true` until live validation confirms the supported behavior.
 
 ## Add capabilities deliberately
 

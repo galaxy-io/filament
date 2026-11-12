@@ -229,3 +229,46 @@ resources:
       start_param: from
       inject_into: query
       checkpoint_key: inventory_transfers_export_token
+  - name: inventory_receipts
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/receipts
+    primary_key: [id]
+    fields:
+      id: int64
+      active: bool
+      number: string
+      vendorInvoiceNumber: string
+      createdById: int64?
+      memo: string
+      purchaseOrderId: int64
+      billId: int64?
+      jobId: int64?
+      businessUnitId: int64?
+      vendorId: int64
+      technicianId: int64?
+      inventoryLocationId: int64
+      shipTo: json?
+      shipToDescription: string
+      receiptAmount: string
+      taxAmount: string
+      shippingAmount: string
+      receivedOn: string?
+      createdOn: string
+      modifiedOn: string
+      batchId: int64?
+      syncStatus: string
+      budgetCodeId: int64?
+      landedCostMethod: string
+      otherAmount: string?
+      items: json
+      customFields: json
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      active: "Any"
+      includeTotal: "true"
+    response:
+      pagination:
+        page:
+          number: query.page
+          size: query.pageSize
+          page_size: 50
+          more: hasMore

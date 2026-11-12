@@ -85,6 +85,7 @@ type Source struct {
 	managePublication bool
 	snapshotMode      filament.SnapshotMode
 	selected          map[string][]string // table → selected columns; absent reads every column
+	partitions        map[string][]string // table → partitions a snapshot reads; absent reads every one
 }
 
 // New returns an unconfigured source.

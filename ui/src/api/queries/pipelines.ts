@@ -30,6 +30,7 @@ import { createListRunsQueryKey } from "@/api/queries/runs";
 import {
   createListSearchInput,
   getNextPageParam,
+  getScheduledRefetchInterval,
   INITIAL_PAGE_PARAM,
   type InfiniteQueryInput,
 } from "@/api/utils";
@@ -37,9 +38,16 @@ import {
 import { isRunActive } from "@/utils/runs";
 
 const getListPipelinesRefetchInterval = (pipelines: Pipeline[] | undefined) => {
-  return pipelines?.some((pipeline) => pipeline.lastRun && isRunActive(pipeline.lastRun))
-    ? ACTIVE_RUNS_REFETCH_INTERVAL
-    : false;
+  if (!pipelines) return false;
+  if (pipelines.some((pipeline) => pipeline.lastRun && isRunActive(pipeline.lastRun))) {
+    return ACTIVE_RUNS_REFETCH_INTERVAL;
+  }
+  const waits = pipelines.flatMap((pipeline) =>
+    pipeline.schedule?.config?.isEnabled && pipeline.schedule.nextFireAt
+      ? [Number(pipeline.schedule.nextFireAt) - Date.now()]
+      : [],
+  );
+  return getScheduledRefetchInterval(waits, ACTIVE_RUNS_REFETCH_INTERVAL);
 };
 
 export const createListPipelinesInput = (search: ListSearchParams) => ({

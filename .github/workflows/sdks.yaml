@@ -49,9 +49,13 @@ jobs:
       - uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ steps.app-token.outputs.token }}
+          sign-commits: true
           branch: sdks/generate
           delete-branch: true
           add-paths: sdks
-          commit-message: "feat(sdks): regenerate from the API"
-          title: "feat(sdks): regenerate from the API"
-          body: "Regenerated from `api/openapi.json` by `CI: SDKs`. Merging releases the Python and TypeScript SDKs."
+          commit-message: "feat(sdks): sync with the API"
+          title: "feat(sdks): sync with the API"
+          body: |
+            Python and TypeScript SDKs generated from `api/openapi.json` at ${{ github.sha }}.
+
+            Merging this releases both SDKs.

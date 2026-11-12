@@ -84,8 +84,8 @@ resources:
       location: json?
       memo: string?
       mobilePhone: string?
-      outboundCallerId: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
-      payrollId: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      outboundCallerId: string?
+      payrollId: string?
       payrollProfileId: int64?
       permissions: json?
       positions: json?

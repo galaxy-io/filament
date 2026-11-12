@@ -49,6 +49,11 @@ sources behind non-obvious decisions. Separate documented behavior, observed
 responses, and assumptions. If documentation is inaccessible, make the missing
 evidence explicit and continue independent work without inventing an API contract.
 
+Check whether an established connector for the product exists, such as Airbyte
+or Fivetran, and whether the provider offers its own warehouse export. Their
+settings and table lists are the benchmark for scope. They are not evidence for
+the API contract.
+
 Keep research notes in an existing plan when one exists. Do not create a separate
 research document for every small connector. User docs should contain the setup
 and behavior users need, not the research transcript.
@@ -89,6 +94,17 @@ product families often belong behind resource selection or outside the initial
 scope. Do not exclude useful reference tables merely because they live under
 a settings endpoint.
 
+Build for a data engineer who configures the source once and lets it run. Keep
+settings to credentials, a region or host when the API has several, and at most
+one date window shared by every resource that needs it. A resource that needs an
+ID, name, or key the API cannot list is a lookup, not a table. Exclude it and
+name the gap in the docs instead of adding a setting for it. Leave out debug,
+sampling, and delivery-log endpoints, and endpoints that answer one parameterized
+question. Fix sensible values such as the aggregation grain or the provider's
+default language in the manifest instead of exposing a knob. Read
+[pitfalls.md](references/pitfalls.md#configuration-surface) before adding any
+pipeline-scoped setting, `required_config`, or `for_each_config`.
+
 Use existing bulk endpoints before adding per-record requests. Give each resource
 an explicit row meaning, a valid key policy, and a trailing `raw` remainder.
 Preserve nested data as JSON when splitting it would add speculative tables or
@@ -121,10 +137,11 @@ existing manifest validation and HTTP engine tests, documentation review, and
 authorized live checks. Add focused regression tests only when changing shared
 runtime or grammar behavior. Follow [validation.md](references/validation.md)
 for the checks to run. Fix failures in the changed scope and distinguish unrelated
-existing failures.
+existing failures. Run `just manifest-format` before finishing. CI fails on any
+YAML formatting difference.
 
-New connectors start with `"maturity": "alpha"` in their registry version entry.
-Grammar validation and existing tests do not establish live fidelity. Promote maturity only when the user
+New connectors start with `"is_preview": true` in their registry version entry.
+Grammar validation and existing tests do not establish live fidelity. Clear the preview flag only when the user
 directs it based on live validation. If credentials or account features are
 unavailable, finish the implementation and state exactly which live checks remain.
 

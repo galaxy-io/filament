@@ -72,7 +72,7 @@ func TestDiscoverResolvesEnvironmentSecretReferences(t *testing.T) {
 			}))
 			t.Cleanup(httpServer.Close)
 			target := NewTarget(Store{Path: filepath.Join(t.TempDir(), "filament.yaml")},
-				remote.NewTarget(remote.Options{Endpoint: httpServer.URL}), secretenv.New())
+				remote.NewTarget(remote.Options{Endpoint: httpServer.URL}), nil)
 			service := cliapp.NewService(target)
 			connection, err := service.SaveConnection(ctx, cliapp.SaveConnectionRequest{
 				Create: true, Kind: "source", Name: "envtest", Connector: "password-fixture",

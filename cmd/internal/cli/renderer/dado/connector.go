@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -83,7 +85,7 @@ func (r *Renderer) manageConnectionsOnce(ctx context.Context, kind string) (bool
 }
 
 func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc model.Document) error {
-	connection := connectionMap(kind, doc)[name]
+	connection := doc.Connections(kind)[name]
 	options := []interactiveOption{{label: "View", value: "view"}, {label: "Edit", value: "edit"}}
 	if kind == "source" {
 		options = append(options, interactiveOption{label: "Discover resources", value: "discover"})
@@ -95,7 +97,7 @@ func (r *Renderer) manageConnection(ctx context.Context, kind, name string, doc 
 	}
 	switch action {
 	case "view":
-		schema, err := r.connectionSchema(kind, connection.Type)
+		schema, err := r.catalog.ConnectionSchema(kind, connection.Type)
 		if err != nil {
 			return err
 		}
@@ -161,7 +163,7 @@ func (r *Renderer) connectionWizard(ctx context.Context, kind, name string, exis
 				if existing != nil && existing.Type == connectorName {
 					initial = cliapp.ConfigWithSecretPlaceholders(existing.Config, existing.SecretRefs)
 				}
-				schema, err := r.connectionSchema(kind, connectorName)
+				schema, err := r.catalog.ConnectionSchema(kind, connectorName)
 				if err != nil {
 					return err
 				}
@@ -214,7 +216,7 @@ func (r *Renderer) connectionIdentity(
 	nameField := inline.NewTextField("name", "Name").
 		SetValue(name).
 		Required().
-		Validate(func(value string) error { return validateName(kind, value) })
+		Validate(func(value string) error { return cliapp.ValidateName(kind, value) })
 	connectorField := connectorSelectField(connectorName, connectorOptions)
 	result, err := r.runInteractiveForm(ctx, inline.NewForm("").SetHeader(header).Add(nameField, connectorField))
 	if err != nil {
@@ -222,7 +224,7 @@ func (r *Renderer) connectionIdentity(
 	}
 	name, _ = result["name"].(string)
 	connectorName, _ = result["connector"].(string)
-	if _, exists := connectionMap(kind, doc)[name]; exists {
+	if _, exists := doc.Connections(kind)[name]; exists {
 		return name, connectorName, fmt.Errorf("%s %q already exists", kind, name)
 	}
 	return name, connectorName, nil
@@ -258,7 +260,7 @@ func (r *Renderer) finishConnectionWizard(
 }
 
 func (r *Renderer) connectorChoices(kind string) []interactiveOption {
-	names := r.connectorNames(kind)
+	names := r.catalog.Names(kind)
 	options := make([]interactiveOption, 0, len(names))
 	for _, connector := range names {
 		option := interactiveOption{label: connector, value: connector}
@@ -564,7 +566,7 @@ func (v *schemaWizardField) dadoField() (inline.FormField, func(any)) {
 		return field, func(raw any) {
 			text, _ := raw.(string)
 			if v.schema.Type == filament.FieldList {
-				v.list = splitComma(text)
+				v.list = cliapp.SplitComma(text)
 				return
 			}
 			if cliapp.IsSecretField(v.schema) {
@@ -686,7 +688,7 @@ func connectionPairs(connection model.Connection, schema filament.ConfigSchema) 
 	for _, field := range cliapp.OrderedFields(schema, filament.ScopeConnection) {
 		fields[field.Name] = field
 	}
-	for _, name := range sortedKeys(connection.Config) {
+	for _, name := range slices.Sorted(maps.Keys(connection.Config)) {
 		value := connection.Config[name]
 		if field, ok := fields[name]; ok {
 			value = redactSchemaValue(field, value)
@@ -711,7 +713,7 @@ func redactSchemaValue(field filament.ConfigField, value any) any {
 	if !ok {
 		return value
 	}
-	redacted := cloneMap(object)
+	redacted := maps.Clone(object)
 	for _, child := range field.Fields {
 		if !cliapp.FieldVisible(child, object) {
 			continue

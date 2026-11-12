@@ -25,20 +25,8 @@ func emptyPipelineRequest(request SavePipelineRequest) bool {
 }
 
 func connectionMap(kind string, document model.Document) (map[string]model.Connection, error) {
-	switch kind {
-	case "source":
-		return document.Sources, nil
-	case "sink":
-		return document.Sinks, nil
-	default:
+	if kind != "source" && kind != "sink" {
 		return nil, fmt.Errorf("unknown connection kind %q", kind)
 	}
-}
-
-func cloneMap[V any](source map[string]V) map[string]V {
-	result := make(map[string]V, len(source))
-	for key, value := range source {
-		result[key] = value
-	}
-	return result
+	return document.Connections(kind), nil
 }

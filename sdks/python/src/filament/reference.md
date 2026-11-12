@@ -2126,6 +2126,31 @@ worker_configuration overrides the pipeline's own for this call only, field
 <dl>
 <dd>
 
+**resync_resources:** `typing.Optional[typing.List[str]]` 
+
+resync_resources names resources read from the beginning again by the
+ runs this call produces. A bounded run forgets their checkpoints first. A
+ live continuous run drains and hands over to a successor that snapshots
+ them again on the same stream.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**resources:** `typing.Optional[typing.List[str]]` 
+
+resources limits a bounded run to these routed resources. Empty runs every
+ routed resource. A continuous run, or a change-stream route named in part,
+ always runs all of its resources, so such a subset is rejected.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>
