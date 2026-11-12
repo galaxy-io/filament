@@ -60,6 +60,8 @@ export * from "./IngestionV1GetPipelineResponse.js";
 export * from "./IngestionV1GetPipelineVersionResponse.js";
 export * from "./IngestionV1GetResourceColumnsResponse.js";
 export * from "./IngestionV1GetRunResponse.js";
+export * from "./IngestionV1GetVersionRequest.js";
+export * from "./IngestionV1GetVersionResponse.js";
 export * from "./IngestionV1ListConnectionsResponse.js";
 export * from "./IngestionV1ListConnectorsResponse.js";
 export * from "./IngestionV1ListPipelineNotifiersResponse.js";
