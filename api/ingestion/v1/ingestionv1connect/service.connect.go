@@ -128,6 +128,9 @@ const (
 	// IngestionServiceTailRunProcedure is the fully-qualified name of the IngestionService's TailRun
 	// RPC.
 	IngestionServiceTailRunProcedure = "/ingestion.v1.IngestionService/TailRun"
+	// IngestionServiceGetVersionProcedure is the fully-qualified name of the IngestionService's
+	// GetVersion RPC.
+	IngestionServiceGetVersionProcedure = "/ingestion.v1.IngestionService/GetVersion"
 )
 
 // IngestionServiceClient is a client for the ingestion.v1.IngestionService service.
@@ -176,6 +179,8 @@ type IngestionServiceClient interface {
 	SignalRun(context.Context, *connect.Request[v1.SignalRunRequest]) (*connect.Response[v1.SignalRunResponse], error)
 	// Live progress; server-streams a run's facts with optional snapshot replay.
 	TailRun(context.Context, *connect.Request[v1.TailRunRequest]) (*connect.ServerStreamForClient[v1.TailRunResponse], error)
+	// The build version stamped into the server binary.
+	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
 }
 
 // NewIngestionServiceClient constructs a client for the ingestion.v1.IngestionService service. By
@@ -381,6 +386,12 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(ingestionServiceMethods.ByName("TailRun")),
 			connect.WithClientOptions(opts...),
 		),
+		getVersion: connect.NewClient[v1.GetVersionRequest, v1.GetVersionResponse](
+			httpClient,
+			baseURL+IngestionServiceGetVersionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetVersion")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -418,6 +429,7 @@ type ingestionServiceClient struct {
 	getRun                 *connect.Client[v1.GetRunRequest, v1.GetRunResponse]
 	signalRun              *connect.Client[v1.SignalRunRequest, v1.SignalRunResponse]
 	tailRun                *connect.Client[v1.TailRunRequest, v1.TailRunResponse]
+	getVersion             *connect.Client[v1.GetVersionRequest, v1.GetVersionResponse]
 }
 
 // ListConnectors calls ingestion.v1.IngestionService.ListConnectors.
@@ -580,6 +592,11 @@ func (c *ingestionServiceClient) TailRun(ctx context.Context, req *connect.Reque
 	return c.tailRun.CallServerStream(ctx, req)
 }
 
+// GetVersion calls ingestion.v1.IngestionService.GetVersion.
+func (c *ingestionServiceClient) GetVersion(ctx context.Context, req *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
+	return c.getVersion.CallUnary(ctx, req)
+}
+
 // IngestionServiceHandler is an implementation of the ingestion.v1.IngestionService service.
 type IngestionServiceHandler interface {
 	// Catalog of registered source/sink connectors and their config schemas.
@@ -626,6 +643,8 @@ type IngestionServiceHandler interface {
 	SignalRun(context.Context, *connect.Request[v1.SignalRunRequest]) (*connect.Response[v1.SignalRunResponse], error)
 	// Live progress; server-streams a run's facts with optional snapshot replay.
 	TailRun(context.Context, *connect.Request[v1.TailRunRequest], *connect.ServerStream[v1.TailRunResponse]) error
+	// The build version stamped into the server binary.
+	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
 }
 
 // NewIngestionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -827,6 +846,12 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		connect.WithSchema(ingestionServiceMethods.ByName("TailRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ingestionServiceGetVersionHandler := connect.NewUnaryHandler(
+		IngestionServiceGetVersionProcedure,
+		svc.GetVersion,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ingestion.v1.IngestionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IngestionServiceListConnectorsProcedure:
@@ -893,6 +918,8 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceSignalRunHandler.ServeHTTP(w, r)
 		case IngestionServiceTailRunProcedure:
 			ingestionServiceTailRunHandler.ServeHTTP(w, r)
+		case IngestionServiceGetVersionProcedure:
+			ingestionServiceGetVersionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1028,4 +1055,8 @@ func (UnimplementedIngestionServiceHandler) SignalRun(context.Context, *connect.
 
 func (UnimplementedIngestionServiceHandler) TailRun(context.Context, *connect.Request[v1.TailRunRequest], *connect.ServerStream[v1.TailRunResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.TailRun is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetVersion is not implemented"))
 }

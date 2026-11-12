@@ -24,7 +24,7 @@ var File_ingestion_v1_service_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1aingestion/v1/service.proto\x12\fingestion.v1\x1a\x1fingestion/v1/capabilities.proto\x1a\x1eingestion/v1/connections.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/notifiers.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x17ingestion/v1/runs.proto\x1a\"ingestion/v1/transformations.proto2\xd9\x18\n" +
+	"\x1aingestion/v1/service.proto\x12\fingestion.v1\x1a\x1fingestion/v1/capabilities.proto\x1a\x1eingestion/v1/connections.proto\x1a\x1dingestion/v1/connectors.proto\x1a\x1cingestion/v1/notifiers.proto\x1a\x1cingestion/v1/pipelines.proto\x1a\x17ingestion/v1/runs.proto\x1a\"ingestion/v1/transformations.proto\x1a\x1aingestion/v1/version.proto2\xaa\x19\n" +
 	"\x10IngestionService\x12[\n" +
 	"\x0eListConnectors\x12#.ingestion.v1.ListConnectorsRequest\x1a$.ingestion.v1.ListConnectorsResponse\x12U\n" +
 	"\fGetConnector\x12!.ingestion.v1.GetConnectorRequest\x1a\".ingestion.v1.GetConnectorResponse\x12[\n" +
@@ -57,7 +57,9 @@ const file_ingestion_v1_service_proto_rawDesc = "" +
 	"\bListRuns\x12\x1d.ingestion.v1.ListRunsRequest\x1a\x1e.ingestion.v1.ListRunsResponse\x12C\n" +
 	"\x06GetRun\x12\x1b.ingestion.v1.GetRunRequest\x1a\x1c.ingestion.v1.GetRunResponse\x12L\n" +
 	"\tSignalRun\x12\x1e.ingestion.v1.SignalRunRequest\x1a\x1f.ingestion.v1.SignalRunResponse\x12H\n" +
-	"\aTailRun\x12\x1c.ingestion.v1.TailRunRequest\x1a\x1d.ingestion.v1.TailRunResponse0\x01B\xad\x01\n" +
+	"\aTailRun\x12\x1c.ingestion.v1.TailRunRequest\x1a\x1d.ingestion.v1.TailRunResponse0\x01\x12O\n" +
+	"\n" +
+	"GetVersion\x12\x1f.ingestion.v1.GetVersionRequest\x1a .ingestion.v1.GetVersionResponseB\xad\x01\n" +
 	"\x10com.ingestion.v1B\fServiceProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var file_ingestion_v1_service_proto_goTypes = []any{
@@ -93,38 +95,40 @@ var file_ingestion_v1_service_proto_goTypes = []any{
 	(*GetRunRequest)(nil),                  // 29: ingestion.v1.GetRunRequest
 	(*SignalRunRequest)(nil),               // 30: ingestion.v1.SignalRunRequest
 	(*TailRunRequest)(nil),                 // 31: ingestion.v1.TailRunRequest
-	(*ListConnectorsResponse)(nil),         // 32: ingestion.v1.ListConnectorsResponse
-	(*GetConnectorResponse)(nil),           // 33: ingestion.v1.GetConnectorResponse
-	(*ValidateConfigResponse)(nil),         // 34: ingestion.v1.ValidateConfigResponse
-	(*DiscoverResourcesResponse)(nil),      // 35: ingestion.v1.DiscoverResourcesResponse
-	(*GetResourceColumnsResponse)(nil),     // 36: ingestion.v1.GetResourceColumnsResponse
-	(*CreateConnectionResponse)(nil),       // 37: ingestion.v1.CreateConnectionResponse
-	(*UpdateConnectionResponse)(nil),       // 38: ingestion.v1.UpdateConnectionResponse
-	(*GetConnectionResponse)(nil),          // 39: ingestion.v1.GetConnectionResponse
-	(*ListConnectionsResponse)(nil),        // 40: ingestion.v1.ListConnectionsResponse
-	(*DeleteConnectionResponse)(nil),       // 41: ingestion.v1.DeleteConnectionResponse
-	(*ValidatePipelineResponse)(nil),       // 42: ingestion.v1.ValidatePipelineResponse
-	(*ListTransformFunctionsResponse)(nil), // 43: ingestion.v1.ListTransformFunctionsResponse
-	(*ValidateTransformResponse)(nil),      // 44: ingestion.v1.ValidateTransformResponse
-	(*CreatePipelineResponse)(nil),         // 45: ingestion.v1.CreatePipelineResponse
-	(*CreatePipelineVersionResponse)(nil),  // 46: ingestion.v1.CreatePipelineVersionResponse
-	(*UpdatePipelineResponse)(nil),         // 47: ingestion.v1.UpdatePipelineResponse
-	(*GetPipelineResponse)(nil),            // 48: ingestion.v1.GetPipelineResponse
-	(*GetPipelineVersionResponse)(nil),     // 49: ingestion.v1.GetPipelineVersionResponse
-	(*ListPipelineVersionsResponse)(nil),   // 50: ingestion.v1.ListPipelineVersionsResponse
-	(*ListPipelinesResponse)(nil),          // 51: ingestion.v1.ListPipelinesResponse
-	(*DeletePipelineResponse)(nil),         // 52: ingestion.v1.DeletePipelineResponse
-	(*CreatePipelineScheduleResponse)(nil), // 53: ingestion.v1.CreatePipelineScheduleResponse
-	(*UpdatePipelineScheduleResponse)(nil), // 54: ingestion.v1.UpdatePipelineScheduleResponse
-	(*CreatePipelineNotifierResponse)(nil), // 55: ingestion.v1.CreatePipelineNotifierResponse
-	(*UpdatePipelineNotifierResponse)(nil), // 56: ingestion.v1.UpdatePipelineNotifierResponse
-	(*ListPipelineNotifiersResponse)(nil),  // 57: ingestion.v1.ListPipelineNotifiersResponse
-	(*DeletePipelineNotifierResponse)(nil), // 58: ingestion.v1.DeletePipelineNotifierResponse
-	(*RunPipelineResponse)(nil),            // 59: ingestion.v1.RunPipelineResponse
-	(*ListRunsResponse)(nil),               // 60: ingestion.v1.ListRunsResponse
-	(*GetRunResponse)(nil),                 // 61: ingestion.v1.GetRunResponse
-	(*SignalRunResponse)(nil),              // 62: ingestion.v1.SignalRunResponse
-	(*TailRunResponse)(nil),                // 63: ingestion.v1.TailRunResponse
+	(*GetVersionRequest)(nil),              // 32: ingestion.v1.GetVersionRequest
+	(*ListConnectorsResponse)(nil),         // 33: ingestion.v1.ListConnectorsResponse
+	(*GetConnectorResponse)(nil),           // 34: ingestion.v1.GetConnectorResponse
+	(*ValidateConfigResponse)(nil),         // 35: ingestion.v1.ValidateConfigResponse
+	(*DiscoverResourcesResponse)(nil),      // 36: ingestion.v1.DiscoverResourcesResponse
+	(*GetResourceColumnsResponse)(nil),     // 37: ingestion.v1.GetResourceColumnsResponse
+	(*CreateConnectionResponse)(nil),       // 38: ingestion.v1.CreateConnectionResponse
+	(*UpdateConnectionResponse)(nil),       // 39: ingestion.v1.UpdateConnectionResponse
+	(*GetConnectionResponse)(nil),          // 40: ingestion.v1.GetConnectionResponse
+	(*ListConnectionsResponse)(nil),        // 41: ingestion.v1.ListConnectionsResponse
+	(*DeleteConnectionResponse)(nil),       // 42: ingestion.v1.DeleteConnectionResponse
+	(*ValidatePipelineResponse)(nil),       // 43: ingestion.v1.ValidatePipelineResponse
+	(*ListTransformFunctionsResponse)(nil), // 44: ingestion.v1.ListTransformFunctionsResponse
+	(*ValidateTransformResponse)(nil),      // 45: ingestion.v1.ValidateTransformResponse
+	(*CreatePipelineResponse)(nil),         // 46: ingestion.v1.CreatePipelineResponse
+	(*CreatePipelineVersionResponse)(nil),  // 47: ingestion.v1.CreatePipelineVersionResponse
+	(*UpdatePipelineResponse)(nil),         // 48: ingestion.v1.UpdatePipelineResponse
+	(*GetPipelineResponse)(nil),            // 49: ingestion.v1.GetPipelineResponse
+	(*GetPipelineVersionResponse)(nil),     // 50: ingestion.v1.GetPipelineVersionResponse
+	(*ListPipelineVersionsResponse)(nil),   // 51: ingestion.v1.ListPipelineVersionsResponse
+	(*ListPipelinesResponse)(nil),          // 52: ingestion.v1.ListPipelinesResponse
+	(*DeletePipelineResponse)(nil),         // 53: ingestion.v1.DeletePipelineResponse
+	(*CreatePipelineScheduleResponse)(nil), // 54: ingestion.v1.CreatePipelineScheduleResponse
+	(*UpdatePipelineScheduleResponse)(nil), // 55: ingestion.v1.UpdatePipelineScheduleResponse
+	(*CreatePipelineNotifierResponse)(nil), // 56: ingestion.v1.CreatePipelineNotifierResponse
+	(*UpdatePipelineNotifierResponse)(nil), // 57: ingestion.v1.UpdatePipelineNotifierResponse
+	(*ListPipelineNotifiersResponse)(nil),  // 58: ingestion.v1.ListPipelineNotifiersResponse
+	(*DeletePipelineNotifierResponse)(nil), // 59: ingestion.v1.DeletePipelineNotifierResponse
+	(*RunPipelineResponse)(nil),            // 60: ingestion.v1.RunPipelineResponse
+	(*ListRunsResponse)(nil),               // 61: ingestion.v1.ListRunsResponse
+	(*GetRunResponse)(nil),                 // 62: ingestion.v1.GetRunResponse
+	(*SignalRunResponse)(nil),              // 63: ingestion.v1.SignalRunResponse
+	(*TailRunResponse)(nil),                // 64: ingestion.v1.TailRunResponse
+	(*GetVersionResponse)(nil),             // 65: ingestion.v1.GetVersionResponse
 }
 var file_ingestion_v1_service_proto_depIdxs = []int32{
 	0,  // 0: ingestion.v1.IngestionService.ListConnectors:input_type -> ingestion.v1.ListConnectorsRequest
@@ -159,40 +163,42 @@ var file_ingestion_v1_service_proto_depIdxs = []int32{
 	29, // 29: ingestion.v1.IngestionService.GetRun:input_type -> ingestion.v1.GetRunRequest
 	30, // 30: ingestion.v1.IngestionService.SignalRun:input_type -> ingestion.v1.SignalRunRequest
 	31, // 31: ingestion.v1.IngestionService.TailRun:input_type -> ingestion.v1.TailRunRequest
-	32, // 32: ingestion.v1.IngestionService.ListConnectors:output_type -> ingestion.v1.ListConnectorsResponse
-	33, // 33: ingestion.v1.IngestionService.GetConnector:output_type -> ingestion.v1.GetConnectorResponse
-	34, // 34: ingestion.v1.IngestionService.ValidateConfig:output_type -> ingestion.v1.ValidateConfigResponse
-	35, // 35: ingestion.v1.IngestionService.DiscoverResources:output_type -> ingestion.v1.DiscoverResourcesResponse
-	36, // 36: ingestion.v1.IngestionService.GetResourceColumns:output_type -> ingestion.v1.GetResourceColumnsResponse
-	37, // 37: ingestion.v1.IngestionService.CreateConnection:output_type -> ingestion.v1.CreateConnectionResponse
-	38, // 38: ingestion.v1.IngestionService.UpdateConnection:output_type -> ingestion.v1.UpdateConnectionResponse
-	39, // 39: ingestion.v1.IngestionService.GetConnection:output_type -> ingestion.v1.GetConnectionResponse
-	40, // 40: ingestion.v1.IngestionService.ListConnections:output_type -> ingestion.v1.ListConnectionsResponse
-	41, // 41: ingestion.v1.IngestionService.DeleteConnection:output_type -> ingestion.v1.DeleteConnectionResponse
-	42, // 42: ingestion.v1.IngestionService.ValidatePipeline:output_type -> ingestion.v1.ValidatePipelineResponse
-	43, // 43: ingestion.v1.IngestionService.ListTransformFunctions:output_type -> ingestion.v1.ListTransformFunctionsResponse
-	44, // 44: ingestion.v1.IngestionService.ValidateTransform:output_type -> ingestion.v1.ValidateTransformResponse
-	45, // 45: ingestion.v1.IngestionService.CreatePipeline:output_type -> ingestion.v1.CreatePipelineResponse
-	46, // 46: ingestion.v1.IngestionService.CreatePipelineVersion:output_type -> ingestion.v1.CreatePipelineVersionResponse
-	47, // 47: ingestion.v1.IngestionService.UpdatePipeline:output_type -> ingestion.v1.UpdatePipelineResponse
-	48, // 48: ingestion.v1.IngestionService.GetPipeline:output_type -> ingestion.v1.GetPipelineResponse
-	49, // 49: ingestion.v1.IngestionService.GetPipelineVersion:output_type -> ingestion.v1.GetPipelineVersionResponse
-	50, // 50: ingestion.v1.IngestionService.ListPipelineVersions:output_type -> ingestion.v1.ListPipelineVersionsResponse
-	51, // 51: ingestion.v1.IngestionService.ListPipelines:output_type -> ingestion.v1.ListPipelinesResponse
-	52, // 52: ingestion.v1.IngestionService.DeletePipeline:output_type -> ingestion.v1.DeletePipelineResponse
-	53, // 53: ingestion.v1.IngestionService.CreatePipelineSchedule:output_type -> ingestion.v1.CreatePipelineScheduleResponse
-	54, // 54: ingestion.v1.IngestionService.UpdatePipelineSchedule:output_type -> ingestion.v1.UpdatePipelineScheduleResponse
-	55, // 55: ingestion.v1.IngestionService.CreatePipelineNotifier:output_type -> ingestion.v1.CreatePipelineNotifierResponse
-	56, // 56: ingestion.v1.IngestionService.UpdatePipelineNotifier:output_type -> ingestion.v1.UpdatePipelineNotifierResponse
-	57, // 57: ingestion.v1.IngestionService.ListPipelineNotifiers:output_type -> ingestion.v1.ListPipelineNotifiersResponse
-	58, // 58: ingestion.v1.IngestionService.DeletePipelineNotifier:output_type -> ingestion.v1.DeletePipelineNotifierResponse
-	59, // 59: ingestion.v1.IngestionService.RunPipeline:output_type -> ingestion.v1.RunPipelineResponse
-	60, // 60: ingestion.v1.IngestionService.ListRuns:output_type -> ingestion.v1.ListRunsResponse
-	61, // 61: ingestion.v1.IngestionService.GetRun:output_type -> ingestion.v1.GetRunResponse
-	62, // 62: ingestion.v1.IngestionService.SignalRun:output_type -> ingestion.v1.SignalRunResponse
-	63, // 63: ingestion.v1.IngestionService.TailRun:output_type -> ingestion.v1.TailRunResponse
-	32, // [32:64] is the sub-list for method output_type
-	0,  // [0:32] is the sub-list for method input_type
+	32, // 32: ingestion.v1.IngestionService.GetVersion:input_type -> ingestion.v1.GetVersionRequest
+	33, // 33: ingestion.v1.IngestionService.ListConnectors:output_type -> ingestion.v1.ListConnectorsResponse
+	34, // 34: ingestion.v1.IngestionService.GetConnector:output_type -> ingestion.v1.GetConnectorResponse
+	35, // 35: ingestion.v1.IngestionService.ValidateConfig:output_type -> ingestion.v1.ValidateConfigResponse
+	36, // 36: ingestion.v1.IngestionService.DiscoverResources:output_type -> ingestion.v1.DiscoverResourcesResponse
+	37, // 37: ingestion.v1.IngestionService.GetResourceColumns:output_type -> ingestion.v1.GetResourceColumnsResponse
+	38, // 38: ingestion.v1.IngestionService.CreateConnection:output_type -> ingestion.v1.CreateConnectionResponse
+	39, // 39: ingestion.v1.IngestionService.UpdateConnection:output_type -> ingestion.v1.UpdateConnectionResponse
+	40, // 40: ingestion.v1.IngestionService.GetConnection:output_type -> ingestion.v1.GetConnectionResponse
+	41, // 41: ingestion.v1.IngestionService.ListConnections:output_type -> ingestion.v1.ListConnectionsResponse
+	42, // 42: ingestion.v1.IngestionService.DeleteConnection:output_type -> ingestion.v1.DeleteConnectionResponse
+	43, // 43: ingestion.v1.IngestionService.ValidatePipeline:output_type -> ingestion.v1.ValidatePipelineResponse
+	44, // 44: ingestion.v1.IngestionService.ListTransformFunctions:output_type -> ingestion.v1.ListTransformFunctionsResponse
+	45, // 45: ingestion.v1.IngestionService.ValidateTransform:output_type -> ingestion.v1.ValidateTransformResponse
+	46, // 46: ingestion.v1.IngestionService.CreatePipeline:output_type -> ingestion.v1.CreatePipelineResponse
+	47, // 47: ingestion.v1.IngestionService.CreatePipelineVersion:output_type -> ingestion.v1.CreatePipelineVersionResponse
+	48, // 48: ingestion.v1.IngestionService.UpdatePipeline:output_type -> ingestion.v1.UpdatePipelineResponse
+	49, // 49: ingestion.v1.IngestionService.GetPipeline:output_type -> ingestion.v1.GetPipelineResponse
+	50, // 50: ingestion.v1.IngestionService.GetPipelineVersion:output_type -> ingestion.v1.GetPipelineVersionResponse
+	51, // 51: ingestion.v1.IngestionService.ListPipelineVersions:output_type -> ingestion.v1.ListPipelineVersionsResponse
+	52, // 52: ingestion.v1.IngestionService.ListPipelines:output_type -> ingestion.v1.ListPipelinesResponse
+	53, // 53: ingestion.v1.IngestionService.DeletePipeline:output_type -> ingestion.v1.DeletePipelineResponse
+	54, // 54: ingestion.v1.IngestionService.CreatePipelineSchedule:output_type -> ingestion.v1.CreatePipelineScheduleResponse
+	55, // 55: ingestion.v1.IngestionService.UpdatePipelineSchedule:output_type -> ingestion.v1.UpdatePipelineScheduleResponse
+	56, // 56: ingestion.v1.IngestionService.CreatePipelineNotifier:output_type -> ingestion.v1.CreatePipelineNotifierResponse
+	57, // 57: ingestion.v1.IngestionService.UpdatePipelineNotifier:output_type -> ingestion.v1.UpdatePipelineNotifierResponse
+	58, // 58: ingestion.v1.IngestionService.ListPipelineNotifiers:output_type -> ingestion.v1.ListPipelineNotifiersResponse
+	59, // 59: ingestion.v1.IngestionService.DeletePipelineNotifier:output_type -> ingestion.v1.DeletePipelineNotifierResponse
+	60, // 60: ingestion.v1.IngestionService.RunPipeline:output_type -> ingestion.v1.RunPipelineResponse
+	61, // 61: ingestion.v1.IngestionService.ListRuns:output_type -> ingestion.v1.ListRunsResponse
+	62, // 62: ingestion.v1.IngestionService.GetRun:output_type -> ingestion.v1.GetRunResponse
+	63, // 63: ingestion.v1.IngestionService.SignalRun:output_type -> ingestion.v1.SignalRunResponse
+	64, // 64: ingestion.v1.IngestionService.TailRun:output_type -> ingestion.v1.TailRunResponse
+	65, // 65: ingestion.v1.IngestionService.GetVersion:output_type -> ingestion.v1.GetVersionResponse
+	33, // [33:66] is the sub-list for method output_type
+	0,  // [0:33] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -210,6 +216,7 @@ func file_ingestion_v1_service_proto_init() {
 	file_ingestion_v1_pipelines_proto_init()
 	file_ingestion_v1_runs_proto_init()
 	file_ingestion_v1_transformations_proto_init()
+	file_ingestion_v1_version_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

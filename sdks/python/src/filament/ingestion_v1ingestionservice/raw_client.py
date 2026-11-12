@@ -12,6 +12,8 @@ from ..core.request_options import RequestOptions
 from ..core.serialization import convert_and_respect_annotation_metadata
 from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
+from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
+from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
 from ..types.ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
 from pydantic import ValidationError
@@ -23,6 +25,61 @@ OMIT = typing.cast(typing.Any, ...)
 class RawIngestionV1IngestionserviceClient:
     def __init__(self, *, client_wrapper: SyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    def getversion(
+        self,
+        *,
+        request: IngestionV1GetVersionRequest,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[IngestionV1GetVersionResponse]:
+        """
+        The build version stamped into the server binary.
+
+        Parameters
+        ----------
+        request : IngestionV1GetVersionRequest
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[IngestionV1GetVersionResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetVersion",
+            method="POST",
+            json=request,
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetVersionResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetVersionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     def listtransformfunctions(
         self,
@@ -150,6 +207,61 @@ class RawIngestionV1IngestionserviceClient:
 class AsyncRawIngestionV1IngestionserviceClient:
     def __init__(self, *, client_wrapper: AsyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    async def getversion(
+        self,
+        *,
+        request: IngestionV1GetVersionRequest,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[IngestionV1GetVersionResponse]:
+        """
+        The build version stamped into the server binary.
+
+        Parameters
+        ----------
+        request : IngestionV1GetVersionRequest
+
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[IngestionV1GetVersionResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetVersion",
+            method="POST",
+            json=request,
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetVersionResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetVersionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     async def listtransformfunctions(
         self,
