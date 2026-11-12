@@ -304,6 +304,32 @@ func (e *emitter) failedAt(err error, resource string, resources []string) {
 	e.fail(err)
 }
 
+// dropResource removes an aborted resource's tallies from the run totals. Its
+// batch facts stay published for diagnostics; its rows never committed.
+func (e *emitter) dropResource(resource string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if t := e.res[resource]; t != nil {
+		e.runRecords -= t.records
+		e.runBytes -= t.bytes
+		delete(e.res, resource)
+	}
+	delete(e.latestStream, resource)
+}
+
+// completedExcept is completed for a run that isolated resource failures: the
+// healthy resources complete and run.completed names the failed ones. Their
+// resource.failed facts were published before the sink committed.
+func (e *emitter) completedExcept(healthy, failed []string) {
+	defer e.finish()()
+	for _, res := range healthy {
+		records, bytes := e.resourceTally(res)
+		emit(e, events.ResourceCompleted, res, events.ResourceCompletedEvent{Records: records, Bytes: bytes})
+	}
+	records, bytes := e.runTotals()
+	emit(e, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes, FailedResources: failed})
+}
+
 // completed publishes the run's success terminals — per-resource completions
 // with their tallies, then run.completed with the run totals — detached from
 // run cancellation. Call only after the sink commit has returned, so commit
