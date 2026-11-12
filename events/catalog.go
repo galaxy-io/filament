@@ -40,6 +40,9 @@ type (
 	RunCompletedEvent struct {
 		Records int64 `json:"records"`
 		Bytes   int64 `json:"bytes"`
+		// FailedResources lists resources that failed while the run isolated
+		// resource failures. The sink committed every other resource.
+		FailedResources []string `json:"failedResources,omitempty"`
 	}
 	// RunFailedEvent carries the error that ended the run.
 	RunFailedEvent struct {
@@ -90,6 +93,15 @@ type (
 	}
 	// ResourceFailedEvent carries the error that ended a resource.
 	ResourceFailedEvent struct {
+		Error string `json:"error"`
+		// Discarded means the resource's commit-gated writes were aborted
+		// while the run went on, so its tentative cursor and tallies are void.
+		Discarded bool `json:"discarded,omitempty"`
+	}
+	// ResourceQuarantinedEvent reports that a failed resource was stopped
+	// while the rest of the run continues. The terminal resource.failed
+	// follows when the run ends.
+	ResourceQuarantinedEvent struct {
 		Error string `json:"error"`
 	}
 
@@ -188,13 +200,14 @@ var (
 	RunCancelRequested = define[RunCancelRequestedEvent]("run.cancel_requested")
 	Heartbeat          = define[HeartbeatEvent]("run.heartbeat")
 
-	ResourceStarted   = define[ResourceStartedEvent]("resource.started")
-	PageFetched       = define[PageFetchedEvent]("resource.page_fetched")
-	FanOutStarted     = define[FanOutStartedEvent]("resource.fan_out_started")
-	ResourceCompleted = define[ResourceCompletedEvent]("resource.completed")
-	SchemaDetected    = define[SchemaDetectedEvent]("schema.detected")
-	SchemaBlocked     = define[SchemaBlockedEvent]("schema.blocked")
-	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
+	ResourceStarted     = define[ResourceStartedEvent]("resource.started")
+	PageFetched         = define[PageFetchedEvent]("resource.page_fetched")
+	FanOutStarted       = define[FanOutStartedEvent]("resource.fan_out_started")
+	ResourceCompleted   = define[ResourceCompletedEvent]("resource.completed")
+	SchemaDetected      = define[SchemaDetectedEvent]("schema.detected")
+	SchemaBlocked       = define[SchemaBlockedEvent]("schema.blocked")
+	ResourceFailed      = define[ResourceFailedEvent]("resource.failed")
+	ResourceQuarantined = define[ResourceQuarantinedEvent]("resource.quarantined")
 
 	BatchBuffered            = define[BatchBufferedEvent]("batch.buffered")
 	BatchTransformed         = define[BatchTransformedEvent]("batch.transformed")
