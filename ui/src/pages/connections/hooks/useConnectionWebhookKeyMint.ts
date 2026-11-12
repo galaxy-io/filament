@@ -38,10 +38,7 @@ export const useConnectionWebhookKeyMint = () => {
             onSuccess({
               connection,
               signingKey: response.mintedSecret,
-              deliveryUrl: createWebhookDeliveryBaseUrl(
-                connection.id,
-                response.endpoint?.deliveryUrl,
-              ),
+              deliveryUrl: createWebhookDeliveryBaseUrl(response.endpoint?.deliveryUrl),
             });
           },
           onError,

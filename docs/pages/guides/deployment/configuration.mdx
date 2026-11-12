@@ -158,10 +158,10 @@ Workers consume the inbox after acceptance. The control plane purges it.
 |---|---|---|
 | `WEBHOOKS_ENABLED` | `false` | Enable the `/hooks/` delivery path on the server and inbox retention on the control plane |
 | `WEBHOOK_MAX_IN_FLIGHT` | `64` | Maximum concurrent deliveries per server replica. Excess requests return `503` with `Retry-After` |
-| `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach, such as `https://filament.example.com`. The API and UI then show full delivery URLs. Unset shows paths only |
-| `WEBHOOK_INBOX_MAX_BYTES` | — | Required inbox capacity in bytes when enabled |
-| `WEBHOOK_INBOX_MAX_MESSAGE_BYTES` | — | Required maximum stored message size in bytes when enabled |
-| `WEBHOOK_INBOX_REPLICAS` | — | Required JetStream replica count from 1 to 5 when enabled |
+| `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach, such as `https://filament.example.com`. The API and UI show delivery URLs when set. Unset makes the delivery URL unavailable in the UI |
+| `WEBHOOK_INBOX_MAX_BYTES` | — | Required inbox capacity in bytes when enabled. Increasing it expands the existing stream on startup. A lower value does not shrink the stream |
+| `WEBHOOK_INBOX_MAX_MESSAGE_BYTES` | — | Required maximum stored message size in bytes when enabled. Increasing it expands the existing stream on startup. A lower value limits this server but does not shrink the stream |
+| `WEBHOOK_INBOX_REPLICAS` | — | Required JetStream replica count from 1 to 5 when enabled. Changing it on an existing stream requires a coordinated migration |
 | `WEBHOOK_INBOX_RETENTION_HOURS` | `168` | Control plane only. Hours a delivery stays in the inbox before it may be purged. Also how long a sender retry is recognized as a duplicate |
 | `WEBHOOK_INBOX_MAX_HOLD_HOURS` | `720` | Control plane only. Most hours a delivery no pipeline has read stays in the inbox. Past it the delivery is dropped and counted in `filament_webhook_expired_total`. At least the retention period |
 

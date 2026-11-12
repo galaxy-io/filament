@@ -20,5 +20,5 @@ export interface ConnectionFormState {
 export interface ConnectionFormSigningKeyReveal {
   connection: Connection;
   signingKey: string;
-  deliveryUrl: string;
+  deliveryUrl: string | undefined;
 }

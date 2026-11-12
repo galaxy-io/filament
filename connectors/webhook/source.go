@@ -79,6 +79,9 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 
 // TestConnection verifies that the source can attach to the inbox.
 func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
+	if s.inbox != nil {
+		return s.Validate(cfg)
+	}
 	temp := New(s.attach)
 	if err := temp.Configure(ctx, cfg); err != nil {
 		return err

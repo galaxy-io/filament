@@ -39,15 +39,16 @@ export const isWebhookPreviousKeyActive = (endpoint: WebhookEndpointConfig | und
   !!endpoint && endpoint.previousKeyExpiresAt > BigInt(Date.now());
 
 export const createWebhookDeliveryBaseUrl = (
-  sourceConnectionId: Connection["id"],
   deliveryUrl: WebhookEndpointConfig["deliveryUrl"] | undefined,
-) => deliveryUrl || `/hooks/${sourceConnectionId}`;
+) => deliveryUrl || undefined;
 
 export const createWebhookDeliveryUrl = (
-  sourceConnectionId: Connection["id"],
   resource: string,
   deliveryUrl: WebhookEndpointConfig["deliveryUrl"] | undefined,
-) => `${createWebhookDeliveryBaseUrl(sourceConnectionId, deliveryUrl)}/${resource}`;
+) => {
+  const baseUrl = createWebhookDeliveryBaseUrl(deliveryUrl);
+  return baseUrl ? `${baseUrl}/${resource}` : undefined;
+};
 
 export const createWebhookRouteKey = (sourceNodeId: string, sinkNodeId: string) =>
   `route/${sourceNodeId}/${sinkNodeId}`;

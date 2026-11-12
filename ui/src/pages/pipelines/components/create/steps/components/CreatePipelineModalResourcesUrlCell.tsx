@@ -31,7 +31,7 @@ const CreatePipelineModalResourcesUrlCell: FC<CreatePipelineModalResourcesUrlCel
       family={FontFamily.MONO}
       lineClamp={1}
     >
-      {createWebhookDeliveryUrl(sourceConnectionId, row.name, data?.endpoint?.deliveryUrl)}
+      {createWebhookDeliveryUrl(row.name, data?.endpoint?.deliveryUrl) ?? "URL unavailable"}
     </Text>
   );
 };

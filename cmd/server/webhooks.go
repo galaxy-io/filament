@@ -104,7 +104,7 @@ func parsePublicBaseURL(raw string) (string, error) {
 	}
 	u, err := neturl.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
-		u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
 		return "", fmt.Errorf("WEBHOOK_PUBLIC_BASE_URL must be an absolute http or https URL without query or fragment: %q", raw)
 	}
 	return strings.TrimRight(u.String(), "/"), nil

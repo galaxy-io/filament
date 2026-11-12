@@ -25,27 +25,23 @@ const WebhookDeliveryUrlCopyButton: FC<WebhookDeliveryUrlCopyButtonProps> = ({
     input: createGetWebhookEndpointInput(sourceConnectionId),
     options: { retry: false },
   });
-  const deliveryUrl = createWebhookDeliveryUrl(
-    sourceConnectionId,
-    resource,
-    data?.endpoint?.deliveryUrl,
-  );
+  const deliveryUrl = createWebhookDeliveryUrl(resource, data?.endpoint?.deliveryUrl);
 
   return (
     <Tooltip
       body={
         <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-          {deliveryUrl}
+          {deliveryUrl ?? "Delivery URL unavailable. Configure WEBHOOK_PUBLIC_BASE_URL."}
         </Text>
       }
     >
       <CopyButton
         label="Copy URL"
-        value={deliveryUrl}
+        value={deliveryUrl ?? ""}
         ariaLabel={`Copy ${resource} delivery URL`}
         variant={ButtonVariant.SECONDARY}
         size={ButtonSize.SMALL}
-        isDisabled={isLoading}
+        isDisabled={isLoading || !deliveryUrl}
       />
     </Tooltip>
   );

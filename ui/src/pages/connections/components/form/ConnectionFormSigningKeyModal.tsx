@@ -5,6 +5,7 @@ import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import Text from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
@@ -55,13 +56,17 @@ const ConnectionFormSigningKeyModal: FC<ConnectionFormSigningKeyModalProps> = ({
           Add it to the sender that signs your deliveries.
         </Alert>
         <CopyInput label="Signing key" value={signingKey} family={FontFamily.MONO} fillWidth />
-        <CopyInput
-          label="Delivery URL"
-          labelTooltip="Send each delivery to this URL followed by a resource name, such as /orders. Resources are named in the pipeline that reads this source."
-          value={deliveryUrl}
-          family={FontFamily.MONO}
-          fillWidth
-        />
+        {deliveryUrl ? (
+          <CopyInput
+            label="Delivery URL"
+            labelTooltip="Send each delivery to this URL followed by a resource name, such as /orders. Resources are named in the pipeline that reads this source."
+            value={deliveryUrl}
+            family={FontFamily.MONO}
+            fillWidth
+          />
+        ) : (
+          <Text>Delivery URL unavailable. Configure WEBHOOK_PUBLIC_BASE_URL.</Text>
+        )}
       </Flex>
     </ConnectionFormWrapper>
   );
