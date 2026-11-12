@@ -9,28 +9,18 @@ import (
 
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	"github.com/galaxy-io/filament/cmd/internal/cli/engine"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
-	"github.com/galaxy-io/filament/datastore/sqlite"
-	"github.com/galaxy-io/filament/eventbus"
-	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
-	"github.com/galaxy-io/filament/registry"
-	"github.com/galaxy-io/filament/runner"
 )
 
 type runSession struct {
-	ref          model.RunRef
-	spec         filament.RunSpec
-	bus          *inproc.Bus
-	store        *sqlite.Store
-	subscription eventbus.Subscription
-	done         <-chan error
-	cancel       context.CancelFunc
+	ref model.RunRef
+	run *engine.InlineRun
 }
 
-// submitLocal starts an in-process run and returns its identity before
-// waiting for progress. The subscription is established first so no early
-// event can be lost between submission and the tail.
+// submitLocal starts an untracked run in the local engine and returns its
+// identity before waiting for progress.
 func (t *Target) submitLocal(ctx context.Context, spec filament.RunSpec) (model.RunGroup, error) {
 	catalog, err := t.Catalog(ctx)
 	if err != nil {
@@ -60,33 +50,20 @@ func (t *Target) submitLocal(ctx context.Context, spec filament.RunSpec) (model.
 	}
 	spec.Source.Config = sourceConfig
 	spec.Sink.Config = sinkConfig
-	bus := inproc.New(inproc.WithBuffer(1024))
-	subscription, err := bus.Subscribe(events.RunPattern(spec.Tenant, spec.Run), eventbus.SubOpts{})
+	if t.engine == nil {
+		return model.RunGroup{}, fmt.Errorf("local target has no engine for inline runs")
+	}
+	run, err := t.engine.Inline(ctx, spec, os.Stdout, os.Stderr)
 	if err != nil {
-		_ = bus.Close()
 		return model.RunGroup{}, err
 	}
-
-	store := sqlite.NewMemory()
-	runCtx, cancel := context.WithCancel(ctx)
-	runnerDone := make(chan error, 1)
-	go func() {
-		runnerDone <- runner.RunOne(runCtx, runner.Deps{
-			Bus:       bus,
-			DataStore: store,
-			Sources:   t.sources,
-			Sinks:     registry.DefaultSinks,
-		}, spec)
-	}()
 	route := spec.PipelineID
 	if route == "" {
 		route = spec.Source.Connector + "->" + spec.Sink.Connector
 	}
 	ref := model.RunRef{ID: string(spec.Run), Route: route}
 	t.runMu.Lock()
-	t.runs[ref.ID] = &runSession{
-		ref: ref, spec: spec, bus: bus, store: store, subscription: subscription, done: runnerDone, cancel: cancel,
-	}
+	t.runs[ref.ID] = &runSession{ref: ref, run: run}
 	t.runMu.Unlock()
 	return model.RunGroup{Runs: []model.RunRef{ref}}, nil
 }
@@ -102,18 +79,19 @@ func (t *Target) tailLocal(ctx context.Context, group model.RunGroup, observe fu
 		return model.RunResult{}, err
 	}
 	defer t.closeRunSession(ref.ID, session)
-	runnerDone := session.done
+	runnerDone := session.run.Done()
+	// The exit error is reported only when the facts end without a terminal
+	// one, since a failed run exits as its run.failed fact is still queued.
+	var exitErr error
 
 	for {
 		select {
-		case message, ok := <-session.subscription.C():
+		case fact, ok := <-session.run.Facts():
 			if !ok {
+				if exitErr != nil {
+					return model.RunResult{}, exitErr
+				}
 				return model.RunResult{}, fmt.Errorf("run event stream closed before completion")
-			}
-			fact, decodeErr := events.Decode(message)
-			_ = message.Ack()
-			if decodeErr != nil {
-				return model.RunResult{}, decodeErr
 			}
 			switch fact.Name {
 			case events.ResourceStarted.Name():
@@ -147,10 +125,7 @@ func (t *Target) tailLocal(ctx context.Context, group model.RunGroup, observe fu
 				notifyRunObserver(observe, model.RunEvent{Run: ref.ID, Route: ref.Route, Status: "canceled", Final: true})
 				return model.RunResult{Runs: group.Runs, Status: "canceled"}, nil
 			}
-		case runErr := <-runnerDone:
-			if runErr != nil {
-				return model.RunResult{}, runErr
-			}
+		case exitErr = <-runnerDone:
 			runnerDone = nil
 		case <-ctx.Done():
 			return model.RunResult{}, ctx.Err()
@@ -159,17 +134,16 @@ func (t *Target) tailLocal(ctx context.Context, group model.RunGroup, observe fu
 }
 
 // signalLocal sends a lifecycle signal to an active direct run.
-func (t *Target) signalLocal(ctx context.Context, ref model.RunRef, signal filament.Signal) error {
+func (t *Target) signalLocal(ref model.RunRef, signal filament.Signal) error {
 	session, err := t.runSession(ref.ID)
 	if err != nil {
 		return err
 	}
-	envelope := events.Envelope{Tenant: session.spec.Tenant, Run: session.spec.Run, At: time.Now()}
 	switch signal {
 	case filament.SignalPause:
-		return events.Emit(ctx, session.bus, events.RunPauseRequested, envelope, events.RunPauseRequestedEvent{})
+		return session.run.Request("pause")
 	case filament.SignalCancel:
-		return events.Emit(ctx, session.bus, events.RunCancelRequested, envelope, events.RunCancelRequestedEvent{})
+		return session.run.Request("cancel")
 	case filament.SignalResume:
 		return fmt.Errorf("local target does not support resuming a submitted run")
 	default:
@@ -200,10 +174,7 @@ func (t *Target) closeRunSession(id string, session *runSession) {
 		delete(t.runs, id)
 	}
 	t.runMu.Unlock()
-	session.cancel()
-	_ = session.subscription.Close()
-	_ = session.bus.Close()
-	_ = session.store.Close()
+	_ = session.run.Close()
 }
 
 func runEvent(ref model.RunRef, resource, status string) model.RunEvent {

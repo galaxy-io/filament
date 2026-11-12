@@ -12,26 +12,30 @@ import (
 	"gopkg.in/yaml.v3"
 
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
+	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
 func (a *cliApp) configCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:               "config",
-		Short:             "Work with the configuration file",
-		PersistentPreRunE: a.prepareTarget,
-	}
+	cmd := a.targetGroup(&cobra.Command{
+		Use:   "config",
+		Short: "Work with the configuration file",
+	}, "config")
 	cmd.AddCommand(
 		&cobra.Command{
-			Use:   "path",
-			Short: "Print the configuration file path",
-			Args:  cobra.NoArgs,
+			Use:               "path",
+			Short:             "Print the configuration file path",
+			Args:              cobra.NoArgs,
+			PersistentPreRunE: withoutTarget,
 			RunE: func(*cobra.Command, []string) error {
-				location := a.service.ConfigurationLocation()
-				if location == "" {
+				selected, err := a.selectContext()
+				if err != nil {
+					return err
+				}
+				if selected.Target.Kind != contexts.KindLocal {
 					return cliapp.ErrRawConfigurationUnsupported
 				}
-				_, err := fmt.Fprintln(a.stdout, location)
+				_, err = fmt.Fprintln(a.stdout, selected.Target.ConfigPath)
 				return err
 			},
 		},

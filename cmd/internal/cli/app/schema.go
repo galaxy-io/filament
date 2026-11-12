@@ -3,8 +3,9 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -21,8 +22,8 @@ func ValidateDocument(document model.Document, catalog model.Catalog) error {
 	if document.Version != model.ConfigVersion {
 		return fmt.Errorf("version: got %d, want %d", document.Version, model.ConfigVersion)
 	}
-	for _, name := range sortedKeys(document.Sources) {
-		if err := validateName("source", name); err != nil {
+	for _, name := range slices.Sorted(maps.Keys(document.Sources)) {
+		if err := ValidateName("source", name); err != nil {
 			return err
 		}
 		connection := document.Sources[name]
@@ -34,8 +35,8 @@ func ValidateDocument(document model.Document, catalog model.Catalog) error {
 			return err
 		}
 	}
-	for _, name := range sortedKeys(document.Sinks) {
-		if err := validateName("sink", name); err != nil {
+	for _, name := range slices.Sorted(maps.Keys(document.Sinks)) {
+		if err := ValidateName("sink", name); err != nil {
 			return err
 		}
 		connection := document.Sinks[name]
@@ -47,8 +48,8 @@ func ValidateDocument(document model.Document, catalog model.Catalog) error {
 			return err
 		}
 	}
-	for _, name := range sortedKeys(document.Pipelines) {
-		if err := validateName("pipeline", name); err != nil {
+	for _, name := range slices.Sorted(maps.Keys(document.Pipelines)) {
+		if err := ValidateName("pipeline", name); err != nil {
 			return err
 		}
 		pipeline := document.Pipelines[name]
@@ -69,7 +70,7 @@ func ValidateDocument(document model.Document, catalog model.Catalog) error {
 			return fmt.Errorf("pipeline %q: sync_mode %q is not supported; use full", name, pipeline.SyncMode)
 		}
 		writeMode := filament.WriteMode(pipeline.WriteMode)
-		if !containsWriteMode(filament.WriteModesFor(filament.ModeFull), writeMode) {
+		if !slices.Contains(filament.WriteModesFor(filament.ModeFull), writeMode) {
 			return fmt.Errorf("pipeline %q: write_mode %q is not compatible with full reads", name, pipeline.WriteMode)
 		}
 		sinkSpec := catalog.Sinks[sink.Type]
@@ -86,8 +87,8 @@ func ValidateDocument(document model.Document, catalog model.Catalog) error {
 	return nil
 }
 
-// validateName only requires a name; the deployment owns any further rule.
-func validateName(kind, name string) error {
+// ValidateName only requires a name; the deployment owns any further rule.
+func ValidateName(kind, name string) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("%s name is required", kind)
 	}
@@ -212,7 +213,7 @@ func ParseFieldValue(field filament.ConfigField, raw string) (any, error) {
 		}
 		return value, nil
 	case filament.FieldList:
-		return splitComma(raw), nil
+		return SplitComma(raw), nil
 	default:
 		if err := validateFieldValue(field, raw); err != nil {
 			return nil, err
@@ -233,7 +234,7 @@ func validateFieldValue(field filament.ConfigField, value any) error {
 				return fmt.Errorf("must be a duration such as 30s or 5m")
 			}
 		}
-		if field.Type == filament.FieldEnum && text != "" && !containsString(enumValues(field.Enum), text) {
+		if field.Type == filament.FieldEnum && text != "" && !slices.Contains(enumValues(field.Enum), text) {
 			return fmt.Errorf("must be one of %s", strings.Join(enumValues(field.Enum), ", "))
 		}
 	case filament.FieldInt:
@@ -269,7 +270,7 @@ func validateFieldValue(field filament.ConfigField, value any) error {
 		if len(field.Enum) > 0 {
 			allowed := enumValues(field.Enum)
 			for _, value := range values {
-				if !containsString(allowed, value) {
+				if !slices.Contains(allowed, value) {
 					return fmt.Errorf("items must be one of %s", strings.Join(allowed, ", "))
 				}
 			}
@@ -333,16 +334,8 @@ func valuesWithDefaults(fields []filament.ConfigField, values map[string]any) ma
 	return result
 }
 
-func sortedKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func splitComma(value string) []string {
+// SplitComma splits a comma-separated list, dropping blanks and duplicates.
+func SplitComma(value string) []string {
 	seen := map[string]bool{}
 	result := []string{}
 	for _, item := range strings.Split(value, ",") {
@@ -353,15 +346,6 @@ func splitComma(value string) []string {
 		}
 	}
 	return result
-}
-
-func containsString(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 func enumValues(options []filament.EnumOption) []string {
@@ -387,13 +371,4 @@ func isEmpty(value any) bool {
 	default:
 		return false
 	}
-}
-
-func containsWriteMode(modes []filament.WriteMode, wanted filament.WriteMode) bool {
-	for _, mode := range modes {
-		if mode == wanted {
-			return true
-		}
-	}
-	return false
 }

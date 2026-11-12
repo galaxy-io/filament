@@ -15,33 +15,6 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
 
-func TestInteractiveEntryRoutes(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		args      []string
-		section   string
-		operation string
-		routed    bool
-	}{
-		{routed: true},
-		{args: []string{"source"}, section: "source", routed: true},
-		{args: []string{"source", "list"}},
-		{args: []string{"source", "create"}, section: "source", operation: "create", routed: true},
-		{args: []string{"pipeline", "list"}},
-		{args: []string{"config"}, section: "config", routed: true},
-		{args: []string{"run"}, section: "run", operation: "run", routed: true},
-		{args: []string{"source", "create", "production"}},
-		{args: []string{"source", "discover"}},
-		{args: []string{"source", "--help"}},
-	}
-	for _, test := range tests {
-		entry, routed := interactiveEntryForArgs(test.args)
-		if routed != test.routed || entry.section != test.section || entry.operation != test.operation {
-			t.Errorf("interactiveEntryForArgs(%v) = %#v, %v", test.args, entry, routed)
-		}
-	}
-}
-
 func TestInteractiveFormStaysInline(t *testing.T) {
 	t.Parallel()
 	var output bytes.Buffer

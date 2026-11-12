@@ -26,7 +26,11 @@ func (s *Service) DiscoverSource(ctx context.Context, request DiscoverSourceRequ
 		if schemaErr != nil {
 			return model.ResourceList{}, schemaErr
 		}
-		config, err = ResolvedConnectionConfig(connection, request.Config.Values, schema)
+		// The saved connection and its secret refs are resolved by the target.
+		// Send only discovery overrides so a reference cannot replace the
+		// target's resolved credential with literal "env:NAME" text.
+		config = canonicalizeConfig(schema, applyConfigPatch(nil, request.Config))
+		config, err = normalizeSavedSecretReferences(schema, config)
 	} else {
 		if connector == "" {
 			return model.ResourceList{}, fmt.Errorf("a saved source or connector is required")
@@ -45,6 +49,6 @@ func (s *Service) DiscoverSource(ctx context.Context, request DiscoverSourceRequ
 		return model.ResourceList{}, fmt.Errorf("source %q: %w", label, err)
 	}
 	return s.target.Discover(ctx, model.DiscoverRequest{
-		Connector: connector, Source: label, Config: config, Refresh: request.Refresh,
+		Connector: connector, Source: request.Source, Config: config, Refresh: request.Refresh,
 	})
 }
