@@ -17,7 +17,7 @@ config:
   api_token:
     type: secret
     required: true
-    help: Atlassian API token created at id.atlassian.com. The token reads what its account can see.
+    help: Classic Atlassian API token created at id.atlassian.com. Scoped tokens do not work with Basic auth. The token reads what its account can see.
 connection:
   base_url: "https://{{ config.site }}.atlassian.net"
   auth: {basic: {username: config.email, password: config.api_token}}

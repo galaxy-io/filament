@@ -20,10 +20,10 @@ read that returned only the issue updated after the watermark. It targets Jira C
 |---|---|---|---|
 | `site` | Connection | | Required. Jira Cloud site subdomain, the part before `.atlassian.net`. For `https://example.atlassian.net` enter `example`. |
 | `email` | Connection | | Required. Email address of the Atlassian account that owns the API token. |
-| `api_token` | Connection | | Required. Secret. Atlassian API token created at `id.atlassian.com`. |
+| `api_token` | Connection | | Required. Secret. Classic Atlassian API token created at `id.atlassian.com`. Scoped tokens do not work with Basic auth. |
 
-Create an API token in your
-[Atlassian account security settings](https://id.atlassian.com/manage-profile/security/api-tokens). The token reads what its account can see. Use a service account token for unattended syncs so the data does not change when a person leaves the team. See
+Create a classic API token in your
+[Atlassian account security settings](https://id.atlassian.com/manage-profile/security/api-tokens). Scoped tokens are for OAuth and fail here with a 401. The token reads what its account can see. Use a service account token for unattended syncs so the data does not change when a person leaves the team. See
 [Basic auth for REST APIs](https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/).
 
 Connection testing calls `GET /rest/api/3/myself`. Every request goes to
