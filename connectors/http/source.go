@@ -662,6 +662,7 @@ func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		ResumeWatermarks:     resumeWatermarks,
 		IncrementalLookbacks: s.incrementalLookbacks,
 		IncrementalResources: s.incrementalResourceSet(),
+		Failures:             failureReporter(sink),
 	})
 }
 
@@ -1003,7 +1004,7 @@ func (r *rowSink) Push(rec record) error {
 	}
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Data, &obj); err != nil {
-		return fmt.Errorf("httpapi %q: record is not a JSON object: %w", rec.Resource, err)
+		return resourceScoped(fmt.Errorf("httpapi %q: record is not a JSON object: %w", rec.Resource, err))
 	}
 	for i, f := range rw.fields {
 		raw, ok := obj[f.Name]
@@ -1012,7 +1013,7 @@ func (r *rowSink) Push(rec record) error {
 			continue
 		}
 		if err := rw.parsers[i](rw.w, raw); err != nil {
-			return fmt.Errorf("httpapi %q field %q: %w", rec.Resource, f.Name, err)
+			return resourceScoped(fmt.Errorf("httpapi %q field %q: %w", rec.Resource, f.Name, err))
 		}
 	}
 	return rw.w.EndRow(rowmodel.Meta{Op: rec.Op, Key: rec.Key})

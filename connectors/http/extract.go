@@ -44,6 +44,9 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.mu.Unlock()
 
 	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
+	if opts.Failures != nil {
+		return c.extractIsolated(ctx, sink, opts.Failures, topLevel, children)
+	}
 
 	outcomes := c.extractConcurrent(ctx, topLevel, sink)
 
@@ -197,7 +200,7 @@ func (c *Connector) readResource(ctx context.Context, res manifest.Resource, sin
 	if res.Pagination.PageSizeFrom != "" {
 		n, err := strconv.Atoi(c.creds[res.Pagination.PageSizeFrom])
 		if err != nil || n <= 0 {
-			return fmt.Errorf("invalid page size in %s", res.Pagination.PageSizeFrom)
+			return resourceScoped(fmt.Errorf("invalid page size in %s", res.Pagination.PageSizeFrom))
 		}
 		res.Pagination.PageSize = n
 	}
