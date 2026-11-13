@@ -8,8 +8,11 @@ from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
 from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
 from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
+from ..types.ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
+from ..types.ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
 from ..types.ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
+from ..types.ingestion_v1webhook_endpoint_config import IngestionV1WebhookEndpointConfig
 from .raw_client import AsyncRawIngestionV1IngestionserviceClient, RawIngestionV1IngestionserviceClient
 
 # this is used as the default value for optional parameters
@@ -74,6 +77,50 @@ class IngestionV1IngestionserviceClient:
         )
         return _response.data
 
+    def getwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetWebhookEndpointResponse:
+        """
+        Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetWebhookEndpointResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.ingestion_v1ingestionservice.getwebhookendpoint(
+            connect_timeout_ms=1000.0,
+        )
+        """
+        _response = self._raw_client.getwebhookendpoint(
+            connect_timeout_ms=connect_timeout_ms,
+            source_connection_id=source_connection_id,
+            request_options=request_options,
+        )
+        return _response.data
+
     def listtransformfunctions(
         self,
         *,
@@ -113,6 +160,70 @@ class IngestionV1IngestionserviceClient:
         """
         _response = self._raw_client.listtransformfunctions(
             connect_timeout_ms=connect_timeout_ms, logical_type=logical_type, request_options=request_options
+        )
+        return _response.data
+
+    def putwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        endpoint: typing.Optional[IngestionV1WebhookEndpointConfig] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
+        imported_secret: typing.Optional[str] = OMIT,
+        mint_secret: typing.Optional[bool] = OMIT,
+        expected_pipeline_version_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1PutWebhookEndpointResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        endpoint : typing.Optional[IngestionV1WebhookEndpointConfig]
+
+        expected_revision : typing.Optional[str]
+            Zero creates an endpoint. Updates must send the last observed revision.
+
+        imported_secret : typing.Optional[str]
+            Supply an imported provider key or ask Filament to mint one. Omit both on
+             update to keep the current key. A newly supplied key replaces the old one,
+             which keeps verifying for 72 hours so senders can switch over.
+
+        mint_secret : typing.Optional[bool]
+
+        expected_pipeline_version_id : typing.Optional[str]
+            When set, the endpoint write must use the pipeline's current version.
+             Pipeline graph synchronization sends this to reject stale saves.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1PutWebhookEndpointResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.ingestion_v1ingestionservice.putwebhookendpoint(
+            connect_timeout_ms=1000.0,
+        )
+        """
+        _response = self._raw_client.putwebhookendpoint(
+            connect_timeout_ms=connect_timeout_ms,
+            endpoint=endpoint,
+            expected_revision=expected_revision,
+            imported_secret=imported_secret,
+            mint_secret=mint_secret,
+            expected_pipeline_version_id=expected_pipeline_version_id,
+            request_options=request_options,
         )
         return _response.data
 
@@ -233,6 +344,58 @@ class AsyncIngestionV1IngestionserviceClient:
         )
         return _response.data
 
+    async def getwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetWebhookEndpointResponse:
+        """
+        Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetWebhookEndpointResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.ingestion_v1ingestionservice.getwebhookendpoint(
+                connect_timeout_ms=1000.0,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.getwebhookendpoint(
+            connect_timeout_ms=connect_timeout_ms,
+            source_connection_id=source_connection_id,
+            request_options=request_options,
+        )
+        return _response.data
+
     async def listtransformfunctions(
         self,
         *,
@@ -280,6 +443,78 @@ class AsyncIngestionV1IngestionserviceClient:
         """
         _response = await self._raw_client.listtransformfunctions(
             connect_timeout_ms=connect_timeout_ms, logical_type=logical_type, request_options=request_options
+        )
+        return _response.data
+
+    async def putwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        endpoint: typing.Optional[IngestionV1WebhookEndpointConfig] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
+        imported_secret: typing.Optional[str] = OMIT,
+        mint_secret: typing.Optional[bool] = OMIT,
+        expected_pipeline_version_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1PutWebhookEndpointResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        endpoint : typing.Optional[IngestionV1WebhookEndpointConfig]
+
+        expected_revision : typing.Optional[str]
+            Zero creates an endpoint. Updates must send the last observed revision.
+
+        imported_secret : typing.Optional[str]
+            Supply an imported provider key or ask Filament to mint one. Omit both on
+             update to keep the current key. A newly supplied key replaces the old one,
+             which keeps verifying for 72 hours so senders can switch over.
+
+        mint_secret : typing.Optional[bool]
+
+        expected_pipeline_version_id : typing.Optional[str]
+            When set, the endpoint write must use the pipeline's current version.
+             Pipeline graph synchronization sends this to reject stale saves.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1PutWebhookEndpointResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.ingestion_v1ingestionservice.putwebhookendpoint(
+                connect_timeout_ms=1000.0,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.putwebhookendpoint(
+            connect_timeout_ms=connect_timeout_ms,
+            endpoint=endpoint,
+            expected_revision=expected_revision,
+            imported_secret=imported_secret,
+            mint_secret=mint_secret,
+            expected_pipeline_version_id=expected_pipeline_version_id,
+            request_options=request_options,
         )
         return _response.data
 
