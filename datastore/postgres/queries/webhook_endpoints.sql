@@ -1,3 +1,6 @@
+-- name: GetWebhookEndpointTenant :one
+SELECT tenant_id FROM webhook_endpoints WHERE source_connection_id = @source_connection_id;
+
 -- name: GetWebhookEndpointBySource :one
 SELECT e.source_connection_id, e.tenant_id, e.config_revision, e.enabled,
   e.verifier, e.secret_refs, e.previous_key_expires_at, e.resources,

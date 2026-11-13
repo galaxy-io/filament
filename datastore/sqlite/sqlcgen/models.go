@@ -272,18 +272,18 @@ type User struct {
 }
 
 type WebhookEndpoint struct {
-	SourceConnectionID    string
-	TenantID              string
-	PipelineID            sql.NullString
-	RouteKey              sql.NullString
-	ConfigRevision        int64
-	Enabled               int64
-	Verifier              string
-	SecretRefs            string
-	SecondaryKeyExpiresAt sql.NullInt64
-	Resources             string
-	SuccessStatus         int64
-	MaxBodyBytes          int64
-	CreatedAt             int64
-	UpdatedAt             int64
+	SourceConnectionID   string
+	TenantID             string
+	PipelineID           sql.NullString
+	RouteKey             sql.NullString
+	ConfigRevision       int64
+	Enabled              int64
+	Verifier             string
+	SecretRefs           string
+	PreviousKeyExpiresAt sql.NullInt64
+	Resources            string
+	SuccessStatus        int64
+	MaxBodyBytes         int64
+	CreatedAt            int64
+	UpdatedAt            int64
 }

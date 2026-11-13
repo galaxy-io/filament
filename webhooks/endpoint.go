@@ -19,9 +19,9 @@ const (
 	HardMaxBody = 16 << 20
 	// DefaultSuccessStatus is returned after a delivery is durably accepted.
 	DefaultSuccessStatus = http.StatusAccepted
-	// SecondaryKeyGrace is how long a replaced signing key keeps verifying.
-	SecondaryKeyGrace = 72 * time.Hour
-	maxResourceName   = 64
+	// PreviousKeyGrace is how long a replaced signing key keeps verifying.
+	PreviousKeyGrace = 72 * time.Hour
+	maxResourceName  = 64
 )
 
 var (
@@ -46,12 +46,12 @@ type Endpoint struct {
 	RouteReady bool
 	// Accepting is true while a pipeline that reads this source is running or
 	// paused. When every reader is stopped, new deliveries wait with the sender.
-	Accepting             bool
-	Resources             []string
-	SecretRefs            []string
-	SecondaryKeyExpiresAt time.Time
-	MaxBodyBytes          int64
-	SuccessStatus         int
+	Accepting            bool
+	Resources            []string
+	SecretRefs           []string
+	PreviousKeyExpiresAt time.Time
+	MaxBodyBytes         int64
+	SuccessStatus        int
 }
 
 // Accepts reports whether the endpoint takes new deliveries for resource.
@@ -61,7 +61,7 @@ func (e Endpoint) Accepts(resource string) bool {
 
 // ActiveKeyRefs returns the key references that still verify at now.
 func (e Endpoint) ActiveKeyRefs(now time.Time) []string {
-	if len(e.SecretRefs) > 1 && !e.SecondaryKeyExpiresAt.IsZero() && !now.Before(e.SecondaryKeyExpiresAt) {
+	if len(e.SecretRefs) > 1 && !e.PreviousKeyExpiresAt.IsZero() && !now.Before(e.PreviousKeyExpiresAt) {
 		return e.SecretRefs[:1]
 	}
 	return e.SecretRefs
@@ -78,7 +78,7 @@ type EndpointMutation struct {
 	Resources                 []string
 	Enabled                   bool
 	SecretRefs                []string
-	SecondaryKeyExpiresAt     time.Time
+	PreviousKeyExpiresAt      time.Time
 	SuccessStatus             int
 	MaxBodyBytes              int64
 	ExpectedRevision          int64

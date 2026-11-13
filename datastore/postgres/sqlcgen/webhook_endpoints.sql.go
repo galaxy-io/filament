@@ -97,6 +97,17 @@ func (q *Queries) GetWebhookEndpointBySource(ctx context.Context, arg GetWebhook
 	return &i, err
 }
 
+const getWebhookEndpointTenant = `-- name: GetWebhookEndpointTenant :one
+SELECT tenant_id FROM webhook_endpoints WHERE source_connection_id = $1
+`
+
+func (q *Queries) GetWebhookEndpointTenant(ctx context.Context, sourceConnectionID string) (string, error) {
+	row := q.db.QueryRow(ctx, getWebhookEndpointTenant, sourceConnectionID)
+	var tenant_id string
+	err := row.Scan(&tenant_id)
+	return tenant_id, err
+}
+
 const insertWebhookEndpoint = `-- name: InsertWebhookEndpoint :execrows
 INSERT INTO webhook_endpoints (
   source_connection_id, tenant_id, verifier, pipeline_id, route_key, enabled,

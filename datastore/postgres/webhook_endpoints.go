@@ -81,14 +81,16 @@ func certifiedSequence(positions *filament.DomainPositions, domain filament.Doma
 
 // LoadWebhookEndpointForTenant returns an endpoint only when it belongs to tenant.
 func (s *Store) LoadWebhookEndpointForTenant(ctx context.Context, tenant filament.TenantID, sourceID string) (webhooks.Endpoint, error) {
-	endpoint, err := s.LoadWebhookEndpoint(ctx, sourceID)
+	row, err := s.q.GetWebhookEndpointBySource(ctx, sqlcgen.GetWebhookEndpointBySourceParams{
+		TenantID: string(tenant), SourceConnectionID: sourceID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return webhooks.Endpoint{}, fmt.Errorf("webhook endpoint %q: %w", sourceID, filament.ErrNotFound)
+	}
 	if err != nil {
-		return webhooks.Endpoint{}, err
+		return webhooks.Endpoint{}, fmt.Errorf("load webhook endpoint: %w", err)
 	}
-	if endpoint.Tenant != tenant {
-		return webhooks.Endpoint{}, filament.ErrNotFound
-	}
-	return endpoint, nil
+	return endpointFromRow(row), nil
 }
 
 // PutWebhookEndpoint persists receiver configuration under an optimistic
@@ -126,13 +128,13 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	q := s.q.WithTx(tx)
 	pipeline := pgtype.Text{String: mutation.PipelineID, Valid: mutation.PipelineID != ""}
 	route := pgtype.Text{String: mutation.RouteKey, Valid: mutation.RouteKey != ""}
-	expires := pgtype.Timestamptz{Time: mutation.SecondaryKeyExpiresAt, Valid: !mutation.SecondaryKeyExpiresAt.IsZero()}
+	expires := pgtype.Timestamptz{Time: mutation.PreviousKeyExpiresAt, Valid: !mutation.PreviousKeyExpiresAt.IsZero()}
 	var n int64
 	if mutation.ExpectedRevision == 0 {
 		n, err = q.InsertWebhookEndpoint(ctx, sqlcgen.InsertWebhookEndpointParams{
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
 			Verifier: mutation.Verifier, PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
-			SecretRefs: mutation.SecretRefs, SecondaryKeyExpiresAt: expires, Resources: resources,
+			SecretRefs: mutation.SecretRefs, PreviousKeyExpiresAt: expires, Resources: resources,
 			SuccessStatus: successStatus, MaxBodyBytes: mutation.MaxBodyBytes,
 		})
 	} else {
@@ -142,7 +144,7 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 			ExpectedRevision: mutation.ExpectedRevision, NextRevision: mutation.ExpectedRevision + 1,
 			UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}, Verifier: mutation.Verifier,
 			PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
-			SecretRefs: mutation.SecretRefs, SecondaryKeyExpiresAt: expires, Resources: resources,
+			SecretRefs: mutation.SecretRefs, PreviousKeyExpiresAt: expires, Resources: resources,
 			SuccessStatus: successStatus, MaxBodyBytes: mutation.MaxBodyBytes,
 		})
 	}
@@ -156,15 +158,14 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	if n != 1 {
 		return webhooks.Endpoint{}, filament.ErrVersionConflict
 	}
-	row, err := q.GetWebhookEndpointBySource(ctx, mutation.SourceID)
+	row, err := q.GetWebhookEndpointBySource(ctx, sqlcgen.GetWebhookEndpointBySourceParams{
+		TenantID: string(mutation.Tenant), SourceConnectionID: mutation.SourceID,
+	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return webhooks.Endpoint{}, filament.ErrNotFound
 	}
 	if err != nil {
 		return webhooks.Endpoint{}, err
-	}
-	if row.TenantID != string(mutation.Tenant) {
-		return webhooks.Endpoint{}, filament.ErrNotFound
 	}
 	endpoint := endpointFromRow(row)
 	if err := tx.Commit(ctx); err != nil {
@@ -177,14 +178,14 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 // ID to its tenant-owned endpoint. The receiver never accepts tenant identity
 // from a delivery.
 func (s *Store) LoadWebhookEndpoint(ctx context.Context, sourceID string) (webhooks.Endpoint, error) {
-	row, err := s.q.GetWebhookEndpointBySource(ctx, sourceID)
+	tenant, err := s.q.GetWebhookEndpointTenant(ctx, sourceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return webhooks.Endpoint{}, fmt.Errorf("webhook endpoint %q: %w", sourceID, filament.ErrNotFound)
 	}
 	if err != nil {
 		return webhooks.Endpoint{}, fmt.Errorf("load webhook endpoint: %w", err)
 	}
-	return endpointFromRow(row), nil
+	return s.LoadWebhookEndpointForTenant(ctx, filament.TenantID(tenant), sourceID)
 }
 
 // routeReads reports whether the bound route is live, continuous, and reads
@@ -220,8 +221,8 @@ func endpointFromRow(row *sqlcgen.GetWebhookEndpointBySourceRow) webhooks.Endpoi
 		SecretRefs: row.SecretRefs, MaxBodyBytes: row.MaxBodyBytes,
 		SuccessStatus: int(row.SuccessStatus),
 	}
-	if row.SecondaryKeyExpiresAt.Valid {
-		endpoint.SecondaryKeyExpiresAt = row.SecondaryKeyExpiresAt.Time
+	if row.PreviousKeyExpiresAt.Valid {
+		endpoint.PreviousKeyExpiresAt = row.PreviousKeyExpiresAt.Time
 	}
 	return endpoint
 }

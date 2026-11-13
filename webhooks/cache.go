@@ -29,7 +29,7 @@ type Resolved struct {
 // for one endpoint share a single load, and unknown IDs are remembered briefly.
 //
 // A cached entry can trail a configuration change by at most TTL. That is
-// safe: a replaced key keeps verifying for SecondaryKeyGrace, and deliveries
+// safe: a replaced key keeps verifying for PreviousKeyGrace, and deliveries
 // carry no routing, so a stale entry never misroutes one.
 //
 // A shared load is detached from the request that started it and bounded by

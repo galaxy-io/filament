@@ -75,7 +75,7 @@ func (a *Server) PutWebhookEndpoint(ctx context.Context, req *connect.Request[in
 	mutation := webhooks.EndpointMutation{
 		Tenant: tenant, SourceID: sourceID, Verifier: verifier,
 		PipelineID: in.GetPipelineId(), RouteKey: in.GetRouteKey(), Enabled: in.GetEnabled(),
-		SecretRefs: previous.SecretRefs, SecondaryKeyExpiresAt: previous.SecondaryKeyExpiresAt,
+		SecretRefs: previous.SecretRefs, PreviousKeyExpiresAt: previous.PreviousKeyExpiresAt,
 		SuccessStatus: int(in.GetSuccessStatus()), MaxBodyBytes: in.GetMaxBodyBytes(),
 		ExpectedRevision: expected, Resources: slices.Clone(in.GetResources()),
 		ExpectedPipelineVersionID: req.Msg.GetExpectedPipelineVersionId(),
@@ -152,7 +152,7 @@ func (a *Server) sourceWebhookVerifier(ctx context.Context, connector string) (s
 }
 
 // writeWebhookKey stores a minted or imported key and makes it the primary
-// key. The key it replaces keeps verifying for webhooks.SecondaryKeyGrace.
+// key. The key it replaces keeps verifying for webhooks.PreviousKeyGrace.
 func (a *Server) writeWebhookKey(ctx context.Context, tenant filament.TenantID, sourceID string, expected int64,
 	msg *ingestionv1.PutWebhookEndpointRequest, mutation *webhooks.EndpointMutation,
 ) (minted, ref string, err error) {
@@ -182,10 +182,10 @@ func (a *Server) writeWebhookKey(ctx context.Context, tenant filament.TenantID, 
 		return "", "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("store webhook signing secret: %w", err))
 	}
 	refs := []string{ref}
-	mutation.SecondaryKeyExpiresAt = time.Time{}
+	mutation.PreviousKeyExpiresAt = time.Time{}
 	if len(mutation.SecretRefs) > 0 {
 		refs = append(refs, mutation.SecretRefs[0])
-		mutation.SecondaryKeyExpiresAt = time.Now().Add(webhooks.SecondaryKeyGrace)
+		mutation.PreviousKeyExpiresAt = time.Now().Add(webhooks.PreviousKeyGrace)
 	}
 	mutation.SecretRefs = refs
 	return minted, ref, nil
@@ -193,8 +193,8 @@ func (a *Server) writeWebhookKey(ctx context.Context, tenant filament.TenantID, 
 
 func (a *Server) webhookEndpointProto(endpoint webhooks.Endpoint, now time.Time) *ingestionv1.WebhookEndpointConfig {
 	var previousExpires int64
-	if len(endpoint.ActiveKeyRefs(now)) > 1 && !endpoint.SecondaryKeyExpiresAt.IsZero() {
-		previousExpires = endpoint.SecondaryKeyExpiresAt.UnixMilli()
+	if len(endpoint.ActiveKeyRefs(now)) > 1 && !endpoint.PreviousKeyExpiresAt.IsZero() {
+		previousExpires = endpoint.PreviousKeyExpiresAt.UnixMilli()
 	}
 	// A persisted success status is constrained to 200, 202, or 204.
 	// #nosec G115

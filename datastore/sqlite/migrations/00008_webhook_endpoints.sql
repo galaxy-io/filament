@@ -10,7 +10,7 @@ CREATE TABLE webhook_endpoints (
   enabled                    INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0, 1)),
   verifier                   TEXT    NOT NULL DEFAULT 'generic_hmac_sha256' CHECK (verifier <> ''),
   secret_refs                TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(secret_refs) AND json_type(secret_refs) = 'array'),
-  secondary_key_expires_at   INTEGER,
+  previous_key_expires_at    INTEGER,
   resources                  TEXT    NOT NULL DEFAULT '[]' CHECK (json_valid(resources) AND json_type(resources) = 'array'),
   success_status             INTEGER NOT NULL DEFAULT 202 CHECK (success_status IN (200, 202, 204)),
   max_body_bytes             INTEGER NOT NULL DEFAULT 1048576 CHECK (max_body_bytes > 0 AND max_body_bytes <= 16777216),

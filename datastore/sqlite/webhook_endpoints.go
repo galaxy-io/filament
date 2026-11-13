@@ -24,7 +24,21 @@ var (
 // LoadWebhookEndpoint resolves a source ID for the receiver. Tenant identity
 // comes from the stored endpoint, never from the delivery request.
 func (s *Store) LoadWebhookEndpoint(ctx context.Context, sourceID string) (webhooks.Endpoint, error) {
-	row, err := s.q.GetWebhookEndpointBySource(ctx, sourceID)
+	tenant, err := s.q.GetWebhookEndpointTenant(ctx, sourceID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return webhooks.Endpoint{}, fmt.Errorf("webhook endpoint %q: %w", sourceID, filament.ErrNotFound)
+	}
+	if err != nil {
+		return webhooks.Endpoint{}, fmt.Errorf("load webhook endpoint: %w", err)
+	}
+	return s.LoadWebhookEndpointForTenant(ctx, filament.TenantID(tenant), sourceID)
+}
+
+// LoadWebhookEndpointForTenant enforces the API caller's tenant.
+func (s *Store) LoadWebhookEndpointForTenant(ctx context.Context, tenant filament.TenantID, sourceID string) (webhooks.Endpoint, error) {
+	row, err := s.q.GetWebhookEndpointBySource(ctx, sqlcgen.GetWebhookEndpointBySourceParams{
+		TenantID: string(tenant), SourceConnectionID: sourceID,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return webhooks.Endpoint{}, fmt.Errorf("webhook endpoint %q: %w", sourceID, filament.ErrNotFound)
 	}
@@ -32,18 +46,6 @@ func (s *Store) LoadWebhookEndpoint(ctx context.Context, sourceID string) (webho
 		return webhooks.Endpoint{}, fmt.Errorf("load webhook endpoint: %w", err)
 	}
 	return sqliteWebhookEndpoint(row)
-}
-
-// LoadWebhookEndpointForTenant enforces the API caller's tenant.
-func (s *Store) LoadWebhookEndpointForTenant(ctx context.Context, tenant filament.TenantID, sourceID string) (webhooks.Endpoint, error) {
-	endpoint, err := s.LoadWebhookEndpoint(ctx, sourceID)
-	if err != nil {
-		return webhooks.Endpoint{}, err
-	}
-	if endpoint.Tenant != tenant {
-		return webhooks.Endpoint{}, filament.ErrNotFound
-	}
-	return endpoint, nil
 }
 
 // PutWebhookEndpoint validates and writes one revision in a SQLite transaction.
@@ -92,7 +94,7 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	q := s.q.WithTx(tx)
 	pipeline := sql.NullString{String: mutation.PipelineID, Valid: mutation.PipelineID != ""}
 	route := sql.NullString{String: mutation.RouteKey, Valid: mutation.RouteKey != ""}
-	expires := nullMillis(mutation.SecondaryKeyExpiresAt)
+	expires := nullMillis(mutation.PreviousKeyExpiresAt)
 	enabled := int64(0)
 	if mutation.Enabled {
 		enabled = 1
@@ -102,7 +104,7 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 		updated, err = q.InsertWebhookEndpoint(ctx, sqlcgen.InsertWebhookEndpointParams{
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
 			Verifier: mutation.Verifier, PipelineID: pipeline, RouteKey: route, Enabled: enabled,
-			SecretRefs: string(secretRefs), SecondaryKeyExpiresAt: expires, Resources: string(resources),
+			SecretRefs: string(secretRefs), PreviousKeyExpiresAt: expires, Resources: string(resources),
 			SuccessStatus: int64(mutation.SuccessStatus), MaxBodyBytes: mutation.MaxBodyBytes,
 		})
 	} else {
@@ -111,7 +113,7 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 			ExpectedRevision: mutation.ExpectedRevision, NextRevision: mutation.ExpectedRevision + 1,
 			UpdatedAt: nowMillis(), Verifier: mutation.Verifier,
 			PipelineID: pipeline, RouteKey: route, Enabled: enabled,
-			SecretRefs: string(secretRefs), SecondaryKeyExpiresAt: expires, Resources: string(resources),
+			SecretRefs: string(secretRefs), PreviousKeyExpiresAt: expires, Resources: string(resources),
 			SuccessStatus: int64(mutation.SuccessStatus), MaxBodyBytes: mutation.MaxBodyBytes,
 		})
 	}
@@ -121,7 +123,9 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	if updated != 1 {
 		return webhooks.Endpoint{}, filament.ErrVersionConflict
 	}
-	row, err := q.GetWebhookEndpointBySource(ctx, mutation.SourceID)
+	row, err := q.GetWebhookEndpointBySource(ctx, sqlcgen.GetWebhookEndpointBySourceParams{
+		TenantID: string(mutation.Tenant), SourceConnectionID: mutation.SourceID,
+	})
 	if err != nil {
 		return webhooks.Endpoint{}, fmt.Errorf("load written webhook endpoint: %w", err)
 	}
@@ -150,8 +154,8 @@ func sqliteWebhookEndpoint(row *sqlcgen.GetWebhookEndpointBySourceRow) (webhooks
 		Accepting: row.Accepting, Resources: resources, SecretRefs: refs,
 		MaxBodyBytes: row.MaxBodyBytes, SuccessStatus: int(row.SuccessStatus),
 	}
-	if row.SecondaryKeyExpiresAt.Valid {
-		endpoint.SecondaryKeyExpiresAt = millisTime(row.SecondaryKeyExpiresAt.Int64)
+	if row.PreviousKeyExpiresAt.Valid {
+		endpoint.PreviousKeyExpiresAt = millisTime(row.PreviousKeyExpiresAt.Int64)
 	}
 	if len(resources) > 0 && row.PipelineID.Valid && row.RouteKey.Valid && row.RouteDesiredState.Valid &&
 		row.RouteDesiredState.String != string(filament.StreamStopped) && row.RunSpec.Valid {
