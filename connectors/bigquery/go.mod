@@ -4,14 +4,14 @@ go 1.26.4
 
 require (
 	cloud.google.com/go/bigquery v1.83.0
-	github.com/apache/arrow-go/v18 v18.7.0
+	github.com/apache/arrow-go/v18 v18.8.0
 	github.com/galaxy-io/filament v0.0.0
 	github.com/google/uuid v1.6.0
 	github.com/googleapis/gax-go/v2 v2.23.0
 	golang.org/x/sync v0.23.0
 	google.golang.org/api v0.289.0
 	google.golang.org/grpc v1.83.2
-	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
+	google.golang.org/protobuf v1.36.12
 )
 
 require (
