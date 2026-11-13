@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/internal/compile"
+	"github.com/galaxy-io/filament/webhooks"
 )
 
 type runSubmitter interface {
@@ -27,6 +28,8 @@ type Server struct {
 	orch      runSubmitter
 	bus       eventbus.Bus
 	secrets   filament.Secrets
+	webhooks  webhooks.EndpointStore
+	receiver  WebhookReceiver
 	schedules filament.PipelineScheduleStore
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
@@ -41,6 +44,20 @@ type Option func(*Server)
 
 // WithSecrets sets the secrets provider used to resolve secret refs.
 func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.secrets = secrets } }
+
+// WebhookReceiver is what the API needs from this process's webhook receiver.
+type WebhookReceiver struct {
+	// MaxBody is the largest body the inbox stores. Endpoints may not exceed it.
+	MaxBody int64
+	// Invalidate drops a cached endpoint after its configuration changes.
+	Invalidate func(sourceID string)
+	// PublicBaseURL is the origin senders reach, without a trailing slash.
+	// Empty means unknown, and the API then returns no delivery URL.
+	PublicBaseURL string
+}
+
+// WithWebhookReceiver connects endpoint configuration to the local receiver.
+func WithWebhookReceiver(w WebhookReceiver) Option { return func(s *Server) { s.receiver = w } }
 
 // WithMetricsStore sets the run metrics query backend. Unset leaves
 // MetricsService unimplemented.
@@ -85,6 +102,9 @@ func New(worker filament.Worker, store filament.DataStore, orch runSubmitter, bu
 	}
 	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
 		s.schedules = schedules
+	}
+	if endpointStore, ok := store.(webhooks.EndpointStore); ok {
+		s.webhooks = endpointStore
 	}
 	for _, opt := range opts {
 		opt(s)

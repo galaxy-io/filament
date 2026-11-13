@@ -6,3 +6,11 @@ export const getErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const isNotFoundError = (error: unknown) => ConnectError.from(error).code === Code.NotFound;
+
+export const ignoreNotFoundError = (error: unknown) => {
+  if (isNotFoundError(error)) return undefined;
+  throw error;
+};
+
+export const isUnimplementedError = (error: unknown) =>
+  ConnectError.from(error).code === Code.Unimplemented;

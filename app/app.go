@@ -42,11 +42,14 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/streamsupervisor"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
+	"github.com/galaxy-io/filament/internal/modules/webhookretention"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/version"
+	"github.com/galaxy-io/filament/webhooks"
+	"github.com/galaxy-io/filament/webhooks/inbox"
 	"github.com/galaxy-io/filament/worker"
 )
 
@@ -62,7 +65,11 @@ type Config struct {
 	UI      http.Handler
 	Log     filament.Logger
 
-	notifierEnabled bool
+	notifierEnabled  bool
+	webhookInbox     *inbox.Inbox
+	webhookBaseURL   string
+	webhookSlots     int
+	webhookRetention *webhookretention.Module
 }
 
 // Option mutates a Config. Options passed to Run override the defaults.
@@ -89,6 +96,14 @@ func WithSecrets(s filament.Secrets) Option { return func(c *Config) { c.Secrets
 
 // WithNotifier enables webhook delivery using the configured datastore and secrets.
 func WithNotifier() Option { return func(c *Config) { c.notifierEnabled = true } }
+
+// WithWebhookInbox mounts the receiver and starts retention for an already
+// provisioned inbox. Sources may use the same inbox for local execution.
+func WithWebhookInbox(i *inbox.Inbox, publicBaseURL string, maxInFlight int, retention *webhookretention.Module) Option {
+	return func(c *Config) {
+		c.webhookInbox, c.webhookBaseURL, c.webhookSlots, c.webhookRetention = i, publicBaseURL, maxInFlight, retention
+	}
+}
 
 // WithUI mounts a handler for the web UI at "/" (default: none). The ui
 // package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take
@@ -160,8 +175,20 @@ func Serve(ctx context.Context, ln net.Listener, opts ...Option) error {
 func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []string, cleanup func(), err error) {
 	orch := orchestrator.New()
 	w := worker.Local(cfg.Sources, cfg.Sinks)
-	api := server.New(w, cfg.Store, orch, cfg.Bus,
-		server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log))
+	apiOptions := []server.Option{server.WithSecrets(cfg.Secrets), server.WithMetricsStore(cfg.Metrics), server.WithLogger(cfg.Log)}
+	var receiver *webhooks.Receiver
+	if cfg.webhookInbox != nil {
+		loader, ok := cfg.Store.(webhooks.EndpointLoader)
+		if !ok || cfg.Secrets == nil || cfg.webhookSlots < 1 || cfg.webhookRetention == nil {
+			return nil, nil, nil, errors.New("webhook inbox requires endpoint store, secrets, retention, and positive concurrency")
+		}
+		cache := &webhooks.EndpointCache{Loader: loader, Secrets: cfg.Secrets}
+		receiver = &webhooks.Receiver{Endpoints: cache, Inbox: cfg.webhookInbox, Slots: make(chan struct{}, cfg.webhookSlots)}
+		apiOptions = append(apiOptions, server.WithWebhookReceiver(server.WebhookReceiver{
+			MaxBody: cfg.webhookInbox.MaxBody(), Invalidate: cache.Invalidate, PublicBaseURL: cfg.webhookBaseURL,
+		}))
+	}
+	api := server.New(w, cfg.Store, orch, cfg.Bus, apiOptions...)
 	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
 	if !ok {
 		return nil, nil, nil, fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
@@ -171,6 +198,9 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	modules := []module.Module{tracker.New(), engine.New(), orch, sched}
 	if cfg.notifierEnabled {
 		modules = append(modules, notifier.New())
+	}
+	if cfg.webhookRetention != nil {
+		modules = append(modules, cfg.webhookRetention)
 	}
 	mods, err := module.MountAll(ctx, deps, modules...)
 	if err != nil {
@@ -197,8 +227,14 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	}
 	streams.Start(ctx)
 	sched.Start(ctx)
+	if cfg.webhookRetention != nil {
+		cfg.webhookRetention.Start(ctx)
+	}
 	mux = http.NewServeMux()
 	api.Mount(mux)
+	if receiver != nil {
+		receiver.Mount(mux)
+	}
 	mux.Handle("/version", version.Handler())
 	if cfg.UI != nil {
 		mux.Handle("/", cfg.UI)

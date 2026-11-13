@@ -40,6 +40,9 @@ message PutWebhookEndpointRequest {
   // which keeps verifying for 72 hours so senders can switch over.
   string imported_secret = 3;
   bool mint_secret = 4;
+  // When set, the endpoint write must use the pipeline's current version.
+  // Pipeline graph synchronization sends this to reject stale saves.
+  string expected_pipeline_version_id = 5;
 }
 
 message PutWebhookEndpointResponse {
@@ -48,5 +51,9 @@ message PutWebhookEndpointResponse {
   string minted_secret = 2;
 }
 
-message GetWebhookEndpointRequest { string source_connection_id = 1; }
-message GetWebhookEndpointResponse { WebhookEndpointConfig endpoint = 1; }
+message GetWebhookEndpointRequest {
+  string source_connection_id = 1;
+}
+message GetWebhookEndpointResponse {
+  WebhookEndpointConfig endpoint = 1;
+}

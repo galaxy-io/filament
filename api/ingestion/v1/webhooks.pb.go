@@ -191,8 +191,11 @@ type PutWebhookEndpointRequest struct {
 	// which keeps verifying for 72 hours so senders can switch over.
 	ImportedSecret string `protobuf:"bytes,3,opt,name=imported_secret,json=importedSecret,proto3" json:"imported_secret,omitempty"`
 	MintSecret     bool   `protobuf:"varint,4,opt,name=mint_secret,json=mintSecret,proto3" json:"mint_secret,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// When set, the endpoint write must use the pipeline's current version.
+	// Pipeline graph synchronization sends this to reject stale saves.
+	ExpectedPipelineVersionId string `protobuf:"bytes,5,opt,name=expected_pipeline_version_id,json=expectedPipelineVersionId,proto3" json:"expected_pipeline_version_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *PutWebhookEndpointRequest) Reset() {
@@ -251,6 +254,13 @@ func (x *PutWebhookEndpointRequest) GetMintSecret() bool {
 		return x.MintSecret
 	}
 	return false
+}
+
+func (x *PutWebhookEndpointRequest) GetExpectedPipelineVersionId() string {
+	if x != nil {
+		return x.ExpectedPipelineVersionId
+	}
+	return ""
 }
 
 type PutWebhookEndpointResponse struct {
@@ -416,13 +426,14 @@ const file_ingestion_v1_webhooks_proto_rawDesc = "" +
 	"\bverifier\x18\v \x01(\tR\bverifier\x125\n" +
 	"\x17previous_key_expires_at\x18\f \x01(\x03R\x14previousKeyExpiresAt\x12\x1c\n" +
 	"\taccepting\x18\r \x01(\bR\taccepting\x12!\n" +
-	"\fdelivery_url\x18\x0e \x01(\tR\vdeliveryUrl\"\xd3\x01\n" +
+	"\fdelivery_url\x18\x0e \x01(\tR\vdeliveryUrl\"\x94\x02\n" +
 	"\x19PutWebhookEndpointRequest\x12?\n" +
 	"\bendpoint\x18\x01 \x01(\v2#.ingestion.v1.WebhookEndpointConfigR\bendpoint\x12+\n" +
 	"\x11expected_revision\x18\x02 \x01(\x03R\x10expectedRevision\x12'\n" +
 	"\x0fimported_secret\x18\x03 \x01(\tR\x0eimportedSecret\x12\x1f\n" +
 	"\vmint_secret\x18\x04 \x01(\bR\n" +
-	"mintSecret\"\x82\x01\n" +
+	"mintSecret\x12?\n" +
+	"\x1cexpected_pipeline_version_id\x18\x05 \x01(\tR\x19expectedPipelineVersionId\"\x82\x01\n" +
 	"\x1aPutWebhookEndpointResponse\x12?\n" +
 	"\bendpoint\x18\x01 \x01(\v2#.ingestion.v1.WebhookEndpointConfigR\bendpoint\x12#\n" +
 	"\rminted_secret\x18\x02 \x01(\tR\fmintedSecret\"M\n" +
