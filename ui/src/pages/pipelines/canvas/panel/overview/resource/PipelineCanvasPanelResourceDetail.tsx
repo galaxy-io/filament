@@ -18,8 +18,11 @@ import type { ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connect
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
+import { isWebhookConnector } from "@/components/webhooks/utils";
+import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryUrlCopyButton";
 
 import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
+import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
@@ -67,6 +70,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   const isReadOnly = usePipelineCanvasReadOnly();
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
   const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();
+  const sourceConnection = usePipelineCanvasConnections().get(edge.source);
 
   const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
@@ -215,6 +219,17 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   </Text>
                 }
               />
+              {sourceConnection && isWebhookConnector(sourceConnection.connector) && (
+                <KeyValueListRow
+                  label="Endpoint"
+                  value={
+                    <WebhookDeliveryUrlCopyButton
+                      sourceConnectionId={sourceConnection.id}
+                      resource={resource}
+                    />
+                  }
+                />
+              )}
               <KeyValueListRow
                 label="Sink"
                 value={

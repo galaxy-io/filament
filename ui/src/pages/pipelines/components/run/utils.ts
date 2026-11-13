@@ -9,6 +9,10 @@ export const canPipelineRunSubset = (pipeline: Pipeline, source: Connection | un
   !!source &&
   source.replication !== ReplicationMode.CDC;
 
+export const canPipelineRunResync = (pipeline: Pipeline, source: Connection | undefined): boolean =>
+  pipeline.executionMode !== ExecutionMode.CONTINUOUS ||
+  source?.replication === ReplicationMode.CDC;
+
 export const setPipelineRunResourceMode = (
   resources: string[],
   resyncResources: string[],
