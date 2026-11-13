@@ -62,6 +62,7 @@ const PipelinePageActiveRunActions: FC<PipelinePageActiveRunActionsProps> = ({ r
     <>
       <PipelineRunStatus
         status={run.status}
+        failedResources={run.failedResources}
         executionStatus={run.executionStatus}
         error={run.error}
       />

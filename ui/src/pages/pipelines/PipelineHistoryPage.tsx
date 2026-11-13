@@ -45,6 +45,7 @@ const createRunTableColumns = (
     cell: ({ row }) => (
       <PipelineRunStatus
         status={row.status}
+        failedResources={row.failedResources}
         error={row.error}
         executionStatus={row.executionStatus}
       />

@@ -17,11 +17,9 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import { ListRunsRequestSchema, type RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 
 import { getPipelineNextFireAt } from "@/components/pipelines/utils";
-import {
-  PIPELINE_RUN_EXECUTED_STATUSES,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
-} from "@/components/runs/constants";
+import { PIPELINE_RUN_EXECUTED_STATUSES } from "@/components/runs/constants";
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
+import { getPipelineRunStatusLabel } from "@/components/runs/utils";
 
 import PipelinesTableColumnRecentRunsTooltip from "@/pages/pipelines/components/table/columns/PipelinesTableColumnRecentRunsTooltip";
 import { PIPELINES_TABLE_RECENT_RUNS_COUNT } from "@/pages/pipelines/components/table/constants";
@@ -104,16 +102,20 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
                 run.endedAt ? (
                   <PipelinesTableColumnRecentRunsTooltip run={run} />
                 ) : (
-                  PIPELINE_RUN_STATUS_TO_LABEL_MAP[run.status]
+                  getPipelineRunStatusLabel(run.status, run.failedResources)
                 )
               }
             >
               <PipelinesTableRecentRunsButton
                 type="button"
-                aria-label={`View ${PIPELINE_RUN_STATUS_TO_LABEL_MAP[run.status].toLowerCase()} run`}
+                aria-label={`View ${getPipelineRunStatusLabel(run.status, run.failedResources).toLowerCase()} run`}
                 onClick={(event) => handleRunClick(event, run.id)}
               >
-                <PipelineRunStatusSwatch status={run.status} size={SquareSize.MEDIUM} />
+                <PipelineRunStatusSwatch
+                  status={run.status}
+                  failedResources={run.failedResources}
+                  size={SquareSize.MEDIUM}
+                />
               </PipelinesTableRecentRunsButton>
             </Tooltip>
           );

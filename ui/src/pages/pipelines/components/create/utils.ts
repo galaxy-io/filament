@@ -32,5 +32,6 @@ export const createInitialCreatePipelineModalState = (): CreatePipelineModalStat
   },
   notifiers: [],
   workerConfiguration: PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT,
+  failOnError: false,
   isSubmitting: false,
 });

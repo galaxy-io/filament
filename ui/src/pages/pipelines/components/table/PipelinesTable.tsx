@@ -98,6 +98,7 @@ const PIPELINES_TABLE_COLUMNS: TableColumn<Pipeline>[] = [
       row.lastRun ? (
         <PipelineRunStatus
           status={row.lastRun.status}
+          failedResources={row.lastRun.failedResources}
           error={row.lastRun.error}
           executionStatus={row.lastRun.executionStatus}
         />
