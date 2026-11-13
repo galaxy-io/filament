@@ -272,3 +272,39 @@ resources:
           size: query.pageSize
           page_size: 50
           more: hasMore
+  - name: inventory_receipts_export
+    path: /inventory/v2/tenant/{{ config.tenant_id }}/export/receipts
+    primary_key: [id]
+    fields:
+      id: int64
+      number: string
+      vendorInvoiceNumber: string
+      purchaseOrderId: int64
+      vendorId: int64
+      inventoryLocationId: int64
+      billId: int64?
+      jobId: int64?
+      businessUnitId: int64?
+      receiptAmount: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      taxAmount: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      shippingAmount: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      items: json
+      customFields: json
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_receipts_export_token
