@@ -291,6 +291,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 			CDC:          plan.RequiresCDC,
 			CDCAppend:    filament.IsCDCAppend(spec.IngestionTypes),
 		},
+		Failures: failurePolicy(spec, plan, src, snk),
 	})
 	p.Start(ctx)
 
@@ -316,21 +317,36 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	// A write failure (waitErr) is the root cause and takes precedence: when the
 	// pipeline fails, the inlet returns it to Extract too, so extractErr is just
-	// the echo.
+	// the echo. A non-nil extractErr always fails the run, even when it names
+	// one resource: the source stopped, so no other resource is known complete.
 	runErr := waitErr
 	if runErr == nil {
 		runErr = extractErr
 	}
 
 	resources := resolveResources(spec.Resources, em.seenResources())
+	// Resources the pipeline quarantined under an isolating policy. The run
+	// goes on without them unless nothing healthy is left.
+	quarantined := p.Quarantined()
+	if runErr == nil && allQuarantined(resources, quarantined) {
+		runErr = errEveryResourceFailed(quarantined)
+	}
 	if waitErr == nil && stoppedByControl(extractCtx, extractErr, control.requested()) {
-		finishControlled(ctx, deps, spec, plan, snk, em, resources, control.seal())
+		signal := control.seal()
+		if signal == controlPause && len(quarantined) > 0 {
+			if err := settleQuarantine(ctx, deps, spec, snk, em, resources, quarantined); err != nil {
+				failedWithCauses(em, err, resources, quarantined, false)
+				abortSink(ctx, deps, snk)
+				return nil
+			}
+		}
+		finishControlled(ctx, deps, spec, plan, snk, em, resources, signal)
 		return nil
 	}
 
 	if runErr != nil {
 		resumable := isResumableRun(spec, plan)
-		em.failed(runErr, resources, resumable)
+		failedWithCauses(em, runErr, resources, quarantined, resumable)
 		if resumable {
 			return nil
 		}
@@ -341,6 +357,15 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 
+	// Abort the quarantined resources' writes before anything commits, so the
+	// commit below (or a pause commit) covers only the healthy resources.
+	if len(quarantined) > 0 {
+		if err := settleQuarantine(ctx, deps, spec, snk, em, resources, quarantined); err != nil {
+			failedWithCauses(em, err, resources, quarantined, false)
+			abortSink(ctx, deps, snk)
+			return nil
+		}
+	}
 	if signal := control.seal(); signal != controlNone {
 		finishControlled(ctx, deps, spec, plan, snk, em, resources, signal)
 		return nil
@@ -350,7 +375,11 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		abortSink(ctx, deps, snk)
 		return nil
 	}
-	em.completed(resources)
+	if len(quarantined) > 0 {
+		em.completedExcept(healthyResources(resources, quarantined), pipeline.QuarantinedResources(quarantined))
+	} else {
+		em.completed(resources)
+	}
 	acknowledgeDurableChanges(ctx, deps, spec, src, em.streamCheckpoints())
 	cleanupRetiredReplicationStreams(ctx, deps, spec, src)
 	return nil
