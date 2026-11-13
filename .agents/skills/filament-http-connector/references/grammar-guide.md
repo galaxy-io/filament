@@ -344,7 +344,9 @@ would silently return the wrong result set. `value_date_format` (time
 comparator only) reformats the watermark on the wire, as a Go time layout or
 `epoch_millis` / `epoch_seconds`, for APIs that reject RFC3339. Jira JQL date
 fields take an unquoted epoch-milliseconds number that a raw RFC3339
-watermark cannot express.
+watermark cannot express. Filament rejects a layout that renders the same
+value for every watermark, and a bad initial watermark fails at setup
+instead of reaching the API.
 See Slack for `ts` + `oldest` + `numeric`, and Granola for an update timestamp.
 Read [research.md](research.md) before deciding that incremental reads are sound.
 

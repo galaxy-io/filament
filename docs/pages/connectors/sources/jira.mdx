@@ -31,7 +31,7 @@ Connection testing calls `GET /rest/api/3/myself`. Every request goes to
 
 ## Resources
 
-All resources are selected by default.
+All resources except `myself` are selected by default.
 
 | Resource | Endpoint | Parent |
 |---|---|---|
@@ -47,7 +47,7 @@ All resources are selected by default.
 
 IDs are Jira ID strings. Issues carry their project ID and key, and the account IDs of their assignee, reporter, and creator. References to other objects remain JSON columns, and every resource includes a `raw` column for unmapped fields. Issues return a fixed field list, so `raw` does not contain custom field values.
 
-`myself` returns one row for the account that owns the API token. It is also the connection test.
+`myself` returns one row for the account that owns the API token. It is also the connection test. It is not selected by default.
 
 ### Coverage limits
 

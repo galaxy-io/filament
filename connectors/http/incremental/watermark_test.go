@@ -171,3 +171,36 @@ func TestTrackerValueDateFormatLayoutAndComparatorGuard(t *testing.T) {
 		t.Fatal("new tracker with value_date_format and lex comparator: want error, got nil")
 	}
 }
+
+// A layout with no Go reference-time element, such as YYYY-MM-DD, would
+// render the same literal string for every watermark. New rejects it so a
+// typo fails at setup instead of silently sending a literal to the API.
+func TestTrackerValueDateFormatRejectsBadLayout(t *testing.T) {
+	for _, format := range []string{"YYYY-MM-DD", "updated"} {
+		spec := manifest.IncrementalSpec{
+			CursorField:     "updated",
+			StartParam:      "since",
+			InjectInto:      "query",
+			Comparator:      "time",
+			ValueDateFormat: format,
+		}
+		if _, err := New(spec, "issues", "2024-11-06T12:34:56Z"); err == nil {
+			t.Fatalf("new tracker with value_date_format %q: want error, got nil", format)
+		}
+	}
+}
+
+// An initial watermark that cannot be formatted with the configured wire
+// format fails at setup instead of reaching the API as raw RFC3339.
+func TestTrackerValueDateFormatRejectsUnformattableInitial(t *testing.T) {
+	spec := manifest.IncrementalSpec{
+		CursorField:     "updated",
+		StartParam:      "since",
+		InjectInto:      "query",
+		Comparator:      "time",
+		ValueDateFormat: "epoch_millis",
+	}
+	if _, err := New(spec, "issues", "not-a-time"); err == nil {
+		t.Fatal("new tracker with unformattable initial watermark: want error, got nil")
+	}
+}

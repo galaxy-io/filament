@@ -361,6 +361,7 @@ func TestParseRejectsInvalidIncrementalContracts(t *testing.T) {
 		{name: "nullable cursor", field: "updated_at: timestamptz?", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "must be non-nullable"},
 		{name: "incompatible comparator", field: "updated_at: json", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "is incompatible"},
 		{name: "pagination collision", field: "updated_at: timestamptz", pagination: "pagination:\n      cursor:\n        response: next\n        request: query.since", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "conflicts with the pagination injection"},
+		{name: "bad date layout", field: "updated_at: timestamptz", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time\n      value_date_format: YYYY-MM-DD", want: "renders the same value for every watermark"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -369,6 +370,19 @@ func TestParseRejectsInvalidIncrementalContracts(t *testing.T) {
 				t.Fatalf("error = %v, want %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestValidateValueDateFormat(t *testing.T) {
+	for _, format := range []string{"", "epoch_millis", "epoch_seconds", "2006-01-02", "2006-01-02 15:04", "15:04"} {
+		if err := ValidateValueDateFormat(format); err != nil {
+			t.Errorf("ValidateValueDateFormat(%q) = %v, want nil", format, err)
+		}
+	}
+	for _, format := range []string{"YYYY-MM-DD", "updated", "MM/DD/YYYY"} {
+		if err := ValidateValueDateFormat(format); err == nil {
+			t.Errorf("ValidateValueDateFormat(%q) = nil, want error", format)
+		}
 	}
 }
 

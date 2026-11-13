@@ -97,9 +97,20 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	if spec.ValueDateFormat != "" && spec.Comparator != "time" {
 		return nil, fmt.Errorf("incremental: value_date_format requires comparator: time")
 	}
+	if err := manifest.ValidateValueDateFormat(spec.ValueDateFormat); err != nil {
+		return nil, fmt.Errorf("incremental: %w", err)
+	}
 	start := initialWatermark
 	if start == "" {
 		start = spec.Initial
+	}
+	// Fail at setup when the initial watermark cannot be formatted with
+	// the configured wire format, instead of logging a warning per
+	// request and sending the raw RFC3339 value to an API that rejects it.
+	if spec.ValueDateFormat != "" && start != "" {
+		if _, err := formatWatermark(start, spec.ValueDateFormat); err != nil {
+			return nil, fmt.Errorf("incremental: initial watermark %q cannot be formatted with value_date_format %q: %w", start, spec.ValueDateFormat, err)
+		}
 	}
 	wm, err := atomicwatermark.New(cmp, start)
 	if err != nil {

@@ -239,4 +239,4 @@ resources:
       raw: {path: $, type: json, mode: remainder}
 discovery:
   mode: static
-  default_resources: [myself, projects, issues, users, issue_types, statuses, priorities, resolutions, fields]
+  default_resources: [projects, issues, users, issue_types, statuses, priorities, resolutions, fields]

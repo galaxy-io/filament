@@ -55,6 +55,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -659,6 +660,25 @@ type IncrementalSpec struct {
 	// fields accept an unquoted epoch-milliseconds number, which no raw
 	// RFC3339 watermark can express.
 	ValueDateFormat string `yaml:"value_date_format,omitempty"`
+}
+
+// ValidateValueDateFormat reports whether format is a usable wire format
+// for a time watermark. The empty format leaves the RFC3339 value alone,
+// epoch_millis and epoch_seconds render Unix time, and anything else must
+// be a Go time layout that renders at least one time-dependent element.
+// A layout with no reference-time element, such as YYYY-MM-DD, would
+// render the same literal string for every watermark, so it is rejected.
+func ValidateValueDateFormat(format string) error {
+	switch format {
+	case "", "epoch_millis", "epoch_seconds":
+		return nil
+	}
+	first := time.Date(2006, time.January, 2, 15, 4, 5, 0, time.UTC)
+	second := time.Date(2007, time.March, 4, 16, 5, 6, 0, time.UTC)
+	if first.Format(format) == second.Format(format) {
+		return fmt.Errorf("value_date_format %q renders the same value for every watermark, use a Go time layout (for example %q) or epoch_millis/epoch_seconds", format, "2006-01-02")
+	}
+	return nil
 }
 
 // DurableCheckpointKey returns the stable storage key for this watermark.

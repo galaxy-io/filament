@@ -407,6 +407,9 @@ func (m *Manifest) validateSemantics() error {
 			if r.Incremental.ValueDateFormat != "" && r.Incremental.Comparator != "time" {
 				_ = agg.Addf(path+".incremental.value_date_format", "requires comparator time")
 			}
+			if err := ValidateValueDateFormat(r.Incremental.ValueDateFormat); err != nil {
+				_ = agg.Addf(path+".incremental.value_date_format", "%v", err)
+			}
 			if err := validateIncrementalInitial(*r.Incremental); err != nil {
 				_ = agg.Addf(path+".incremental.initial", "%v", err)
 			}
