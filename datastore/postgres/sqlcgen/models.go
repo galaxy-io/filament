@@ -148,6 +148,7 @@ type Pipeline struct {
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	ExecutionMode       int32
+	FailOnError         bool
 }
 
 type PipelineResourceCheckpoint struct {

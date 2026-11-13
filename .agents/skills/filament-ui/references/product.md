@@ -70,7 +70,7 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **The path.** Pipelines → **New pipeline** (`C`) → the wizard. **Connections** (pick a source and sinks) → **Resources** (which streams, read mode, cursor) → **Delivery** (each sink's write mode and options) → **Details** (name, schedule, notifiers) → "Pipeline created" → the pipeline's canvas.
 
-**How it should feel.** Fast. Every step arrives with working defaults, so a user who only picks a source and a sink can press Next to the end and get a pipeline that runs. Each step is there to review, not to fill in. While Next is blocked, a red "Invalid" chip in the footer lists exactly why.
+**How it should feel.** Fast. Every step arrives with working defaults, so a user who only picks a source and a sink can press Next to the end and get a pipeline that runs. Each step is there to review, not to fill in. Bounded pipelines isolate a failed resource by default, and Delivery offers Fail the run when a resource fails for anyone who wants the old stop. While Next is blocked, a red "Invalid" chip in the footer lists exactly why.
 
 **What breaks it.** A required decision with no default. A step that cannot be understood without docs. An error discovered only on the last step. Landing anywhere but the new pipeline.
 
@@ -98,7 +98,7 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **Who and why.** Anyone with access starts a run now and follows it to the end.
 
-**The path.** Pipeline header → **Run** opens the run modal (`flow=RUN_PIPELINE`) → **Run now**, or **Start custom run** once a section reads Custom → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Succeeded or Failed.
+**The path.** Pipeline header → **Run** opens the run modal (`flow=RUN_PIPELINE`) → **Run now**, or **Start custom run** once a section reads Custom → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Completed, Partial or Failed. A completed run with at least one failed resource shows as Partial. It is derived from `RunInfo.failedResources` on a `COMPLETED` run, never the `PARTIAL` status, and borrows Partial's label and `pink` square.
 
 **How it should feel.** Live while it runs and still when it is done. Polling runs only while a run is active, and everything stops moving at the end. Durations and record counts are real numbers in mono.
 

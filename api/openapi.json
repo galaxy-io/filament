@@ -4094,6 +4094,11 @@
             ],
             "title": "execution_mode",
             "description": "Unspecified defaults to bounded."
+          },
+          "failOnError": {
+            "type": "boolean",
+            "title": "fail_on_error",
+            "description": "Defaults to false, which isolates resource failures in bounded runs."
           }
         },
         "title": "CreatePipelineRequest",
@@ -5416,6 +5421,14 @@
             ],
             "title": "execution_mode",
             "description": "Default execution mode for subsequent starts; existing pipelines are bounded."
+          },
+          "failOnError": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "fail_on_error",
+            "description": "fail_on_error stops a bounded run at its first resource failure. False\n isolates a failed resource and lets the others finish, so the run can end\n completed with failed resources. Change-stream routes always stop.\n Pipelines created before this setting existed are true."
           }
         },
         "title": "Pipeline",
@@ -6213,6 +6226,14 @@
             },
             "title": "resources",
             "description": "resources this run reads. Empty means every resource its route selects."
+          },
+          "failedResources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "failed_resources",
+            "description": "failed_resources names the resources that failed in this run. A completed\n run with failed resources isolated them and committed the rest."
           }
         },
         "title": "RunInfo",
@@ -6263,11 +6284,19 @@
             ],
             "title": "execution_mode",
             "description": "Unspecified inherits the pipeline mode. Explicit values override this start.\n Continuous creates a durable activation; unavailable profiles are rejected."
+          },
+          "failOnError": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "fail_on_error",
+            "description": "Stop the run at its first resource failure. Omit to inherit the pipeline's\n fail_on_error setting."
           }
         },
         "title": "RunOptions",
         "additionalProperties": false,
-        "description": "RunOptions overrides the engine's throughput defaults for a run. Every field\n is optional: a zero value defers to the engine default downstream."
+        "description": "RunOptions overrides engine defaults for a run. Every field is optional."
       },
       "ingestion.v1.RunPipelineRequest": {
         "type": "object",
@@ -6753,6 +6782,14 @@
             ],
             "title": "execution_mode",
             "description": "Unspecified preserves the saved mode; affects future starts only."
+          },
+          "failOnError": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "fail_on_error",
+            "description": "Omit to preserve the saved setting."
           }
         },
         "title": "UpdatePipelineRequest",

@@ -21,6 +21,7 @@ export const OBSERVABILITY_RUNS_TABLE_BASE_COLUMNS: TableColumn<RunInfo>[] = [
     cell: ({ row }) => (
       <PipelineRunStatus
         status={row.status}
+        failedResources={row.failedResources}
         error={row.error}
         executionStatus={row.executionStatus}
       />

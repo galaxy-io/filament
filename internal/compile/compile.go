@@ -44,6 +44,13 @@ type CompiledRun struct {
 	Submission filament.RunSubmission
 }
 
+// RunOptionOverrides is a start's run options plus the optional fail_on_error
+// override. Compile resolves the override against the pipeline's setting.
+type RunOptionOverrides struct {
+	Options     filament.RunOptions
+	FailOnError *bool
+}
+
 type durableReplicationStreamStore interface {
 	filament.ReplicationStreamStore
 	filament.ReplicationStreamRunStore
@@ -55,12 +62,14 @@ type durableReplicationStreamStore interface {
 // call only; the resolved result is stamped onto every request, so a later edit
 // to the pipeline cannot reshape a run already requested. A non-empty resources
 // limits a bounded run to those resources; routes left with none do not run.
-func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, options filament.RunOptions, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration, resources, resync []string) ([]CompiledRun, error) {
+func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipelineID, token string, overrides RunOptionOverrides, scheduleID filament.ScheduleID, workerCfg filament.WorkerConfiguration, resources, resync []string) ([]CompiledRun, error) {
+	options := overrides.Options
 	pipeline, version, execution, err := c.loadRunnable(ctx, tenant, pipelineID, options.Execution)
 	if err != nil {
 		return nil, err
 	}
 	options.Execution = execution
+	options.IsolateResourceFailures = isolatesResourceFailures(pipeline, overrides.FailOnError, execution)
 	if options.Execution == filament.ExecutionContinuous {
 		if scheduleID != "" {
 			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
@@ -104,6 +113,11 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 			return nil, err
 		}
 		cdc := filament.ReplicationFor(sourceSpec, filament.NewConfig(sourceRef.Config)) == filament.ReplicationCDC
+		routeOptions := options
+		if cdc {
+			// A change stream cannot isolate a resource, so its route stops.
+			routeOptions.IsolateResourceFailures = false
+		}
 		if cdc && fullRoutes != nil && isPartialRoute(group, fullRoutes[key]) {
 			return nil, fmt.Errorf("%w: route %s reads a change stream, so it runs all of its resources", ErrInvalid, key)
 		}
@@ -141,7 +155,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				Columns:             routeSelection(group.columns),
 				Partitions:          routeSelection(group.partitions),
 				Resync:              routeResync(group, resync),
-				Options:             options,
+				Options:             routeOptions,
 				ScheduleID:          scheduleID,
 				WorkerConfiguration: worker,
 				Transform:           transformDef,
@@ -150,6 +164,19 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		}})
 	}
 	return compiled, nil
+}
+
+// isolatesResourceFailures resolves fail_on_error for a run: the run's
+// override when present, the pipeline's saved setting otherwise. A pipeline
+// without the setting isolates. Continuous runs never isolate.
+func isolatesResourceFailures(pipeline *ingestionv1.Pipeline, override *bool, execution filament.ExecutionMode) bool {
+	if execution == filament.ExecutionContinuous {
+		return false
+	}
+	if override != nil {
+		return !*override
+	}
+	return !pipeline.GetFailOnError()
 }
 
 // loadRunnable loads a pipeline that can run and its current version, and

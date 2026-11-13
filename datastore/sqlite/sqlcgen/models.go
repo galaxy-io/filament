@@ -61,6 +61,7 @@ type Pipeline struct {
 	CreatedAt           int64
 	UpdatedAt           int64
 	ExecutionMode       int64
+	FailOnError         int64
 }
 
 type PipelineResourceCheckpoint struct {

@@ -43,6 +43,7 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: workerConfiguration, ExecutionMode: execution,
+		FailOnError: proto.Bool(req.Msg.GetFailOnError()),
 	}
 	var schedule *filament.ScheduleState
 	if config := req.Msg.GetSchedule(); config != nil {
@@ -397,6 +398,7 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: req.Msg.GetPipelineId(), TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: req.Msg.GetWorkerConfiguration(), ExecutionMode: req.Msg.GetExecutionMode(),
+		FailOnError: req.Msg.FailOnError,
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {

@@ -405,8 +405,7 @@ func (x *RatePolicy) GetBurst() int32 {
 	return 0
 }
 
-// RunOptions overrides the engine's throughput defaults for a run. Every field
-// is optional: a zero value defers to the engine default downstream.
+// RunOptions overrides engine defaults for a run. Every field is optional.
 type RunOptions struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	FetchSize           int32                  `protobuf:"varint,1,opt,name=fetch_size,json=fetchSize,proto3" json:"fetch_size,omitempty"`
@@ -418,6 +417,9 @@ type RunOptions struct {
 	// Unspecified inherits the pipeline mode. Explicit values override this start.
 	// Continuous creates a durable activation; unavailable profiles are rejected.
 	ExecutionMode ExecutionMode `protobuf:"varint,7,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	// Stop the run at its first resource failure. Omit to inherit the pipeline's
+	// fail_on_error setting.
+	FailOnError   *bool `protobuf:"varint,8,opt,name=fail_on_error,json=failOnError,proto3,oneof" json:"fail_on_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -499,6 +501,13 @@ func (x *RunOptions) GetExecutionMode() ExecutionMode {
 		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
+func (x *RunOptions) GetFailOnError() bool {
+	if x != nil && x.FailOnError != nil {
+		return *x.FailOnError
+	}
+	return false
 }
 
 type RunPipelineRequest struct {
@@ -804,9 +813,12 @@ type RunInfo struct {
 	// Present for continuous runs. records/bytes above reflect committed progress.
 	ExecutionStatus *ExecutionStatus `protobuf:"bytes,20,opt,name=execution_status,json=executionStatus,proto3" json:"execution_status,omitempty"`
 	// resources this run reads. Empty means every resource its route selects.
-	Resources     []string `protobuf:"bytes,21,rep,name=resources,proto3" json:"resources,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Resources []string `protobuf:"bytes,21,rep,name=resources,proto3" json:"resources,omitempty"`
+	// failed_resources names the resources that failed in this run. A completed
+	// run with failed resources isolated them and committed the rest.
+	FailedResources []string `protobuf:"bytes,22,rep,name=failed_resources,json=failedResources,proto3" json:"failed_resources,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *RunInfo) Reset() {
@@ -982,6 +994,13 @@ func (x *RunInfo) GetExecutionStatus() *ExecutionStatus {
 func (x *RunInfo) GetResources() []string {
 	if x != nil {
 		return x.Resources
+	}
+	return nil
+}
+
+func (x *RunInfo) GetFailedResources() []string {
+	if x != nil {
+		return x.FailedResources
 	}
 	return nil
 }
@@ -1714,7 +1733,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\n" +
 	"RatePolicy\x12.\n" +
 	"\x13requests_per_second\x18\x01 \x01(\x01R\x11requestsPerSecond\x12\x14\n" +
-	"\x05burst\x18\x02 \x01(\x05R\x05burst\"\xd4\x02\n" +
+	"\x05burst\x18\x02 \x01(\x05R\x05burst\"\x8f\x03\n" +
 	"\n" +
 	"RunOptions\x12\x1d\n" +
 	"\n" +
@@ -1725,7 +1744,9 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"rate_limit\x18\x04 \x01(\v2\x18.ingestion.v1.RatePolicyR\trateLimit\x121\n" +
 	"\x14snapshot_parallelism\x18\x05 \x01(\x05R\x13snapshotParallelism\x12)\n" +
 	"\x10checkpoint_every\x18\x06 \x01(\x05R\x0fcheckpointEvery\x12B\n" +
-	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xab\x02\n" +
+	"\x0eexecution_mode\x18\a \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12'\n" +
+	"\rfail_on_error\x18\b \x01(\bH\x00R\vfailOnError\x88\x01\x01B\x10\n" +
+	"\x0e_fail_on_error\"\xab\x02\n" +
 	"\x12RunPipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12!\n" +
@@ -1744,7 +1765,7 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\x0e2\x17.ingestion.v1.RunStatusR\x06status\x12\x18\n" +
 	"\arecords\x18\x03 \x01(\x03R\arecords\x12\x14\n" +
 	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\"\x95\x06\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\"\xc0\x06\n" +
 	"\aRunInfo\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x1f\n" +
@@ -1772,7 +1793,8 @@ const file_ingestion_v1_runs_proto_rawDesc = "" +
 	"updated_at\x18\x12 \x01(\x03R\tupdatedAt\x12B\n" +
 	"\x0eexecution_mode\x18\x13 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12H\n" +
 	"\x10execution_status\x18\x14 \x01(\v2\x1d.ingestion.v1.ExecutionStatusR\x0fexecutionStatus\x12\x1c\n" +
-	"\tresources\x18\x15 \x03(\tR\tresources\"\x8b\x01\n" +
+	"\tresources\x18\x15 \x03(\tR\tresources\x12)\n" +
+	"\x10failed_resources\x18\x16 \x03(\tR\x0ffailedResources\"\x8b\x01\n" +
 	"\vRunSnapshot\x12'\n" +
 	"\x03run\x18\x01 \x01(\v2\x15.ingestion.v1.RunInfoR\x03run\x12<\n" +
 	"\tresources\x18\x02 \x03(\v2\x1e.ingestion.v1.RunResourceStateR\tresources\x12\x15\n" +
@@ -1952,6 +1974,7 @@ func file_ingestion_v1_runs_proto_init() {
 	file_ingestion_v1_common_proto_init()
 	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_sorting_proto_init()
+	file_ingestion_v1_runs_proto_msgTypes[2].OneofWrappers = []any{}
 	file_ingestion_v1_runs_proto_msgTypes[11].OneofWrappers = []any{}
 	file_ingestion_v1_runs_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
