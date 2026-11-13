@@ -73,8 +73,7 @@ message RatePolicy {
   int32 burst = 2;
 }
 
-// RunOptions overrides the engine's throughput defaults for a run. Every field
-// is optional: a zero value defers to the engine default downstream.
+// RunOptions overrides engine defaults for a run. Every field is optional.
 message RunOptions {
   int32 fetch_size = 1;
   int32 batch_max_rows = 2;
@@ -85,6 +84,9 @@ message RunOptions {
   // Unspecified inherits the pipeline mode. Explicit values override this start.
   // Continuous creates a durable activation; unavailable profiles are rejected.
   ExecutionMode execution_mode = 7;
+  // Stop the run at its first resource failure. Omit to inherit the pipeline's
+  // fail_on_error setting.
+  optional bool fail_on_error = 8;
 }
 
 message RunPipelineRequest {
@@ -160,6 +162,9 @@ message RunInfo {
   ExecutionStatus execution_status = 20;
   // resources this run reads. Empty means every resource its route selects.
   repeated string resources = 21;
+  // failed_resources names the resources that failed in this run. A completed
+  // run with failed resources isolated them and committed the rest.
+  repeated string failed_resources = 22;
 }
 
 message RunSnapshot {

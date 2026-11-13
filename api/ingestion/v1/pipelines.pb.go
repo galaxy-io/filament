@@ -639,6 +639,11 @@ type Pipeline struct {
 	WorkerConfiguration *WorkerConfiguration `protobuf:"bytes,15,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
 	// Default execution mode for subsequent starts; existing pipelines are bounded.
 	ExecutionMode ExecutionMode `protobuf:"varint,16,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	// fail_on_error stops a bounded run at its first resource failure. False
+	// isolates a failed resource and lets the others finish, so the run can end
+	// completed with failed resources. Change-stream routes always stop.
+	// Pipelines created before this setting existed are true.
+	FailOnError   *bool `protobuf:"varint,17,opt,name=fail_on_error,json=failOnError,proto3,oneof" json:"fail_on_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -783,6 +788,13 @@ func (x *Pipeline) GetExecutionMode() ExecutionMode {
 		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
+func (x *Pipeline) GetFailOnError() bool {
+	if x != nil && x.FailOnError != nil {
+		return *x.FailOnError
+	}
+	return false
 }
 
 type PipelineScheduleConfig struct {
@@ -940,6 +952,8 @@ type CreatePipelineRequest struct {
 	WorkerConfiguration *WorkerConfiguration `protobuf:"bytes,4,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
 	// Unspecified defaults to bounded.
 	ExecutionMode ExecutionMode `protobuf:"varint,5,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	// Defaults to false, which isolates resource failures in bounded runs.
+	FailOnError   bool `protobuf:"varint,6,opt,name=fail_on_error,json=failOnError,proto3" json:"fail_on_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1007,6 +1021,13 @@ func (x *CreatePipelineRequest) GetExecutionMode() ExecutionMode {
 		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
+func (x *CreatePipelineRequest) GetFailOnError() bool {
+	if x != nil {
+		return x.FailOnError
+	}
+	return false
 }
 
 type CreatePipelineResponse struct {
@@ -1357,6 +1378,8 @@ type UpdatePipelineRequest struct {
 	WorkerConfiguration *WorkerConfiguration   `protobuf:"bytes,4,opt,name=worker_configuration,json=workerConfiguration,proto3" json:"worker_configuration,omitempty"`
 	// Unspecified preserves the saved mode; affects future starts only.
 	ExecutionMode ExecutionMode `protobuf:"varint,5,opt,name=execution_mode,json=executionMode,proto3,enum=ingestion.v1.ExecutionMode" json:"execution_mode,omitempty"`
+	// Omit to preserve the saved setting.
+	FailOnError   *bool `protobuf:"varint,6,opt,name=fail_on_error,json=failOnError,proto3,oneof" json:"fail_on_error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1424,6 +1447,13 @@ func (x *UpdatePipelineRequest) GetExecutionMode() ExecutionMode {
 		return x.ExecutionMode
 	}
 	return ExecutionMode_EXECUTION_MODE_UNSPECIFIED
+}
+
+func (x *UpdatePipelineRequest) GetFailOnError() bool {
+	if x != nil && x.FailOnError != nil {
+		return *x.FailOnError
+	}
+	return false
 }
 
 type UpdatePipelineResponse struct {
@@ -2070,7 +2100,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\x12+\n" +
 	"\x12created_by_user_id\x18\x06 \x01(\tR\x0fcreatedByUserId\x12+\n" +
 	"\x12updated_by_user_id\x18\a \x01(\tR\x0fupdatedByUserId\x12+\n" +
-	"\x12deleted_by_user_id\x18\b \x01(\tR\x0fdeletedByUserId\"\xdc\x05\n" +
+	"\x12deleted_by_user_id\x18\b \x01(\tR\x0fdeletedByUserId\"\x97\x06\n" +
 	"\bPipeline\x12\x1b\n" +
 	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -2091,7 +2121,9 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x12updated_by_user_id\x18\r \x01(\tR\x0fupdatedByUserId\x12+\n" +
 	"\x12deleted_by_user_id\x18\x0e \x01(\tR\x0fdeletedByUserId\x12T\n" +
 	"\x14worker_configuration\x18\x0f \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\x12B\n" +
-	"\x0eexecution_mode\x18\x10 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\xbb\x01\n" +
+	"\x0eexecution_mode\x18\x10 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12'\n" +
+	"\rfail_on_error\x18\x11 \x01(\bH\x00R\vfailOnError\x88\x01\x01B\x10\n" +
+	"\x0e_fail_on_error\"\xbb\x01\n" +
 	"\x16PipelineScheduleConfig\x12\x12\n" +
 	"\x04cron\x18\x01 \x01(\tR\x04cron\x12\x1a\n" +
 	"\btimezone\x18\x02 \x01(\tR\btimezone\x12\x1d\n" +
@@ -2105,13 +2137,14 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x06config\x18\x03 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\x06config\x12 \n" +
 	"\fnext_fire_at\x18\x04 \x01(\x03R\n" +
 	"nextFireAt\x12\"\n" +
-	"\rlast_fired_at\x18\x05 \x01(\x03R\vlastFiredAt\"\xa9\x02\n" +
+	"\rlast_fired_at\x18\x05 \x01(\x03R\vlastFiredAt\"\xcd\x02\n" +
 	"\x15CreatePipelineRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12@\n" +
 	"\bschedule\x18\x03 \x01(\v2$.ingestion.v1.PipelineScheduleConfigR\bschedule\x12T\n" +
 	"\x14worker_configuration\x18\x04 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\x12B\n" +
-	"\x0eexecution_mode\x18\x05 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"\x88\x01\n" +
+	"\x0eexecution_mode\x18\x05 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12\"\n" +
+	"\rfail_on_error\x18\x06 \x01(\bR\vfailOnError\"\x88\x01\n" +
 	"\x16CreatePipelineResponse\x122\n" +
 	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\x12:\n" +
 	"\bschedule\x18\x02 \x01(\v2\x1e.ingestion.v1.PipelineScheduleR\bschedule\"\x82\x01\n" +
@@ -2132,14 +2165,16 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"pipelineId\x121\n" +
 	"\x05graph\x18\x02 \x01(\v2\x1b.ingestion.v1.PipelineGraphR\x05graph\"X\n" +
 	"\x1dCreatePipelineVersionResponse\x127\n" +
-	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\x88\x02\n" +
+	"\aversion\x18\x01 \x01(\v2\x1d.ingestion.v1.PipelineVersionR\aversion\"\xc3\x02\n" +
 	"\x15UpdatePipelineRequest\x12\x1f\n" +
 	"\vpipeline_id\x18\x01 \x01(\tR\n" +
 	"pipelineId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12T\n" +
 	"\x14worker_configuration\x18\x04 \x01(\v2!.ingestion.v1.WorkerConfigurationR\x13workerConfiguration\x12B\n" +
-	"\x0eexecution_mode\x18\x05 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\"L\n" +
+	"\x0eexecution_mode\x18\x05 \x01(\x0e2\x1b.ingestion.v1.ExecutionModeR\rexecutionMode\x12'\n" +
+	"\rfail_on_error\x18\x06 \x01(\bH\x00R\vfailOnError\x88\x01\x01B\x10\n" +
+	"\x0e_fail_on_error\"L\n" +
 	"\x16UpdatePipelineResponse\x122\n" +
 	"\bpipeline\x18\x01 \x01(\v2\x16.ingestion.v1.PipelineR\bpipeline\"\xa4\x01\n" +
 	"\x12GetPipelineRequest\x12\x0e\n" +
@@ -2310,6 +2345,8 @@ func file_ingestion_v1_pipelines_proto_init() {
 	file_ingestion_v1_pagination_proto_init()
 	file_ingestion_v1_runs_proto_init()
 	file_ingestion_v1_sorting_proto_init()
+	file_ingestion_v1_pipelines_proto_msgTypes[7].OneofWrappers = []any{}
+	file_ingestion_v1_pipelines_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

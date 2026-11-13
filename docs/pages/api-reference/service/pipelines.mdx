@@ -90,6 +90,10 @@ and optional `worker_configuration`. Worker configuration can set Kubernetes
 resources, node selectors, and tolerations for this pipeline's workers. The
 pipeline has no graph until the first `CreatePipelineVersion`.
 
+`fail_on_error` defaults to false. A bounded run then isolates a failed
+resource and commits the others. Set it to true to stop the run at the first
+resource failure. Runs inherit the setting unless their options override it.
+
 ## CreatePipelineVersion
 
 The only way to change what a pipeline does. The server:
@@ -109,7 +113,8 @@ The only way to change what a pipeline does. The server:
 Updates `name`, `description`, and `worker_configuration` without creating a
 new version. Worker settings live on the pipeline so changing CPU or memory
 does not move the pipeline to a new set of resource checkpoints. Renaming a
-pipeline also leaves its graph unchanged.
+pipeline also leaves its graph unchanged. Set `fail_on_error` to change how
+future runs handle a resource failure, or omit it to keep the saved value.
 
 ## GetPipeline, ListPipelines, versions
 
