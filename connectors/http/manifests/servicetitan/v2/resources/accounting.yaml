@@ -638,6 +638,42 @@ resources:
           size: query.pageSize
           page_size: 50
           more: hasMore
+  - name: inventory_bills_export
+    path: /accounting/v2/tenant/{{ config.tenant_id }}/export/inventory-bills
+    primary_key: [id]
+    fields:
+      id: int64
+      purchaseOrderId: int64?
+      syncStatus: string?
+      referenceNumber: string?
+      billDate: string?
+      billAmount: string?
+      taxAmount: string?
+      shippingAmount: string?
+      landedCostMethod: string
+      batch: json?
+      businessUnit: json?
+      vendor: json?
+      items: json?
+      customFields: json?
+      active: bool
+      createdOn: string?
+      modifiedOn: string?
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: inventory_bills_export_token
   - name: journal_entry_summaries
     path: /accounting/v2/tenant/{{ config.tenant_id }}/journal-entries/{journal_entry_id}/summary
     params: {journal_entry_id: parent.journal_entry_id}
