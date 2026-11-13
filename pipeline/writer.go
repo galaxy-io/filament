@@ -25,7 +25,9 @@ func (p *Pipeline) writer(ctx context.Context) {
 		// Once any writer fails, the source is stopped but already queued batches
 		// still belong to the pipeline. Drain and release them without calling the
 		// sink so every successful ownership transfer has a terminal Release.
-		if p.Err() != nil {
+		// A quarantined resource's queued batches are released the same way,
+		// while every other resource keeps flowing through this writer.
+		if p.Err() != nil || item.gate.quarantined() {
 			b.Release()
 			continue
 		}
@@ -34,21 +36,22 @@ func (p *Pipeline) writer(ctx context.Context) {
 			b.Release()
 			continue
 		}
-		p.processBatch(ctx, b, item.epoch)
+		p.processBatch(ctx, b, item.epoch, item.gate)
 	}
 }
 
-func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch *filament.EpochRef) (ok bool) {
+func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch *filament.EpochRef, gate *resourceGate) (ok bool) {
 	defer b.Release()
-	// A sink that panics fails the run, not the worker.
+	// A sink that panics fails the run, not the worker. A panic is a bug, not a
+	// data condition, so it is never scoped to one resource.
 	defer func() {
 		if r := recover(); r != nil {
-			p.setErr(fmt.Errorf("write %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack()))
+			p.report(Failure{Resource: b.Resource, Scope: ScopeSession, Err: fmt.Errorf("write %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack())})
 		}
 	}()
 	policy, err := p.policyFor(b.Resource)
 	if err != nil {
-		p.setErr(err)
+		p.report(Failure{Resource: b.Resource, Scope: ScopeResource, Err: err})
 		return false
 	}
 	// A bitmap completion marker carries no rows: publish its want delta (the part's
@@ -62,9 +65,15 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 	// Validate the negotiated contract before invoking any destination effect.
 	if p.stream != nil {
 		if err := policy.ValidateBatch(b.Resource, b); err != nil {
-			p.setErr(err)
+			p.report(Failure{Resource: b.Resource, Scope: ScopeResource, Err: err})
 			return false
 		}
+	}
+	// From here on the sink sees this resource. Mark it applied atomically
+	// with the quarantine check, so a resource is never quarantined as
+	// "unwritten" while a writer is handing it to the sink.
+	if !gate.admit() {
+		return false
 	}
 	if p.prepareSchema != nil {
 		p.registryMu.Lock()
@@ -72,22 +81,22 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 		p.registryMu.Unlock()
 		registered.preparation.once.Do(func() { registered.preparation.err = p.prepareSchema(ctx, b.Resource, registered.model.Clone()) })
 		if err := registered.preparation.err; err != nil {
-			p.setErr(fmt.Errorf("prepare schema for %s: %w", b.Resource, err))
+			p.report(Failure{Resource: b.Resource, Scope: p.classifyApply(err), Err: fmt.Errorf("prepare schema for %s: %w", b.Resource, err)})
 			return false
 		}
 	}
 	readCRC := b.IntegrityCRC()
 	receipt, err := p.writeBatch(ctx, b, policy)
 	if err != nil {
-		p.setErr(fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err))
+		p.report(Failure{Resource: b.Resource, Scope: p.classifyApply(err), Err: fmt.Errorf("write %s seq %d: %w", b.Resource, b.Seq, err)})
 		return false
 	}
 	if epoch != nil && receipt.Rows != b.NumRows() {
-		p.setErr(fmt.Errorf("write %s seq %d: incomplete sink receipt: rows %d, expected %d", b.Resource, b.Seq, receipt.Rows, b.NumRows()))
+		p.report(Failure{Resource: b.Resource, Scope: ScopeSession, Err: fmt.Errorf("write %s seq %d: incomplete sink receipt: rows %d, expected %d", b.Resource, b.Seq, receipt.Rows, b.NumRows())})
 		return false
 	}
 	if p.encodedIntegrity && receipt.EncodedCRC == nil {
-		p.setErr(fmt.Errorf("write %s seq %d: sink %q requires encoded integrity evidence but returned none", b.Resource, b.Seq, p.sink.Name()))
+		p.report(Failure{Resource: b.Resource, Scope: ScopeIntegrity, Err: fmt.Errorf("write %s seq %d: sink %q requires encoded integrity evidence but returned none", b.Resource, b.Seq, p.sink.Name())})
 		return false
 	}
 
@@ -127,7 +136,7 @@ func (p *Pipeline) processBatch(ctx context.Context, b *arrowbatch.Batch, epoch 
 	}
 	p.publish(events.NewFact(events.ChunkDivergence, events.Envelope{Resource: b.Resource},
 		events.ChunkDivergenceEvent{CRC: readCRC}))
-	p.setErr(fmt.Errorf("write %s seq %d: CRC divergence: read %08x, write %08x", b.Resource, b.Seq, readCRC, receipt.WriteCRC))
+	p.report(Failure{Resource: b.Resource, Scope: ScopeIntegrity, Err: fmt.Errorf("write %s seq %d: CRC divergence: read %08x, write %08x", b.Resource, b.Seq, readCRC, receipt.WriteCRC)})
 	return false
 }
 

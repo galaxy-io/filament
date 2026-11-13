@@ -239,6 +239,14 @@ type RunOptions struct {
 	RateLimit           *RatePolicy
 	SnapshotParallelism int
 
+	// IsolateResourceFailures lets a bounded run continue when one resource
+	// fails, committing the healthy resources and reporting the failed ones.
+	// False keeps the stop-on-first-error behavior. CDC runs always stop.
+	IsolateResourceFailures bool `json:",omitempty"`
+	// MaxFailedResources fails the run once more resources than this have
+	// failed under isolation. 0 leaves the count unbounded.
+	MaxFailedResources int `json:",omitempty"`
+
 	// CheckpointEvery is how many written batches advance the cursor before it is
 	// persisted (0 → DefaultCheckpointEvery). Larger values cut DataStore writes at
 	// the cost of more redundant re-reads on resume (harmless: the sink is idempotent).
