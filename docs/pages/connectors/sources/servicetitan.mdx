@@ -7,7 +7,7 @@ description: "Read ServiceTitan exports and supporting operational resources wit
 
 Connector ID `servicetitan`
 
-The ServiceTitan source uses the v2 REST APIs. It provides 72 selectable
+The ServiceTitan source uses the v2 REST APIs. It provides 82 selectable
 resources across accounting, jobs, inventory, customers, and other ServiceTitan
 API families. Shared pagination, projection, and checkpoint behavior have
 regression coverage. Live tenant reads have not been validated.
@@ -46,6 +46,8 @@ credentials and tenant. Related resources can share a scope.
 | Jobs and projects | [`projects`](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2/endpoints/Export_Projects) | `tn.jpm.projects:r` |
 | Jobs and projects | [`job_notes`](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2/endpoints/Export_JobNotes) | `tn.jpm.jobnotes:r` |
 | Jobs and projects | [`job_history`](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2/endpoints/Export_JobHistory) | `tn.jpm.jobhistory:r` |
+| Jobs and projects | [`job_canceled_logs`](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2/endpoints/Export_JobCancelReasons) | `tn.jpm.jobcanceledlogs:r` |
+| Jobs and projects | [`project_notes`](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2/endpoints/Export_ProjectNotes) | `tn.jpm.projectnotes:r` |
 | Jobs and projects | [`job_types`](https://developer.servicetitan.io/docs/apis/tenant-jpm-v2/endpoints/JobTypes_GetList) | `tn.jpm.jobtypes:r` |
 | Customers | [`customers`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportCustomers_GetCustomers) | `tn.crm.customers:r` |
 | Customers | [`locations`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportLocations_Locations) | `tn.crm.locations:r` |
@@ -53,6 +55,7 @@ credentials and tenant. Related resources can share a scope.
 | Customers | [`bookings`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportBookings_Get) | `tn.crm.bookings:r` |
 | Customers | [`customer_contacts`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportContacts_CustomersContacts) | `tn.crm.customers:r` |
 | Customers | [`location_contacts`](https://developer.servicetitan.io/docs/apis/tenant-crm-v2/endpoints/ExportContacts_LocationsContacts) | `tn.crm.locations:r` |
+| Customer Interactions | [`technician_ratings`](https://developer.servicetitan.io/docs/apis/tenant-customer-interactions-v2/endpoints/Export_TechnicianRatings) | `tn.csi.technicianrating:r` |
 | Accounting | [`gl_accounts`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/GlAccounts_GetList) | `tn.acc.glaccounts:r` |
 | Accounting | [`journal_entries`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/JournalEntries_GetList) | `tn.acc.journalentries:r` |
 | Accounting | [`journal_entry_details`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/JournalEntries_GetDetails) | `tn.acc.journalentries:r` |
@@ -69,6 +72,7 @@ credentials and tenant. Related resources can share a scope.
 | Accounting | [`ap_payments`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/ApPayments_GetList) | `tn.acc.appayments:r` |
 | Accounting | [`expense_transactions`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/ExpenseTransactions_GetListPaginated) | `tn.acc.expensetransactions:r` |
 | Accounting | [`inventory_bills`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/InventoryBills_GetListPaginated) | `tn.acc.inventorybills:r` |
+| Accounting | [`inventory_bills_export`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/Export_InventoryBills) | `tn.acc.inventorybills:r` |
 | Accounting | [`payment_types`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/PaymentTypes_GetList) | `tn.acc.paymenttypes:r` |
 | Accounting | [`payment_terms`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/PaymentTerms_GetList) | `tn.acc.paymentterms:r` |
 | Accounting | [`tax_zones`](https://developer.servicetitan.io/docs/apis/tenant-accounting-v2/endpoints/TaxZones_GetList) | `tn.acc.taxzones:r` |
@@ -80,6 +84,7 @@ credentials and tenant. Related resources can share a scope.
 | Inventory | [`inventory_returns`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Returns) | `tn.inv.returns:r` |
 | Inventory | [`inventory_transfers`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Transfers) | `tn.inv.transfers:r` |
 | Inventory | [`inventory_receipts`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Receipts_GetList) | `tn.inv.receipts:r` |
+| Inventory | [`inventory_receipts_export`](https://developer.servicetitan.io/docs/apis/tenant-inventory-v2/endpoints/Export_Receipts) | `tn.inv.receipts:r` |
 | Equipment Systems | [`installed_equipment`](https://developer.servicetitan.io/docs/apis/tenant-equipment-systems-v2/endpoints/Export_ExportInstalledEquipment) | `tn.eqs.installedequipment:r` |
 | Equipment Systems | [`equipment_systems`](https://developer.servicetitan.io/docs/apis/tenant-equipment-systems-v2/endpoints/Export_ExportEquipmentSystems) | `tn.eqs.equipmentsystems:r` |
 | Pricebook | [`pricebook_categories`](https://developer.servicetitan.io/docs/apis/tenant-pricebook-v2/endpoints/Export_Categories) | `tn.pb.categories:r` |
@@ -95,11 +100,15 @@ credentials and tenant. Related resources can share a scope.
 | Marketing | [`campaign_categories`](https://developer.servicetitan.io/docs/apis/tenant-marketing-v2/endpoints/CampaignCategories_GetList) | `tn.mrk.categories:r` |
 | Calls | [`calls`](https://developer.servicetitan.io/docs/apis/tenant-telecom/endpoints/Export_Calls) | `tn.tlc.calls:r` |
 | Timesheets | [`timesheet_activities`](https://developer.servicetitan.io/docs/apis/tenant-timesheets-v2/endpoints/Export_Activities) | `tn.tms.activities:r` |
+| Timesheets | [`timesheet_activity_categories`](https://developer.servicetitan.io/docs/apis/tenant-timesheets-v2/endpoints/Export_ActivityCategories) | `tn.tms.activitycategories:r` |
+| Timesheets | [`timesheet_activity_types`](https://developer.servicetitan.io/docs/apis/tenant-timesheets-v2/endpoints/Export_ActivityTypes) | `tn.tms.activitytypes:r` |
 | Payroll | [`job_timesheets`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_Timesheets) | `tn.prl.jobs:r` |
 | Payroll | [`job_splits`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_JobSplits) | `tn.prl.jobs:r` |
 | Payroll | [`payroll_adjustments`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_PayrollAdjustments) | `tn.prl.payrolladjustments:r` |
 | Payroll | [`gross_pay_items`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_GrossPayItems) | `tn.prl.grosspayitems:r` |
 | Payroll | [`timesheet_codes`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_TimesheetCodes) | `tn.prl.timesheetcodes:r` |
+| Payroll | [`activity_codes`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_ActivityCodes) | `tn.prl.activitycodes:r` |
+| Payroll | [`payroll_settings`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Export_PayrollSettings) | `tn.prl.payrollsettings:r` |
 | Payroll | [`non_job_timesheets`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Timesheets_GetNonJobTimesheets) | `tn.prl.nonjobtimesheets:r` |
 | Payroll | [`payrolls`](https://developer.servicetitan.io/docs/apis/tenant-payroll-v2/endpoints/Payrolls_GetList) | `tn.prl.payrolls:r` |
 | Dispatch | [`appointment_assignments`](https://developer.servicetitan.io/docs/apis/tenant-dispatch-v2/endpoints/Export_AppointmentAssignments) | `tn.dis.appointmentassignments:r` |
@@ -113,13 +122,13 @@ credentials and tenant. Related resources can share a scope.
 | Memberships | [`recurring_service_events`](https://developer.servicetitan.io/docs/apis/tenant-memberships-v2/endpoints/Export_LocationRecurringServiceEvents) | `tn.mem.recurringserviceevents:r` |
 | Memberships | [`membership_status_changes`](https://developer.servicetitan.io/docs/apis/tenant-memberships-v2/endpoints/Export_MembershipStatusChanges) | `tn.mem.memberships:r` |
 | Estimates | [`estimates`](https://developer.servicetitan.io/docs/apis/tenant-salestech-v2/endpoints/EstimatesExport_Estimates) | `tn.sal.estimates:r` |
+| Service Agreements | [`service_agreements`](https://developer.servicetitan.io/docs/apis/tenant-service-agreements-v2/endpoints/Export_ServiceAgreements) | `tn.sa.serviceagreements:r` |
 
 The default selection includes jobs, customers, common exports, and reference
-streams. Bank deposits,
-credit memos, AP transactions, expense transactions, inventory bills and
-receipts, journal summaries, and payment and tax reference tables are available
-to select individually. Grant each selected resource's read scope on the
-ServiceTitan application.
+streams. The added export feeds, bank deposits, credit memos, AP transactions,
+expense transactions, inventory bills and receipts, journal summaries, and
+payment and tax reference tables are available to select individually. Grant
+each selected resource's read scope on the ServiceTitan application.
 
 Other ServiceTitan resources, including reporting and forms, are outside this
 resource set.
@@ -137,6 +146,9 @@ ID. Their rows include `journalEntryId` but have no API-provided line ID.
 `bankDepositId`. `credit_memo_items` links to `credit_memos` through
 `creditMemoId`. AP bills and expense transactions include their items as JSON.
 `inventory_receipts` uses the receipt list, which includes item GL accounts.
+`inventory_receipts_export` uses the export feed, which includes serial numbers
+on items but omits item GL accounts. The inventory bill list and export feed are
+also separate selectable resources.
 The `ap_bills` resource selects ServiceTitan's `ApBill` bill type, while
 `inventory_bills` has no bill type filter.
 
@@ -149,7 +161,7 @@ not expose.
 
 ## Modes
 
-All 72 resources support full reads. Incremental reads are available for 45
+All 82 resources support full reads. Incremental reads are available for 53
 export and timestamp based resources. ServiceTitan export feeds use the opaque
 `continueFrom` token. `non_job_timesheets` and `payrolls` use
 `modifiedOnOrAfter` and sort by modification time. Use incremental upsert for
@@ -158,11 +170,14 @@ before saving a checkpoint.
 
 Full reads are the only supported mode for these resources:
 
-- Accounting resources other than `invoices`, `invoice_items`, and `payments`.
+- Accounting resources other than `invoices`, `invoice_items`, `payments`, and
+  `inventory_bills_export`.
 - `vendors`, `inventory_templates`, and `inventory_receipts`.
 - `job_types`, `campaigns`, `campaign_costs`, `campaign_categories`,
   `technician_shifts`, `non_job_appointments`, and
   `membership_status_changes`.
+- `technician_ratings` and `payroll_settings`, which have no documented stable
+  row ID. Use full replace when writing these resources.
 
 Use full replace for `journal_entries`, `journal_entry_details`,
 `journal_entry_summaries`, and `payment_terms`. ServiceTitan allows null IDs for
@@ -170,6 +185,9 @@ journal entries and payment terms, so these resources have no primary key.
 Neither journal entry child resource has a stable line key. Full replace also
 removes rows missing from current-state lists when ServiceTitan deletes records.
 Use it for `technician_shifts`, which can be deleted upstream.
+
+`inventory_bills_export` and `inventory_receipts_export` support incremental
+reads. Their corresponding list resources support full reads only.
 
 ## Behavior
 

@@ -148,6 +148,40 @@ Filament does not export logs through OTLP.
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant used when a request does not provide one |
 | `METRICSSTORE_PROVIDER` | unset | Unset reads dashboard metrics from the configured datastore. No explicit values are currently supported |
 
+### Webhooks
+
+In a split deployment, webhooks require the shared PostgreSQL datastore and NATS JetStream.
+The server verifies signed deliveries and stores them in a dedicated inbox.
+Workers consume the inbox after acceptance. The control plane purges it.
+Standalone uses SQLite and embedded NATS for the same flow. Set `WEBHOOKS_ENABLED=true`
+to serve `/hooks/`. Standalone defaults to a 64 MiB inbox, a 2 MiB message
+limit, and one replica. The other webhook variables below also apply to it.
+
+| Variable | Default | Description |
+|---|---|---|
+| `WEBHOOKS_ENABLED` | `false` | Enable the `/hooks/` delivery path and inbox retention |
+| `WEBHOOK_MAX_IN_FLIGHT` | `64` | Maximum concurrent deliveries per server replica. Excess requests return `503` with `Retry-After` |
+| `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach, such as `https://filament.example.com`. The API and UI show delivery URLs when set. Unset makes the delivery URL unavailable in the UI |
+| `WEBHOOK_INBOX_MAX_BYTES` | — | Required in a split deployment. Standalone defaults to 64 MiB. Increasing it expands the existing stream on startup. A lower value does not shrink the stream |
+| `WEBHOOK_INBOX_MAX_MESSAGE_BYTES` | — | Required in a split deployment. Standalone defaults to 2 MiB and allows up to 32 MiB. Increasing it expands the existing stream on startup. A lower value limits this server but does not shrink the stream |
+| `WEBHOOK_INBOX_REPLICAS` | — | Required in a split deployment. Standalone uses one replica. Changing it on an existing stream requires a coordinated migration |
+| `WEBHOOK_INBOX_RETENTION_HOURS` | `168` | Hours a delivery stays in the inbox before it may be purged. Also how long a sender retry is recognized as a duplicate |
+| `WEBHOOK_INBOX_MAX_HOLD_HOURS` | `720` | Most hours a delivery no pipeline has read stays in the inbox. Past it the delivery is dropped and counted in `filament_webhook_expired_total`. At least the retention period |
+
+The Helm chart sets the server values through `server.webhooks` and the
+retention through `controlPlane.webhookRetentionHours` and
+`controlPlane.webhookMaxHoldHours`. Its webhooks toggle is
+off by default. An endpoint's body limit may not exceed the inbox message limit
+minus 1 KiB reserved for delivery headers.
+
+The inbox message limit may not exceed the NATS server's `max_payload`, which
+defaults to 1 MiB. The server refuses to start otherwise. The bundled Compose
+file and the chart's vendored NATS raise it to 2 MiB to match the default
+limit. Set it on any other NATS deployment.
+
+Expose only the `/hooks/` path to webhook senders. Every other path on the
+server listener is the API and UI.
+
 ### Authentication
 
 | Variable | Default | Description |

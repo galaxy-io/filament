@@ -142,6 +142,9 @@ func ValidateContinuous(source ConnectorSpec, sink SinkSpec) error {
 
 // StreamOpenOpts supplies selected resources, durable resume state, and admitted ownership.
 type StreamOpenOpts struct {
+	// Tenant owns the stream. Sources that partition shared infrastructure by
+	// tenant, such as the webhook inbox, scope their reads with it.
+	Tenant TenantID
 	// MessageSchemaPolicy opts into batch-boundary negotiation. Empty retains
 	// fixed first-message inference. Layouts come from certified progress only.
 	MessageSchemaPolicy schema.Policy

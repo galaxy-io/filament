@@ -5,7 +5,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import { getErrorMessage } from "@/utils/errors";
 
-interface UseConfirmCallbacks {
+export interface UseConfirmCallbacks {
   onSuccess: () => void;
   onError: (error: unknown) => void;
 }

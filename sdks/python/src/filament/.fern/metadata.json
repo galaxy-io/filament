@@ -11,7 +11,7 @@
     "optional_auth": true,
     "default_max_retries": 0
   },
-  "originGitCommit": "e14fc86ab00e8822eeea4eebbd93a6565514b271",
+  "originGitCommit": "020d99f5175dc5b3c867edee5cfb8d6464304cef",
   "originGitCommitIsDirty": false,
   "invokedBy": "ci",
   "ciProvider": "github"

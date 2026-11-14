@@ -114,6 +114,7 @@ discovery:
 includes:
   - resources/jpm.yaml
   - resources/crm.yaml
+  - resources/customerinteractions.yaml
   - resources/accounting.yaml
   - resources/inventory.yaml
   - resources/equipmentsystems.yaml
@@ -126,3 +127,4 @@ includes:
   - resources/dispatch.yaml
   - resources/memberships.yaml
   - resources/sales.yaml
+  - resources/serviceagreements.yaml
