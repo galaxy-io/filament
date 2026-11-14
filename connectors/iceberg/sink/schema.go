@@ -92,7 +92,11 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	iceSchema := buildIcebergSchema(schema)
 	ident := s.tableIdent(resource)
 	createOpts := []catalog.CreateTableOpt{
-		catalog.WithProperties(iceberg.Properties{"write.format.default": "parquet"}),
+		catalog.WithProperties(iceberg.Properties{
+			"write.format.default":                       "parquet",
+			icetable.MetadataDeleteAfterCommitEnabledKey: "true",
+			icetable.ManifestMergeEnabledKey:             "true",
+		}),
 	}
 	if s.tableLocationRoot != "" {
 		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), tableName(resource))
