@@ -122,8 +122,10 @@ single-write connector into a reusable connector.
 The default boundary targets are 1,000 records or one second for reusable
 sinks and 100,000 records or 30 seconds for fresh instances. Set
 `SinkCapabilities.PreferredEpochBoundary` when every commit carries a fixed
-cost at the destination, such as a table snapshot. An explicit
-`RunOptions.EpochBoundary` overrides both. Sources may return a safe
+cost at the destination, such as a table snapshot. Implement
+`filament.EpochBounded` instead when the boundary depends on pipeline config,
+such as a commit interval the user sets. An explicit
+`RunOptions.EpochBoundary` overrides all of them. Sources may return a safe
 boundary earlier or finish an in-progress transaction before returning.
 
 `RunSpec.Run` and `StartedAt` retain the logical run's identity and start time.

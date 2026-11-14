@@ -45,6 +45,13 @@ type Schematized interface {
 	EnsureSchema(ctx context.Context, resource string, schema RecordSchema) error
 }
 
+// EpochBounded is the optional sink contract for a continuous epoch boundary
+// that depends on the pipeline's sink config. It replaces
+// SinkCapabilities.PreferredEpochBoundary. Options.EpochBoundary still wins.
+type EpochBounded interface {
+	EpochBoundary(cfg Config) (Boundary, error)
+}
+
 // SinkSpec is a sink's self-description: identity, config schema, and
 // capabilities. It powers the catalog.
 type SinkSpec struct {
