@@ -23,7 +23,10 @@ services:
 
   nats:
     image: ${NATS_IMAGE:-docker.io/library/nats:2-alpine}
-    command: ["-js", "-sd", "/data", "-m", "8222"]
+    command: ["-c", "/etc/nats/filament.conf", "-js", "-sd", "/data", "-m", "8222"]
+    configs:
+      - source: nats
+        target: /etc/nats/filament.conf
     networks:
       - filament
     ports:
@@ -109,3 +112,9 @@ volumes:
   postgres-data:
   nats-data:
   keycloak-data:
+
+configs:
+  # The webhook inbox stores messages up to 2 MiB. NATS defaults to 1 MiB.
+  nats:
+    content: |
+      max_payload: 2MB

@@ -1,0 +1,39 @@
+resources:
+  - name: service_agreements
+    path: /service-agreements/v2/tenant/{{ config.tenant_id }}/export/service-agreements
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      customerId: int64
+      businessUnitId: int64
+      status: string
+      origin: string
+      locationIds: json
+      templateFields: json
+      startDate: string?
+      endDate: string?
+      autoRenew: bool
+      importedDeferredAmount: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      importedRecognizedAmount: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      laborSurcharge: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      materialSurcharge: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      customFields: json
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: service_agreements_export_token

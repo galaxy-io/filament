@@ -7,7 +7,8 @@ import (
 
 // Spec describes the Zerobus sink's configuration and append-only write
 // capabilities. Zerobus ingests into a pre-existing Delta table and appends
-// records; it does not replace, upsert, merge, or delete.
+// records, CDC changes included as history rows; it does not replace, upsert,
+// merge, or delete.
 func (*Sink) Spec() filament.SinkSpec {
 	return filament.SinkSpec{
 		Name:         sinkName,
@@ -32,10 +33,15 @@ func (*Sink) Spec() filament.SinkSpec {
 // durable until Commit's Flush. Advertising DurabilityAfterCommit makes the
 // planner promote incremental append to CheckpointAfterCommit, so a checkpoint
 // never advances past data a crash before Flush would lose.
+//
+// CDC append keeps every change as a history row. The engine shapes that
+// schema (nullable source fields plus operation, position and sequence
+// columns) before EnsureSchema, so Apply appends it like any other batch.
 func appendWritePolicies() []filament.WritePolicyCapability {
 	caps := filament.WriteCapabilities(
 		filament.IngestionFullAppend,
 		filament.IngestionIncrementalAppend,
+		filament.IngestionCDCAppend,
 	)
 	for i := range caps {
 		caps[i].Durability = filament.DurabilityAfterCommit

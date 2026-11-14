@@ -23,6 +23,13 @@ data:
   # Health
   HEALTH_ADDR: ":{{ .Values.controlPlane.health.port }}"
 
+  # Webhook inbox retention
+  WEBHOOKS_ENABLED: {{ .Values.server.webhooks.enabled | quote }}
+  {{- if .Values.server.webhooks.enabled }}
+  WEBHOOK_INBOX_RETENTION_HOURS: {{ .Values.controlPlane.webhookRetentionHours | int64 | quote }}
+  WEBHOOK_INBOX_MAX_HOLD_HOURS: {{ .Values.controlPlane.webhookMaxHoldHours | int64 | quote }}
+  {{- end }}
+
   # Reaper
   {{- with .Values.controlPlane.reaper.intervalSeconds }}
   REAPER_INTERVAL_SECONDS: {{ . | quote }}

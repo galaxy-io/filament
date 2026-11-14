@@ -27,6 +27,7 @@ import type { ListSearchParams } from "@/module/schemas";
 
 import { ACTIVE_RUNS_REFETCH_INTERVAL } from "@/api/queries/constants";
 import { createListRunsQueryKey } from "@/api/queries/runs";
+import { createGetWebhookEndpointQueryKey } from "@/api/queries/webhooks";
 import {
   createListSearchInput,
   getNextPageParam,
@@ -117,6 +118,16 @@ export const useSuspenseListPipelinesInfiniteQuery = ({
 export const createGetPipelineInput = (id: Pipeline["id"]) =>
   create(GetPipelineRequestSchema, { id, includeVersions: true, includeSchedule: true });
 
+export const createGetPipelineQueryOptions = ({
+  input,
+  transport,
+}: {
+  input: GetPipelineRequest;
+  transport: Transport;
+}) => {
+  return createQueryOptions(IngestionService.method.getPipeline, input, { transport });
+};
+
 export const createGetPipelineQueryKey = (input?: GetPipelineRequest, transport?: Transport) => {
   return createConnectQueryKey({
     schema: IngestionService.method.getPipeline,
@@ -147,9 +158,7 @@ export const useGetPipelineQueries = (ids: Pipeline["id"][]) => {
   const transport = useTransport();
   return useQueries({
     queries: ids.map((id) =>
-      createQueryOptions(IngestionService.method.getPipeline, createGetPipelineInput(id), {
-        transport,
-      }),
+      createGetPipelineQueryOptions({ input: createGetPipelineInput(id), transport }),
     ),
     combine: selectPipelines,
   });
@@ -191,6 +200,9 @@ export const useUpdatePipelineMutation = (
       void queryClient.invalidateQueries({
         queryKey: createGetPipelineQueryKey(undefined, transport),
       });
+      void queryClient.invalidateQueries({
+        queryKey: createGetWebhookEndpointQueryKey(undefined, transport),
+      });
       return options.onSettled?.(...args);
     },
   });
@@ -215,6 +227,9 @@ export const useDeletePipelineMutation = (
       });
       void queryClient.invalidateQueries({
         queryKey: createListRunsQueryKey(undefined, transport),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: createGetWebhookEndpointQueryKey(undefined, transport),
       });
       return options.onSettled?.(...args);
     },

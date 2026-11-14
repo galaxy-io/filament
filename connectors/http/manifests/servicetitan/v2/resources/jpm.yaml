@@ -220,3 +220,56 @@ resources:
           size: query.pageSize
           page_size: 5000
           more: hasMore
+  - name: job_canceled_logs
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/job-canceled-logs
+    primary_key: [id]
+    fields:
+      id: int64
+      jobId: int64
+      reasonId: int64
+      memo: string?
+      createdOn: string
+      createdById: int64
+      active: bool
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: job_canceled_logs_export_token
+  - name: project_notes
+    path: /jpm/v2/tenant/{{ config.tenant_id }}/export/project-notes
+    primary_key: [id]
+    fields:
+      id: int64
+      projectId: int64
+      text: string
+      isPinned: bool
+      createdById: int64
+      createdOn: string
+      modifiedOn: string
+      active: bool
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: project_notes_export_token

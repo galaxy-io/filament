@@ -20,4 +20,6 @@ export interface IngestionV1ConnectorSpec {
     /** Concrete registration selected by a source catalog alias; empty otherwise. */
     aliasTarget?: string | undefined;
     isPreview?: boolean | undefined;
+    /** Ingress verifier for sources that receive webhooks. Empty otherwise. */
+    webhookVerifier?: string | undefined;
 }

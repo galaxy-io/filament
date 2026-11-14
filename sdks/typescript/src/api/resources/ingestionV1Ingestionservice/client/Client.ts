@@ -27,6 +27,165 @@ export class IngestionV1IngestionserviceClient {
     }
 
     /**
+     * The build version stamped into the server binary.
+     *
+     * @param {Filament.IngestionV1IngestionServiceGetVersionRequest} request
+     * @param {IngestionV1IngestionserviceClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link errors.FilamentError}
+     * @throws {@link errors.FilamentTimeoutError}
+     *
+     * @example
+     *     await client.ingestionV1Ingestionservice.getversion({
+     *         "Connect-Timeout-Ms": 1000,
+     *         body: {
+     *             "key": "value"
+     *         }
+     *     })
+     */
+    public getversion(
+        request: Filament.IngestionV1IngestionServiceGetVersionRequest,
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): core.HttpResponsePromise<Filament.IngestionV1GetVersionResponse> {
+        return core.HttpResponsePromise.fromPromise(this.__getversion(request, requestOptions));
+    }
+
+    private async __getversion(
+        request: Filament.IngestionV1IngestionServiceGetVersionRequest,
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): Promise<core.WithRawResponse<Filament.IngestionV1GetVersionResponse>> {
+        const { "Connect-Timeout-Ms": connectTimeoutMs, body: _body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        const _headers: core.Fetcher.Args["headers"] = mergeHeaders(
+            _authRequest.headers,
+            this._options?.headers,
+            mergeOnlyDefinedHeaders({
+                "Connect-Timeout-Ms": connectTimeoutMs,
+                "Connect-Protocol-Version": requestOptions?.connectProtocolVersion ?? "1",
+            }),
+            requestOptions?.headers,
+        );
+        const _response = await core.fetcher({
+            url: core.url.join(
+                (await core.Supplier.get(this._options.baseUrl)) ??
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
+                "ingestion.v1.IngestionService/GetVersion",
+            ),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging,
+        });
+        if (_response.ok) {
+            return {
+                data: _response.body as Filament.IngestionV1GetVersionResponse,
+                rawResponse: _response.rawResponse,
+            };
+        }
+
+        if (_response.error.reason === "status-code") {
+            throw new errors.FilamentError({
+                statusCode: _response.error.statusCode,
+                body: _response.error.body,
+                rawResponse: _response.rawResponse,
+            });
+        }
+
+        return handleNonStatusCodeError(
+            _response.error,
+            _response.rawResponse,
+            "POST",
+            "/ingestion.v1.IngestionService/GetVersion",
+        );
+    }
+
+    /**
+     * Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+     *
+     * @param {Filament.IngestionV1GetWebhookEndpointRequest} request
+     * @param {IngestionV1IngestionserviceClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link errors.FilamentError}
+     * @throws {@link errors.FilamentTimeoutError}
+     *
+     * @example
+     *     await client.ingestionV1Ingestionservice.getwebhookendpoint({
+     *         "Connect-Timeout-Ms": 1000
+     *     })
+     */
+    public getwebhookendpoint(
+        request: Filament.IngestionV1GetWebhookEndpointRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): core.HttpResponsePromise<Filament.IngestionV1GetWebhookEndpointResponse> {
+        return core.HttpResponsePromise.fromPromise(this.__getwebhookendpoint(request, requestOptions));
+    }
+
+    private async __getwebhookendpoint(
+        request: Filament.IngestionV1GetWebhookEndpointRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): Promise<core.WithRawResponse<Filament.IngestionV1GetWebhookEndpointResponse>> {
+        const { "Connect-Timeout-Ms": connectTimeoutMs, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        const _headers: core.Fetcher.Args["headers"] = mergeHeaders(
+            _authRequest.headers,
+            this._options?.headers,
+            mergeOnlyDefinedHeaders({
+                "Connect-Timeout-Ms": connectTimeoutMs,
+                "Connect-Protocol-Version": requestOptions?.connectProtocolVersion ?? "1",
+            }),
+            requestOptions?.headers,
+        );
+        const _response = await core.fetcher({
+            url: core.url.join(
+                (await core.Supplier.get(this._options.baseUrl)) ??
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
+                "ingestion.v1.IngestionService/GetWebhookEndpoint",
+            ),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging,
+        });
+        if (_response.ok) {
+            return {
+                data: _response.body as Filament.IngestionV1GetWebhookEndpointResponse,
+                rawResponse: _response.rawResponse,
+            };
+        }
+
+        if (_response.error.reason === "status-code") {
+            throw new errors.FilamentError({
+                statusCode: _response.error.statusCode,
+                body: _response.error.body,
+                rawResponse: _response.rawResponse,
+            });
+        }
+
+        return handleNonStatusCodeError(
+            _response.error,
+            _response.rawResponse,
+            "POST",
+            "/ingestion.v1.IngestionService/GetWebhookEndpoint",
+        );
+    }
+
+    /**
      * Transformations; the function catalog and per-resource compile check a builder needs.
      *
      * @param {Filament.IngestionV1ListTransformFunctionsRequest} request
@@ -101,6 +260,82 @@ export class IngestionV1IngestionserviceClient {
             _response.rawResponse,
             "POST",
             "/ingestion.v1.IngestionService/ListTransformFunctions",
+        );
+    }
+
+    /**
+     * @param {Filament.IngestionV1PutWebhookEndpointRequest} request
+     * @param {IngestionV1IngestionserviceClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link errors.FilamentError}
+     * @throws {@link errors.FilamentTimeoutError}
+     *
+     * @example
+     *     await client.ingestionV1Ingestionservice.putwebhookendpoint({
+     *         "Connect-Timeout-Ms": 1000
+     *     })
+     */
+    public putwebhookendpoint(
+        request: Filament.IngestionV1PutWebhookEndpointRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): core.HttpResponsePromise<Filament.IngestionV1PutWebhookEndpointResponse> {
+        return core.HttpResponsePromise.fromPromise(this.__putwebhookendpoint(request, requestOptions));
+    }
+
+    private async __putwebhookendpoint(
+        request: Filament.IngestionV1PutWebhookEndpointRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): Promise<core.WithRawResponse<Filament.IngestionV1PutWebhookEndpointResponse>> {
+        const { "Connect-Timeout-Ms": connectTimeoutMs, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        const _headers: core.Fetcher.Args["headers"] = mergeHeaders(
+            _authRequest.headers,
+            this._options?.headers,
+            mergeOnlyDefinedHeaders({
+                "Connect-Timeout-Ms": connectTimeoutMs,
+                "Connect-Protocol-Version": requestOptions?.connectProtocolVersion ?? "1",
+            }),
+            requestOptions?.headers,
+        );
+        const _response = await core.fetcher({
+            url: core.url.join(
+                (await core.Supplier.get(this._options.baseUrl)) ??
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
+                "ingestion.v1.IngestionService/PutWebhookEndpoint",
+            ),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging,
+        });
+        if (_response.ok) {
+            return {
+                data: _response.body as Filament.IngestionV1PutWebhookEndpointResponse,
+                rawResponse: _response.rawResponse,
+            };
+        }
+
+        if (_response.error.reason === "status-code") {
+            throw new errors.FilamentError({
+                statusCode: _response.error.statusCode,
+                body: _response.error.body,
+                rawResponse: _response.rawResponse,
+            });
+        }
+
+        return handleNonStatusCodeError(
+            _response.error,
+            _response.rawResponse,
+            "POST",
+            "/ingestion.v1.IngestionService/PutWebhookEndpoint",
         );
     }
 
