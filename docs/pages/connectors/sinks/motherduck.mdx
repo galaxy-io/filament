@@ -20,7 +20,8 @@ bulk appender. It does not use the PostgreSQL wire endpoint.
 
 The sink opens `md:<database>` with the token as DuckDB's
 `motherduck_token` option and creates the configured schema if it does not
-exist. It prefers batches of 100,000 rows or 64 MiB. Use one sink connection
+exist. It also sets DuckDB's `custom_user_agent` option to
+`filament/<version>` so MotherDuck can attribute connections to Filament. It prefers batches of 100,000 rows or 64 MiB. Use one sink connection
 per configured snapshot worker; a DuckDB connection is never shared between
 concurrent writes.
 
