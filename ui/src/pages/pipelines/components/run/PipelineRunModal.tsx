@@ -22,7 +22,7 @@ import {
 } from "@/pages/pipelines/components/run/constants";
 import PipelineRunModalResourcesPane from "@/pages/pipelines/components/run/PipelineRunModalResourcesPane";
 import PipelineRunModalSectionChip from "@/pages/pipelines/components/run/PipelineRunModalSectionChip";
-import { canPipelineRunSubset } from "@/pages/pipelines/components/run/utils";
+import { canPipelineRunResync, canPipelineRunSubset } from "@/pages/pipelines/components/run/utils";
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
   formatWorkerConfiguration,
@@ -81,6 +81,8 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
     options: { enabled: !!sourceId },
   });
   const canSubset = canPipelineRunSubset(pipeline, sourceData?.connection);
+  const canResync = canPipelineRunResync(pipeline, sourceData?.connection);
+  const hasResourceOptions = canSubset || canResync;
   const defaultWorkerConfiguration = formatWorkerConfiguration(workerConfiguration);
   const [state, setState] = useState<PipelineRunModalState>(() => ({
     workerConfiguration: defaultWorkerConfiguration,
@@ -95,9 +97,9 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
     (!parsed.error && isWorkerConfigurationEqual(parsed.configuration, workerConfiguration));
   const runResources = canSubset ? state.selectedResources : resources;
   const isSubset = runResources.length < resources.length;
-  const resyncResources = state.resyncResources.filter((resource) =>
-    runResources.includes(resource),
-  );
+  const resyncResources = canResync
+    ? state.resyncResources.filter((resource) => runResources.includes(resource))
+    : [];
   const isResourcesDefault = !isSubset && resyncResources.length === 0;
   const isDefault = isWorkerDefault && isResourcesDefault;
 
@@ -162,13 +164,14 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
       ariaLabel={`Run ${pipelineName}`}
       size={ModalSize.MEDIUM}
       aside={
-        state.isResourcesPaneOpen ? (
+        hasResourceOptions && state.isResourcesPaneOpen ? (
           <PipelineRunModalResourcesPane
             resources={resources}
             selectedResources={runResources}
             resyncResources={state.resyncResources}
             isDefault={isResourcesDefault}
             canSubset={canSubset}
+            canResync={canResync}
             onSelectedChange={handleSelectedResourcesChange}
             onResyncChange={handleResyncResourcesChange}
             onClose={() => handleResourcesPaneToggle(false)}
@@ -200,34 +203,36 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
       }}
     >
       <Flex direction={FlexDirection.COLUMN} alignItems={AlignItems.STRETCH} gap={12}>
-        <Widget
-          isInteractive
-          ariaLabel={state.isResourcesPaneOpen ? "Close resources" : "Open resources"}
-          isDisabled={resources.length === 0}
-          onClick={() => handleResourcesPaneToggle(!state.isResourcesPaneOpen)}
-        >
-          <Flex
-            alignItems={AlignItems.CENTER}
-            justifyContent={JustifyContent.SPACE_BETWEEN}
-            gap={8}
+        {hasResourceOptions && (
+          <Widget
+            isInteractive
+            ariaLabel={state.isResourcesPaneOpen ? "Close resources" : "Open resources"}
+            isDisabled={resources.length === 0}
+            onClick={() => handleResourcesPaneToggle(!state.isResourcesPaneOpen)}
           >
-            <Text
-              size={TextSize.BODY_MD}
-              weight={TextWeight.MEDIUM}
-              variant={state.isResourcesPaneOpen ? TextVariant.PRIMARY : TextVariant.SECONDARY}
+            <Flex
+              alignItems={AlignItems.CENTER}
+              justifyContent={JustifyContent.SPACE_BETWEEN}
+              gap={8}
             >
-              Resources
-            </Text>
-            <Flex alignItems={AlignItems.CENTER} gap={8}>
-              <PipelineRunModalSectionChip isDefault={isResourcesDefault} />
-              <Icon
-                component={CaretRightIcon}
-                size={PIPELINE_RUN_MODAL_RESOURCES_CARET_SIZE}
-                variant={IconVariant.SECONDARY}
-              />
+              <Text
+                size={TextSize.BODY_MD}
+                weight={TextWeight.MEDIUM}
+                variant={state.isResourcesPaneOpen ? TextVariant.PRIMARY : TextVariant.SECONDARY}
+              >
+                Resources
+              </Text>
+              <Flex alignItems={AlignItems.CENTER} gap={8}>
+                <PipelineRunModalSectionChip isDefault={isResourcesDefault} />
+                <Icon
+                  component={CaretRightIcon}
+                  size={PIPELINE_RUN_MODAL_RESOURCES_CARET_SIZE}
+                  variant={IconVariant.SECONDARY}
+                />
+              </Flex>
             </Flex>
-          </Flex>
-        </Widget>
+          </Widget>
+        )}
         <Widget
           isCollapsible
           defaultIsOpen

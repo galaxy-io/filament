@@ -58,6 +58,16 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     is_preview: typing_extensions.Annotated[
         typing.Optional[bool], FieldMetadata(alias="isPreview"), pydantic.Field(alias="isPreview")
     ] = None
+    webhook_verifier: typing_extensions.Annotated[
+        typing.Optional[str],
+        FieldMetadata(alias="webhookVerifier"),
+        pydantic.Field(
+            alias="webhookVerifier", description="Ingress verifier for sources that receive webhooks. Empty otherwise."
+        ),
+    ] = None
+    """
+    Ingress verifier for sources that receive webhooks. Empty otherwise.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

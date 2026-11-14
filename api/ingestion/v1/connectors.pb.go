@@ -37,10 +37,12 @@ type ConnectorSpec struct {
 	SchemaField  string                 `protobuf:"bytes,10,opt,name=schema_field,json=schemaField,proto3" json:"schema_field,omitempty"`
 	ApiVersion   string                 `protobuf:"bytes,12,opt,name=api_version,json=apiVersion,proto3" json:"api_version,omitempty"`
 	// Concrete registration selected by a source catalog alias; empty otherwise.
-	AliasTarget   string `protobuf:"bytes,13,opt,name=alias_target,json=aliasTarget,proto3" json:"alias_target,omitempty"`
-	IsPreview     bool   `protobuf:"varint,14,opt,name=is_preview,json=isPreview,proto3" json:"is_preview,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	AliasTarget string `protobuf:"bytes,13,opt,name=alias_target,json=aliasTarget,proto3" json:"alias_target,omitempty"`
+	IsPreview   bool   `protobuf:"varint,14,opt,name=is_preview,json=isPreview,proto3" json:"is_preview,omitempty"`
+	// Ingress verifier for sources that receive webhooks. Empty otherwise.
+	WebhookVerifier string `protobuf:"bytes,15,opt,name=webhook_verifier,json=webhookVerifier,proto3" json:"webhook_verifier,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ConnectorSpec) Reset() {
@@ -162,6 +164,13 @@ func (x *ConnectorSpec) GetIsPreview() bool {
 		return x.IsPreview
 	}
 	return false
+}
+
+func (x *ConnectorSpec) GetWebhookVerifier() string {
+	if x != nil {
+		return x.WebhookVerifier
+	}
+	return ""
 }
 
 type ListConnectorsRequest struct {
@@ -1067,7 +1076,7 @@ var File_ingestion_v1_connectors_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"\n" +
-	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\x89\x04\n" +
+	"\x1dingestion/v1/connectors.proto\x12\fingestion.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x19ingestion/v1/common.proto\x1a\x1dingestion/v1/pagination.proto\x1a\x1aingestion/v1/sorting.proto\"\xb4\x04\n" +
 	"\rConnectorSpec\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
@@ -1084,7 +1093,8 @@ const file_ingestion_v1_connectors_proto_rawDesc = "" +
 	"apiVersion\x12!\n" +
 	"\falias_target\x18\r \x01(\tR\valiasTarget\x12\x1d\n" +
 	"\n" +
-	"is_preview\x18\x0e \x01(\bR\tisPreviewJ\x04\b\v\x10\fR\bmaturity\"\xd9\x01\n" +
+	"is_preview\x18\x0e \x01(\bR\tisPreview\x12)\n" +
+	"\x10webhook_verifier\x18\x0f \x01(\tR\x0fwebhookVerifierJ\x04\b\v\x10\fR\bmaturity\"\xd9\x01\n" +
 	"\x15ListConnectorsRequest\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.ingestion.v1.ConnectorKindR\x04kind\x12?\n" +
 	"\n" +

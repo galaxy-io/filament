@@ -180,6 +180,60 @@ resources:
       start_param: from
       inject_into: query
       checkpoint_key: timesheet_codes_export_token
+  - name: activity_codes
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/activity-codes
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      code: string
+      earningCategory: string
+      isDiscretionary: bool
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: activity_codes_export_token
+  - name: payroll_settings
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/payroll-settings
+    primary_key: []
+    fields:
+      employeeId: int64
+      employeeType: string
+      externalPayrollId: string?
+      hourlyRate: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      managerId: int64?
+      payrollBusinessUnitId: int64?
+      isIncludedInPayroll: bool
+      hireDate: string?
+      payType: json?
+      customFields: json?
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
   - name: non_job_timesheets
     path: /payroll/v2/tenant/{{ config.tenant_id }}/non-job-timesheets
     primary_key: [id]

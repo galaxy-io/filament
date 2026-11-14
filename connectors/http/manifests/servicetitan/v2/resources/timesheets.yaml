@@ -34,3 +34,64 @@ resources:
       start_param: from
       inject_into: query
       checkpoint_key: timesheet_activities_export_token
+  - name: timesheet_activity_categories
+    path: /timesheets/v2/tenant/{{ config.tenant_id }}/export/activity-categories
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      type: string
+      allowEdit: bool
+      isDefault: bool
+      createdOn: string
+      modifiedOn: string
+      active: bool
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: timesheet_activity_categories_export_token
+  - name: timesheet_activity_types
+    path: /timesheets/v2/tenant/{{ config.tenant_id }}/export/activity-types
+    primary_key: [id]
+    fields:
+      id: int64
+      code: string
+      categoryId: int64
+      description: string?
+      businessUnitId: int64?
+      laborTypeId: int64?
+      visibleToRoles: json
+      defaultTagTypeIds: json
+      isArchived: bool
+      isDraft: bool
+      isDefault: bool
+      isInUse: bool
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: timesheet_activity_types_export_token

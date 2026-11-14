@@ -1,0 +1,21 @@
+resources:
+  - name: technician_ratings
+    path: /customer-interactions/v2/tenant/{{ config.tenant_id }}/export/technician-ratings
+    primary_key: []
+    fields:
+      technicianId: int64
+      jobId: int64
+      rating: float64
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
