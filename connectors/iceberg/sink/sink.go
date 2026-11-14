@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"sync"
+	"time"
 
 	iceberg "github.com/apache/iceberg-go"
 	icecatalog "github.com/apache/iceberg-go/catalog"
@@ -20,6 +21,7 @@ import (
 
 const (
 	defaultStageBufLimitBytes = 256 << 20 // 256 MiB
+	defaultCommitInterval     = time.Minute
 	defaultNamespace          = "default"
 	writeMergeModeKey         = "write.merge.mode"
 )

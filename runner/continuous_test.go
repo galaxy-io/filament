@@ -664,25 +664,59 @@ func TestContinuousUsesFreshFiniteSinks(t *testing.T) {
 	}
 }
 
+type specSink struct {
+	filament.Sink
+	spec filament.SinkSpec
+}
+
+func (s specSink) Spec() filament.SinkSpec { return s.spec }
+
+type boundedSink struct{ specSink }
+
+func (boundedSink) EpochBoundary(cfg filament.Config) (filament.Boundary, error) {
+	if cfg.Duration("interval") <= 0 {
+		return filament.Boundary{}, errors.New("interval required")
+	}
+	return filament.Boundary{MaxWait: cfg.Duration("interval"), MaxAge: cfg.Duration("interval")}, nil
+}
+
 func TestContinuousBoundaryAmortizesFreshSessions(t *testing.T) {
-	single := filament.SinkSpec{}
-	reusable := filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true}}
-	if got := continuousBoundary(filament.RunOptions{}, single); got.MaxWait != 30*time.Second || got.MaxAge != 30*time.Second || got.MaxRecords != 100_000 {
+	boundary := func(options filament.RunOptions, sink filament.Sink, cfg map[string]any) filament.Boundary {
+		t.Helper()
+		b, err := continuousBoundary(options, sink, filament.NewConfig(cfg))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	single := specSink{}
+	reusable := specSink{spec: filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true}}}
+	if got := boundary(filament.RunOptions{}, single, nil); got.MaxWait != 30*time.Second || got.MaxAge != 30*time.Second || got.MaxRecords != 100_000 {
 		t.Fatal(got)
 	}
-	if got := continuousBoundary(filament.RunOptions{}, reusable); got.MaxWait != time.Second || got.MaxAge != time.Second || got.MaxRecords != 1000 {
+	if got := boundary(filament.RunOptions{}, reusable, nil); got.MaxWait != time.Second || got.MaxAge != time.Second || got.MaxRecords != 1000 {
 		t.Fatal(got)
 	}
 	custom := filament.Boundary{MaxRecords: 10, MaxWait: 2 * time.Second}
-	if got := continuousBoundary(filament.RunOptions{EpochBoundary: &custom}, single); got != custom {
+	if got := boundary(filament.RunOptions{EpochBoundary: &custom}, single, nil); got != custom {
 		t.Fatal(got)
 	}
 	preferred := filament.Boundary{MaxRecords: 1_000_000, MaxWait: time.Minute, MaxAge: time.Minute}
-	tuned := filament.SinkSpec{Capabilities: filament.SinkCapabilities{PreferredEpochBoundary: &preferred}}
-	if got := continuousBoundary(filament.RunOptions{}, tuned); got != preferred {
+	tuned := specSink{spec: filament.SinkSpec{Capabilities: filament.SinkCapabilities{PreferredEpochBoundary: &preferred}}}
+	if got := boundary(filament.RunOptions{}, tuned, nil); got != preferred {
 		t.Fatal(got)
 	}
-	if got := continuousBoundary(filament.RunOptions{EpochBoundary: &custom}, tuned); got != custom {
+	if got := boundary(filament.RunOptions{EpochBoundary: &custom}, tuned, nil); got != custom {
 		t.Fatal(got)
+	}
+	configured := boundedSink{tuned}
+	if got := boundary(filament.RunOptions{}, configured, map[string]any{"interval": "5m"}); got.MaxWait != 5*time.Minute || got.MaxAge != 5*time.Minute {
+		t.Fatal(got)
+	}
+	if got := boundary(filament.RunOptions{EpochBoundary: &custom}, configured, map[string]any{"interval": "5m"}); got != custom {
+		t.Fatal(got)
+	}
+	if _, err := continuousBoundary(filament.RunOptions{}, configured, filament.NewConfig(nil)); err == nil {
+		t.Fatal("expected configured boundary error")
 	}
 }
