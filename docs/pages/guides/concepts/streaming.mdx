@@ -49,7 +49,9 @@ preparation. The source session stays open in both cases.
 | Reusable | 1,000 | 1 second |
 | Fresh instance per boundary | 100,000 | 30 seconds |
 
-An explicit `RunOptions.EpochBoundary` overrides these defaults. These are soft
+A sink can replace these defaults with its own targets. Iceberg uses 1,000,000
+records, 256 MiB, or one minute, because every epoch becomes a table snapshot.
+An explicit `RunOptions.EpochBoundary` overrides both. These are soft
 targets, not a guaranteed write frequency. Source transaction boundaries,
 consumer credit, and available input can change the size of an epoch. Larger
 boundaries amortize setup costs for sinks that reopen each time.

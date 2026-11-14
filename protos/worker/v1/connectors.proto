@@ -100,6 +100,15 @@ message SinkCapabilities {
   int64 preferred_batch_rows = 5;
   int64 preferred_batch_bytes = 6;
   google.protobuf.Duration preferred_flush_interval = 7;
+  Boundary preferred_epoch_boundary = 8;
+}
+
+// Boundary holds soft record, byte, idle, and age targets for one epoch.
+message Boundary {
+  int64 max_records = 1;
+  int64 max_bytes = 2;
+  google.protobuf.Duration max_wait = 3;
+  google.protobuf.Duration max_age = 4;
 }
 
 // Source is a source spec: the public projection plus the facts the engine
