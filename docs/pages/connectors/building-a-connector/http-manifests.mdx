@@ -306,6 +306,11 @@ An `incremental` block turns a resource into an incremental read:
 - `comparator: lex (default) | numeric | time`.
 - `overlap_seconds` rewinds the lower bound for a lookback window and is
   valid for `time` **or** `numeric` comparators.
+- `value_date_format` reformats a `time` watermark on the wire only, as a
+  Go time layout or `epoch_millis` / `epoch_seconds`, for APIs that reject
+  RFC3339. The checkpoint keeps the raw RFC3339 value. Filament rejects a
+  layout that renders the same value for every watermark, and a bad initial
+  watermark fails at setup.
 
 The lower bound remains fixed during one extraction. Filament saves the largest
 cursor value it sees. A missing or invalid cursor fails the run because skipping

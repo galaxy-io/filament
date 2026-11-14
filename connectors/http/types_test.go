@@ -82,6 +82,27 @@ func TestExtractFixedDecimalRounding(t *testing.T) {
 	}
 }
 
+func TestExtractTimestampAcceptsNumericOffset(t *testing.T) {
+	// Jira Cloud emits created and updated with a numeric zone offset and no
+	// colon, for example 2026-11-13T01:09:44.630+0500. RFC 3339 parsing
+	// rejects that spelling, so the timestamp layouts carry it explicitly.
+	for _, tc := range []struct{ value, wantPrefix string }{
+		{`"2026-11-13T01:09:44.630+0500"`, "2026-11-12T20:09:44"},
+		{`"2026-11-13T01:09:44.630-0500"`, "2026-11-13T06:09:44"},
+		{`"2026-11-13T01:09:44.630+05:00"`, "2026-11-12T20:09:44"},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "timestamptz", tc.value)
+			if err != nil {
+				t.Fatalf("rows=%q, err=%v, want a parsed timestamp", rows, err)
+			}
+			if len(rows) != 1 || !strings.Contains(rows[0], tc.wantPrefix) {
+				t.Fatalf("rows=%q, want the UTC instant starting %q", rows, tc.wantPrefix)
+			}
+		})
+	}
+}
+
 // extractValue extracts one record whose field n is declared as typ and holds
 // the JSON value, and returns the rows read back from the Arrow batch.
 func extractValue(t *testing.T, typ, value string) ([]string, error) {

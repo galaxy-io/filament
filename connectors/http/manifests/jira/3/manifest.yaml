@@ -1,0 +1,242 @@
+version: 1
+name: jira
+display_name: Jira
+description: Issue tracking and project management platform where teams plan work, track issues through workflows, and organize releases across projects.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-jira-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-jira-light.svg
+api_version: "3"
+config:
+  site:
+    type: string
+    required: true
+    help: Jira Cloud site subdomain, the part before .atlassian.net. For https://example.atlassian.net enter example.
+  email:
+    type: string
+    required: true
+    help: Email address of the Atlassian account that owns the API token.
+  api_token:
+    type: secret
+    required: true
+    help: Classic Atlassian API token created at id.atlassian.com. Scoped tokens do not work with Basic auth. The token reads what its account can see.
+connection:
+  base_url: "https://{{ config.site }}.atlassian.net"
+  auth: {basic: {username: config.email, password: config.api_token}}
+  headers: {Accept: application/json}
+  timeout_seconds: 60
+  rate_limit:
+    # API token traffic is governed by Jira burst limits of 100 requests per
+    # second per endpoint. Five per second stays well under that.
+    requests_per_second: 5
+    burst: 1
+defaults:
+  method: GET
+  response:
+    strict_records: true
+resources:
+  - name: myself
+    path: /rest/api/3/myself
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [account_id]
+    fields:
+      account_id: {path: accountId, type: string}
+      account_type: {path: accountType, type: string, nullable: true}
+      active: bool?
+      display_name: {path: displayName, type: string, nullable: true}
+      email_address: {path: emailAddress, type: string, nullable: true}
+      time_zone: {path: timeZone, type: string, nullable: true}
+      locale: string?
+      avatar_urls: {path: avatarUrls, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+  - name: projects
+    path: /rest/api/3/project/search
+    query:
+      expand: description,lead
+    response:
+      records: $.values
+      pagination:
+        offset: {offset: query.startAt, limit: query.maxResults, page_size: 50}
+    primary_key: [id]
+    fields:
+      id: string
+      key: string
+      name: string
+      project_type_key: {path: projectTypeKey, type: string, nullable: true}
+      simplified: bool?
+      style: string?
+      is_private: {path: isPrivate, type: bool, nullable: true}
+      description: string?
+      lead_account_id: {path: lead.accountId, type: string, nullable: true}
+      project_category: {path: projectCategory, type: json, nullable: true}
+      avatar_urls: {path: avatarUrls, type: json, nullable: true}
+      lead: json?
+      raw: {path: $, type: json, mode: remainder}
+  # Issues read incrementally on updated. JQL date fields accept an
+  # unquoted epoch-milliseconds number, so the watermark is reformatted on
+  # the wire while the checkpoint keeps the raw RFC3339 value.
+  - name: issues
+    path: /rest/api/3/search/jql
+    method: POST
+    body:
+      encoding: json
+      template:
+        jql: 'updated >= 0 ORDER BY updated ASC'
+        fields: [summary, status, issuetype, priority, assignee, reporter, creator, created, updated, duedate, resolution, resolutiondate, labels, components, project, parent, subtasks, issuelinks, timetracking]
+        maxResults: 100
+    response:
+      records: $.issues
+      pagination:
+        cursor:
+          response: nextPageToken
+          request: body.nextPageToken
+          null_terminates: true
+    primary_key: [id]
+    incremental:
+      cursor_field: updated
+      start_param: jql
+      inject_into: body
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: issues_updated_at
+      comparator: time
+      overlap_seconds: 300
+      value_date_format: epoch_millis
+      value_prefix: "updated >= "
+      value_suffix: " ORDER BY updated ASC"
+      commit_on_complete: true
+    fields:
+      id: string
+      key: string
+      self: string?
+      project_id: {path: fields.project.id, type: string}
+      project_key: {path: fields.project.key, type: string, nullable: true}
+      project_name: {path: fields.project.name, type: string, nullable: true}
+      summary: {path: fields.summary, type: string, nullable: true}
+      status_id: {path: fields.status.id, type: string, nullable: true}
+      status_name: {path: fields.status.name, type: string, nullable: true}
+      issue_type_id: {path: fields.issuetype.id, type: string, nullable: true}
+      issue_type_name: {path: fields.issuetype.name, type: string, nullable: true}
+      priority_id: {path: fields.priority.id, type: string, nullable: true}
+      priority_name: {path: fields.priority.name, type: string, nullable: true}
+      assignee_account_id: {path: fields.assignee.accountId, type: string, nullable: true}
+      reporter_account_id: {path: fields.reporter.accountId, type: string, nullable: true}
+      creator_account_id: {path: fields.creator.accountId, type: string, nullable: true}
+      created: {path: fields.created, type: timestamptz}
+      updated: {path: fields.updated, type: timestamptz}
+      due_date: {path: fields.duedate, type: date, nullable: true}
+      resolution_id: {path: fields.resolution.id, type: string, nullable: true}
+      resolution_name: {path: fields.resolution.name, type: string, nullable: true}
+      resolution_date: {path: fields.resolutiondate, type: timestamptz, nullable: true}
+      labels: {path: fields.labels, type: json, nullable: true}
+      components: {path: fields.components, type: json, nullable: true}
+      parent: {path: fields.parent, type: json, nullable: true}
+      subtasks: {path: fields.subtasks, type: json, nullable: true}
+      issue_links: {path: fields.issuelinks, type: json, nullable: true}
+      timetracking: {path: fields.timetracking, type: json, nullable: true}
+      status: {path: fields.status, type: json, nullable: true}
+      issue_type: {path: fields.issuetype, type: json, nullable: true}
+      priority: {path: fields.priority, type: json, nullable: true}
+      assignee: {path: fields.assignee, type: json, nullable: true}
+      reporter: {path: fields.reporter, type: json, nullable: true}
+      creator: {path: fields.creator, type: json, nullable: true}
+      project: {path: fields.project, type: json, nullable: true}
+      resolution: {path: fields.resolution, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+  - name: users
+    path: /rest/api/3/users/search
+    response:
+      records: $
+      pagination:
+        offset: {offset: query.startAt, limit: query.maxResults, page_size: 50}
+    primary_key: [account_id]
+    fields:
+      account_id: {path: accountId, type: string}
+      account_type: {path: accountType, type: string, nullable: true}
+      active: bool?
+      display_name: {path: displayName, type: string, nullable: true}
+      email_address: {path: emailAddress, type: string, nullable: true}
+      time_zone: {path: timeZone, type: string, nullable: true}
+      locale: string?
+      avatar_urls: {path: avatarUrls, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+  - name: issue_types
+    path: /rest/api/3/issuetype
+    response:
+      records: $
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      icon_url: {path: iconUrl, type: string, nullable: true}
+      subtask: bool?
+      hierarchy_level: {path: hierarchyLevel, type: int64, nullable: true}
+      avatar_id: {path: avatarId, type: int64, nullable: true}
+      scope: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: statuses
+    path: /rest/api/3/status
+    response:
+      records: $
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      icon_url: {path: iconUrl, type: string, nullable: true}
+      status_category_key: {path: statusCategory.key, type: string, nullable: true}
+      status_category_name: {path: statusCategory.name, type: string, nullable: true}
+      status_category: {path: statusCategory, type: json, nullable: true}
+      scope: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: priorities
+    path: /rest/api/3/priority/search
+    response:
+      records: $.values
+      pagination:
+        offset: {offset: query.startAt, limit: query.maxResults, page_size: 50}
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      icon_url: {path: iconUrl, type: string, nullable: true}
+      status_color: {path: statusColor, type: string, nullable: true}
+      is_default: {path: isDefault, type: bool, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+  - name: resolutions
+    path: /rest/api/3/resolution/search
+    response:
+      records: $.values
+      pagination:
+        offset: {offset: query.startAt, limit: query.maxResults, page_size: 50}
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      description: string?
+      is_default: {path: isDefault, type: bool, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+  - name: fields
+    path: /rest/api/3/field
+    response:
+      records: $
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      key: string?
+      name: string?
+      custom: bool?
+      navigable: bool?
+      orderable: bool?
+      searchable: bool?
+      clause_names: {path: clauseNames, type: json, nullable: true}
+      schema: json?
+      raw: {path: $, type: json, mode: remainder}
+discovery:
+  mode: static
+  default_resources: [projects, issues, users, issue_types, statuses, priorities, resolutions, fields]

@@ -94,9 +94,23 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	if spec.OverlapSeconds > 0 && spec.Comparator != "time" && spec.Comparator != "numeric" {
 		return nil, fmt.Errorf("incremental: overlap_seconds requires comparator: time or numeric")
 	}
+	if spec.ValueDateFormat != "" && spec.Comparator != "time" {
+		return nil, fmt.Errorf("incremental: value_date_format requires comparator: time")
+	}
+	if err := manifest.ValidateValueDateFormat(spec.ValueDateFormat); err != nil {
+		return nil, fmt.Errorf("incremental: %w", err)
+	}
 	start := initialWatermark
 	if start == "" {
 		start = spec.Initial
+	}
+	// Fail at setup when the initial watermark cannot be formatted with
+	// the configured wire format, instead of logging a warning per
+	// request and sending the raw RFC3339 value to an API that rejects it.
+	if spec.ValueDateFormat != "" && start != "" {
+		if _, err := formatWatermark(start, spec.ValueDateFormat); err != nil {
+			return nil, fmt.Errorf("incremental: initial watermark %q cannot be formatted with value_date_format %q: %w", start, spec.ValueDateFormat, err)
+		}
 	}
 	wm, err := atomicwatermark.New(cmp, start)
 	if err != nil {
@@ -241,12 +255,40 @@ func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
 }
 
 // injectedValue returns the watermark as it must appear on the wire: the
-// effective start with the configured value prefix prepended. The checkpoint
-// stores the raw value so ordering comparisons stay prefix-free.
+// effective start, reformatted when value_date_format is set, with the
+// configured value prefix prepended. The checkpoint stores the raw value
+// so ordering comparisons stay prefix- and format-free.
 func (t *Tracker) injectedValue() string {
 	v := t.effective()
 	if v == "" {
 		return ""
 	}
+	if t.spec.ValueDateFormat != "" {
+		formatted, err := formatWatermark(v, t.spec.ValueDateFormat)
+		if err != nil {
+			t.logger.Warn("incremental: cannot format watermark",
+				"resource", t.resource, "value", v, "format", t.spec.ValueDateFormat, "error", err)
+		} else {
+			v = formatted
+		}
+	}
 	return t.spec.ValuePrefix + v + t.spec.ValueSuffix
+}
+
+// formatWatermark renders an RFC3339 watermark in the requested wire
+// format. "epoch_millis" and "epoch_seconds" render Unix time; anything
+// else is a Go time layout.
+func formatWatermark(v, format string) (string, error) {
+	parsed, err := time.Parse(time.RFC3339, v)
+	if err != nil {
+		return "", err
+	}
+	switch format {
+	case "epoch_millis":
+		return strconv.FormatInt(parsed.UnixMilli(), 10), nil
+	case "epoch_seconds":
+		return strconv.FormatInt(parsed.Unix(), 10), nil
+	default:
+		return parsed.Format(format), nil
+	}
 }

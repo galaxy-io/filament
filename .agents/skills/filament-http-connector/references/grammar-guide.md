@@ -330,6 +330,7 @@ incremental:
   checkpoint_key: tickets_updated_at # unique across resources
   overlap_seconds: 60           # optional re-read window
   value_prefix: "ge"            # optional prefix on the injected value only
+  value_date_format: epoch_millis # optional wire format for time watermarks
 ```
 
 The cursor must be projected, non-nullable, and compatible with its comparator.
@@ -337,9 +338,15 @@ The cursor must be projected, non-nullable, and compatible with its comparator.
 to `time` or `numeric`, not `lex`. Do not collide with pagination injection.
 Checkpoint keys default to the cursor field and must be unique across resources.
 `value_prefix` is prepended to the watermark when it is injected into the
-request — the checkpoint and all comparisons keep the raw value. FHIR search
+request - the checkpoint and all comparisons keep the raw value. FHIR search
 needs `_lastUpdated=ge<timestamp>`; a bare timestamp means "equal" there and
-would silently return the wrong result set.
+would silently return the wrong result set. `value_date_format` (time
+comparator only) reformats the watermark on the wire, as a Go time layout or
+`epoch_millis` / `epoch_seconds`, for APIs that reject RFC3339. Jira JQL date
+fields take an unquoted epoch-milliseconds number that a raw RFC3339
+watermark cannot express. Filament rejects a layout that renders the same
+value for every watermark, and a bad initial watermark fails at setup
+instead of reaching the API.
 See Slack for `ts` + `oldest` + `numeric`, and Granola for an update timestamp.
 Read [research.md](research.md) before deciding that incremental reads are sound.
 
