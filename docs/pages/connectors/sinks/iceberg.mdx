@@ -72,7 +72,8 @@ Iceberg tables. See
 
 `EnsureSchema` creates the namespace and the table with
 `write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
-and `commit.manifest-merge.enabled`. For an existing table, evolution is
+`commit.manifest-merge.enabled`, and `merge-on-read` for `write.merge.mode`
+and `write.delete.mode`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
 collides with Iceberg's reserved metadata names gets a `_` suffix.
@@ -140,7 +141,14 @@ uses current storage credentials, then opens one Iceberg transaction:
   produced **zero records still overwrites the table to empty**. An empty
   source empties the destination.
 - **upsert, delete, and merge** keep the latest operation for each key, then
-  update or delete matching rows.
+  update or delete matching rows. The table's write mode decides how.
+  `write.merge.mode` governs upsert and merge, and `write.delete.mode` governs
+  delete. Under `merge-on-read` the sink writes the surviving rows and an
+  equality delete for every touched key in one snapshot, so the cost follows
+  the change instead of the table. Under `copy-on-write`, the Iceberg default
+  for tables the sink did not create, it rewrites every data file that may hold
+  a touched key. [Table maintenance](#table-maintenance) compacts equality
+  deletes into the data files.
 
 Buffered rows are invisible until their resource transaction commits. A run
 with several resources commits them sequentially, so a later resource can fail
