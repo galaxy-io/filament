@@ -33,6 +33,8 @@ jobs:
           go build -o filament-standalone ./cmd/standalone
 
       - name: Start local engine
+              env:
+                        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
         run: |
           ./filament up -d
           ./filament status
