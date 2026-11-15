@@ -45,7 +45,7 @@ jobs:
         run: |
           ./filament source create jira-test --source-connector jira@3 --source-site "$JIRA_SITE" --source-email "$JIRA_EMAIL" --source-api-token-env JIRA_API_TOKEN
           ./filament sink create stdout-out --sink-connector stdout
-          ./filament pipeline create jira-incr-test --source jira-test --sink stdout-out --resources issues --sync-mode incremental
+          ./filament pipeline create jira-incr-test --source jira-test --sink stdout-out --resources issues --sync-mode incremental --write-mode append
 
       - name: First incremental run
         run: |
