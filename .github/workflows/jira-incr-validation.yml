@@ -45,12 +45,12 @@ jobs:
         run: |
           ./filament source create jira-test --source-connector jira@3 --source-site "$JIRA_SITE" --source-email "$JIRA_EMAIL" --source-api-token-env JIRA_API_TOKEN
           ./filament sink create stdout-out --sink-connector stdout
-          ./filament pipeline create jira-incr-test --source jira-test --sink stdout-out --resources issues
+          ./filament pipeline create jira-incr-test --source jira-test --sink stdout-out --resources issues --sync-mode incremental
 
       - name: First incremental run
         run: |
           set -o pipefail
-          ./filament run jira-incr-test --sync-mode incremental 2>&1 | tee run1.log
+          ./filament run jira-incr-test 2>&1 | tee run1.log
 
       - name: Edit FT-3 in Jira (bump its updated timestamp)
         env:
@@ -68,7 +68,7 @@ jobs:
       - name: Second incremental run
         run: |
           set -o pipefail
-          ./filament run jira-incr-test --sync-mode incremental 2>&1 | tee run2.log
+          ./filament run jira-incr-test 2>&1 | tee run2.log
 
       - name: Show run history
         run: ./filament run list jira-incr-test || true
