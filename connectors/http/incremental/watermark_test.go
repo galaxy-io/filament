@@ -204,3 +204,67 @@ func TestTrackerValueDateFormatRejectsUnformattableInitial(t *testing.T) {
 		t.Fatal("new tracker with unformattable initial watermark: want error, got nil")
 	}
 }
+
+// A Jira-style cursor with a colon-less offset is normalized to RFC3339
+// before the tracker sees it, so the first incremental run does not fail
+// on its first record. The stored checkpoint, the overlap window, and the
+// epoch-millis wire format all see the normalized form.
+func TestTrackerNormalizesColonLessOffsetCursor(t *testing.T) {
+	spec := manifest.IncrementalSpec{
+		CursorField:     "updated",
+		StartParam:      "jql",
+		InjectInto:      "body",
+		Comparator:      "time",
+		OverlapSeconds:  300,
+		ValueDateFormat: "epoch_millis",
+		ValuePrefix:     "updated >= ",
+		ValueSuffix:     " ORDER BY updated ASC",
+	}
+	tr, err := New(spec, "issues", "2026-11-15T01:09:44.630+0000")
+	if err != nil {
+		t.Fatalf("new tracker: %v", err)
+	}
+	// The colon-less initial is normalized at setup.
+	if got := tr.Current(); got != "2026-11-15T01:09:44.63Z" {
+		t.Fatalf("checkpoint = %q, want normalized RFC3339", got)
+	}
+	// The overlap window and the epoch-millis wire format work off the
+	// normalized start: 01:09:44.63 minus 300 seconds, with the overlap
+	// path rendering whole seconds as it always has.
+	if got := tr.Scope()["jql"]; got != "updated >= 1794704684000 ORDER BY updated ASC" {
+		t.Fatalf("scope = %q, want epoch-millis JQL for the normalized start minus overlap", got)
+	}
+	if _, err := tr.ObserveChecked(map[string]any{"updated": "2026-11-15T02:00:00.000+0000"}); err != nil {
+		t.Fatalf("observe colon-less offset: %v", err)
+	}
+	if got := tr.Current(); got != "2026-11-15T02:00:00Z" {
+		t.Fatalf("checkpoint = %q, want normalized RFC3339", got)
+	}
+	// A raw cursor below the effective start (initial minus the 300s
+	// overlap) is still caught by Below.
+	below, err := tr.Below("2026-11-15T01:04:43.000+0000")
+	if err != nil {
+		t.Fatalf("below: %v", err)
+	}
+	if !below {
+		t.Errorf("Below = false, want true for a raw cursor before the start")
+	}
+}
+
+// A checkpoint written before normalization, holding a colon-less offset,
+// still loads: New normalizes the initial watermark at setup.
+func TestTrackerNormalizesColonLessInitial(t *testing.T) {
+	spec := manifest.IncrementalSpec{
+		CursorField: "updated",
+		StartParam:  "jql",
+		InjectInto:  "body",
+		Comparator:  "time",
+	}
+	tr, err := New(spec, "issues", "2024-11-06T12:00:00.000+0000")
+	if err != nil {
+		t.Fatalf("new tracker with colon-less initial: %v", err)
+	}
+	if got := tr.Current(); got != "2024-11-06T12:00:00Z" {
+		t.Fatalf("checkpoint = %q, want normalized RFC3339", got)
+	}
+}

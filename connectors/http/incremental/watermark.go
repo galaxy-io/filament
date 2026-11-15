@@ -12,7 +12,10 @@
 //
 //   - "lex" (default) — string comparison; correct for RFC3339 + zero-padded ids
 //   - "numeric"       — float64 parse on both sides; errors on parse failure
-//   - "time"          — RFC3339 parse on both sides; errors on parse failure
+//   - "time"          — timestamp parse on both sides; errors on parse failure.
+//     Cursor values are normalized to RFC3339 before the tracker sees them,
+//     so APIs that emit colon-less offsets (Jira) are accepted and the stored
+//     checkpoint, the overlap window, and the wire format all see one form.
 //
 // Extraction uses ObserveChecked, so a missing or unparseable durable cursor
 // fails the run rather than letting it succeed without checkpoint progress.
@@ -43,6 +46,7 @@ import (
 
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
 	"github.com/galaxy-io/filament/connectors/http/internal/paths"
+	"github.com/galaxy-io/filament/connectors/http/internal/timestamps"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
 )
@@ -104,6 +108,17 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	if start == "" {
 		start = spec.Initial
 	}
+	// Normalize a time-comparator start to RFC3339 before anything else
+	// sees it, so a checkpoint written before this fix (or an initial in a
+	// colon-less spelling) does not fail the overlap and wire-format paths
+	// that parse strict RFC3339. A bad start fails at setup.
+	if spec.Comparator == "time" && start != "" {
+		normalized, err := timestamps.Normalize(start)
+		if err != nil {
+			return nil, fmt.Errorf("incremental: initial watermark %q is not a timestamp: %w", start, err)
+		}
+		start = normalized
+	}
 	// Fail at setup when the initial watermark cannot be formatted with
 	// the configured wire format, instead of logging a warning per
 	// request and sending the raw RFC3339 value to an API that rejects it.
@@ -160,6 +175,18 @@ func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
 	if v == "" {
 		return false, fmt.Errorf("cursor field %q is empty", t.spec.CursorField)
 	}
+	// Normalize a time cursor to RFC3339 before the tracker sees it, so
+	// the stored checkpoint, the overlap window, and the wire format all
+	// see one form. Without this, an API spelling like Jira's colon-less
+	// offset fails the comparator and the first incremental run dies on
+	// its first record.
+	if t.spec.Comparator == "time" {
+		normalized, err := timestamps.Normalize(v)
+		if err != nil {
+			return false, fmt.Errorf("cursor field %q value %q is not a timestamp: %w", t.spec.CursorField, v, err)
+		}
+		v = normalized
+	}
 	advanced, err := t.wm.Observe(v)
 	if err != nil {
 		return false, fmt.Errorf("cursor field %q value %q rejected by %s comparator: %w", t.spec.CursorField, v, t.wm.ComparatorName(), err)
@@ -180,6 +207,13 @@ func (t *Tracker) Below(v string) (bool, error) {
 	start := t.effective()
 	if start == "" {
 		return false, nil
+	}
+	if t.spec.Comparator == "time" {
+		normalized, err := timestamps.Normalize(v)
+		if err != nil {
+			return false, fmt.Errorf("cursor value %q is not a timestamp: %w", v, err)
+		}
+		v = normalized
 	}
 	return t.cmp.Less(v, start)
 }

@@ -308,7 +308,7 @@ An `incremental` block turns a resource into an incremental read:
   valid for `time` **or** `numeric` comparators.
 - `value_date_format` reformats a `time` watermark on the wire only, as a
   Go time layout or `epoch_millis` / `epoch_seconds`, for APIs that reject
-  RFC3339. The checkpoint keeps the raw RFC3339 value. Filament rejects a
+  RFC3339. The checkpoint keeps the normalized RFC3339 value. Filament rejects a
   layout that renders the same value for every watermark, and a bad initial
   watermark fails at setup.
 

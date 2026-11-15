@@ -338,7 +338,7 @@ The cursor must be projected, non-nullable, and compatible with its comparator.
 to `time` or `numeric`, not `lex`. Do not collide with pagination injection.
 Checkpoint keys default to the cursor field and must be unique across resources.
 `value_prefix` is prepended to the watermark when it is injected into the
-request - the checkpoint and all comparisons keep the raw value. FHIR search
+request - the checkpoint and all comparisons keep the normalized RFC3339 value. FHIR search
 needs `_lastUpdated=ge<timestamp>`; a bare timestamp means "equal" there and
 would silently return the wrong result set. `value_date_format` (time
 comparator only) reformats the watermark on the wire, as a Go time layout or

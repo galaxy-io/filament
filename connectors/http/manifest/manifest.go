@@ -640,7 +640,9 @@ type IncrementalSpec struct {
 	Initial       string `yaml:"initial,omitempty"`
 	CheckpointKey string `yaml:"checkpoint_key,omitempty"`
 	// Comparator selects watermark-advance ordering. lex (default) compares as
-	// strings; numeric parses both sides as float64; time parses RFC3339.
+	// strings; numeric parses both sides as float64; time parses timestamps
+	// with the layouts APIs commonly emit, and cursor values are normalized
+	// to RFC3339 first, so colon-less offsets (Jira) are accepted.
 	Comparator string `yaml:"comparator,omitempty"` // lex | numeric | time
 	// OverlapSeconds re-fetches a sliding window before a time or numeric
 	// timestamp cursor to tolerate retroactive updates behind the max.
@@ -655,8 +657,8 @@ type IncrementalSpec struct {
 	// injected, so APIs that reject RFC3339 can still be filtered. It is a
 	// Go time layout (for example "2006-01-02 15:04") or the special value
 	// "epoch_millis" / "epoch_seconds", which renders the watermark as
-	// Unix time. The stored checkpoint and all comparisons keep the raw
-	// RFC3339 value; only the wire representation changes. Jira JQL date
+	// Unix time. The stored checkpoint and all comparisons keep the
+	// normalized RFC3339 value; only the wire representation changes. Jira JQL date
 	// fields accept an unquoted epoch-milliseconds number, which no raw
 	// RFC3339 watermark can express.
 	ValueDateFormat string `yaml:"value_date_format,omitempty"`

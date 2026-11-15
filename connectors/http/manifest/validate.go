@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/connectors/http/internal/timestamps"
 	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
@@ -630,8 +630,8 @@ func validateIncrementalInitial(spec IncrementalSpec) error {
 			return fmt.Errorf("must be numeric")
 		}
 	case "time":
-		if _, err := time.Parse(time.RFC3339, spec.Initial); err != nil {
-			return fmt.Errorf("must be RFC3339")
+		if _, err := timestamps.Parse(spec.Initial); err != nil {
+			return fmt.Errorf("must be a timestamp")
 		}
 	}
 	return nil

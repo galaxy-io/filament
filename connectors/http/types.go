@@ -11,11 +11,11 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/connectors/http/internal/timestamps"
 	"github.com/galaxy-io/filament/internal/arrowtext"
 	"github.com/galaxy-io/filament/rowmodel"
 )
@@ -170,18 +170,6 @@ func parseTime(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	return nil
 }
 
-// timestampLayouts are the spellings APIs commonly use, tried in order.
-// The numeric-offset form (no colon, for example +0500) is what Jira Cloud
-// emits for created and updated.
-var timestampLayouts = []string{
-	time.RFC3339Nano,
-	"2006-01-02T15:04:05.999999999-0700",
-	"2006-01-02T15:04:05.999999999",
-	"2006-01-02 15:04:05.999999999Z07:00",
-	"2006-01-02 15:04:05.999999999",
-	"2006-01-02",
-}
-
 // parseTimestamp reads an ISO 8601 / RFC 3339 instant (or a Unix epoch number,
 // seconds or milliseconds, integer or fractional) as microseconds since the
 // epoch, UTC.
@@ -203,13 +191,12 @@ func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	if err != nil {
 		return err
 	}
-	for _, layout := range timestampLayouts {
-		if t, err := time.Parse(layout, strings.TrimSpace(s)); err == nil {
-			w.Timestamp(t.UnixMicro())
-			return nil
-		}
+	t, err := timestamps.Parse(s)
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("%q is not a timestamp", s)
+	w.Timestamp(t.UnixMicro())
+	return nil
 }
 
 // parseFixedDecimal keeps strict conversion by default and rounds only when declared.

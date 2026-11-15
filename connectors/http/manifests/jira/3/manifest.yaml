@@ -75,7 +75,7 @@ resources:
       raw: {path: $, type: json, mode: remainder}
   # Issues read incrementally on updated. JQL date fields accept an
   # unquoted epoch-milliseconds number, so the watermark is reformatted on
-  # the wire while the checkpoint keeps the raw RFC3339 value.
+  # the wire while the checkpoint keeps the normalized RFC3339 value.
   - name: issues
     path: /rest/api/3/search/jql
     method: POST
