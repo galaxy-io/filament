@@ -10,6 +10,19 @@ By participating, you agree to follow our [Code of Conduct](../CODE_OF_CONDUCT.m
 
 Do not include credentials, customer data, production connection strings, or other secrets in issues, tests, fixtures, logs, or commits.
 
+## Claiming work
+
+1. Comment on the issue to say you want to work on it and wait for it to be assigned it to you. This stops two people from building the same thing.
+2. For a small change, such as a bug fix or a simple HTTP manifest connector, open a pull request once you are assigned.
+3. For a larger change, such as a new native connector or an engine change, first post a short plan on the issue: what you will build, the requirements, and how you will test it. Wait for it to be agreed upon before you write any code.
+
+### Timelines
+
+- **Claims:** if there is no pull request or update on the issue **3 weeks** after you are assigned, we may unassign you so someone else can pick it up. If you need more time, comment on the issue and we will keep it with you.
+- **Stale pull requests:** if a pull request has review comments with no reply or new commits for **3 weeks**, we may finish the change ourselves, hand it to another contributor, or close it. We keep your commits and credit you where we can.
+
+These timelines would help the queue moving for everyone. If you are blocked, let us know on the issue or in the community Slack and we shall help.
+
 ## Development setup
 
 You will need:
