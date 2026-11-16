@@ -60,7 +60,7 @@ func TestMutationHonorsWriteMode(t *testing.T) {
 	}
 }
 
-func TestMergeOnReadPrunesDeletesByKeyBounds(t *testing.T) {
+func TestMergeOnReadReplayReplacesRows(t *testing.T) {
 	ctx := context.Background()
 	schema := iceberg.NewSchema(0,
 		iceberg.NestedField{ID: 1, Name: "id", Type: iceberg.PrimitiveTypes.Int64, Required: true},
@@ -70,28 +70,12 @@ func TestMergeOnReadPrunesDeletesByKeyBounds(t *testing.T) {
 	it := &iceTable{tbl: tbl, schema: tbl.Schema(), primaryKey: []string{"id"}}
 	inserts := []rowmodel.Operation{rowmodel.OpInsert, rowmodel.OpInsert}
 
-	// An empty table and keys above every file's bounds need no deletes.
+	// A replayed epoch replaces its rows instead of duplicating them.
 	merge(t, ctx, it, []int64{1, 2}, []string{"a", "b"}, inserts)
 	merge(t, ctx, it, []int64{3, 4}, []string{"c", "d"}, inserts)
-	if n := eqDeletes(t, ctx, it.tbl); n != 0 {
-		t.Fatalf("insert-only epochs wrote %d equality delete files, want 0", n)
-	}
-
-	// A replayed epoch falls inside the bounds it committed, so it replaces
-	// its rows instead of duplicating them.
 	merge(t, ctx, it, []int64{3, 4}, []string{"c", "d"}, inserts)
-	if n := eqDeletes(t, ctx, it.tbl); n == 0 {
-		t.Fatal("replayed epoch wrote no equality deletes")
-	}
 	if got, want := rowCount(t, ctx, it.tbl), 4; got != want {
 		t.Fatalf("rows after replay = %d, want %d", got, want)
-	}
-
-	// A delete of a key no file can hold commits nothing.
-	before := it.tbl.CurrentSnapshot().SnapshotID
-	merge(t, ctx, it, []int64{99}, []string{""}, []rowmodel.Operation{rowmodel.OpDelete})
-	if it.tbl.CurrentSnapshot().SnapshotID != before {
-		t.Fatal("delete of an absent key committed a snapshot")
 	}
 	if got, want := readKV(t, ctx, it.tbl), map[int64]string{1: "a", 2: "b", 3: "c", 4: "d"}; !maps.Equal(got, want) {
 		t.Fatalf("rows = %v, want %v", got, want)

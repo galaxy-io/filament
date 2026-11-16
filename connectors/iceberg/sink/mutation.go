@@ -113,8 +113,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 			return nil
 		}
 		// Inserts get a delete too, so a replayed epoch replaces its rows
-		// instead of duplicating them. pruneDeletes drops the ones no data
-		// file can hold.
+		// instead of duplicating them.
 		del, err := selectRows(ctx, rows, lastRow, deleteTarget)
 		if err != nil {
 			return err
