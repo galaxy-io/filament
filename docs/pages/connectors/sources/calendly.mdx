@@ -1,0 +1,60 @@
+---
+title: "Calendly source connector"
+sidebarTitle: "Calendly"
+description: "Read users, organization memberships, event types, scheduled events, and availability from Calendly"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-calendly-dark.svg"
+---
+
+Connector ID `calendly`
+
+The Calendly source reads user profiles, organization memberships, event types, scheduled events, and routing forms from Calendly. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). It has been verified against Calendly's official REST API v2 documentation and validated against the manifest grammar, but has not yet been run against a live production account. It targets API version `v2`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `token` | Connection | | Required. Secret. Calendly personal access token or OAuth access token. |
+
+Generate a personal access token in **Integrations → API and Webhooks** inside your Calendly account. OAuth 2.0 access tokens with the required scopes are also accepted as bearer credentials.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `users` | `GET /users/me` | |
+| `organization_memberships` | `GET /organization_memberships` | `users` |
+| `event_types` | `GET /event_types` | `users` |
+| `scheduled_events` | `GET /scheduled_events` | `users` |
+| `routing_forms` | `GET /routing_forms` | `users` |
+| `webhook_subscriptions` | `GET /webhook_subscriptions` | `users` |
+| `user_availability_schedules` | `GET /user_availability_schedules` | `users` |
+
+`users`, `organization_memberships`, `event_types`, and `scheduled_events` are selected by default. `routing_forms`, `webhook_subscriptions`, and `user_availability_schedules` are optional.
+
+`users` queries `/users/me` to fetch the authenticated user profile and captures the organization URI to drive downstream organization resources.
+
+`organization_memberships` returns all members of the organization, their role, and their embedded user record.
+
+`event_types` returns meeting configurations, including duration, booking method, pooling type, and active status.
+
+`scheduled_events` lists booked meetings across the organization, including start and end times, status, location details, invitee counters, and host memberships.
+
+`routing_forms` reads routing forms available on Teams and Enterprise plans.
+
+`webhook_subscriptions` lists organization-level webhook subscriptions and their target callback URLs.
+
+`user_availability_schedules` lists the authenticated user's weekly availability schedules and timezone settings.
+
+Event invitees (`/scheduled_events/{uuid}/invitees`) are excluded because Calendly returns canonical URI references instead of discrete IDs in list payloads. Key invitee metrics and host memberships are captured directly on `scheduled_events`.
+
+## Modes
+
+All resources use full reads. Calendly does not provide an `updated_at` filter on list endpoints. Use **full replace** write mode to capture cancellations, rescheduled meetings, and member removals.
+
+## Behavior
+
+- **Auth**: requests send the token as an HTTP Bearer credential in the `Authorization` header to `https://api.calendly.com`.
+- **Pagination**: cursor pagination with `page_token` in query parameters and `pagination.next_page_token` in response envelopes. Pages request 100 items at a time.
+- **Rate limiting**: throttled at 1.5 requests per second with a burst allowance of 3 requests to stay within Calendly's 100 requests per minute limit. Dynamic rate limit adaptation respects `X-RateLimit-Remaining` and `X-RateLimit-Reset` response headers.
+- **Dependencies**: `users` runs first as the root resource to capture the organization URI and user URI required by dependent child resources.
+- The `raw` column preserves unmapped response fields as JSON.
