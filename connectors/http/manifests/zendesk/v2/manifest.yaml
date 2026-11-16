@@ -292,4 +292,4 @@ resources:
 
 discovery:
   mode: static
-  default_resources: [users, tickets, organizations, groups, ticket_fields, brands, satisfaction_ratings, tags]
+  default_resources: [users, tickets, organizations, groups, ticket_fields, brands, tags]

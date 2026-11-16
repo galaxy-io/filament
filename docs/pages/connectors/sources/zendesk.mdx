@@ -23,7 +23,7 @@ Connection testing calls `GET /api/v2/users.json?page[size]=100`. Requests targe
 
 ## Resources
 
-All resources except `custom_roles` and `ticket_comments` are selected by default. `custom_roles` requires a Zendesk Enterprise plan or higher. Selecting `ticket_comments` fans out across parent tickets.
+All resources except `custom_roles`, `satisfaction_ratings`, and `ticket_comments` are selected by default. `custom_roles` requires a Zendesk Enterprise plan or higher, and `satisfaction_ratings` requires administrator credentials. Selecting `ticket_comments` fans out across parent tickets.
 
 | Resource | Endpoint | Primary Key | Parent |
 |---|---|---|---|
@@ -40,7 +40,12 @@ All resources except `custom_roles` and `ticket_comments` are selected by defaul
 
 ## Modes
 
-All resources perform full reads. Use **full upsert** to refresh rows or **full replace** to remove rows that are no longer returned by Zendesk. Because Zendesk archives closed tickets older than 120 days and excludes them from the standard tickets list, a full replace drops archived tickets and their comments from the destination.
+All resources perform full reads. Use **full upsert** to refresh rows or **full replace** to remove rows that are no longer returned by Zendesk.
+
+When using full replace, consider these Zendesk API boundaries:
+
+- **Archived tickets**. Zendesk automatically archives tickets approximately 120 days after closure (three days on sandboxes, or earlier on high-volume accounts) and excludes them from `GET /api/v2/tickets.json`. A full replace removes archived tickets and their comments from destination storage.
+- **Tag limits**. Zendesk lists at most the 20,000 most popular tags from the preceding 60 days. A full replace drops older or less frequent tags that fall outside this window.
 
 ## Behavior
 
