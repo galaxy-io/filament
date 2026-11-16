@@ -45,19 +45,19 @@ resources:
     primary_key: [id]
     fields:
       id: string
-      full_name: string?
+      full_name: {path: fullName, type: string, nullable: true}
       username: string?
       avatar_hash: {path: avatarHash, type: string, nullable: true}
       initials: string?
       bio: string?
       confirmed: bool?
-      member_type: string?
+      member_type: {path: memberType, type: string, nullable: true}
       url: string?
-      id_boards: json?
-      id_organizations: json?
+      id_boards: {path: idBoards, type: json, nullable: true}
+      id_organizations: {path: idOrganizations, type: json, nullable: true}
       prefs: json?
       trophies: json?
-      premium_features: json?
+      premium_features: {path: premiumFeatures, type: json, nullable: true}
       raw: {path: $, type: json, mode: remainder}
   - name: boards
     path: /members/me/boards
@@ -71,15 +71,15 @@ resources:
       name: string?
       desc: string?
       closed: bool?
-      id_organization: string?
+      id_organization: {path: idOrganization, type: string, nullable: true}
       url: string?
-      short_url: string?
-      short_link: string?
+      short_url: {path: shortUrl, type: string, nullable: true}
+      short_link: {path: shortLink, type: string, nullable: true}
       starred: bool?
-      date_last_activity: timestamptz
-      date_last_view: timestamptz?
+      date_last_activity: {path: dateLastActivity, type: timestamptz}
+      date_last_view: {path: dateLastView, type: timestamptz, nullable: true}
       prefs: json?
-      label_names: json?
+      label_names: {path: labelNames, type: json, nullable: true}
       limits: json?
       raw: {path: $, type: json, mode: remainder}
     capture:
@@ -93,11 +93,11 @@ resources:
     fields:
       id: string
       name: string?
-      display_name: string?
+      display_name: {path: displayName, type: string, nullable: true}
       url: string?
-      id_enterprise: string?
+      id_enterprise: {path: idEnterprise, type: string, nullable: true}
       prefs: json?
-      premium_features: json?
+      premium_features: {path: premiumFeatures, type: json, nullable: true}
       raw: {path: $, type: json, mode: remainder}
   - name: lists
     path: /boards/{board_id}/lists
@@ -138,22 +138,22 @@ resources:
       name: string?
       desc: string?
       closed: bool?
-      date_last_activity: timestamptz
+      date_last_activity: {path: dateLastActivity, type: timestamptz}
       due: timestamptz?
-      due_complete: bool?
+      due_complete: {path: dueComplete, type: bool, nullable: true}
       start: timestamptz?
       pos: float64?
-      short_link: string?
-      short_url: string?
+      short_link: {path: shortLink, type: string, nullable: true}
+      short_url: {path: shortUrl, type: string, nullable: true}
       url: string?
       labels: json?
-      id_labels: json?
-      id_members: json?
-      id_checklists: json?
+      id_labels: {path: idLabels, type: json, nullable: true}
+      id_members: {path: idMembers, type: json, nullable: true}
+      id_checklists: {path: idChecklists, type: json, nullable: true}
       badges: json?
       subscribed: bool?
       cover: json?
-      id_attachment_cover: string?
+      id_attachment_cover: {path: idAttachmentCover, type: string, nullable: true}
       raw: {path: $, type: json, mode: remainder}
     capture:
       card_id: id
@@ -170,11 +170,11 @@ resources:
     fields:
       board_id: {path: parent.board_id, type: string}
       id: string
-      full_name: string?
+      full_name: {path: fullName, type: string, nullable: true}
       username: string?
       avatar_hash: {path: avatarHash, type: string, nullable: true}
       initials: string?
-      member_type: string?
+      member_type: {path: memberType, type: string, nullable: true}
       bio: string?
       url: string?
       raw: {path: $, type: json, mode: remainder}
@@ -208,7 +208,7 @@ resources:
       card_id: {path: idCard, type: string}
       name: string?
       pos: float64?
-      check_items: json?
+      check_items: {path: checkItems, type: json, nullable: true}
       limits: json?
       raw: {path: $, type: json, mode: remainder}
     capture:
@@ -227,9 +227,9 @@ resources:
       state: string?
       pos: float64?
       due: timestamptz?
-      due_reminder: int64?
-      id_member: string?
-      name_data: json?
+      due_reminder: {path: dueReminder, type: int64, nullable: true}
+      id_member: {path: idMember, type: string, nullable: true}
+      name_data: {path: nameData, type: json, nullable: true}
       raw: {path: $, type: json, mode: remainder}
   - name: custom_fields
     path: /boards/{board_id}/customFields
@@ -246,9 +246,9 @@ resources:
       pos: float64?
       options: json?
       display: json?
-      field_group: string?
-      model_type: string?
-      id_model: string?
+      field_group: {path: fieldGroup, type: string, nullable: true}
+      model_type: {path: modelType, type: string, nullable: true}
+      id_model: {path: idModel, type: string, nullable: true}
       raw: {path: $, type: json, mode: remainder}
   - name: custom_field_items
     path: /cards/{card_id}/customFieldItems
@@ -261,9 +261,9 @@ resources:
       card_id: {path: parent.card_id, type: string}
       id: string
       field_id: {path: idCustomField, type: string}
-      id_model: string?
-      model_type: string?
-      id_value: string?
+      id_model: {path: idModel, type: string, nullable: true}
+      model_type: {path: modelType, type: string, nullable: true}
+      id_value: {path: idValue, type: string, nullable: true}
       value: json?
       raw: {path: $, type: json, mode: remainder}
   - name: attachments
@@ -278,10 +278,10 @@ resources:
       id: string
       bytes: int64?
       date: timestamptz?
-      edge_color: string?
-      id_member: string?
-      is_upload: bool?
-      mime_type: string?
+      edge_color: {path: edgeColor, type: string, nullable: true}
+      id_member: {path: idMember, type: string, nullable: true}
+      is_upload: {path: isUpload, type: bool, nullable: true}
+      mime_type: {path: mimeType, type: string, nullable: true}
       name: string?
       previews: json?
       url: string?
@@ -306,7 +306,7 @@ resources:
       date: timestamptz
       member_creator_id: {path: idMemberCreator, type: string, nullable: true}
       data: json?
-      member_creator: json?
+      member_creator: {path: memberCreator, type: json, nullable: true}
       raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: date
