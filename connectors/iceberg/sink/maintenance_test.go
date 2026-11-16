@@ -2,6 +2,7 @@ package iceberg
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -20,13 +21,18 @@ func TestMaintenanceCompactsExpiresAndStamps(t *testing.T) {
 	schema := iceberg.NewSchema(0, iceberg.NestedField{ID: 1, Name: "id", Type: iceberg.PrimitiveTypes.Int64, Required: true})
 	tbl := testTable(t, ctx, schema, iceberg.Properties{
 		managedKey:            "true",
+		maintainedAtKey:       strconv.FormatInt(time.Now().UnixMilli(), 10),
 		maxSnapshotAgeKey:     "0",
 		minSnapshotsToKeepKey: "1",
 	})
 	if maintenanceDue(tbl, time.Now()) {
 		t.Fatal("empty table is due")
 	}
-	for i := range maintenanceCommits {
+	tbl = appendRow(t, ctx, tbl, 0)
+	if maintenanceDue(tbl, time.Now()) {
+		t.Fatal("new table is due after its first commit")
+	}
+	for i := 1; i < maintenanceCommits; i++ {
 		tbl = appendRow(t, ctx, tbl, int64(i))
 	}
 	if !maintenanceDue(tbl, time.Now()) {
