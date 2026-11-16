@@ -64,9 +64,10 @@ connection:
     Accept: application/json
   timeout_seconds: 60
   rate_limit:
-    # Standard Zendesk API limit allows up to 700 requests/minute (~11/sec).
-    requests_per_second: 10
-    burst: 10
+    # Paced at 3 req/s (180 req/min) to stay safely within Zendesk lower-tier
+    # plan limits (Team plan allows 200 req/min; Growth/Enterprise allow 400-700+ req/min).
+    requests_per_second: 3
+    burst: 5
 resources:
   - name: users
     path: /api/v2/users.json

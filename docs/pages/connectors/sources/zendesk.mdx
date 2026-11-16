@@ -51,4 +51,4 @@ When using full replace, consider these Zendesk API boundaries:
 
 - **Auth**. Every request sends either HTTP Basic Authentication with `{email}/token` and `api_token`, or a Bearer token when `auth_method` is `oauth_access_token`.
 - **Pagination**. Endpoints use cursor-based pagination with `page[size]=100`, walking `page[after]` from `meta.after_cursor` until `meta.has_more` is false.
-- **Rate limiting**. Standard Zendesk Support API limits allow up to 700 requests per minute. The connector paces requests at 10 requests per second with burst capacity of 10.
+- **Rate limiting**. Zendesk rate limits vary by subscription tier. Team plans allow 200 requests per minute, Growth allows 400, and Professional and Enterprise allow 700 or more. The connector paces requests at 3 requests per second with a burst allowance of 5 requests so smaller plan tiers do not experience throttling.
