@@ -1,13 +1,13 @@
-| Field | Value |
-|---|---|
-| title | Airtable source connector |
-| sidebarTitle | Airtable |
-| description | Read bases, tables, table schemas, and records from Airtable with Filament. |
-| icon | [https://cdn.getgalaxy.io/sources/source-icon-airtable-dark.svg](https://cdn.getgalaxy.io/sources/source-icon-airtable-dark.svg) |
+---
+title: "Airtable source connector"
+sidebarTitle: "Airtable"
+description: "Read bases, tables, table schemas, and records from Airtable with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-airtable-dark.svg"
+---
 
 Connector ID `airtable`
 
-The Airtable source reads accessible bases, their tables and schemas, and records from those tables. It uses an [HTTP manifest](https://github.com/galaxy-io/filament/tree/main/connectors/http/manifests/airtable). This connector is in preview and targets Airtable's unversioned Web API.
+The Airtable source reads accessible bases, their tables and schemas, and records from those tables. It uses an [HTTP manifest](https://github.com/galaxy-io/filament/tree/main/connectors/http/manifests/airtable). This connector is in preview and targets Airtable Web API version `v0`.
 
 ## Configuration
 
@@ -19,7 +19,7 @@ Create a personal access token from the [Airtable developer hub](https://airtabl
 
 The connector requires the `schema.bases:read` and `data.records:read` scopes for reading base and table metadata and retrieving records, respectively. The token must also be granted access to the relevant bases.
 
-Every request goes to `https://api.airtable.com`. Requests authenticate using the token as a Bearer credential.
+Every request goes to `https://api.airtable.com/v0`. Requests authenticate using the token as a Bearer credential.
 
 ## Resources
 
@@ -81,7 +81,7 @@ Record identity is represented by the composite key `base_id`, `table_id`, and `
 - **Record fields**. Record values are returned in Airtable's flexible `fields` object. The connector does not create a separate destination column for every Airtable field.
 - **Record deletions**. The connector performs reads and does not provide deletion events. A record that is no longer returned by Airtable is not independently represented as a deletion event.
 - **Incremental reads**. The connector currently performs full reads. It does not implement incremental synchronization using `createdTime`, because that timestamp represents record creation rather than a reliable record modification watermark.
-- **Related data**. The connector reads base, table, and record data. It does not independently retrieve comments, attachments, or other related information through additional endpoints.
+- **Related data**. The connector reads base, table, and record data. It does not independently retrieve comments, attachments, or other specialized endpoints through additional requests.
 
 ## Modes
 
@@ -96,10 +96,9 @@ The connector does not currently support incremental record synchronization. Air
 - **Authentication**. Every request sends the configured personal access token as a Bearer credential. Authentication and permission errors fail the read.
 - **Base discovery**. The connector starts with `GET /v0/meta/bases` and discovers accessible bases.
 - **Parent selection**. Tables are fetched once per discovered base. Records are fetched once per discovered table.
-- **Pagination**. Record retrieval uses Airtable's `pageSize` parameter, configured to 100 records per request. The connector follows the top-level `offset` value returned by Airtable, passing it as the `offset` query parameter on the next request. Pagination ends when no further offset is returned.
+- **Pagination**. Base discovery and record retrieval use cursor-based pagination. The bases endpoint can return up to 1,000 bases per page. The records endpoint requests up to 100 records per page using `pageSize=100`. When Airtable returns a top-level `offset`, the connector passes it as the `offset` query parameter on the next request. Pagination ends when no further offset is returned. Table metadata retrieval is not paginated.
 - **Table metadata**. The table metadata endpoint returns field definitions and views alongside table information. These nested structures are retained as JSON.
 - **Record fields**. Airtable may omit empty fields from record responses. The `fields` JSON column preserves the values Airtable actually returns.
-- **Rate limiting**. Requests are paced at two per second by the connector configuration. Airtable documents a limit of five requests per second per base and 50 requests per second per personal access token. Limits are shared with other clients using the same token. The HTTP engine handles throttled requests and retries according to its retry behavior.
+- **Rate limiting**. Requests are paced at two per second by the connector configuration. Airtable documents a limit of five requests per second per base and 50 requests per second per personal access token. Limits are shared with other clients using the same token. The HTTP engine handles throttled requests according to its retry behavior.
 
 See [Airtable API documentation](https://airtable.com/developers/web/api/introduction), [authentication](https://airtable.com/developers/web/api/authentication), [list bases](https://airtable.com/developers/web/api/list-bases), [list tables](https://airtable.com/developers/web/api/list-tables), and [list records](https://airtable.com/developers/web/api/list-records) for API details.
-

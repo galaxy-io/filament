@@ -1,5 +1,6 @@
 
 version: 1
+api_version: "v0"
 name: airtable
 display_name: Airtable
 description: Cloud-based platform for building collaborative databases and applications, organizing structured information, and automating workflows.
@@ -14,9 +15,14 @@ defaults:
   method: GET
   response:
     strict_records: true
+    pagination:
+      cursor:
+        response: offset
+        request: query.offset
+        null_terminates: true
 
 connection:
-  base_url: https://api.airtable.com
+  base_url: https://api.airtable.com/v0
   auth:
     bearer: config.access_token
   headers:
@@ -27,9 +33,9 @@ connection:
     burst: 1
 
 resources:
-  # 1. Discover accessible bases.
+  # Discover bases
   - name: bases
-    path: /v0/meta/bases
+    path: /meta/bases
     records: $.bases
     primary_key: [id]
     capture:
@@ -45,9 +51,9 @@ resources:
         type: json
         mode: remainder
 
-  # 2. Discover tables and their schemas for each base.
+  #  Discover tables and their schemas for each base.
   - name: tables
-    path: /v0/meta/bases/{base_id}/tables
+    path: /meta/bases/{base_id}/tables
     for_each: bases
     params:
       base_id: parent.base_id
@@ -78,9 +84,9 @@ resources:
         type: json
         mode: remainder
 
-  # 3. Retrieve all records from each table.
+  # Retrieve all records from each table.
   - name: records
-    path: /v0/{base_id}/{table_id}
+    path: /{base_id}/{table_id}
     for_each: tables
     params:
       base_id: parent.base_id
@@ -109,11 +115,6 @@ resources:
         path: $
         type: json
         mode: remainder
-    pagination:
-      cursor:
-        response: offset
-        request: query.offset
-        null_terminates: true
 
 discovery:
   mode: static
