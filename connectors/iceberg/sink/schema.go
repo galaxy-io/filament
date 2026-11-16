@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/apache/iceberg-go/catalog"
@@ -96,6 +97,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			"write.format.default":                       "parquet",
 			icetable.MetadataDeleteAfterCommitEnabledKey: "true",
 			icetable.ManifestMergeEnabledKey:             "true",
+			maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
 		}),
 	}
 	if s.tableLocationRoot != "" {

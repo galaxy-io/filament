@@ -21,9 +21,17 @@ const (
 	maintenanceInterval = 10 * time.Minute
 	maintainedAtKey     = "filament.maintenance.last-run-ms"
 
+	// An equality delete applies to every older file of an unpartitioned table,
+	// so folding deletes rewrites the whole table. The threshold sets how many
+	// commits that rewrite is amortized over.
+	compactDeleteFileThreshold = 50
+
 	// Retention honors the table properties Spark and Trino users already set.
+	// Tables the sink creates get the shorter age, because a continuous run
+	// commits often and every commit rewrites metadata listing each snapshot.
 	maxSnapshotAgeKey         = "history.expire.max-snapshot-age-ms"
 	maxSnapshotAgeDefault     = 5 * 24 * time.Hour
+	maxSnapshotAgeCreated     = 24 * time.Hour
 	minSnapshotsToKeepKey     = "history.expire.min-snapshots-to-keep"
 	minSnapshotsToKeepDefault = 1
 )
@@ -96,6 +104,7 @@ func maintain(ctx context.Context, it *iceTable) error {
 // size and drops equality deletes the rewrite leaves without a target.
 func compactDataFiles(ctx context.Context, tbl *table.Table) (*table.Table, error) {
 	cfg := compaction.DefaultConfig()
+	cfg.DeleteFileThreshold = compactDeleteFileThreshold
 	if target := tbl.Properties().GetInt64(table.WriteTargetFileSizeBytesKey, 0); target > 0 {
 		cfg.TargetFileSizeBytes = target
 		cfg.MinFileSizeBytes = target * 3 / 4
