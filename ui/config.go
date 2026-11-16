@@ -13,9 +13,9 @@ import (
 // Config, read by the standalone host.
 const runtimeConfigElementID = "filament-runtime-config"
 
-// Products are the Galaxy products a deployment can point at each other,
+// products are the Galaxy products a deployment can point at each other,
 // each configured by GALAXY_<PRODUCT>_URL.
-var Products = []string{"alchemy", "filament"}
+var products = []string{"alchemy", "filament"}
 
 // Config is what the server tells the UI at runtime. It is written into
 // index.html as JSON, so one UI build serves every deployment.
@@ -29,7 +29,7 @@ type Config struct {
 // out the unset ones.
 func ProductURLsFromEnv(getenv func(string) string) (map[string]string, error) {
 	urls := map[string]string{}
-	for _, product := range Products {
+	for _, product := range products {
 		name := "GALAXY_" + strings.ToUpper(product) + "_URL"
 		raw := getenv(name)
 		if raw == "" {

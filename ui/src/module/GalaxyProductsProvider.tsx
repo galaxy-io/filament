@@ -1,11 +1,9 @@
 import { createContext, type FC, type PropsWithChildren, useContext } from "react";
 
-import { FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS } from "@/module/constants";
+import { GALAXY_DEFAULT_PRODUCT_URLS } from "@/module/constants";
 import type { GalaxyProduct, GalaxyProductUrls } from "@/module/types";
 
-const GalaxyProductUrlsContext = createContext<GalaxyProductUrls>(
-  FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS,
-);
+const GalaxyProductUrlsContext = createContext<GalaxyProductUrls>(GALAXY_DEFAULT_PRODUCT_URLS);
 
 interface GalaxyProductsProviderProps {
   productUrls: GalaxyProductUrls;

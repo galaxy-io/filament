@@ -10,7 +10,7 @@ import EditConnectionModal from "@/pages/connections/components/edit/EditConnect
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal";
 
-import { FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS } from "@/module/constants";
+import { GALAXY_DEFAULT_PRODUCT_URLS } from "@/module/constants";
 import { GalaxyProductsProvider } from "@/module/GalaxyProductsProvider";
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
@@ -24,7 +24,7 @@ export interface FilamentLayoutProps {
 
 const FilamentLayout: FC<FilamentLayoutProps> = ({
   sidebarFooter,
-  productUrls = FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS,
+  productUrls = GALAXY_DEFAULT_PRODUCT_URLS,
 }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const {

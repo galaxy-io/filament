@@ -19,4 +19,4 @@ export const FILAMENT_CONNECTOR_KIND_TO_CREATE_COMMAND_ID_MAP: Record<ConnectorK
   [ConnectorKind.SINK]: "new-sink",
 };
 
-export const FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS: GalaxyProductUrls = {};
+export const GALAXY_DEFAULT_PRODUCT_URLS: GalaxyProductUrls = {};
