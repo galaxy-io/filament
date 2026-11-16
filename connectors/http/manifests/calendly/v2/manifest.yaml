@@ -32,7 +32,7 @@ connection:
     dynamic:
       remaining_header: X-RateLimit-Remaining
       reset_header: X-RateLimit-Reset
-      reset_format: unix_seconds
+      reset_format: seconds_from_now
       min_floor_rps: 0.5
 resources:
   - name: users

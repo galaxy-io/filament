@@ -15,7 +15,7 @@ The Calendly source reads user profiles, organization memberships, event types, 
 |---|---|---|---|
 | `token` | Connection | | Required. Secret. Calendly personal access token or OAuth access token. |
 
-Generate a personal access token in **Integrations → API and Webhooks** inside your Calendly account. OAuth 2.0 access tokens with the required scopes are also accepted as bearer credentials.
+Generate a personal access token in **Integrations → API and Webhooks** inside your Calendly account. OAuth 2.0 access tokens with the required scopes are also accepted as bearer credentials. The default `scheduled_events` read passes the `organization` parameter, which Calendly limits to an organization admin or owner. Use a token for an organization admin or owner. A regular member token can read `/users/me`, but the default `scheduled_events` read fails.
 
 ## Resources
 
