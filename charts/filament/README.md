@@ -114,6 +114,12 @@ encryption to protect resolved connection credentials in transit.
 | server.service.type | string | `"ClusterIP"` | Service type. |
 | server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
 | server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
+| server.webhooks.enabled | bool | `false` | Enable signed webhook ingestion on the server. |
+| server.webhooks.maxBytes | int | `1073741824` | Durable JetStream inbox capacity in bytes. |
+| server.webhooks.maxInFlight | int | `64` | Maximum concurrent webhook requests per server replica. |
+| server.webhooks.maxMessageBytes | int | `2097152` | Largest stored webhook message in bytes, including its envelope. |
+| server.webhooks.publicBaseURL | string | `""` | Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set. |
+| server.webhooks.replicas | int | `1` | JetStream replicas for the webhook inbox. |
 
 ## Control plane parameters
 
@@ -136,6 +142,8 @@ encryption to protect resolved connection credentials in transit.
 | controlPlane.resources | object | `{}` (See [values.yaml]) | Control plane resource requests and limits. |
 | controlPlane.serviceAccount.annotations | object | `{}` | Annotations for the chart-created control plane ServiceAccount, e.g. an IRSA role ARN. |
 | controlPlane.serviceAccount.name | string | `""` | Existing ServiceAccount name for the control plane. When set, the chart does not create one. |
+| controlPlane.webhookMaxHoldHours | int | `720` | Most hours a webhook delivery no pipeline has read stays in the inbox. Past it the delivery is dropped. Must be at least `webhookRetentionHours`. |
+| controlPlane.webhookRetentionHours | int | `168` | Hours a webhook delivery stays in the inbox before it may be purged. Also the window in which a sender's retry is recognized as a duplicate. Applies when `server.webhooks.enabled` is true. |
 
 ## Worker parameters
 
@@ -259,6 +267,7 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 |-----|------|---------|-------------|
 | nats.config.jetstream.enabled | bool | `true` | Enable JetStream in the vendored NATS chart. |
 | nats.config.jetstream.fileStore.pvc.size | string | `"10Gi"` | PVC size for the vendored NATS JetStream file store. |
+| nats.config.merge.max_payload | int | `2097152` | Largest NATS message in bytes. Must be at least `server.webhooks.maxMessageBytes`. |
 | nats.container.merge | object | `{"resources":{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}}` | Merged into the vendored NATS container spec. Sets resources so the pod is not BestEffort QoS (first evicted under node pressure); the upstream chart sets none. |
 | nats.enabled | bool | `false` | Enable the vendored NATS chart for local or test clusters. See the [NATS chart](https://artifacthub.io/packages/helm/nats/nats) for additional configuration. |
 | nats.fullnameOverride | string | `"filament-nats"` | Full name override for the vendored NATS release. |

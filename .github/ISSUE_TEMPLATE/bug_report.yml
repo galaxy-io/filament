@@ -83,3 +83,10 @@ body:
           required: true
         - label: I removed secrets and sensitive data from this report.
           required: true
+          
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to submit a pull request to fix this.

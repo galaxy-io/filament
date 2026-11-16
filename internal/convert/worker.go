@@ -29,7 +29,7 @@ func SourceToProto(spec filament.ConnectorSpec) *workerv1.Source {
 	out := &workerv1.Source{
 		Spec:      SourceSpecToProto(spec),
 		Policies:  sourcePoliciesToProto(spec.SourcePolicies),
-		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor, SelectableColumns: spec.Resources.SelectableColumns},
+		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor, SelectableColumns: spec.Resources.SelectableColumns, WebhookEndpointBacked: spec.Resources.WebhookEndpointBacked},
 	}
 	for _, mode := range spec.Modes {
 		out.ReadModes = append(out.ReadModes, ReadModeToProto(mode))
@@ -62,9 +62,10 @@ func SourceFromProto(source *workerv1.Source) (filament.ConnectorSpec, error) {
 		return filament.ConnectorSpec{}, fmt.Errorf("source %q: %w", spec.Name, err)
 	}
 	spec.Resources = filament.ResourceCapabilities{
-		Discoverable:      source.GetResources().GetDiscoverable(),
-		PerResourceCursor: source.GetResources().GetPerResourceCursor(),
-		SelectableColumns: source.GetResources().GetSelectableColumns(),
+		Discoverable:          source.GetResources().GetDiscoverable(),
+		PerResourceCursor:     source.GetResources().GetPerResourceCursor(),
+		SelectableColumns:     source.GetResources().GetSelectableColumns(),
+		WebhookEndpointBacked: source.GetResources().GetWebhookEndpointBacked(),
 	}
 	if stream := source.GetStream(); stream != nil {
 		caps := &filament.StreamCapabilities{}

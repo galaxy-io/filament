@@ -112,7 +112,7 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := prepareContinuousSchemas(runCtx, &cfg, state); err != nil {
 		return err
 	}
-	session, err = openContinuousStream(runCtx, cfg, filament.StreamOpenOpts{MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, MembershipRevision: state.MembershipRevision, Attempt: lease.Attempt})
+	session, err = openContinuousStream(runCtx, cfg, filament.StreamOpenOpts{Tenant: spec.Tenant, MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, MembershipRevision: state.MembershipRevision, Attempt: lease.Attempt})
 	if err != nil {
 		return err
 	}

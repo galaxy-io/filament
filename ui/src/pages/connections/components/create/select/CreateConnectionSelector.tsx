@@ -6,11 +6,12 @@ import Modal from "@galaxy-io/dls/modal/Modal";
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
+import { CONNECTOR_KIND_TO_CREATE_TITLE_MAP } from "@/components/connections/constants";
+
 import CreateConnectionSelectorBody from "@/pages/connections/components/create/select/CreateConnectionSelectorBody";
 import CreateConnectionSelectorSidebar from "@/pages/connections/components/create/select/CreateConnectionSelectorSidebar";
 import { useCreateConnectionSelectorCatalog } from "@/pages/connections/components/create/select/hooks/useCreateConnectionSelectorCatalog";
 import { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
-import { CONNECTOR_KIND_TO_CREATE_TITLE_MAP } from "@/pages/connections/constants";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";

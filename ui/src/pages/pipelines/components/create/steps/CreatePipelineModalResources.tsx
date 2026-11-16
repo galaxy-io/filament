@@ -13,6 +13,8 @@ import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
+import { isWebhookConnector } from "@/components/webhooks/utils";
+
 import {
   useCreatePipelineModalActions,
   useCreatePipelineModalState,
@@ -44,7 +46,7 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
   activeRow,
   onActiveResourceChange,
 }) => {
-  const { rowsBySink, sinks, activeSinkId, discoverError, executionMode } =
+  const { rowsBySink, sinks, activeSinkId, discoverError, executionMode, sourceConnection } =
     useCreatePipelineModalState();
   const { addResource } = useCreatePipelineModalActions();
 
@@ -52,6 +54,7 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
 
   const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
+  const isWebhook = isWebhookConnector(sourceConnection?.connector);
   const rows = rowsBySink[activeSinkId] ?? [];
   const filteredRows = useMemo(
     () => rows.filter((row) => isSearchMatch(localState.search, row.displayName)),
@@ -120,6 +123,7 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
             onSave={handleCreate}
             onCancel={() => setCreating(false)}
             variant={WidgetVariant.PRIMARY}
+            isWebhook={isWebhook}
           />
           <Divider />
         </>
