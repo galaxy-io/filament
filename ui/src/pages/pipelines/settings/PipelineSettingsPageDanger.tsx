@@ -37,7 +37,9 @@ const PipelineSettingsPageDanger: FC = () => {
     input: createGetPipelineInput(id),
   });
   const pipeline = data.pipeline;
-  const sourceConnections = useGetConnectionQueries(getPipelineSourceConnectionIds(pipeline));
+  const { connections: sourceConnections } = useGetConnectionQueries(
+    getPipelineSourceConnectionIds(pipeline),
+  );
 
   const { mutate: deletePipeline } = useDeletePipelineMutation();
 

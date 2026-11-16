@@ -10,6 +10,7 @@ import "ingestion/v1/pipelines.proto";
 import "ingestion/v1/runs.proto";
 import "ingestion/v1/transformations.proto";
 import "ingestion/v1/version.proto";
+import "ingestion/v1/webhooks.proto";
 
 // IngestionService is the engine-as-a-service surface the pipeline UI drives.
 service IngestionService {
@@ -28,6 +29,10 @@ service IngestionService {
   rpc GetConnection(GetConnectionRequest) returns (GetConnectionResponse);
   rpc ListConnections(ListConnectionsRequest) returns (ListConnectionsResponse);
   rpc DeleteConnection(DeleteConnectionRequest) returns (DeleteConnectionResponse);
+
+  // Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+  rpc GetWebhookEndpoint(GetWebhookEndpointRequest) returns (GetWebhookEndpointResponse);
+  rpc PutWebhookEndpoint(PutWebhookEndpointRequest) returns (PutWebhookEndpointResponse);
 
   // Pipeline options and validation are resolved for the complete graph.
   rpc ValidatePipeline(ValidatePipelineRequest) returns (ValidatePipelineResponse);

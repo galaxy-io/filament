@@ -15,6 +15,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import {
+  CONNECTOR_KIND_TO_CREATE_TITLE_MAP,
   CONNECTOR_KIND_TO_PLURAL_LABEL_MAP,
   CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
 } from "@/components/connections/constants";
@@ -26,7 +27,6 @@ import ConnectionsPageSourcesEmptyGraphic from "@/pages/connections/components/C
 import ConnectionCard from "@/pages/connections/components/card/ConnectionCard";
 import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
-  CONNECTOR_KIND_TO_CREATE_TITLE_MAP,
   CONNECTOR_KIND_TO_DOCS_PATH_MAP,
   CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP,
 } from "@/pages/connections/constants";
@@ -40,7 +40,6 @@ import {
   createListConnectionsInput,
   useSuspenseListConnectionsInfiniteQuery,
 } from "@/api/queries/connections";
-import { useListConnectorsQuery } from "@/api/queries/connectors";
 
 interface ConnectionsPageProps {
   kind: ConnectorKind.SOURCE | ConnectorKind.SINK;
@@ -68,17 +67,6 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
   const kindConnections = useMemo(
     () => data.pages.flatMap((page) => page.connections),
     [data.pages],
-  );
-  const { data: catalog } = useListConnectorsQuery();
-  const previewByConnector = useMemo(
-    () =>
-      new Map(
-        catalog?.connectors.map((connector) => [
-          `${connector.kind}:${connector.name}`,
-          connector.isPreview,
-        ]) ?? [],
-      ),
-    [catalog?.connectors],
   );
   const endRef = useEndReached({
     onEndReached: hasNextPage ? () => void fetchNextPage() : undefined,
@@ -151,9 +139,6 @@ const ConnectionsPage: FC<ConnectionsPageProps> = ({ kind }) => {
               <ConnectionCard
                 key={connection.id}
                 connection={connection}
-                isPreview={
-                  previewByConnector.get(`${connection.kind}:${connection.connector}`) ?? false
-                }
                 pipelineCount={
                   hasPipelineCounts
                     ? (pipelineCountsByConnectionId.get(connection.id) ?? 0)

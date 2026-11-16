@@ -7,7 +7,11 @@ import (
 	"strings"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/version"
 )
+
+// userAgentProduct is the product token MotherDuck sees in DuckDB's user agent.
+const userAgentProduct = "filament"
 
 // Resolved contains the validated values needed to open one DuckDB database.
 type Resolved struct {
@@ -35,6 +39,12 @@ func Fields() []filament.ConfigField {
 	}
 }
 
+// UserAgent returns the product token DuckDB appends to its user agent so
+// MotherDuck can attribute connections to Filament.
+func UserAgent() string {
+	return userAgentProduct + "/" + version.Version
+}
+
 // Resolve validates a token and the destination database.
 func Resolve(cfg filament.Config) (Resolved, error) {
 	token := cfg.Secret("token")
@@ -46,7 +56,10 @@ func Resolve(cfg filament.Config) (Resolved, error) {
 		return Resolved{}, fmt.Errorf("database is required")
 	}
 	return Resolved{
-		Path:    "md:" + database,
-		Options: map[string]string{"motherduck_token": token},
+		Path: "md:" + database,
+		Options: map[string]string{
+			"motherduck_token":  token,
+			"custom_user_agent": UserAgent(),
+		},
 	}, nil
 }

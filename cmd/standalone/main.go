@@ -28,6 +28,7 @@ import (
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/cmd/internal/inline"
@@ -60,6 +61,10 @@ func main() {
 }
 
 func run(ctx context.Context) error {
+	webhookConfig, err := standaloneWebhooksFromEnv()
+	if err != nil {
+		return err
+	}
 	lg, err := logger.New()
 	if err != nil {
 		return err
@@ -91,6 +96,7 @@ func run(ctx context.Context) error {
 		DontListen: true,
 		JetStream:  true,
 		StoreDir:   dir,
+		MaxPayload: standaloneNATSMaxPayload,
 	})
 	if err != nil {
 		return err
@@ -120,6 +126,14 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer nc.Close()
+	webhookInbox, retention, err := openStandaloneWebhooks(ctx, nc, webhookConfig)
+	if err != nil {
+		return err
+	}
+	var runtimeSources filament.SourceRegistry = sources
+	if webhookInbox != nil {
+		runtimeSources = standaloneSources{SourceRegistry: sources, inbox: webhookInbox}
+	}
 
 	bus, err := natsbus.New("", events.Codec,
 		natsbus.WithConn(nc),
@@ -129,17 +143,21 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	return app.Run(ctx,
+	options := []app.Option{
 		app.WithNotifier(),
 		app.WithBus(bus),
-		app.WithSources(sources),
+		app.WithSources(runtimeSources),
 		app.WithSinks(sinks),
 		app.WithDataStore(store),
 		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithLogger(lg),
 		app.WithSecrets(secrets),
 		app.WithUI(ui.Handler()),
-	)
+	}
+	if webhookInbox != nil {
+		options = append(options, app.WithWebhookInbox(webhookInbox, webhookConfig.publicBaseURL, webhookConfig.maxInFlight, retention))
+	}
+	return app.Run(ctx, options...)
 }
 
 // runInline executes one untracked run, with facts on file descriptor 3.

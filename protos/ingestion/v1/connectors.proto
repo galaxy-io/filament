@@ -25,6 +25,8 @@ message ConnectorSpec {
   // Concrete registration selected by a source catalog alias; empty otherwise.
   string alias_target = 13;
   bool is_preview = 14;
+  // Ingress verifier for sources that receive webhooks. Empty otherwise.
+  string webhook_verifier = 15;
 }
 
 message ListConnectorsRequest {

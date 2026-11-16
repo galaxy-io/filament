@@ -7,8 +7,6 @@ import { PlusIcon } from "@phosphor-icons/react";
 import GalaxyFilamentWordmark from "@galaxy-io/dls/brand/GalaxyFilamentWordmark";
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import ChartGroupProvider from "@galaxy-io/dls/charts/ChartGroupProvider";
-import Box from "@galaxy-io/dls/layout/Box";
-import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import PageLayout from "@galaxy-io/dls/layout/PageLayout";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
@@ -113,9 +111,8 @@ const ObservabilityPage: FC = () => {
       <ChartGroupProvider shouldShareTooltip>
         <ScrollArea ref={scrollRef} className={OBSERVABILITY_PAGE_SCROLL_CSS}>
           <ObservabilityLayout>
-            <ObservabilityBand />
-            <Divider />
-            <Box padding={16} fillWidth>
+            <Flex direction={FlexDirection.COLUMN} gap={12} padding={16} fillWidth>
+              <ObservabilityBand />
               <ObservabilityBlock>
                 <ObservabilityPipelinesWidget />
                 <ObservabilityBlockSide>
@@ -124,7 +121,7 @@ const ObservabilityPage: FC = () => {
                   <ObservabilityConnectionsWidget kind={ConnectorKind.SINK} />
                 </ObservabilityBlockSide>
               </ObservabilityBlock>
-            </Box>
+            </Flex>
           </ObservabilityLayout>
           <Flex
             ref={takeoverRef}
