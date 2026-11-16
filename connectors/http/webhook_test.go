@@ -231,3 +231,39 @@ resources:
 
 // A connection that reads only webhooks needs none of the manifest's API
 // config, makes no probe request, and cannot run API resources.
+func TestWebhookOnlyConnectionNeedsNoAPIConfig(t *testing.T) {
+	ctx := context.Background()
+	src := catalogSource(t, "posthog@unversioned")
+	if err := src.Validate(filament.NewConfig(map[string]any{})); err == nil {
+		t.Fatal("API connection validated without api_key")
+	}
+	webhooksOnly := filament.NewConfig(map[string]any{"ingestion": filament.IngestionWebhooks})
+	if err := src.Validate(webhooksOnly); err != nil {
+		t.Fatalf("webhook-only validate: %v", err)
+	}
+	if err := src.TestConnection(ctx, webhooksOnly); err != nil {
+		t.Fatalf("webhook-only connection test: %v", err)
+	}
+	if err := src.Configure(ctx, webhooksOnly); err != nil {
+		t.Fatalf("webhook-only configure: %v", err)
+	}
+	res, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil || len(res.Resources) != 1 || res.Resources[0].Name != "events_webhook" {
+		t.Fatalf("webhook-only discover = %+v, %v", res.Resources, err)
+	}
+	err = src.Extract(ctx, &collectSink{}, filament.ExtractOpts{Resources: []string{"events"}})
+	if err == nil || !strings.Contains(err.Error(), "reads only webhooks") {
+		t.Fatalf("webhook-only extract: %v", err)
+	}
+	for _, field := range src.Spec().Config.Fields {
+		if field.Scope == filament.ScopePipeline && field.VisibleWhen != nil {
+			t.Fatalf("pipeline field %s depends on the connection's ingestion field", field.Name)
+		}
+	}
+	if !src.Spec().Webhook.Enabled(webhooksOnly) || src.Spec().Webhook.Enabled(filament.NewConfig(map[string]any{})) {
+		t.Fatal("spec ingestion does not follow the connection config")
+	}
+}
+
+// Metronome creates each webhook's signing secret, so its spec says so and
+// Filament does not mint one. PostHog accepts the key Filament generates.
