@@ -42,6 +42,7 @@ type Sink struct {
 	active    *stage
 
 	tableLocationRoot  string
+	tableUpdateMode    string
 	namespace          string
 	stageBufLimitBytes int64
 	maintenance        bool
@@ -133,6 +134,7 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	s.cat = cat
 	s.tableLocationRoot = setup.TableLocationRoot
+	s.tableUpdateMode = setup.TableUpdateMode
 	s.ingestionTypes = maps.Clone(run.IngestionTypes)
 	s.policies = maps.Clone(run.WritePolicies)
 	s.writeModes = map[string]writeMode{}

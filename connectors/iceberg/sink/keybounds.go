@@ -31,14 +31,14 @@ func pruneDeletes(ctx context.Context, it *iceTable, keys []string, m *mutation)
 			if len(b) != 4 {
 				return 0, false
 			}
-			return int64(int32(binary.LittleEndian.Uint32(b))), true
+			return int64(int32(binary.LittleEndian.Uint32(b))), true //nolint:gosec // two's complement bound bytes
 		}, func(a arrow.Array, i int) int64 { return int64(a.(*array.Int32).Value(i)) })
 	case iceberg.PrimitiveTypes.Int64:
 		return pruneByRange(ctx, it, field.ID, m, func(b []byte) (int64, bool) {
 			if len(b) != 8 {
 				return 0, false
 			}
-			return int64(binary.LittleEndian.Uint64(b)), true
+			return int64(binary.LittleEndian.Uint64(b)), true //nolint:gosec // two's complement bound bytes
 		}, func(a arrow.Array, i int) int64 { return a.(*array.Int64).Value(i) })
 	case iceberg.PrimitiveTypes.String:
 		// Iceberg orders strings by UTF-8 bytes, as Go compares them, and a

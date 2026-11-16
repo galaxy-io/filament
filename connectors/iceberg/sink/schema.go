@@ -72,6 +72,22 @@ func evolveSchema(ctx context.Context, tbl *icetable.Table, schema rowmodel.Sche
 	return err
 }
 
+// createProperties is the property set for a table the sink creates. The update
+// mode sets both write.merge.mode and write.delete.mode; empty is merge-on-read.
+func createProperties(updateMode string) iceberg.Properties {
+	if updateMode == "" {
+		updateMode = icetable.WriteModeMergeOnRead
+	}
+	return iceberg.Properties{
+		"write.format.default":                       "parquet",
+		icetable.MetadataDeleteAfterCommitEnabledKey: "true",
+		icetable.ManifestMergeEnabledKey:             "true",
+		maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
+		writeMergeModeKey:                            updateMode,
+		icetable.WriteDeleteModeKey:                  updateMode,
+	}
+}
+
 // EnsureSchema creates the Iceberg table if absent, or evolves it by adding any
 // columns not yet present.
 func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
@@ -93,14 +109,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	iceSchema := buildIcebergSchema(schema)
 	ident := s.tableIdent(resource)
 	createOpts := []catalog.CreateTableOpt{
-		catalog.WithProperties(iceberg.Properties{
-			"write.format.default":                       "parquet",
-			icetable.MetadataDeleteAfterCommitEnabledKey: "true",
-			icetable.ManifestMergeEnabledKey:             "true",
-			maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
-			writeMergeModeKey:                            icetable.WriteModeMergeOnRead,
-			icetable.WriteDeleteModeKey:                  icetable.WriteModeMergeOnRead,
-		}),
+		catalog.WithProperties(createProperties(s.tableUpdateMode)),
 	}
 	if s.tableLocationRoot != "" {
 		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), tableName(resource))

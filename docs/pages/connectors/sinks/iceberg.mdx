@@ -25,6 +25,7 @@ catalog. Rows remain staged until their resource commits.
 | `catalog` | Connection | — | Required. Catalog connection object. See below. |
 | `catalog.provider` | Connection | — | Required. `generic`, `rest`, `polaris`, or `lakekeeper`. |
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
+| `table.update_mode` | Connection | `merge-on-read` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
 | `maintenance` | Connection | `true` | Compact, merge manifests, and expire snapshots after commits. See [table maintenance](#table-maintenance). |
@@ -72,7 +73,7 @@ Iceberg tables. See
 
 `EnsureSchema` creates the namespace and the table with
 `write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
-`commit.manifest-merge.enabled`, and `merge-on-read` for `write.merge.mode`
+`commit.manifest-merge.enabled`, and `table.update_mode` for `write.merge.mode`
 and `write.delete.mode`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
@@ -157,8 +158,9 @@ uses current storage credentials, then opens one Iceberg transaction:
 
 Query engines must read equality deletes to see `merge-on-read` tables
 correctly. Trino and Spark read them. Check any other engine before pointing it
-at these tables, or set `write.merge.mode` and `write.delete.mode` to
-`copy-on-write` on the table.
+at these tables, or set `table.update_mode` to `copy-on-write` before the sink
+creates them. For a table that already exists, set `write.merge.mode` and
+`write.delete.mode` to `copy-on-write` on the table.
 
 Buffered rows are invisible until their resource transaction commits. A run
 with several resources commits them sequentially, so a later resource can fail
