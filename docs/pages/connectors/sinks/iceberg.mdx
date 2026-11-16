@@ -72,7 +72,7 @@ Iceberg tables. See
 
 `EnsureSchema` creates the namespace and the table with
 `write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
-and `commit.manifest-merge.enabled`. For an existing table, evolution is
+`commit.manifest-merge.enabled`, and `filament.managed`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
 collides with Iceberg's reserved metadata names gets a `_` suffix.
@@ -97,18 +97,21 @@ Primary key fields become the table's identifier fields.
 ### Table maintenance
 
 Continuous runs commit a snapshot per epoch, so small files and snapshots pile
-up. After a commit the sink maintains each table it wrote once 10 commits or
-10 minutes have passed since the last maintenance. It compacts small data files
-toward `write.target-file-size-bytes`, merges manifests, and expires snapshots.
-Each step is its own Iceberg commit. A table smaller than the target file size
+up. The sink maintains only tables it created, which carry the
+`filament.managed` table property. A table that already existed is written to
+but never maintained. After a commit the sink maintains each of its tables
+the commit wrote once 10 commits or 10 minutes have passed since the last
+maintenance. It compacts small data files toward
+`write.target-file-size-bytes`, merges manifests, and expires snapshots. Each
+step is its own Iceberg commit. A table smaller than the target file size
 is rewritten whole each time. A data file with 50 or more delete files is
 rewritten regardless of size.
 
 Retention follows the standard table properties
 `history.expire.max-snapshot-age-ms` and
 `history.expire.min-snapshots-to-keep` (default 1). Tables the sink creates
-keep snapshots for 1 day. Other tables default to 5 days. The sink records each
-run in the `filament.maintenance.last-run-ms` table property.
+keep snapshots for 1 day. The sink records each run in the
+`filament.maintenance.last-run-ms` table property.
 
 Maintenance runs after the data commit, so a failure is logged and never fails
 the run. Set `maintenance` to `false` when the catalog or another engine

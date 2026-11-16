@@ -18,6 +18,7 @@ import (
 func TestMaintenanceCompactsExpiresAndStamps(t *testing.T) {
 	ctx := context.Background()
 	tbl := testTable(t, ctx, iceberg.Properties{
+		managedKey:            "true",
 		maxSnapshotAgeKey:     "0",
 		minSnapshotsToKeepKey: "1",
 	})
@@ -51,6 +52,17 @@ func TestMaintenanceCompactsExpiresAndStamps(t *testing.T) {
 	}
 	if !maintenanceDue(tbl, time.Now().Add(maintenanceInterval)) {
 		t.Fatal("not due once the interval passed")
+	}
+}
+
+func TestMaintenanceSkipsTablesTheSinkDidNotCreate(t *testing.T) {
+	ctx := context.Background()
+	tbl := testTable(t, ctx, nil)
+	for i := range maintenanceCommits {
+		tbl = appendRow(t, ctx, tbl, int64(i))
+	}
+	if maintenanceDue(tbl, time.Now().Add(maintenanceInterval)) {
+		t.Fatal("table without the managed marker is due")
 	}
 }
 
