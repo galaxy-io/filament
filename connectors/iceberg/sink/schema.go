@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/apache/iceberg-go/catalog"
@@ -99,6 +100,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 			icetable.ManifestMergeEnabledKey:             "true",
 			maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
 			managedKey:                                   "true",
+			maintainedAtKey:                              strconv.FormatInt(time.Now().UnixMilli(), 10),
 		}),
 	}
 	if s.tableLocationRoot != "" {
