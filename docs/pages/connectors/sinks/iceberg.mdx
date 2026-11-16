@@ -25,8 +25,10 @@ catalog. Rows remain staged until their resource commits.
 | `catalog` | Connection | — | Required. Catalog connection object. See below. |
 | `catalog.provider` | Connection | — | Required. `generic`, `rest`, `polaris`, or `lakekeeper`. |
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
+| `table.update_mode` | Connection | `merge-on-read` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
+| `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
 | `maintenance` | Connection | `true` | Compact, merge manifests, and expire snapshots after commits. See [table maintenance](#table-maintenance). |
 
 A `namespace` left empty is defaulted server-side to the normalized source
@@ -72,7 +74,8 @@ Iceberg tables. See
 
 `EnsureSchema` creates the namespace and the table with
 `write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
-`commit.manifest-merge.enabled`, and `filament.managed`. For an existing table, evolution is
+`commit.manifest-merge.enabled`, `filament.managed`, and `table.update_mode` for
+`write.merge.mode` and `write.delete.mode`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
 collides with Iceberg's reserved metadata names gets a `_` suffix.
@@ -146,7 +149,20 @@ uses current storage credentials, then opens one Iceberg transaction:
   produced **zero records still overwrites the table to empty**. An empty
   source empties the destination.
 - **upsert, delete, and merge** keep the latest operation for each key, then
-  update or delete matching rows.
+  update or delete matching rows. The table's write mode decides how.
+  `write.merge.mode` governs upsert and merge, and `write.delete.mode` governs
+  delete. Under `merge-on-read` the sink writes the surviving rows and an
+  equality delete for every touched key in one snapshot, so the cost follows
+  the change instead of the table. Under `copy-on-write`, the Iceberg default for tables the sink did not
+  create, it rewrites every data file that may hold a touched key.
+  [Table maintenance](#table-maintenance) compacts equality deletes into the
+  data files.
+
+Query engines must read equality deletes to see `merge-on-read` tables
+correctly. Trino and Spark read them. Check any other engine before pointing it
+at these tables, or set `table.update_mode` to `copy-on-write` before the sink
+creates them. For a table that already exists, set `write.merge.mode` and
+`write.delete.mode` to `copy-on-write` on the table.
 
 Buffered rows are invisible until their resource transaction commits. A run
 with several resources commits them sequentially, so a later resource can fail

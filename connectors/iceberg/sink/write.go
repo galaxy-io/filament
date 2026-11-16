@@ -122,13 +122,26 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 }
 
 func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mode writeMode, arrowSchema *arrow.Schema) error {
-	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema)
+	var (
+		deleteIDs    []int
+		deleteSchema *arrow.Schema
+	)
+	if mergeOnRead(it.tbl, mode) {
+		var err error
+		if deleteIDs, deleteSchema, err = equalityDeleteSchema(it, rb.policy.Keys); err != nil {
+			return err
+		}
+	}
+	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema, deleteSchema)
 	if err != nil {
 		return err
 	}
 	defer m.release()
-	if m.filter == nil {
+	if m.touched == 0 {
 		return nil
+	}
+	if deleteSchema != nil {
+		return commitRowDelta(ctx, it, m, deleteIDs, arrowSchema)
 	}
 
 	txn := it.tbl.NewTransaction()
@@ -153,6 +166,101 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 	it.tbl = updated
 	it.schema = updated.Schema()
 	return nil
+}
+
+// mergeOnRead reports whether the table asks for merge-on-read: write.merge.mode
+// governs upsert and merge, write.delete.mode pure deletes. Iceberg defaults
+// both to copy-on-write.
+func mergeOnRead(tbl *table.Table, mode writeMode) bool {
+	key := writeMergeModeKey
+	if mode == writeModeDelete {
+		key = table.WriteDeleteModeKey
+	}
+	return tbl.Properties().Get(key, table.WriteModeCopyOnWrite) == table.WriteModeMergeOnRead
+}
+
+// equalityDeleteSchema resolves the key columns to field IDs and the Arrow
+// schema the equality-delete writer expects for them.
+func equalityDeleteSchema(it *iceTable, keys []string) ([]int, *arrow.Schema, error) {
+	ids := make([]int, len(keys))
+	for i, key := range keys {
+		field, ok := it.schema.FindFieldByName(key)
+		if !ok {
+			return nil, nil, fmt.Errorf("primary key %q is not in iceberg schema", key)
+		}
+		ids[i] = field.ID
+	}
+	keySchema, err := it.schema.Select(true, keys...)
+	if err != nil {
+		return nil, nil, err
+	}
+	sc, err := table.SchemaToArrowSchemaWithOptions(keySchema, table.ArrowSchemaOptions{IncludeFieldIDs: true, TableProperties: it.tbl.Properties()})
+	if err != nil {
+		return nil, nil, err
+	}
+	return ids, sc, nil
+}
+
+// commitRowDelta writes the surviving rows as data files and the remaining
+// touched keys as equality deletes, committed as one snapshot. The deletes only
+// shadow rows from earlier snapshots, so the rows added beside them survive.
+func commitRowDelta(ctx context.Context, it *iceTable, m *mutation, deleteIDs []int, arrowSchema *arrow.Schema) error {
+	if len(m.live) == 0 && len(m.deletes) == 0 {
+		return nil
+	}
+	txn := it.tbl.NewTransaction()
+	rd := txn.NewRowDelta(nil)
+	if len(m.deletes) > 0 {
+		deletes, err := txn.WriteEqualityDeletes(ctx, deleteIDs, borrowed(m.deletes))
+		if err != nil {
+			return fmt.Errorf("write equality deletes: %w", err)
+		}
+		rd.AddDeletes(deletes...)
+	}
+	if len(m.live) > 0 {
+		for df, err := range table.WriteRecords(ctx, it.tbl, arrowSchema, retained(m.live)) {
+			if err != nil {
+				return fmt.Errorf("write data files: %w", err)
+			}
+			rd.AddRows(df)
+		}
+	}
+	if err := rd.Commit(ctx); err != nil {
+		return fmt.Errorf("row delta: %w", err)
+	}
+	updated, err := txn.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	it.tbl = updated
+	it.schema = updated.Schema()
+	return nil
+}
+
+// retained yields each batch with an extra reference for WriteRecords, which
+// releases every batch it is handed, including the one it stops on. The
+// mutation still releases its own.
+func retained(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
+	return func(yield func(arrow.RecordBatch, error) bool) {
+		for _, b := range batches {
+			b.Retain()
+			if !yield(b, nil) {
+				return
+			}
+		}
+	}
+}
+
+// borrowed yields batches without a reference for WriteEqualityDeletes, whose
+// writers retain what they keep and release nothing they are handed.
+func borrowed(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
+	return func(yield func(arrow.RecordBatch, error) bool) {
+		for _, b := range batches {
+			if !yield(b, nil) {
+				return
+			}
+		}
+	}
 }
 
 // conformedBatches returns an iterator yielding each buffered batch in the

@@ -16,10 +16,18 @@ const (
 	catalogProviderLakekeeper = "lakekeeper"
 )
 
-// Setup contains resolved Iceberg catalog properties and table location settings.
+// Table update modes, named after the Iceberg write.merge.mode and
+// write.delete.mode values they set on new tables.
+const (
+	UpdateModeMergeOnRead = "merge-on-read"
+	UpdateModeCopyOnWrite = "copy-on-write"
+)
+
+// Setup contains resolved Iceberg catalog properties and table creation settings.
 type Setup struct {
 	Properties        iceberg.Properties
 	TableLocationRoot string
+	TableUpdateMode   string
 }
 
 type catalogProvider struct {
@@ -78,6 +86,15 @@ func tableConfigField() filament.ConfigField {
 			Name: "location_root",
 			Type: filament.FieldString,
 			Help: "Optional object-storage root for new tables, such as s3://bucket/warehouse. Leave empty when the catalog assigns table locations.",
+		}, {
+			Name:    "update_mode",
+			Type:    filament.FieldEnum,
+			Default: UpdateModeMergeOnRead,
+			Help:    "How new tables apply updates and deletes. Use copy-on-write when a query engine cannot read equality deletes.",
+			Enum: []filament.EnumOption{
+				{Value: UpdateModeMergeOnRead, Label: "Merge-on-read"},
+				{Value: UpdateModeCopyOnWrite, Label: "Copy-on-write"},
+			},
 		}},
 	}
 }
@@ -98,9 +115,20 @@ func Resolve(cfg filament.Config) (Setup, error) {
 		return Setup{}, fmt.Errorf("%s catalog: %w", providerName, err)
 	}
 
+	tableCfg := cfg.Sub("table")
+	updateMode := tableCfg.String("update_mode")
+	switch updateMode {
+	case "":
+		updateMode = UpdateModeMergeOnRead
+	case UpdateModeMergeOnRead, UpdateModeCopyOnWrite:
+	default:
+		return Setup{}, fmt.Errorf("unsupported table update mode %q", updateMode)
+	}
+
 	return Setup{
 		Properties:        properties,
-		TableLocationRoot: cfg.Sub("table").String("location_root"),
+		TableLocationRoot: tableCfg.String("location_root"),
+		TableUpdateMode:   updateMode,
 	}, nil
 }
 
