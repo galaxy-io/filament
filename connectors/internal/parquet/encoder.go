@@ -12,8 +12,14 @@ import (
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
 )
 
-// Encoder writes one row group per batch. EncodeBatch returns the file bytes
-// emitted so far; Finalize must be called to append the Parquet footer.
+// Row and byte targets keep buffering independent of source transaction sizes.
+const (
+	maxRowGroupRows     int64 = 64 * 1024
+	targetRowGroupBytes int64 = 8 * 1024 * 1024
+)
+
+// Encoder combines batches into bounded row groups. EncodeBatch returns any
+// bytes emitted so far; Finalize flushes the last group and Parquet footer.
 type Encoder struct {
 	schema *arrow.Schema
 	out    encoder.Buffer
@@ -35,7 +41,10 @@ func NewEncoder(schema *arrow.Schema, compression encoder.Compression) (*Encoder
 	writer, err := pqarrow.NewFileWriter(
 		schema,
 		&e.out,
-		arrowparquet.NewWriterProperties(arrowparquet.WithCompression(compress.Codecs.Snappy)),
+		arrowparquet.NewWriterProperties(
+			arrowparquet.WithCompression(compress.Codecs.Snappy),
+			arrowparquet.WithMaxRowGroupLength(maxRowGroupRows),
+		),
 		pqarrow.NewArrowWriterProperties(pqarrow.WithStoreSchema()),
 	)
 	if err != nil {
@@ -45,8 +54,8 @@ func NewEncoder(schema *arrow.Schema, compression encoder.Compression) (*Encoder
 	return e, nil
 }
 
-// EncodeBatch appends rows as a row group and returns the bytes emitted for
-// this batch plus their independently verified CRC32C.
+// EncodeBatch buffers rows across batches and returns any emitted bytes plus
+// their independently verified CRC32C. A batch can emit no bytes.
 func (e *Encoder) EncodeBatch(dst []byte, rows arrow.RecordBatch) ([]byte, uint32, error) {
 	if e.closed {
 		return nil, 0, fmt.Errorf("parquet: encode after finalize")
@@ -54,13 +63,20 @@ func (e *Encoder) EncodeBatch(dst []byte, rows arrow.RecordBatch) ([]byte, uint3
 	if !rows.Schema().Equal(e.schema) {
 		return nil, 0, fmt.Errorf("parquet: record schema does not match encoder schema")
 	}
-	if err := e.writer.Write(rows); err != nil {
+	// Rotate before the next nonempty batch so Finalize cannot leave an empty
+	// trailing group. The byte target can be exceeded by a batch and page buffers.
+	if rows.NumRows() > 0 && e.writer.RowGroupTotalBytesWritten() >= targetRowGroupBytes {
+		if err := e.writer.NewBufferedRowGroupChecked(); err != nil {
+			return nil, 0, fmt.Errorf("parquet: flush row group: %w", err)
+		}
+	}
+	if err := e.writer.WriteBuffered(rows); err != nil {
 		return nil, 0, fmt.Errorf("parquet: encode batch: %w", err)
 	}
 	return e.out.Drain(dst, "parquet")
 }
 
-// Finalize closes the file writer and returns the Parquet footer bytes.
+// Finalize flushes the last row group and returns it with the Parquet footer.
 func (e *Encoder) Finalize(dst []byte) ([]byte, uint32, error) {
 	if e.closed {
 		return nil, 0, fmt.Errorf("parquet: already finalized")
