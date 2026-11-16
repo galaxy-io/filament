@@ -1,8 +1,27 @@
 import type { RoleColor } from "@galaxy-io/dls/theme/tokens/types";
 
-import { WebhookEndpointStatus } from "@/components/webhooks/types";
+import { WebhookEndpointStatus, WebhookIngestion } from "@/components/webhooks/types";
 
-export const WEBHOOK_CONNECTOR_NAME = "webhook";
+export const WEBHOOK_CONNECTOR = "webhook";
+
+export const WEBHOOK_SIGNING_SECRET_MIN_LENGTH = 16;
+
+export const WEBHOOK_INGESTION_TO_IS_RECEIVING_MAP: Record<WebhookIngestion, boolean> = {
+  [WebhookIngestion.API]: false,
+  [WebhookIngestion.WEBHOOKS]: true,
+  [WebhookIngestion.BOTH]: true,
+};
+
+export const RESOURCE_METADATA_INGRESS = "ingress";
+
+export const RESOURCE_INGRESS_WEBHOOK = "webhook";
+
+export const WEBHOOK_CONTINUOUS_ROUTE_SUFFIX = "/continuous";
+
+export const WEBHOOK_SETUP_DELIVERY_URL_PATTERN = /\{\{\s*delivery_url(?::([^}\s]+))?\s*\}\}/g;
+
+export const WEBHOOK_SETUP_DELIVERY_URL_UNAVAILABLE =
+  "the delivery URL (unavailable until WEBHOOK_PUBLIC_BASE_URL is configured)";
 
 export const WEBHOOK_DOCS_PATH = "/pages/connectors/sources/webhook";
 

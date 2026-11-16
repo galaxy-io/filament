@@ -26,7 +26,7 @@ import {
 } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_NOUN_MAP } from "@/components/connections/constants";
-import { formatConnectorName, getConnectorFamily } from "@/components/connections/utils";
+import { getConnectorFamily } from "@/components/connections/utils";
 import Field from "@/components/fields/Field";
 import { getConnectionScopedFields, isFieldVisible } from "@/components/fields/utils";
 
@@ -37,14 +37,17 @@ import {
   useConnectionFormActions,
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
+import ConnectionFormWebhookProviderSelect from "@/pages/connections/components/form/ConnectionFormWebhookProviderSelect";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import {
   ConnectionFormPhase,
   type ConnectionFormState,
 } from "@/pages/connections/components/form/types";
 import {
+  formatConnectionFormConnectorName,
   getConnectionFormConfig,
   getUnplacedValidationErrors,
+  getWebhookConnectionFormConfig,
 } from "@/pages/connections/components/form/utils";
 import { createRequiredFieldsValidationErrorMap } from "@/pages/connections/components/form/validation";
 
@@ -64,6 +67,7 @@ interface ConnectionFormProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
   connectionId?: Connection["id"];
+  isWebhook?: boolean;
   secretRefs?: Connection["secretRefs"];
   onSubmit: (config: ConnectionFormState["config"]) => void;
   onClose: () => void;
@@ -76,6 +80,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   connectorName,
   connectorKind,
   connectionId,
+  isWebhook = false,
   secretRefs,
   onSubmit,
   onClose,
@@ -113,14 +118,25 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
 
   const { mutate: validateConfig } = useValidateConfigMutation();
 
+  const webhookIngestionField = isWebhook
+    ? connector?.webhook?.ingestionField || undefined
+    : undefined;
+
   const fields = useMemo(
-    () => getConnectionScopedFields(connector?.configSchema?.fields ?? []),
-    [connector],
+    () =>
+      getConnectionScopedFields(connector?.configSchema?.fields ?? []).filter(
+        (field) => field.name !== webhookIngestionField,
+      ),
+    [connector, webhookIngestionField],
   );
 
   const config = useMemo(
-    () => getConnectionFormConfig(fields, state.config),
-    [fields, state.config],
+    () =>
+      getWebhookConnectionFormConfig(
+        getConnectionFormConfig(fields, state.config),
+        webhookIngestionField,
+      ),
+    [fields, state.config, webhookIngestionField],
   );
 
   const isDisabled =
@@ -185,7 +201,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       },
     );
   }, [
-    state.name,
+    state,
     config,
     connectorName,
     connectorKind,
@@ -205,10 +221,10 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     [setConfigField],
   );
 
-  const handleConnectorVersionChange = (version: string | null) => {
-    if (!version || !onConnectorChange) return;
+  const handleConnectorChange = (name: string | null) => {
+    if (!name || !onConnectorChange) return;
     resetValidation();
-    onConnectorChange(version);
+    onConnectorChange(name);
   };
 
   const handleSubmit = () => {
@@ -239,12 +255,19 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
           fillWidth
           autoFocus
         />
+        {isWebhook && onConnectorChange && (
+          <ConnectionFormWebhookProviderSelect
+            family={family?.name}
+            onChange={handleConnectorChange}
+            isDisabled={isDisabled}
+          />
+        )}
         {onConnectorChange && versionOptions.length > 0 && (
           <SelectInput
             label="API version"
             options={versionOptions}
             value={connector?.name ?? null}
-            onChange={handleConnectorVersionChange}
+            onChange={handleConnectorChange}
             isDisabled={isDisabled}
             fillWidth
           />
@@ -331,7 +354,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
         <ConnectionFormHeader
           connectorName={connectorName}
           connectorKind={connectorKind}
-          title={`${connectionId ? "Edit" : "New"} ${formatConnectorName(connector)} connection`}
+          title={`${connectionId ? "Edit" : "New"} ${formatConnectionFormConnectorName(connector, isWebhook)} connection`}
         />
       }
       footer={

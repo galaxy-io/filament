@@ -32,6 +32,7 @@ export const filamentLayoutSearchSchema = z.object({
   connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
   connectorSearch: z.string().optional().catch(undefined),
+  isWebhook: z.boolean().optional().catch(undefined),
 });
 
 export type FilamentLayoutSearch = z.infer<typeof filamentLayoutSearchSchema>;

@@ -20,7 +20,7 @@ interface CreateConnectionSelectorProps {
   connectorKind: ConnectorKind;
   connectorSearch: string;
   onClose: () => void;
-  onConnectorSelect: (connector: ConnectorSpec) => void;
+  onConnectorSelect: (connector: ConnectorSpec, isWebhook?: boolean) => void;
 }
 
 const CreateConnectionSelector: FC<CreateConnectionSelectorProps> = ({

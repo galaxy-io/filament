@@ -21,6 +21,8 @@ export const CREATE_CONNECTION_SELECTOR_SHELF_TO_LABEL_MAP: Record<
 };
 export const CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT = 150;
 
+export const CREATE_CONNECTION_SELECTOR_WEBHOOK_PROVIDER_LIMIT = 5;
+
 export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.UNSPECIFIED]: "All connector types",
   [ConnectorKind.SOURCE]: "Ingest data from external systems",

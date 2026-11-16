@@ -12,7 +12,7 @@ import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
 
 import {
   useCreatePipelineModalActions,
@@ -146,7 +146,8 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
   };
 
   const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
-  const isWebhook = isWebhookConnector(sourceConnection?.connector);
+  const { webhookSpec } = useConnectionWebhookSpec(sourceConnection);
+  const isWebhook = !!webhookSpec?.dynamicResources;
   const columns = useMemo(() => {
     if (isWebhook) return RESOURCE_COLUMNS_WEBHOOK;
     if (!hasColumnSelection) {

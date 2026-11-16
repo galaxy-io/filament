@@ -14,7 +14,7 @@ import { createGetWebhookEndpointInput, useGetWebhookEndpointQuery } from "@/api
 
 interface WebhookDeliveryUrlCopyButtonProps {
   sourceConnectionId: Connection["id"];
-  resource: string;
+  resource?: string;
 }
 
 const WebhookDeliveryUrlCopyButton: FC<WebhookDeliveryUrlCopyButtonProps> = ({
@@ -38,7 +38,7 @@ const WebhookDeliveryUrlCopyButton: FC<WebhookDeliveryUrlCopyButtonProps> = ({
       <CopyButton
         label="Copy URL"
         value={deliveryUrl ?? ""}
-        ariaLabel={`Copy ${resource} delivery URL`}
+        ariaLabel={resource ? `Copy ${resource} delivery URL` : "Copy delivery URL"}
         variant={ButtonVariant.SECONDARY}
         size={ButtonSize.SMALL}
         isDisabled={isLoading || !deliveryUrl}

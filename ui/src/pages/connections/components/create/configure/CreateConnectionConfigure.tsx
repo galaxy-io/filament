@@ -7,9 +7,10 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec, WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useFetchConnectorWebhookSpec } from "@/components/webhooks/hooks/useFetchConnectorWebhookSpec";
+import { isWebhookProviderSecret, isWebhookReceiving } from "@/components/webhooks/utils";
 
 import ConnectionForm from "@/pages/connections/components/form/ConnectionForm";
 import ConnectionFormProvider, {
@@ -17,6 +18,7 @@ import ConnectionFormProvider, {
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormSigningKeyModal from "@/pages/connections/components/form/ConnectionFormSigningKeyModal";
+import ConnectionFormWebhookSecretModal from "@/pages/connections/components/form/ConnectionFormWebhookSecretModal";
 import {
   ConnectionFormPhase,
   type ConnectionFormSigningKeyReveal,
@@ -35,6 +37,7 @@ interface CreateConnectionConfigureProps {
   isOpen: boolean;
   connector: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
+  isWebhook: boolean;
   onClose: () => void;
   onBack: () => void;
 }
@@ -43,6 +46,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   isOpen,
   connector,
   connectorKind: kind,
+  isWebhook,
   onClose,
   onBack,
 }) => {
@@ -52,8 +56,10 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   const { toast } = useToast();
 
   const [reveal, setReveal] = useState<ConnectionFormSigningKeyReveal | undefined>();
+  const [secretConnection, setSecretConnection] = useState<Connection | undefined>();
 
   const { mutate: createConnection } = useCreateConnectionMutation();
+  const fetchWebhookSpec = useFetchConnectorWebhookSpec();
   const { mintKey } = useConnectionWebhookKeyMint();
 
   const openConnection = useCallback(
@@ -87,6 +93,14 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
     [mintKey, toast, openConnection],
   );
 
+  const setSigningKey = useCallback(
+    (connection: Connection, webhookSpec: WebhookSpec) =>
+      isWebhookProviderSecret(webhookSpec)
+        ? setSecretConnection(connection)
+        : mintSigningKey(connection),
+    [mintSigningKey],
+  );
+
   const handleCreateConnection = useCallback(
     (config: ConnectionFormState["config"]) => {
       const name = state.name.trim();
@@ -111,11 +125,13 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
               header: "Connection created",
             });
 
-            if (isWebhookConnector(connection.connector)) {
-              mintSigningKey(connection);
-              return;
-            }
-            openConnection(connection.id);
+            void fetchWebhookSpec(connector, kind).then(
+              (webhookSpec) =>
+                isWebhookReceiving(webhookSpec, connection.config)
+                  ? setSigningKey(connection, webhookSpec)
+                  : openConnection(connection.id),
+              () => openConnection(connection.id),
+            );
           },
           onError: (error) => {
             setPhase(ConnectionFormPhase.ERROR);
@@ -135,8 +151,9 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
       createConnection,
       toast,
       setPhase,
-      mintSigningKey,
+      setSigningKey,
       openConnection,
+      fetchWebhookSpec,
     ],
   );
 
@@ -157,11 +174,22 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
     );
   }
 
+  if (secretConnection) {
+    return (
+      <ConnectionFormWebhookSecretModal
+        isOpen={isOpen}
+        connection={secretConnection}
+        onDone={() => openConnection(secretConnection.id)}
+      />
+    );
+  }
+
   return (
     <ConnectionForm
       isOpen={isOpen}
       connectorName={connector}
       connectorKind={kind}
+      isWebhook={isWebhook}
       onConnectorChange={handleConnectorVersionChange}
       onSubmit={handleCreateConnection}
       onClose={onClose}

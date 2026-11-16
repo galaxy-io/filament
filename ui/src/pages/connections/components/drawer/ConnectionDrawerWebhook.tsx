@@ -7,16 +7,18 @@ import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
+import MarkdownText from "@galaxy-io/dls/text/MarkdownText";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import DocsLink from "@/components/DocsLink";
 import { PIPELINE_CARD_HEIGHT } from "@/components/pipelines/constants";
 import { WEBHOOK_DOCS_PATH } from "@/components/webhooks/constants";
 import { WebhookEndpointStatus } from "@/components/webhooks/types";
-import { getWebhookEndpointStatus } from "@/components/webhooks/utils";
+import { createWebhookSetupContent, getWebhookEndpointStatus } from "@/components/webhooks/utils";
 import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryUrlCopyButton";
 import WebhookEndpointErrorLayout from "@/components/webhooks/WebhookEndpointErrorLayout";
 import WebhookEndpointStatusBeacon from "@/components/webhooks/WebhookEndpointStatusBeacon";
@@ -28,7 +30,12 @@ import { useFilamentFlowOpen } from "@/module/hooks";
 import { Flow } from "@/module/types";
 
 import { createGetPipelineInput, useGetPipelineQuery } from "@/api/queries/pipelines";
-import { createGetWebhookEndpointInput, useGetWebhookEndpointQuery } from "@/api/queries/webhooks";
+import {
+  createGetWebhookDeliveryURLInput,
+  createGetWebhookEndpointInput,
+  useGetWebhookDeliveryURLQuery,
+  useGetWebhookEndpointQuery,
+} from "@/api/queries/webhooks";
 
 import { isNotFoundError } from "@/utils/errors";
 
@@ -39,9 +46,10 @@ const NEEDS_PIPELINE_STATUSES = new Set([
 
 interface ConnectionDrawerWebhookProps {
   connection: Connection;
+  webhookSpec: WebhookSpec;
 }
 
-const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection }) => {
+const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection, webhookSpec }) => {
   const openFlow = useFilamentFlowOpen();
   const { data, error, isError, isLoading } = useGetWebhookEndpointQuery({
     input: createGetWebhookEndpointInput(connection.id),
@@ -49,6 +57,11 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
   });
   const endpoint = data?.endpoint;
   const isFailed = isError && !isNotFoundError(error);
+  const { data: deliveryUrlData } = useGetWebhookDeliveryURLQuery({
+    input: createGetWebhookDeliveryURLInput(connection.id),
+    options: { enabled: isNotFoundError(error), retry: false },
+  });
+  const deliveryUrl = endpoint?.deliveryUrl || deliveryUrlData?.deliveryUrl;
 
   const { data: pipelineData, error: pipelineError } = useGetPipelineQuery({
     input: createGetPipelineInput(endpoint?.pipelineId ?? ""),
@@ -72,6 +85,14 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
     }
 
     const resources = endpoint?.resources ?? [];
+    const routedRows = webhookSpec.routed
+      ? [{ key: "", label: "All events", resource: undefined }]
+      : [];
+    const resourceRows = resources.map((resource) => ({
+      key: resource,
+      label: resource,
+      resource,
+    }));
 
     return (
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} fillWidth>
@@ -92,8 +113,16 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
             }
           />
         </Box>
-        {resources.map((resource) => (
-          <Fragment key={resource}>
+        {webhookSpec.setup && (
+          <>
+            <Divider />
+            <Box padding={12}>
+              <MarkdownText content={createWebhookSetupContent(webhookSpec.setup, deliveryUrl)} />
+            </Box>
+          </>
+        )}
+        {[...routedRows, ...resourceRows].map(({ key, label, resource }) => (
+          <Fragment key={key}>
             <Divider />
             <Flex
               alignItems={AlignItems.CENTER}
@@ -104,7 +133,7 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
               fillWidth
             >
               <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
-                {resource}
+                {label}
               </Text>
               <WebhookDeliveryUrlCopyButton
                 sourceConnectionId={connection.id}

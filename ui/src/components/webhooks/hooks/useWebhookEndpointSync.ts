@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
@@ -12,9 +13,10 @@ import {
   getWebhookRouteResources,
   getWebhookSourceRouteKeys,
   isSameWebhookResources,
-  isWebhookConnector,
+  isWebhookReceiving,
 } from "@/components/webhooks/utils";
 
+import { createGetConnectorInput, createGetConnectorQueryOptions } from "@/api/queries/connectors";
 import { createGetPipelineInput, createGetPipelineQueryOptions } from "@/api/queries/pipelines";
 import {
   createGetWebhookEndpointInput,
@@ -38,11 +40,21 @@ export const useWebhookEndpointSync = () => {
   const { mutateAsync: putEndpoint } = usePutWebhookEndpointMutation();
 
   const sync = async ({ sourceConnection, pipelineId }: WebhookEndpointSyncInput) => {
-    if (!sourceConnection || !isWebhookConnector(sourceConnection.connector)) return;
+    if (!sourceConnection || sourceConnection.kind !== ConnectorKind.SOURCE) return;
 
     const sourceConnectionId = sourceConnection.id;
 
     try {
+      const spec = await queryClient
+        .fetchQuery(
+          createGetConnectorQueryOptions({
+            input: createGetConnectorInput(sourceConnection.connector, ConnectorKind.SOURCE),
+            transport,
+          }),
+        )
+        .then((response) => response.connector?.webhook, ignoreNotFoundError);
+      if (!isWebhookReceiving(spec, sourceConnection.config)) return;
+
       const pipeline = await queryClient
         .fetchQuery({
           ...createGetPipelineQueryOptions({
@@ -57,7 +69,7 @@ export const useWebhookEndpointSync = () => {
       if (!currentVersion?.graph) return;
       const graph = currentVersion.graph;
       const expectedPipelineVersionId = currentVersion.id;
-      const routeKeys = getWebhookSourceRouteKeys(graph, sourceConnectionId);
+      const routeKeys = getWebhookSourceRouteKeys(graph, sourceConnectionId, spec);
 
       const endpoint = await queryClient
         .fetchQuery({
@@ -117,7 +129,7 @@ export const useWebhookEndpointSync = () => {
         isBoundHere && routeKeys.includes(endpoint.routeKey)
           ? endpoint.routeKey
           : (routeKeys[0] ?? "");
-      const resources = getWebhookRouteResources(graph, routeKey);
+      const resources = getWebhookRouteResources(graph, routeKey, spec);
       if (
         isBoundHere &&
         endpoint.routeKey === routeKey &&

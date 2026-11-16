@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export const useOverlayRecord = <TRecord extends string | number | undefined>(
+export const useOverlayRecord = <TRecord extends string | number | boolean | undefined>(
   isOpen: boolean,
   record: TRecord,
 ) => {

@@ -1,7 +1,10 @@
 import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
-import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec, ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 
+import { formatConnectorName } from "@/components/connections/utils";
 import { getFieldDefaults } from "@/components/fields/utils";
+import { WebhookIngestion } from "@/components/webhooks/types";
+import { isWebhookProviderConnector } from "@/components/webhooks/utils";
 
 import {
   ConnectionFormPhase,
@@ -38,3 +41,14 @@ export const getConnectionFormConfig = (
     ),
   };
 };
+
+export const getWebhookConnectionFormConfig = (
+  config: ConnectionFormState["config"],
+  ingestionField: string | undefined,
+): ConnectionFormState["config"] =>
+  ingestionField ? { ...config, [ingestionField]: WebhookIngestion.WEBHOOKS } : config;
+
+export const formatConnectionFormConnectorName = (connector: ConnectorSpec, isWebhook: boolean) =>
+  isWebhook && isWebhookProviderConnector(connector)
+    ? `${formatConnectorName(connector)} webhook`
+    : formatConnectorName(connector);

@@ -14,6 +14,7 @@ import type { WebhookEndpointConfig } from "@/gen/ingestion/v1/webhooks_pb";
 import { PIPELINE_CARD_HEIGHT } from "@/components/pipelines/constants";
 import { isWebhookPreviousKeyActive } from "@/components/webhooks/utils";
 
+import ConnectionDrawerWebhookSigningKeyPasteModal from "@/pages/connections/components/drawer/ConnectionDrawerWebhookSigningKeyPasteModal";
 import ConnectionFormSigningKeyModal from "@/pages/connections/components/form/ConnectionFormSigningKeyModal";
 import type { ConnectionFormSigningKeyReveal } from "@/pages/connections/components/form/types";
 import { useConnectionWebhookKeyMint } from "@/pages/connections/hooks/useConnectionWebhookKeyMint";
@@ -26,15 +27,18 @@ import { formatTimestamp } from "@/utils/format";
 interface ConnectionDrawerWebhookSigningKeyProps {
   connection: Connection;
   endpoint: WebhookEndpointConfig | undefined;
+  isProviderSecret: boolean;
 }
 
 const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyProps> = ({
   connection,
   endpoint,
+  isProviderSecret,
 }) => {
   const { toast } = useToast();
   const [reveal, setReveal] = useState<ConnectionFormSigningKeyReveal | undefined>();
-  const { mintKey, isPending } = useConnectionWebhookKeyMint();
+  const [isPasteOpen, setIsPasteOpen] = useState(false);
+  const { mintKey, importKey, isPending } = useConnectionWebhookKeyMint();
 
   const hasKey = !!endpoint?.hasSigningSecret;
   const isPreviousKeyActive = isWebhookPreviousKeyActive(endpoint);
@@ -70,6 +74,56 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
         }),
     });
 
+  const handlePasteSave = (secret: string) =>
+    importKey(connection, endpoint, secret, {
+      onSuccess: () => {
+        setIsPasteOpen(false);
+        toast({
+          variant: ToastVariant.SUCCESS,
+          header: hasKey ? "Signing secret replaced" : "Signing secret saved",
+        });
+      },
+      onError: (error) =>
+        toast({
+          variant: ToastVariant.ERROR,
+          header: "Save failed",
+          description: getErrorMessage(error, "Could not save the signing secret"),
+        }),
+    });
+
+  const renderAction = () => {
+    if (isProviderSecret) {
+      return (
+        <Button
+          label={hasKey ? "Replace" : "Add"}
+          size={ButtonSize.SMALL}
+          isDisabled={isPreviousKeyActive}
+          tooltip={isPreviousKeyActive ? `Replace again after ${previousKeyExpiry}` : undefined}
+          onClick={() => setIsPasteOpen(true)}
+        />
+      );
+    }
+    if (hasKey) {
+      return (
+        <Button
+          label="Rotate"
+          size={ButtonSize.SMALL}
+          isDisabled={isPreviousKeyActive}
+          tooltip={isPreviousKeyActive ? `Rotate again after ${previousKeyExpiry}` : undefined}
+          onClick={() => rotateConfirm.handleOpen(connection)}
+        />
+      );
+    }
+    return (
+      <Button
+        label="Generate"
+        size={ButtonSize.SMALL}
+        isLoading={isPending}
+        onClick={handleGenerate}
+      />
+    );
+  };
+
   return (
     <>
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} fillWidth>
@@ -88,24 +142,7 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
             <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
               {hasKey ? "HMAC-SHA256" : "Not set"}
             </Text>
-            {hasKey ? (
-              <Button
-                label="Rotate"
-                size={ButtonSize.SMALL}
-                isDisabled={isPreviousKeyActive}
-                tooltip={
-                  isPreviousKeyActive ? `Rotate again after ${previousKeyExpiry}` : undefined
-                }
-                onClick={() => rotateConfirm.handleOpen(connection)}
-              />
-            ) : (
-              <Button
-                label="Generate"
-                size={ButtonSize.SMALL}
-                isLoading={isPending}
-                onClick={handleGenerate}
-              />
-            )}
+            {renderAction()}
           </Flex>
         </Flex>
         {isPreviousKeyActive && (
@@ -139,6 +176,15 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
         description="Filament creates a new key and shows it once. The current key keeps working for 72 hours."
         label="Rotate key"
       />
+      {isPasteOpen && (
+        <ConnectionDrawerWebhookSigningKeyPasteModal
+          isOpen
+          hasKey={hasKey}
+          isPending={isPending}
+          onSave={handlePasteSave}
+          onClose={() => setIsPasteOpen(false)}
+        />
+      )}
       {reveal && (
         <ConnectionFormSigningKeyModal isOpen reveal={reveal} onDone={() => setReveal(undefined)} />
       )}

@@ -14,7 +14,9 @@ import ConnectorPreviewChip from "@/components/connections/ConnectorPreviewChip"
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
 import { formatConnectorName } from "@/components/connections/utils";
+import { WEBHOOK_CONNECTOR } from "@/components/webhooks/constants";
 
+import CreateConnectionSelectorCardWebhookProviders from "@/pages/connections/components/create/select/CreateConnectionSelectorCardWebhookProviders";
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
   CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT,
@@ -22,7 +24,7 @@ import {
 
 interface CreateConnectionSelectorCardProps {
   connector: ConnectorSpec;
-  onConnectorSelect: (connector: ConnectorSpec) => void;
+  onConnectorSelect: (connector: ConnectorSpec, isWebhook?: boolean) => void;
 }
 
 const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
@@ -32,6 +34,13 @@ const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
   const handleClick = useCallback(() => {
     onConnectorSelect(connector);
   }, [connector, onConnectorSelect]);
+
+  const handleProviderSelect = useCallback(
+    (provider: ConnectorSpec) => {
+      onConnectorSelect(provider, true);
+    },
+    [onConnectorSelect],
+  );
 
   return (
     <Widget isInteractive variant={WidgetVariant.PRIMARY} onClick={handleClick}>
@@ -71,6 +80,9 @@ const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
+        {connector.name === WEBHOOK_CONNECTOR && (
+          <CreateConnectionSelectorCardWebhookProviders onProviderSelect={handleProviderSelect} />
+        )}
         <Button label="Connect" variant={ButtonVariant.BASE} onClick={handleClick} fillWidth />
       </Flex>
     </Widget>

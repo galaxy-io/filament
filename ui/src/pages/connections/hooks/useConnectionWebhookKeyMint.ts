@@ -17,6 +17,11 @@ interface ConnectionWebhookKeyMintCallbacks {
   onError: (error: unknown) => void;
 }
 
+interface ConnectionWebhookKeyImportCallbacks {
+  onSuccess: () => void;
+  onError: (error: unknown) => void;
+}
+
 export const useConnectionWebhookKeyMint = () => {
   const { mutate: putEndpoint, reset, isPending } = usePutWebhookEndpointMutation();
 
@@ -47,5 +52,29 @@ export const useConnectionWebhookKeyMint = () => {
     [putEndpoint, reset],
   );
 
-  return { mintKey, isPending };
+  const importKey = useCallback(
+    (
+      connection: Connection,
+      endpoint: WebhookEndpointConfig | undefined,
+      importedSecret: string,
+      { onSuccess, onError }: ConnectionWebhookKeyImportCallbacks,
+    ) =>
+      putEndpoint(
+        createPutWebhookEndpointRequest({
+          sourceConnectionId: connection.id,
+          endpoint,
+          importedSecret,
+        }),
+        {
+          onSuccess: () => {
+            reset();
+            onSuccess();
+          },
+          onError,
+        },
+      ),
+    [putEndpoint, reset],
+  );
+
+  return { mintKey, importKey, isPending };
 };

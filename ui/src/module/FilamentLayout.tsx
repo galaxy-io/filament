@@ -20,7 +20,7 @@ export interface FilamentLayoutProps {
 
 const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
-  const { connectionId, pipelineId, flow, connector, connectorKind, connectorSearch } =
+  const { connectionId, pipelineId, flow, connector, connectorKind, connectorSearch, isWebhook } =
     useFilamentLayoutSearch();
 
   const handleCloseDrawer = useCallback(() => {
@@ -30,6 +30,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
           connectionId: _,
           connector: __,
           connectorKind: ___,
+          isWebhook: ____,
           flow: prevFlow,
           ...rest
         } = prev;
@@ -48,6 +49,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
           connectorKind: ___,
           connectorSearch: ____,
           pipelineId: _____,
+          isWebhook: ______,
           ...rest
         } = prev;
         return rest;
@@ -71,6 +73,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         connector={connector}
         connectorKind={connectorKind}
         connectorSearch={connectorSearch}
+        isWebhook={isWebhook}
         onClose={handleCloseFlow}
       />
       <EditConnectionModal

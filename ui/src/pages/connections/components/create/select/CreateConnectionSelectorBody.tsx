@@ -35,7 +35,7 @@ interface CreateConnectionSelectorBodyProps {
   isLoading: boolean;
   error: ConnectError | null;
   onSearch: (search: string) => void;
-  onConnectorSelect: (connector: ConnectorSpec) => void;
+  onConnectorSelect: (connector: ConnectorSpec, isWebhook?: boolean) => void;
 }
 
 const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({

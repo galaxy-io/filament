@@ -17,7 +17,8 @@ import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorNameChips from "@/components/connections/ConnectorNameChips";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { isWebhookProviderSecret } from "@/components/webhooks/utils";
 
 import ConnectionDrawerActions from "@/pages/connections/components/drawer/ConnectionDrawerActions";
 import ConnectionDrawerHeader from "@/pages/connections/components/drawer/ConnectionDrawerHeader";
@@ -49,6 +50,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
     options: { enabled: !!connectionId, retry: false },
   });
   const connection = data?.connection;
+  const { webhookSpec } = useConnectionWebhookSpec(connection);
 
   const renderContent = () => {
     if (isError) {
@@ -73,7 +75,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
       return <PendingLayout />;
     }
 
-    const isWebhook = isWebhookConnector(connection.connector);
+    const hasConnectionSecrets = !webhookSpec?.dynamicResources;
 
     return (
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
@@ -121,9 +123,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
           emptyHeader="No configuration"
           emptyMessage="This connection has no configuration values."
         />
-        {isWebhook ? (
-          <ConnectionDrawerWebhookSecrets connection={connection} />
-        ) : (
+        {hasConnectionSecrets && (
           <ConnectionDrawerJsonSection
             header="Secrets"
             icon={KeyIcon}
@@ -132,7 +132,16 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
             emptyMessage="This connection has no secret references."
           />
         )}
-        {isWebhook && <ConnectionDrawerWebhook connection={connection} />}
+        {webhookSpec && (
+          <ConnectionDrawerWebhookSecrets
+            connection={connection}
+            hasConnectionSecrets={hasConnectionSecrets}
+            isProviderSecret={isWebhookProviderSecret(webhookSpec)}
+          />
+        )}
+        {webhookSpec && (
+          <ConnectionDrawerWebhook connection={connection} webhookSpec={webhookSpec} />
+        )}
         <ConnectionDrawerPipelines connectionId={connection.id} />
       </Flex>
     );

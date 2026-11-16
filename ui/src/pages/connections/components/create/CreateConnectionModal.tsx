@@ -3,6 +3,8 @@ import { type FC, useCallback } from "react";
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
+import { WEBHOOK_CONNECTOR } from "@/components/webhooks/constants";
+
 import CreateConnectionConfigure from "@/pages/connections/components/create/configure/CreateConnectionConfigure";
 import CreateConnectionSelector from "@/pages/connections/components/create/select/CreateConnectionSelector";
 
@@ -17,6 +19,7 @@ interface CreateConnectionModalProps {
   connector: FilamentLayoutSearch["connector"];
   connectorKind: FilamentLayoutSearch["connectorKind"];
   connectorSearch: FilamentLayoutSearch["connectorSearch"];
+  isWebhook: FilamentLayoutSearch["isWebhook"];
   onClose: () => void;
 }
 
@@ -25,20 +28,23 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
   connector,
   connectorKind,
   connectorSearch,
+  isWebhook,
   onClose,
 }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const session = useOverlaySession(isOpen);
   const shownConnector = useOverlayRecord(isOpen, connector);
   const shownConnectorKind = useOverlayRecord(isOpen, connectorKind);
+  const shownIsWebhook = useOverlayRecord(isOpen, isWebhook);
 
   const handleConnectorSelect = useCallback(
-    (connector: ConnectorSpec) => {
+    (connector: ConnectorSpec, isWebhook = false) => {
       void updateSearch((prev) => ({
         ...prev,
         connector: connector.aliasTarget || connector.name,
         connectorKind: connector.kind,
         connectorSearch: undefined,
+        isWebhook: isWebhook || connector.name === WEBHOOK_CONNECTOR || undefined,
       }));
     },
     [updateSearch],
@@ -48,6 +54,7 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
     void updateSearch((prev) => ({
       ...prev,
       connector: undefined,
+      isWebhook: undefined,
     }));
   }, [updateSearch]);
 
@@ -58,10 +65,11 @@ const CreateConnectionModal: FC<CreateConnectionModalProps> = ({
   if (shownConnector && shownConnectorKind) {
     return (
       <CreateConnectionConfigure
-        key={`${session}:${shownConnectorKind}`}
+        key={`${session}:${shownConnectorKind}:${shownIsWebhook ? shownConnector : ""}`}
         isOpen={isOpen}
         connector={shownConnector}
         connectorKind={shownConnectorKind}
+        isWebhook={!!shownIsWebhook}
         onClose={onClose}
         onBack={handleBack}
       />

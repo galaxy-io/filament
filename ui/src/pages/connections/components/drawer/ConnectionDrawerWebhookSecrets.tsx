@@ -18,10 +18,14 @@ import { isNotFoundError } from "@/utils/errors";
 
 interface ConnectionDrawerWebhookSecretsProps {
   connection: Connection;
+  hasConnectionSecrets: boolean;
+  isProviderSecret: boolean;
 }
 
 const ConnectionDrawerWebhookSecrets: FC<ConnectionDrawerWebhookSecretsProps> = ({
   connection,
+  hasConnectionSecrets,
+  isProviderSecret,
 }) => {
   const { data, error, isError, isLoading } = useGetWebhookEndpointQuery({
     input: createGetWebhookEndpointInput(connection.id),
@@ -43,16 +47,26 @@ const ConnectionDrawerWebhookSecrets: FC<ConnectionDrawerWebhookSecretsProps> = 
       return <WebhookEndpointErrorLayout error={error} />;
     }
 
-    return <ConnectionDrawerWebhookSigningKey connection={connection} endpoint={endpoint} />;
+    return (
+      <ConnectionDrawerWebhookSigningKey
+        connection={connection}
+        endpoint={endpoint}
+        isProviderSecret={isProviderSecret}
+      />
+    );
   };
 
   return (
     <ConnectionDrawerSection
-      header="Secrets"
+      header={hasConnectionSecrets ? "Webhook signing key" : "Secrets"}
       icon={KeyIcon}
       count={endpoint?.hasSigningSecret ? 1 : undefined}
-      emptyHeader="No secrets"
-      emptyMessage="This connection has no secret references."
+      emptyHeader={hasConnectionSecrets ? "No signing key" : "No secrets"}
+      emptyMessage={
+        hasConnectionSecrets
+          ? "This connection has no webhook signing key."
+          : "This connection has no secret references."
+      }
       isFlush
     >
       {renderContent()}

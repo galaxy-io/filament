@@ -13,7 +13,7 @@ import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
 
 import {
   useCreatePipelineModalActions,
@@ -54,7 +54,8 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
 
   const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
-  const isWebhook = isWebhookConnector(sourceConnection?.connector);
+  const { webhookSpec } = useConnectionWebhookSpec(sourceConnection);
+  const isWebhook = !!webhookSpec?.dynamicResources;
   const rows = rowsBySink[activeSinkId] ?? [];
   const filteredRows = useMemo(
     () => rows.filter((row) => isSearchMatch(localState.search, row.displayName)),
