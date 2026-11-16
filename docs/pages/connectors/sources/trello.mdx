@@ -9,8 +9,10 @@ Connector ID `trello`
 
 The Trello source reads boards, lists, cards, members, labels, checklists, custom fields, attachments, and board actions from Trello. It uses an
 [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
-This connector is in preview. It has not been validated against a live Trello
-account yet. It targets Trello REST API version `1`.
+This connector is in preview. It was validated against a live Trello
+account on a free plan. A full read returned 16 records across the default
+resources, and an incremental actions pipeline picked up a new card create
+action on its second run. It targets Trello REST API version `1`.
 
 ## Configuration
 
