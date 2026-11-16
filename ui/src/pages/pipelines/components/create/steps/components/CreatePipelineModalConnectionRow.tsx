@@ -17,6 +17,7 @@ import {
   useCreatePipelineModalState,
 } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalConnectionRowFrame from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionRowFrame";
+import { isCreatePipelineModalConnectionSelectable } from "@/pages/pipelines/components/create/utils";
 
 const RowControlWrapper = styled.div`
   display: flex;
@@ -38,9 +39,7 @@ const CreatePipelineModalConnectionRow: FC<CreatePipelineModalConnectionRowProps
   const { selectSource, toggleSink } = useCreatePipelineModalActions();
 
   const isSource = kind === ConnectorKind.SOURCE;
-  const isDisabled = isSource
-    ? connection.executionModes.length === 0
-    : !connection.executionModes.includes(executionMode);
+  const isDisabled = !isCreatePipelineModalConnectionSelectable(connection, executionMode);
 
   const handleClick = () => {
     if (isSource) {
