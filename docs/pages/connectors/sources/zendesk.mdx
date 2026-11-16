@@ -23,7 +23,7 @@ Connection testing calls `GET /api/v2/users.json?page[size]=100`. Requests targe
 
 ## Resources
 
-All resources except `ticket_comments` are selected by default. Selecting `ticket_comments` fans out across parent tickets.
+All resources except `custom_roles` and `ticket_comments` are selected by default. `custom_roles` requires a Zendesk Enterprise plan or higher. Selecting `ticket_comments` fans out across parent tickets.
 
 | Resource | Endpoint | Primary Key | Parent |
 |---|---|---|---|
@@ -40,7 +40,7 @@ All resources except `ticket_comments` are selected by default. Selecting `ticke
 
 ## Modes
 
-All resources perform full reads. Use **full upsert** to refresh rows or **full replace** to remove rows that are no longer present in Zendesk.
+All resources perform full reads. Use **full upsert** to refresh rows or **full replace** to remove rows that are no longer returned by Zendesk. Because Zendesk archives closed tickets older than 120 days and excludes them from the standard tickets list, a full replace drops archived tickets and their comments from the destination.
 
 ## Behavior
 

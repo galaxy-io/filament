@@ -96,7 +96,7 @@ resources:
       user_fields: json?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: tickets
     path: /api/v2/tickets.json
@@ -137,7 +137,7 @@ resources:
       is_public: bool?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: organizations
     path: /api/v2/organizations.json
@@ -158,7 +158,7 @@ resources:
       organization_fields: json?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: groups
     path: /api/v2/groups.json
@@ -174,7 +174,7 @@ resources:
       deleted: bool?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ticket_fields
     path: /api/v2/ticket_fields.json
@@ -199,7 +199,7 @@ resources:
       custom_field_options: json?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: brands
     path: /api/v2/brands.json
@@ -221,7 +221,7 @@ resources:
       logo: json?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: custom_roles
     path: /api/v2/custom_roles.json
@@ -237,7 +237,7 @@ resources:
       configuration: json?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: satisfaction_ratings
     path: /api/v2/satisfaction_ratings.json
@@ -256,18 +256,17 @@ resources:
       reason: string?
       created_at: timestamptz?
       updated_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: tags
     path: /api/v2/tags.json
     response:
       records: $.tags
-      pagination: none
     primary_key: [name]
     fields:
       name: string
       count: int64?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
   - name: ticket_comments
     path: /api/v2/tickets/{ticket_id}/comments.json
@@ -278,7 +277,7 @@ resources:
       records: $.comments
     primary_key: [ticket_id, id]
     fields:
-      ticket_id: { path: parent.ticket_id, type: int64 }
+      ticket_id: {path: parent.ticket_id, type: int64}
       id: int64
       type: string?
       body: string?
@@ -289,8 +288,8 @@ resources:
       attachments: json?
       metadata: json?
       created_at: timestamptz?
-      raw: { path: $, type: json, mode: remainder }
+      raw: {path: $, type: json, mode: remainder}
 
 discovery:
   mode: static
-  default_resources: [users, tickets, organizations, groups, ticket_fields, brands, custom_roles, satisfaction_ratings, tags]
+  default_resources: [users, tickets, organizations, groups, ticket_fields, brands, satisfaction_ratings, tags]
