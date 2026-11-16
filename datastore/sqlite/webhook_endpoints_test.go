@@ -73,3 +73,79 @@ func TestWebhookEndpointRevisionTenantAndPipelineFence(t *testing.T) {
 		t.Fatalf("orphaned endpoint release: %+v, %v", releases, err)
 	}
 }
+
+func TestWebhookEndpointVerifierParamsRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	tenant := filament.TenantID("tenant-one")
+	if err := store.EnsureTenant(ctx, tenant, "Tenant One"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateConnection(ctx, filament.Connection{
+		ID: "posthog-source", Tenant: string(tenant), Kind: filament.ConnectorKindSource,
+		Name: "source", Connector: "posthog",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mutation := webhooks.EndpointMutation{
+		Tenant: tenant, SourceID: "posthog-source", SecretRefs: []string{"key"},
+		Verifier:       webhooks.SharedSecretHeader,
+		VerifierParams: []byte(`{"delivery_id":{"body":"event.uuid"}}`),
+	}
+	mutation.ApplyDefaults()
+	if _, err := store.PutWebhookEndpoint(ctx, mutation); err != nil {
+		t.Fatal(err)
+	}
+	endpoint, err := store.LoadWebhookEndpointForTenant(ctx, tenant, mutation.SourceID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if endpoint.Verifier != webhooks.SharedSecretHeader || string(endpoint.VerifierParams) != `{"delivery_id":{"body":"event.uuid"}}` {
+		t.Fatalf("verifier %q params %s", endpoint.Verifier, endpoint.VerifierParams)
+	}
+	if _, err := webhooks.BuildVerifier(endpoint.Verifier, endpoint.VerifierParams); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWebhookEndpointIngressRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	tenant := filament.TenantID("tenant-one")
+	if err := store.EnsureTenant(ctx, tenant, "Tenant One"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateConnection(ctx, filament.Connection{
+		ID: "github-source", Tenant: string(tenant), Kind: filament.ConnectorKindSource,
+		Name: "source", Connector: "github",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mutation := webhooks.EndpointMutation{
+		Tenant: tenant, SourceID: "github-source", SecretRefs: []string{"key"}, Verifier: webhooks.StandardWebhooks,
+		Ingress: webhooks.Ingress{Route: &webhooks.Route{
+			Event: webhooks.ValueSource{Header: "X-Github-Event"}, Events: map[string]string{"push": "pushes"},
+		}},
+	}
+	mutation.ApplyDefaults()
+	endpoint, err := store.PutWebhookEndpoint(ctx, mutation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if endpoint.Ingress.Route == nil || endpoint.Ingress.Route.Events["push"] != "pushes" {
+		t.Fatalf("ingress = %+v", endpoint.Ingress)
+	}
+
+	loaded, err := store.LoadWebhookEndpointForTenant(ctx, tenant, "github-source")
+	if err != nil || loaded.Ingress.Route == nil || loaded.Ingress.Route.Event.Header != "X-Github-Event" {
+		t.Fatalf("loaded ingress = %+v, %v", loaded.Ingress, err)
+	}
+}

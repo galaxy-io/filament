@@ -103,7 +103,9 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	if mutation.ExpectedRevision == 0 {
 		updated, err = q.InsertWebhookEndpoint(ctx, sqlcgen.InsertWebhookEndpointParams{
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
-			Verifier: mutation.Verifier, PipelineID: pipeline, RouteKey: route, Enabled: enabled,
+			Verifier: mutation.Verifier, VerifierParams: string(webhooks.StoredVerifierParams(mutation.VerifierParams)),
+			Ingress:    string(webhooks.StoredIngress(mutation.Ingress)),
+			PipelineID: pipeline, RouteKey: route, Enabled: enabled,
 			SecretRefs: string(secretRefs), PreviousKeyExpiresAt: expires, Resources: string(resources),
 			SuccessStatus: int64(mutation.SuccessStatus), MaxBodyBytes: mutation.MaxBodyBytes,
 		})
@@ -112,7 +114,9 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
 			ExpectedRevision: mutation.ExpectedRevision, NextRevision: mutation.ExpectedRevision + 1,
 			UpdatedAt: nowMillis(), Verifier: mutation.Verifier,
-			PipelineID: pipeline, RouteKey: route, Enabled: enabled,
+			VerifierParams: string(webhooks.StoredVerifierParams(mutation.VerifierParams)),
+			Ingress:        string(webhooks.StoredIngress(mutation.Ingress)),
+			PipelineID:     pipeline, RouteKey: route, Enabled: enabled,
 			SecretRefs: string(secretRefs), PreviousKeyExpiresAt: expires, Resources: string(resources),
 			SuccessStatus: int64(mutation.SuccessStatus), MaxBodyBytes: mutation.MaxBodyBytes,
 		})
@@ -147,9 +151,14 @@ func sqliteWebhookEndpoint(row *sqlcgen.GetWebhookEndpointBySourceRow) (webhooks
 	if err := json.Unmarshal([]byte(row.Resources), &resources); err != nil {
 		return webhooks.Endpoint{}, fmt.Errorf("decode webhook resources: %w", err)
 	}
+	ingress, err := webhooks.ParseIngress([]byte(row.Ingress))
+	if err != nil {
+		return webhooks.Endpoint{}, err
+	}
 	endpoint := webhooks.Endpoint{
-		Tenant: filament.TenantID(row.TenantID), SourceID: row.SourceConnectionID,
-		Verifier: row.Verifier, Enabled: row.Enabled != 0, Revision: row.ConfigRevision,
+		Ingress: ingress,
+		Tenant:  filament.TenantID(row.TenantID), SourceID: row.SourceConnectionID,
+		Verifier: row.Verifier, VerifierParams: json.RawMessage(row.VerifierParams), Enabled: row.Enabled != 0, Revision: row.ConfigRevision,
 		PipelineID: row.PipelineID.String, RouteKey: row.RouteKey.String,
 		Accepting: row.Accepting, Resources: resources, SecretRefs: refs,
 		MaxBodyBytes: row.MaxBodyBytes, SuccessStatus: int(row.SuccessStatus),

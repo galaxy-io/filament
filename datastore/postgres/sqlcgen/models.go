@@ -394,4 +394,6 @@ type WebhookEndpoint struct {
 	MaxBodyBytes         int64
 	CreatedAt            pgtype.Timestamptz
 	UpdatedAt            pgtype.Timestamptz
+	VerifierParams       []byte
+	Ingress              []byte
 }

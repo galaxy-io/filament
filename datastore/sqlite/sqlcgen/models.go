@@ -286,4 +286,6 @@ type WebhookEndpoint struct {
 	MaxBodyBytes         int64
 	CreatedAt            int64
 	UpdatedAt            int64
+	VerifierParams       string
+	Ingress              string
 }
