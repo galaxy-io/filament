@@ -184,6 +184,7 @@
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
               "pages/connectors/sources/zoho",
+              "pages/connectors/sources/zendesk",
               "pages/connectors/sources/sample"
             ]
           },

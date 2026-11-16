@@ -3476,3 +3476,209 @@ func TestPostHogDashboardDetailHydration(t *testing.T) {
 		t.Fatalf("detail fields lost: %s", sink.records[0].Data)
 	}
 }
+
+func TestCatalogZendeskSpecAndEmbeddedManifest(t *testing.T) {
+	ctx := context.Background()
+	src := catalogSource(t, "zendesk@v2")
+	spec := src.Spec()
+	if spec.Name != "zendesk@v2" || spec.DisplayName != "Zendesk" {
+		t.Fatalf("spec identity = %q/%q, want zendesk@v2/Zendesk", spec.Name, spec.DisplayName)
+	}
+	fields := map[string]filament.ConfigField{}
+	for _, field := range spec.Config.Fields {
+		fields[field.Name] = field
+	}
+	if len(fields) != 5 {
+		t.Fatalf("config fields = %#v, want subdomain, auth_method, email, api_token, access_token", spec.Config.Fields)
+	}
+	if !fields["subdomain"].Required {
+		t.Fatal("subdomain must be required")
+	}
+	if fields["api_token"].Type != filament.FieldSecret || fields["access_token"].Type != filament.FieldSecret {
+		t.Fatal("api_token and access_token must be FieldSecret")
+	}
+	if err := src.Validate(filament.NewConfig(map[string]any{"subdomain": "myorg"})); err == nil {
+		t.Fatal("validate without credentials succeeded")
+	}
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"subdomain": "example",
+		"email":     "admin@example.com",
+		"api_token": "token123",
+	})); err != nil {
+		t.Fatalf("configure embedded Zendesk manifest: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("discover: %v", err)
+	}
+	want := []string{
+		"users", "tickets", "organizations", "groups", "ticket_fields",
+		"brands", "custom_roles", "satisfaction_ratings", "tags", "ticket_comments",
+	}
+	if len(discovered.Resources) != len(want) {
+		t.Fatalf("resources = %d, want %d", len(discovered.Resources), len(want))
+	}
+	for i, name := range want {
+		if discovered.Resources[i].Name != name {
+			t.Fatalf("resource[%d] = %q, want %q", i, discovered.Resources[i].Name, name)
+		}
+	}
+}
+
+func TestZendeskTestConnectionBearerAuth(t *testing.T) {
+	var paths []string
+	var authHeader string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		authHeader = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"users":[{"id":1001,"name":"Alice"}],"meta":{"has_more":true,"after_cursor":"cursor_abc"}}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "zendesk", "v2")), "https://{{ config.subdomain }}.zendesk.com", api.URL, 1))
+	src := NewManifest(manifestData)
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"subdomain":    "testorg",
+		"auth_method":  "oauth_access_token",
+		"access_token": "test_bearer_token",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	if authHeader != "Bearer test_bearer_token" {
+		t.Fatalf("auth header = %q, want Bearer test_bearer_token", authHeader)
+	}
+	if len(paths) != 1 || paths[0] != "/api/v2/users.json" {
+		t.Fatalf("probe requests = %v, want exactly one GET /api/v2/users.json", paths)
+	}
+}
+
+func TestZendeskTestConnectionProbesUsers(t *testing.T) {
+	var paths []string
+	var user, pass string
+	var okBasic bool
+	var pageSize string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		user, pass, okBasic = r.BasicAuth()
+		pageSize = r.URL.Query().Get("page[size]")
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"users":[{"id":1001,"name":"Alice"}],"meta":{"has_more":true,"after_cursor":"cursor_abc"}}`)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "zendesk", "v2")), "https://{{ config.subdomain }}.zendesk.com", api.URL, 1))
+	src := NewManifest(manifestData)
+	if err := src.TestConnection(context.Background(), filament.NewConfig(map[string]any{
+		"subdomain": "testorg",
+		"email":     "agent@example.com",
+		"api_token": "secret_zd_token",
+	})); err != nil {
+		t.Fatalf("test connection: %v", err)
+	}
+	if !okBasic || user != "agent@example.com/token" || pass != "secret_zd_token" {
+		t.Fatalf("basic auth = %q:%q (ok=%t), want agent@example.com/token:secret_zd_token", user, pass, okBasic)
+	}
+	if len(paths) != 1 || paths[0] != "/api/v2/users.json" {
+		t.Fatalf("probe requests = %v, want exactly one GET /api/v2/users.json", paths)
+	}
+	if pageSize != "100" {
+		t.Fatalf("page[size] = %q, want 100", pageSize)
+	}
+}
+
+func TestZendeskPaginatesViaCursorAndExtractsRecords(t *testing.T) {
+	ctx := context.Background()
+	var afterCursors []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/tickets.json" {
+			http.NotFound(w, r)
+			return
+		}
+		user, pass, ok := r.BasicAuth()
+		if !ok || user != "agent@example.com/token" || pass != "token456" {
+			t.Errorf("basic auth mismatch: %s / %s", user, pass)
+		}
+		after := r.URL.Query().Get("page[after]")
+		afterCursors = append(afterCursors, after)
+		w.Header().Set("Content-Type", "application/json")
+		if after == "" {
+			fmt.Fprint(w, `{"tickets":[{"id":1,"subject":"Ticket 1","status":"open"}],"meta":{"has_more":true,"after_cursor":"page2_token"}}`)
+			return
+		}
+		if after == "page2_token" {
+			fmt.Fprint(w, `{"tickets":[{"id":2,"subject":"Ticket 2","status":"solved"}],"meta":{"has_more":false,"after_cursor":null}}`)
+			return
+		}
+		t.Errorf("unexpected page[after]: %q", after)
+	}))
+	defer api.Close()
+
+	manifestData := []byte(strings.Replace(string(catalogManifest(t, "zendesk", "v2")), "https://{{ config.subdomain }}.zendesk.com", api.URL, 1))
+	src := NewManifest(manifestData)
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{
+		"subdomain": "testorg",
+		"email":     "agent@example.com",
+		"api_token": "token456",
+	})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{Resources: []string{"tickets"}, Parallelism: 1}); err != nil {
+		t.Fatalf("extract tickets: %v", err)
+	}
+	if len(afterCursors) != 2 || afterCursors[0] != "" || afterCursors[1] != "page2_token" {
+		t.Fatalf("page[after] cursors = %v, want ['', 'page2_token']", afterCursors)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records count = %d, want 2", len(sink.records))
+	}
+}
+
+func TestLiveZendeskExtraction(t *testing.T) {
+	token := os.Getenv("ZENDESK_TOKEN")
+	if token == "" {
+		t.Skip("skipping live test without ZENDESK_TOKEN")
+	}
+	ctx := context.Background()
+	src := catalogSource(t, "zendesk@v2")
+	cfg := filament.NewConfig(map[string]any{
+		"subdomain":    "none-84636",
+		"auth_method":  "oauth_access_token",
+		"access_token": token,
+	})
+	if err := src.TestConnection(ctx, cfg); err != nil {
+		t.Fatalf("TestConnection failed: %v", err)
+	}
+	t.Log("TestConnection succeeded!")
+	if err := src.Configure(ctx, cfg); err != nil {
+		t.Fatalf("Configure failed: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	discovered, err := src.Discover(ctx, filament.DiscoverOpts{})
+	if err != nil {
+		t.Fatalf("Discover failed: %v", err)
+	}
+	t.Logf("Discovered %d resources:", len(discovered.Resources))
+	for _, res := range discovered.Resources {
+		t.Logf(" - %s", res.Name)
+	}
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{
+		Resources: []string{"users", "tickets"},
+	}); err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+	t.Logf("Extracted %d records successfully!", len(sink.records))
+	for _, rec := range sink.records {
+		t.Logf("Record: resource=%s data=%s", rec.Resource, string(rec.Data))
+	}
+}
+
+
