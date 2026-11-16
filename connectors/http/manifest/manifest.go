@@ -83,6 +83,9 @@ type Manifest struct {
 	// as togglable). Enabled selections are then injected back into other
 	// streams via each entry's Scope.
 	Discovery DiscoverySpec `yaml:"discovery,omitempty"`
+	// Webhook, when set, lets connections receive the provider's webhooks.
+	// Resources with mode: webhook read the deliveries.
+	Webhook *WebhookSpec `yaml:"webhook,omitempty"`
 }
 
 // DiscoverySpec chooses stable manifest resources or dynamically projected
@@ -325,20 +328,23 @@ type DynamicLimit struct {
 // Resource declares one extractable endpoint and how to page, decode, and
 // incrementally track it.
 type Resource struct {
-	RestartOnResume bool      `yaml:"restart_on_resume,omitempty"`
-	OmitEmptyQuery  bool      `yaml:"omit_empty_query,omitempty"`
-	RequiredConfig  []string  `yaml:"required_config,omitempty"`
-	ForEachConfig   string    `yaml:"for_each_config,omitempty"`
-	Name            string    `yaml:"name"`
-	EmitAs          string    `yaml:"emit_as,omitempty"`
-	Path            string    `yaml:"path"`
-	Method          string    `yaml:"method"`
-	Mode            string    `yaml:"mode"` // paginated | stream (default paginated)
-	PrimaryKey      []string  `yaml:"primary_key"`
-	Fields          FieldList `yaml:"fields,omitempty"`
-	FieldOverrides  FieldList `yaml:"field_overrides,omitempty"`
-	UseFields       []string  `yaml:"use_fields,omitempty"`
-	ExcludeFields   []string  `yaml:"exclude_fields,omitempty"`
+	RestartOnResume bool     `yaml:"restart_on_resume,omitempty"`
+	OmitEmptyQuery  bool     `yaml:"omit_empty_query,omitempty"`
+	RequiredConfig  []string `yaml:"required_config,omitempty"`
+	ForEachConfig   string   `yaml:"for_each_config,omitempty"`
+	Name            string   `yaml:"name"`
+	EmitAs          string   `yaml:"emit_as,omitempty"`
+	Path            string   `yaml:"path"`
+	Method          string   `yaml:"method"`
+	Mode            string   `yaml:"mode"` // paginated | stream | export | webhook (default paginated)
+	// Events lists the event types a webhook resource reads when the
+	// manifest routes deliveries by type. See WebhookSpec.Route.
+	Events         []string  `yaml:"events,omitempty"`
+	PrimaryKey     []string  `yaml:"primary_key"`
+	Fields         FieldList `yaml:"fields,omitempty"`
+	FieldOverrides FieldList `yaml:"field_overrides,omitempty"`
+	UseFields      []string  `yaml:"use_fields,omitempty"`
+	ExcludeFields  []string  `yaml:"exclude_fields,omitempty"`
 	// Records is concise syntax for response.root + response.records_path.
 	// "$" means an array at the document root; "$.data.items" selects a path.
 	Records string `yaml:"records,omitempty"`
