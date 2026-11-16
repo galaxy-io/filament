@@ -25,6 +25,7 @@ connection:
     bearer: config.token
   headers:
     Accept: application/json
+    User-Agent: filament/1.0
   timeout_seconds: 60
   rate_limit:
     requests_per_second: 1.5
