@@ -23,6 +23,8 @@ defaults:
     key: "{{ config.api_key }}"
     token: "{{ config.api_token }}"
   response:
+    # Every list endpoint returns a root JSON array, so records are the body.
+    records: $
     strict_records: true
 connection:
   base_url: https://api.trello.com/1
