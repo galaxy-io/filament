@@ -28,6 +28,7 @@ catalog. Rows remain staged until their resource commits.
 | `table.update_mode` | Connection | `merge-on-read` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
+| `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
 | `maintenance` | Connection | `true` | Compact, merge manifests, and expire snapshots after commits. See [table maintenance](#table-maintenance). |
 
 A `namespace` left empty is defaulted server-side to the normalized source

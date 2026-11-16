@@ -56,7 +56,11 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	if !ok {
 		return errors.New("continuous source must resolve position codecs")
 	}
-	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, NewSink: func() (filament.Sink, error) { return deps.Sinks.Resolve(spec.Sink.Connector) }, Codecs: codecs, Boundary: continuousBoundary(spec.Options, sink.Spec()), LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
+	boundary, err := continuousBoundary(spec.Options, sink, filament.NewConfig(spec.Sink.Config))
+	if err != nil {
+		return err
+	}
+	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, NewSink: func() (filament.Sink, error) { return deps.Sinks.Resolve(spec.Sink.Connector) }, Codecs: codecs, Boundary: boundary, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
 	if err := validateContinuous(cfg); err != nil {
 		return err
 	}
@@ -82,18 +86,21 @@ func LoadContinuousAttempt(ctx context.Context, store filament.StreamRuntimeStor
 }
 
 // continuousBoundary uses the persisted run override when present, then the
-// sink's preferred boundary. Defaults amortize certification and, for
-// finite-session sinks, connection and DDL setup.
-func continuousBoundary(options filament.RunOptions, sink filament.SinkSpec) filament.Boundary {
-	b := filament.Boundary{MaxRecords: 1000, MaxWait: time.Second, MaxAge: time.Second}
-	if !sink.Capabilities.ReusableSession {
-		b = filament.Boundary{MaxRecords: 100_000, MaxWait: 30 * time.Second, MaxAge: 30 * time.Second}
-	}
-	if preferred := sink.Capabilities.PreferredEpochBoundary; preferred != nil {
-		b = *preferred
-	}
+// sink's configured boundary, then its preferred boundary. Defaults amortize
+// certification and, for finite-session sinks, connection and DDL setup.
+func continuousBoundary(options filament.RunOptions, sink filament.Sink, cfg filament.Config) (filament.Boundary, error) {
 	if options.EpochBoundary != nil {
-		b = *options.EpochBoundary
+		return *options.EpochBoundary, nil
 	}
-	return b
+	if bounded, ok := sink.(filament.EpochBounded); ok {
+		return bounded.EpochBoundary(cfg)
+	}
+	caps := sink.Spec().Capabilities
+	if caps.PreferredEpochBoundary != nil {
+		return *caps.PreferredEpochBoundary, nil
+	}
+	if caps.ReusableSession {
+		return filament.Boundary{MaxRecords: 1000, MaxWait: time.Second, MaxAge: time.Second}, nil
+	}
+	return filament.Boundary{MaxRecords: 100_000, MaxWait: 30 * time.Second, MaxAge: 30 * time.Second}, nil
 }
