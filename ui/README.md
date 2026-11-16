@@ -62,13 +62,13 @@ pnpm check:host      # type-check and build the fixture host against the package
 6. **Own the query client.** Filament works with TanStack's defaults. Skip retries for `NotFound`, `PermissionDenied`, `Unauthenticated`, `InvalidArgument` and `Unimplemented`, or a missing pipeline retries for about 7s before its not-found page. A `staleTime` of 30s is recommended.
 7. **Proxy** `/ingestion.v1.IngestionService`, `/metrics.v1.MetricsService` and `/auth.v1.AuthService` to the Filament API at the transport's `baseUrl`. When another product also serves `metrics.v1.MetricsService`, put one product behind a prefix.
 8. **Give the layout a box.** `FilamentLayout` fills its parent, so the parent needs a definite height (a flex child with `min-height: 0`).
-9. **Point Filament at Alchemy**, when the host also serves it, with `alchemyUrl` on `FilamentLayout`. It is Alchemy's mount path on the same origin, such as `/functions`, or its full URL when Alchemy runs on its own domain. Unset hides every Alchemy link.
+9. **Tell Filament where the other Galaxy products live** with `productUrls` on `FilamentLayout`, keyed by `GalaxyProduct` from `./paths`. Each is the product's mount path on the same origin, such as `{ alchemy: "/functions" }`, or its full URL when it runs on its own domain. A product left out gets no links.
 
-### Links into Alchemy
+### Links into other Galaxy products
 
-Alchemy owns its link format. An Alchemy entry point in Filament builds its link into Alchemy's create wizard with `createAlchemyFunctionHref(alchemyUrl, returnTo, seed)` and reads what comes back with `parseAlchemyReturnSearch`, both from `@galaxy-io/alchemy-ui/links`, which carries no components. The seed holds a suggested name, a runtime id, the contract the function must accept and return, and a `returnLabel` naming the screen that asked. Create sends the person back to `returnTo` with the new function's id and version, and cancel sends them back without them.
+Galaxy products hand people to each other with one shape. The callee owns its link format in a component-free `./links` export, such as `createAlchemyFunctionHref` and `parseAlchemyReturnSearch` from `@galaxy-io/alchemy-ui/links`. The link carries a seed, a `returnTo` and a `returnLabel` naming the screen that asked, and the result comes back on `returnTo` as search keys prefixed with the callee's name, such as `alchemyFunctionId`. A cancel comes back without them.
 
-Library code reads `alchemyUrl` with `useFilamentAlchemyUrl` and hides any Alchemy entry point when it is unset. The standalone server writes its runtime config into `index.html` as the JSON script `filament-runtime-config`, with `alchemyUrl` set by `ALCHEMY_URL`, and the standalone app passes it to `FilamentLayout`. Alchemy follows a `returnTo` on another origin only when that origin is in its own `UI_RETURN_ORIGINS`, so a standalone pair needs both set.
+Library code reads a product's URL with `useGalaxyProductUrl(GalaxyProduct.ALCHEMY)` and hides the entry point when it is undefined. The standalone server writes its runtime config into `index.html` as the JSON script `filament-runtime-config`, with `products` set by the `GALAXY_<PRODUCT>_URL` variables, and the standalone app passes them to `FilamentLayout`. Every product reads the same variables, and a callee sends people back only to the origins of the products it was given, so a standalone pair sets both URLs on both servers. A new product adds itself to `GalaxyProduct`, to `Products` in `ui/config.go` and to `galaxy.productUrls` in the chart.
 
 ### Releasing
 

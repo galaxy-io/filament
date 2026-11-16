@@ -13,22 +13,40 @@ import (
 // Config, read by the standalone host.
 const runtimeConfigElementID = "filament-runtime-config"
 
+// Products are the Galaxy products a deployment can point at each other,
+// each configured by GALAXY_<PRODUCT>_URL.
+var Products = []string{"alchemy", "filament"}
+
 // Config is what the server tells the UI at runtime. It is written into
 // index.html as JSON, so one UI build serves every deployment.
 type Config struct {
-	// AlchemyURL is where Alchemy's UI is served, such as
-	// https://alchemy.example.com. Empty means Filament offers no Alchemy
-	// links.
-	AlchemyURL string `json:"alchemyUrl,omitempty"`
+	// ProductURLs maps a Galaxy product to where its UI is served. Products
+	// link to each other through it and send people back only to these.
+	ProductURLs map[string]string `json:"products,omitempty"`
 }
 
-// ParseAlchemyURL checks that s is an absolute http or https URL without
-// credentials, query or fragment and returns it without a trailing slash.
-// Empty stays empty.
-func ParseAlchemyURL(s string) (string, error) {
-	if s == "" {
-		return "", nil
+// ProductURLsFromEnv reads GALAXY_<PRODUCT>_URL for every product and leaves
+// out the unset ones.
+func ProductURLsFromEnv(getenv func(string) string) (map[string]string, error) {
+	urls := map[string]string{}
+	for _, product := range Products {
+		name := "GALAXY_" + strings.ToUpper(product) + "_URL"
+		raw := getenv(name)
+		if raw == "" {
+			continue
+		}
+		u, err := parseProductURL(raw)
+		if err != nil {
+			return nil, fmt.Errorf("%s: %w", name, err)
+		}
+		urls[product] = u
 	}
+	return urls, nil
+}
+
+// parseProductURL checks that s is an absolute http or https URL without
+// credentials, query or fragment and returns it without a trailing slash.
+func parseProductURL(s string) (string, error) {
 	u, err := url.Parse(s)
 	if err != nil {
 		return "", err

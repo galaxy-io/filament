@@ -31,9 +31,11 @@ data:
   WEBHOOK_INBOX_REPLICAS: {{ .Values.server.webhooks.replicas | int64 | quote }}
   {{- end }}
 
-  # Web application
-  {{- with .Values.server.alchemyURL }}
-  ALCHEMY_URL: {{ . | quote }}
+  # Galaxy products
+  {{- range $product, $url := .Values.galaxy.productUrls }}
+  {{- with $url }}
+  GALAXY_{{ upper $product }}_URL: {{ . | quote }}
+  {{- end }}
   {{- end }}
 
   # Worker

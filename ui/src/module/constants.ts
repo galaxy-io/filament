@@ -1,6 +1,6 @@
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { FilamentNavItem } from "@/module/types";
+import { FilamentNavItem, type GalaxyProductUrls } from "@/module/types";
 
 export const FILAMENT_COMMAND_GROUP_GO_TO = "Go to";
 export const FILAMENT_COMMAND_GROUP_CREATE = "Create";
@@ -18,3 +18,5 @@ export const FILAMENT_CONNECTOR_KIND_TO_CREATE_COMMAND_ID_MAP: Record<ConnectorK
   [ConnectorKind.SOURCE]: "new-source",
   [ConnectorKind.SINK]: "new-sink",
 };
+
+export const FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS: GalaxyProductUrls = {};

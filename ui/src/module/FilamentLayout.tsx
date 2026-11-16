@@ -10,18 +10,22 @@ import EditConnectionModal from "@/pages/connections/components/edit/EditConnect
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal";
 
-import { FilamentAlchemyProvider } from "@/module/FilamentAlchemyProvider";
+import { FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS } from "@/module/constants";
+import { GalaxyProductsProvider } from "@/module/GalaxyProductsProvider";
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
-import { Flow } from "@/module/types";
+import { Flow, type GalaxyProductUrls } from "@/module/types";
 import { createFilamentFlowCloseSearch } from "@/module/utils";
 
 export interface FilamentLayoutProps {
   sidebarFooter?: ReactNode;
-  alchemyUrl?: string;
+  productUrls?: GalaxyProductUrls;
 }
 
-const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter, alchemyUrl }) => {
+const FilamentLayout: FC<FilamentLayoutProps> = ({
+  sidebarFooter,
+  productUrls = FILAMENT_LAYOUT_DEFAULT_PRODUCT_URLS,
+}) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const {
     connectionId,
@@ -59,7 +63,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter, alchemyUrl }) 
   }, [updateSearch]);
 
   return (
-    <FilamentAlchemyProvider alchemyUrl={alchemyUrl}>
+    <GalaxyProductsProvider productUrls={productUrls}>
       <MainLayout sidebarFooter={sidebarFooter}>
         <Outlet />
       </MainLayout>
@@ -93,7 +97,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter, alchemyUrl }) 
         resyncResources={resyncResources}
         onClose={handleCloseFlow}
       />
-    </FilamentAlchemyProvider>
+    </GalaxyProductsProvider>
   );
 };
 

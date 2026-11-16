@@ -13,7 +13,7 @@ const HOST_RUNTIME_CONFIG = getHostRuntimeConfig();
 const AppFilamentLayout: FC = () => (
   <FilamentLayout
     sidebarFooter={<AppLayoutAccountMenu />}
-    alchemyUrl={HOST_RUNTIME_CONFIG.alchemyUrl}
+    productUrls={HOST_RUNTIME_CONFIG.products}
   />
 );
 

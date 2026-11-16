@@ -2,18 +2,17 @@
 package uiconfig
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/galaxy-io/filament/ui"
 )
 
-// FromEnv reads ALCHEMY_URL, where Alchemy's UI is served. Unset means the UI
-// offers no Alchemy links.
+// FromEnv reads GALAXY_<PRODUCT>_URL, where each other Galaxy product's UI is
+// served. Unset products get no links.
 func FromEnv() (ui.Config, error) {
-	alchemyURL, err := ui.ParseAlchemyURL(os.Getenv("ALCHEMY_URL"))
+	productURLs, err := ui.ProductURLsFromEnv(os.Getenv)
 	if err != nil {
-		return ui.Config{}, fmt.Errorf("ALCHEMY_URL: %w", err)
+		return ui.Config{}, err
 	}
-	return ui.Config{AlchemyURL: alchemyURL}, nil
+	return ui.Config{ProductURLs: productURLs}, nil
 }
