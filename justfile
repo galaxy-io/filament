@@ -41,6 +41,11 @@ migrate:
 [group('dev')]
 server mode="": migrate
     cd cmd/server && \
+      WEBHOOKS_ENABLED="${WEBHOOKS_ENABLED:-true}" \
+      WEBHOOK_INBOX_MAX_BYTES="${WEBHOOK_INBOX_MAX_BYTES:-1073741824}" \
+      WEBHOOK_INBOX_MAX_MESSAGE_BYTES="${WEBHOOK_INBOX_MAX_MESSAGE_BYTES:-2097152}" \
+      WEBHOOK_INBOX_REPLICAS="${WEBHOOK_INBOX_REPLICAS:-1}" \
+      WEBHOOK_PUBLIC_BASE_URL="${WEBHOOK_PUBLIC_BASE_URL:-http://localhost:8080}" \
       AUTH_PROVIDER="${AUTH_PROVIDER:-{{ mode }}}" \
       AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" } }}}" \
       AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
@@ -59,7 +64,10 @@ worker:
 # Run the control plane
 [group('dev')]
 control-plane:
-    cd cmd/control-plane && DISPATCH_MODE="${DISPATCH_MODE:-worker}" GOWORK=off go run .
+    cd cmd/control-plane && \
+      DISPATCH_MODE="${DISPATCH_MODE:-worker}" \
+      WEBHOOKS_ENABLED="${WEBHOOKS_ENABLED:-true}" \
+      GOWORK=off go run .
 
 # Run the UI dev server
 [group('dev')]

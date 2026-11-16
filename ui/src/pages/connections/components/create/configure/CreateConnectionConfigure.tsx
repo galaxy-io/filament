@@ -1,4 +1,4 @@
-import { type FC, useCallback } from "react";
+import { type FC, useCallback, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
 
@@ -6,18 +6,24 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
+import { type Connection, CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
+import { isWebhookConnector } from "@/components/webhooks/utils";
+
+import { createConnectionCreatedSearch } from "@/pages/connections/components/create/utils";
 import ConnectionForm from "@/pages/connections/components/form/ConnectionForm";
 import ConnectionFormProvider, {
   useConnectionFormActions,
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
+import ConnectionFormSigningKeyModal from "@/pages/connections/components/form/ConnectionFormSigningKeyModal";
 import {
   ConnectionFormPhase,
+  type ConnectionFormSigningKeyReveal,
   type ConnectionFormState,
 } from "@/pages/connections/components/form/types";
+import { useConnectionWebhookKeyMint } from "@/pages/connections/hooks/useConnectionWebhookKeyMint";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
@@ -46,7 +52,34 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   const { setPhase } = useConnectionFormActions();
   const { toast } = useToast();
 
+  const [reveal, setReveal] = useState<ConnectionFormSigningKeyReveal | undefined>();
+
   const { mutate: createConnection } = useCreateConnectionMutation();
+  const { mintKey } = useConnectionWebhookKeyMint();
+
+  const completeCreate = useCallback(
+    (connection: Connection) => {
+      void updateSearch((prev) => createConnectionCreatedSearch(prev, connection));
+    },
+    [updateSearch],
+  );
+
+  const mintSigningKey = useCallback(
+    (connection: Connection) => {
+      mintKey(connection, undefined, {
+        onSuccess: setReveal,
+        onError: (error) => {
+          toast({
+            variant: ToastVariant.ERROR,
+            header: "Connection created without a signing key",
+            description: getErrorMessage(error, "Failed to generate a signing key"),
+          });
+          completeCreate(connection);
+        },
+      });
+    },
+    [mintKey, toast, completeCreate],
+  );
 
   const handleCreateConnection = useCallback(
     (config: ConnectionFormState["config"]) => {
@@ -64,21 +97,19 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
         }),
         {
           onSuccess: (response) => {
+            const connection = response.connection;
+            if (!connection?.id) return;
+
             toast({
               variant: ToastVariant.SUCCESS,
               header: "Connection created",
             });
 
-            if (response.connection?.id) {
-              void updateSearch((prev) => ({
-                ...prev,
-                flow: undefined,
-                connector: undefined,
-                connectorKind: undefined,
-                connectorSearch: undefined,
-                connectionId: response.connection?.id,
-              }));
+            if (isWebhookConnector(connection.connector)) {
+              mintSigningKey(connection);
+              return;
             }
+            completeCreate(connection);
           },
           onError: (error) => {
             setPhase(ConnectionFormPhase.ERROR);
@@ -91,7 +122,16 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
         },
       );
     },
-    [state.name, connector, kind, createConnection, toast, updateSearch, setPhase],
+    [
+      state.name,
+      connector,
+      kind,
+      createConnection,
+      toast,
+      setPhase,
+      mintSigningKey,
+      completeCreate,
+    ],
   );
 
   const handleConnectorVersionChange = useCallback(
@@ -100,6 +140,16 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
     },
     [updateSearch],
   );
+
+  if (reveal) {
+    return (
+      <ConnectionFormSigningKeyModal
+        isOpen={isOpen}
+        reveal={reveal}
+        onDone={() => completeCreate(reveal.connection)}
+      />
+    );
+  }
 
   return (
     <ConnectionForm

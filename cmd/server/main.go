@@ -77,29 +77,13 @@ func run(ctx context.Context, migrateOnly bool) error {
 	addr := serverAddress()
 	mux := http.NewServeMux()
 	var eventBus eventbus.Bus
-	healthState := health.New(2*time.Second,
-		func(ctx context.Context) error {
-			if err := deps.Store.Ping(ctx); err != nil {
-				return err
-			}
-			if !tenantEnsured.Load() {
-				if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-					return err
-				}
-				tenantEnsured.Store(true)
-			}
-			return nil
-		},
-		func(ctx context.Context) error {
-			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
-				return checker.Ready(ctx)
-			}
-			return nil
-		},
-	)
+	healthState := newServerHealthState(deps.Store, tenantEnsured, func() eventbus.Bus { return eventBus })
 	healthState.Mount(mux)
 	mux.Handle("/version", version.Handler())
-	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Addr: addr, Handler: otelhttp.NewHandler(mux, "server"),
+		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second,
+	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 	started := false
@@ -126,6 +110,14 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
+	webhooks, closeWebhooks, err := webhooksFromEnv(ctx, deps.Store, deps.Secrets, deps.Metrics)
+	if err != nil {
+		return err
+	}
+	if webhooks != nil {
+		defer closeWebhooks()
+		apiOpts = append(apiOpts, webhooks.apiOption())
+	}
 	api := server.New(deps.Worker, deps.Store, orch, eventBus, apiOpts...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
@@ -134,6 +126,9 @@ func run(ctx context.Context, migrateOnly bool) error {
 	defer func() { logHostClose(h.Close(), serverLog) }()
 
 	api.Mount(mux)
+	if webhooks != nil {
+		webhooks.receiver.Mount(mux)
+	}
 	mux.Handle("/", ui.Handler())
 	healthState.MarkStarted()
 	started = true
@@ -153,6 +148,29 @@ func run(ctx context.Context, migrateOnly bool) error {
 			filament.Field{Key: "event.name", Value: "server.stopping"})
 		return shutdown()
 	}
+}
+
+func newServerHealthState(store filament.DataStore, tenantEnsured *atomic.Bool, bus func() eventbus.Bus) *health.State {
+	return health.New(2*time.Second,
+		func(ctx context.Context) error {
+			if err := store.Ping(ctx); err != nil {
+				return err
+			}
+			if !tenantEnsured.Load() {
+				if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+					return err
+				}
+				tenantEnsured.Store(true)
+			}
+			return nil
+		},
+		func(ctx context.Context) error {
+			if checker, ok := bus().(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
 }
 
 func logHostClose(err error, log filament.Logger) {

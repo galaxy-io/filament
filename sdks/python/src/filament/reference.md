@@ -2131,7 +2131,8 @@ worker_configuration overrides the pipeline's own for this call only, field
 resync_resources names resources read from the beginning again by the
  runs this call produces. A bounded run forgets their checkpoints first. A
  live continuous run drains and hands over to a successor that snapshots
- them again on the same stream.
+ them again on the same stream. A continuous run accepts it only from a
+ change data capture source.
     
 </dd>
 </dl>
@@ -3195,6 +3196,88 @@ client.ingestion_v1ingestionservice.getversion(
 </dl>
 </details>
 
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getwebhookendpoint</a>(...) -> IngestionV1GetWebhookEndpointResponse</code></summary>
+<dl>
+<dd>
+
+#### 📝 Description
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.getwebhookendpoint(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**source_connection_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">listtransformfunctions</a>(...) -> IngestionV1ListTransformFunctionsResponse</code></summary>
 <dl>
 <dd>
@@ -3258,6 +3341,113 @@ client.ingestion_v1ingestionservice.listtransformfunctions(
 <dd>
 
 **logical_type:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">putwebhookendpoint</a>(...) -> IngestionV1PutWebhookEndpointResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.putwebhookendpoint(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**endpoint:** `typing.Optional[IngestionV1WebhookEndpointConfig]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**expected_revision:** `typing.Optional[str]` — Zero creates an endpoint. Updates must send the last observed revision.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**imported_secret:** `typing.Optional[str]` 
+
+Supply an imported provider key or ask Filament to mint one. Omit both on
+ update to keep the current key. A newly supplied key replaces the old one,
+ which keeps verifying for 72 hours so senders can switch over.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**mint_secret:** `typing.Optional[bool]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**expected_pipeline_version_id:** `typing.Optional[str]` 
+
+When set, the endpoint write must use the pipeline's current version.
+ Pipeline graph synchronization sends this to reject stale saves.
     
 </dd>
 </dl>

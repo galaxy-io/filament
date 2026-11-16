@@ -142,6 +142,12 @@ with no rows still produces a valid file with the right columns. Parquet is
 the format to choose when the bucket is queried by Athena, Spark, or DuckDB.
 The `compression` field shows only the options valid for the selected format.
 
+Parquet combines source batches into row groups of up to 65,536 rows instead
+of creating a group for every source transaction. Groups also rotate at an
+8 MiB target for page data, checked between nonempty batches. A batch and
+pending page buffers can exceed this target. The last group is flushed at
+commit.
+
 The success manifest lists every resource's key, URI, rows, bytes, and object
 CRC32C. Programmatic consumers should treat `_SUCCESS.json` as the visibility
 boundary and ignore writes without it. Query engines cannot apply that rule and
@@ -157,7 +163,8 @@ a selected resource with no rows becomes a zero-byte object.
 
 The sink does not need temporary disk for the full run. Memory use comes mainly
 from unfinished multipart buffers, in-flight uploads, and the current encoded
-batch. Objects smaller than one part remain in memory until commit.
+batch. Parquet also buffers one row group per active resource. Objects smaller
+than one part remain in memory until commit.
 
 Each resource object is atomic, but a group of S3 objects cannot be committed
 atomically. Resource objects may be visible while `Commit` is still running.
