@@ -159,11 +159,8 @@
               "pages/connectors/sources/mysql",
               "pages/connectors/sources/kafka",
               "pages/connectors/sources/nats",
-<<<<<<< HEAD
               "pages/connectors/sources/webhook",
-=======
               "pages/connectors/sources/airtable",
->>>>>>> 9bb60fea ((feat) Added documentation for airtable connector)
               "pages/connectors/sources/apollo",
               "pages/connectors/sources/asana",
               "pages/connectors/sources/attio",
