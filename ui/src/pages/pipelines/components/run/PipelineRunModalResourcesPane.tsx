@@ -32,6 +32,7 @@ interface PipelineRunModalResourcesPaneProps {
   resyncResources: string[];
   isDefault: boolean;
   canSubset: boolean;
+  canResync: boolean;
   onSelectedChange: (selectedResources: string[]) => void;
   onResyncChange: (resyncResources: string[]) => void;
   onClose: () => void;
@@ -43,6 +44,7 @@ const PipelineRunModalResourcesPane: FC<PipelineRunModalResourcesPaneProps> = ({
   resyncResources,
   isDefault,
   canSubset,
+  canResync,
   onSelectedChange,
   onResyncChange,
   onClose,
@@ -75,32 +77,38 @@ const PipelineRunModalResourcesPane: FC<PipelineRunModalResourcesPaneProps> = ({
           </Text>
         ),
       },
-      {
-        id: "mode",
-        header: "Mode",
-        width: PIPELINE_RUN_MODAL_RESOURCE_MODE_COLUMN_WIDTH,
-        align: "right",
-        cell: ({ row }) => (
-          <Flex justifyContent={JustifyContent.END} fillWidth>
-            <ToggleInput
-              ariaLabel={`${row} mode`}
-              options={PIPELINE_RUN_RESOURCE_MODE_OPTIONS}
-              value={
-                resyncResources.includes(row)
-                  ? PipelineRunResourceMode.RESYNC
-                  : PipelineRunResourceMode.CONTINUE
-              }
-              onChange={(mode) =>
-                onResyncChange(setPipelineRunResourceMode(resources, resyncResources, [row], mode))
-              }
-              size={ToggleInputSize.X_SMALL}
-              isDisabled={!selectedResources.includes(row)}
-            />
-          </Flex>
-        ),
-      },
+      ...(canResync
+        ? ([
+            {
+              id: "mode",
+              header: "Mode",
+              width: PIPELINE_RUN_MODAL_RESOURCE_MODE_COLUMN_WIDTH,
+              align: "right",
+              cell: ({ row }) => (
+                <Flex justifyContent={JustifyContent.END} fillWidth>
+                  <ToggleInput
+                    ariaLabel={`${row} mode`}
+                    options={PIPELINE_RUN_RESOURCE_MODE_OPTIONS}
+                    value={
+                      resyncResources.includes(row)
+                        ? PipelineRunResourceMode.RESYNC
+                        : PipelineRunResourceMode.CONTINUE
+                    }
+                    onChange={(mode) =>
+                      onResyncChange(
+                        setPipelineRunResourceMode(resources, resyncResources, [row], mode),
+                      )
+                    }
+                    size={ToggleInputSize.X_SMALL}
+                    isDisabled={!selectedResources.includes(row)}
+                  />
+                </Flex>
+              ),
+            },
+          ] satisfies TableColumn<string>[])
+        : []),
     ],
-    [resources, selectedResources, resyncResources, onResyncChange],
+    [resources, selectedResources, resyncResources, onResyncChange, canResync],
   );
 
   return (

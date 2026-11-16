@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -24,9 +25,11 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/scheduler"
 	"github.com/galaxy-io/filament/internal/modules/streamsupervisor"
 	"github.com/galaxy-io/filament/internal/modules/tracker"
+	"github.com/galaxy-io/filament/internal/modules/webhookretention"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/version"
+	"github.com/galaxy-io/filament/webhooks/inbox"
 )
 
 func main() {
@@ -91,6 +94,13 @@ func run(ctx context.Context) error {
 	}
 	sched := scheduler.New(scheduleStore)
 	mods, reap := controlModules(sched, dispatcher)
+	retention, err := webhookRetentionFromEnv()
+	if err != nil {
+		return err
+	}
+	if retention != nil {
+		mods = append(mods, retention)
+	}
 	h, err := boot.Mount(ctx, deps, eventBus, mods...)
 	if err != nil {
 		return err
@@ -110,10 +120,7 @@ func run(ctx context.Context) error {
 		streams.Start(ctx)
 		defer streams.Close()
 	}
-	sched.Start(ctx)
-	if reap != nil {
-		reap.Start(ctx)
-	}
+	startControlModules(ctx, sched, reap, retention)
 	healthState.MarkStarted()
 	mode := os.Getenv("DISPATCH_MODE")
 	if mode == "" {
@@ -136,6 +143,16 @@ func run(ctx context.Context) error {
 			return nil
 		}
 		return fmt.Errorf("control-plane health server: %w", err)
+	}
+}
+
+func startControlModules(ctx context.Context, sched *scheduler.Module, reap *reaper.Module, retention *webhookretention.Module) {
+	sched.Start(ctx)
+	if reap != nil {
+		reap.Start(ctx)
+	}
+	if retention != nil {
+		retention.Start(ctx)
 	}
 }
 
@@ -175,4 +192,23 @@ func controlModules(sched *scheduler.Module, dispatcher module.Module) ([]module
 	}
 	reap := reaper.NewFromEnv(reaper.WithWorkloadProbe(prober.Workload))
 	return append(mods, reap), reap
+}
+
+// webhookRetentionFromEnv returns the inbox retention sweep when webhooks
+// are enabled. The server provisions the inbox; this only purges it.
+func webhookRetentionFromEnv() (*webhookretention.Module, error) {
+	raw := os.Getenv("WEBHOOKS_ENABLED")
+	if raw == "" {
+		return nil, nil
+	}
+	enabled, err := strconv.ParseBool(raw)
+	if err != nil {
+		return nil, fmt.Errorf("WEBHOOKS_ENABLED must be a boolean: %w", err)
+	}
+	if !enabled {
+		return nil, nil
+	}
+	return webhookretention.NewFromEnv(func(ctx context.Context) (*inbox.Inbox, func(), error) {
+		return inbox.Connect(ctx, os.Getenv("NATS_URL"), "filament-webhook-retention")
+	})
 }

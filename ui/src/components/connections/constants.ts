@@ -22,6 +22,12 @@ export const CONNECTOR_KIND_TO_PLURAL_LABEL_MAP: Record<ConnectorKind, string> =
   [ConnectorKind.SINK]: "Sinks",
 };
 
+export const CONNECTOR_KIND_TO_CREATE_TITLE_MAP: Record<ConnectorKind, string> = {
+  [ConnectorKind.UNSPECIFIED]: "New connection",
+  [ConnectorKind.SOURCE]: "New source",
+  [ConnectorKind.SINK]: "New sink",
+};
+
 export const CONNECTOR_KIND_TO_NOUN_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.UNSPECIFIED]: EMPTY_VALUE,
   [ConnectorKind.SOURCE]: "source",
@@ -60,6 +66,8 @@ export const CONNECTOR_TILE_SIZE_TO_SKELETON_SIZE_MAP: Record<ConnectorTileSize,
   [ConnectorTileSize.MEDIUM]: SkeletonSize.SMALL,
   [ConnectorTileSize.LARGE]: SkeletonSize.LARGE,
 };
+
+export const CONNECTOR_COMMAND_ICON_SIZE = 14;
 
 export const CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP: Record<ConnectorTileSize, number> = {
   [ConnectorTileSize.SMALL]: 14,

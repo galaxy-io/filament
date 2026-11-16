@@ -13,6 +13,7 @@ import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal"
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
+import { createFilamentFlowCloseSearch } from "@/module/utils";
 
 export interface FilamentLayoutProps {
   sidebarFooter?: ReactNode;
@@ -20,8 +21,18 @@ export interface FilamentLayoutProps {
 
 const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
-  const { connectionId, pipelineId, flow, connector, connectorKind, connectorSearch } =
-    useFilamentLayoutSearch();
+  const {
+    connectionId,
+    pipelineId,
+    flow,
+    connector,
+    connectorKind,
+    connectorSearch,
+    sourceId,
+    sinkIds,
+    resources,
+    resyncResources,
+  } = useFilamentLayoutSearch();
 
   const handleCloseDrawer = useCallback(() => {
     void updateSearch(
@@ -40,20 +51,9 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   }, [updateSearch]);
 
   const handleCloseFlow = useCallback(() => {
-    void updateSearch(
-      (prev) => {
-        const {
-          flow: _,
-          connector: __,
-          connectorKind: ___,
-          connectorSearch: ____,
-          pipelineId: _____,
-          ...rest
-        } = prev;
-        return rest;
-      },
-      { replace: true },
-    );
+    void updateSearch((prev) => ({ ...prev, ...createFilamentFlowCloseSearch(prev) }), {
+      replace: true,
+    });
   }, [updateSearch]);
 
   return (
@@ -78,10 +78,17 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         connectionId={connectionId}
         onClose={handleCloseFlow}
       />
-      <CreatePipelineModal isOpen={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow} />
+      <CreatePipelineModal
+        isOpen={flow === Flow.CREATE_PIPELINE}
+        sourceId={sourceId}
+        sinkIds={sinkIds}
+        onClose={handleCloseFlow}
+      />
       <PipelineRunModal
         isOpen={flow === Flow.RUN_PIPELINE && !!pipelineId}
         pipelineId={pipelineId}
+        resources={resources}
+        resyncResources={resyncResources}
         onClose={handleCloseFlow}
       />
     </>

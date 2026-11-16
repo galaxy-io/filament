@@ -39,7 +39,7 @@ The package surface is the `exports` map in `ui/package.json`, and nothing else 
 
 | Subpath | Source | What |
 |---|---|---|
-| `./paths` | `module/paths.ts` | `FilamentPath` and `createFilamentHref` |
+| `./paths` | `module/paths.ts` | `FilamentPath`, `createFilamentHref` and `createFilamentFlowSearch` for a seeded flow link |
 | `./routes` | `module/routes.tsx` | one `*RouteOptions` per exported page, the layout and the splat |
 | `./FilamentLayout` | `module/FilamentLayout.tsx` | the shell, the sidebar and the URL-driven overlays |
 | `./commands` | `module/commands.ts` | `useFilamentCommandItems({ base, transport })` for a host command palette |

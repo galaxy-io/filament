@@ -8,11 +8,13 @@ import type { CommandPaletteItem } from "@galaxy-io/dls/navigation/CommandPalett
 
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { CONNECTOR_KIND_TO_PATH_MAP } from "@/components/connections/constants";
+import ConnectorCommandIcon from "@/components/connections/ConnectorCommandIcon";
+import {
+  CONNECTOR_KIND_TO_CREATE_TITLE_MAP,
+  CONNECTOR_KIND_TO_PATH_MAP,
+} from "@/components/connections/constants";
 import { PIPELINE_CREATE_TITLE } from "@/components/pipelines/constants";
 import { formatPipelineName } from "@/components/pipelines/utils";
-
-import { CONNECTOR_KIND_TO_CREATE_TITLE_MAP } from "@/pages/connections/constants";
 
 import {
   FILAMENT_COMMAND_GROUP_CONNECTIONS,
@@ -35,7 +37,7 @@ import {
   FILAMENT_NAV_ITEM_TO_PATH_MAP,
   FILAMENT_NAV_ITEMS,
 } from "@/module/nav";
-import { FilamentPath } from "@/module/paths";
+import { createFilamentFlowSearch, FilamentPath } from "@/module/paths";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 import { FilamentNavItem, Flow } from "@/module/types";
 
@@ -80,7 +82,7 @@ export const useFilamentCommandItems = ({
         openFlow(flow, { connectorKind });
         return;
       }
-      navigateFromBase(to, { search: { flow, connectorKind } });
+      navigateFromBase(to, { search: createFilamentFlowSearch(flow, { connectorKind }) });
     };
 
     const openConnection = (connectionId: string, kind: ConnectorKind) => {
@@ -127,15 +129,25 @@ export const useFilamentCommandItems = ({
         id: `connection-${connection.id}`,
         label: connection.name,
         description: connection.connector,
-        icon: FILAMENT_NAV_ITEM_TO_ICON_MAP[
-          FILAMENT_CONNECTOR_KIND_TO_NAV_ITEM_MAP[connection.kind]
-        ],
+        leading: (
+          <ConnectorCommandIcon
+            connector={connection.connector}
+            kind={connection.kind}
+            fallbackIcon={
+              FILAMENT_NAV_ITEM_TO_ICON_MAP[
+                FILAMENT_CONNECTOR_KIND_TO_NAV_ITEM_MAP[connection.kind]
+              ]
+            }
+            transport={transport}
+          />
+        ),
         group: FILAMENT_COMMAND_GROUP_CONNECTIONS,
         onSelect: () => openConnection(connection.id, connection.kind),
       })),
     ];
   }, [
     base,
+    transport,
     mountedBase,
     navigate,
     openFlow,
