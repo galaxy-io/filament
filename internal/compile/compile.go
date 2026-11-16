@@ -75,14 +75,18 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		return nil, err
 	}
 
-	groups, err := groupEdges(version.GetGraph().GetEdges(), nodes)
+	edges, err := c.executionEdges(ctx, version.GetGraph().GetEdges(), nodes, connections, filament.ExecutionBounded)
+	if err != nil {
+		return nil, err
+	}
+	groups, err := groupEdges(edges, nodes)
 	if err != nil {
 		return nil, err
 	}
 	if err := validateResync(groups, resync); err != nil {
 		return nil, err
 	}
-	groups, fullRoutes, err := subsetGroups(groups, version.GetGraph().GetEdges(), nodes, resources, resync)
+	groups, fullRoutes, err := subsetGroups(groups, edges, nodes, resources, resync)
 	if err != nil {
 		return nil, err
 	}

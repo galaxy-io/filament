@@ -1,6 +1,9 @@
 package filament
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"slices"
+)
 
 // WebhookSpec describes how a source receives provider webhooks through
 // Filament's inbox. A source that sets ConnectorSpec.Webhook can own a
@@ -122,4 +125,19 @@ func (w *WebhookSpec) GetVerifier() string {
 // one pipeline can schedule API reads and stream webhooks from one source.
 func (w *WebhookSpec) SplitsExecution() bool {
 	return w != nil && !w.DynamicResources && len(w.Resources) > 0
+}
+
+// ResourceExecution returns the execution mode resource runs in. A source
+// that splits execution decides it per resource. Any other source runs every
+// resource in fallback, the pipeline's mode. An all-resources edge, named by
+// the empty resource, reads the API resources of a splitting source:
+// resource planning leaves webhook resources out of a bounded run.
+func ResourceExecution(spec ConnectorSpec, resource string, fallback ExecutionMode) ExecutionMode {
+	if !spec.Webhook.SplitsExecution() {
+		return fallback
+	}
+	if resource != "" && slices.Contains(spec.Webhook.Resources, resource) {
+		return ExecutionContinuous
+	}
+	return ExecutionBounded
 }
