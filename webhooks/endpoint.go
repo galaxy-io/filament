@@ -1,11 +1,13 @@
 package webhooks
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"time"
 	"unicode"
@@ -191,4 +193,43 @@ type EndpointLoader interface {
 type EndpointStore interface {
 	LoadWebhookEndpointForTenant(context.Context, filament.TenantID, string) (Endpoint, error)
 	PutWebhookEndpoint(context.Context, EndpointMutation) (Endpoint, error)
+}
+
+// EndpointVerification is the part of an endpoint copied from its source
+// connector's webhook spec: how deliveries are verified and routed. The
+// server compares it with the connector's current spec and rewrites it when
+// a connector update changes either.
+type EndpointVerification struct {
+	Tenant         filament.TenantID
+	SourceID       string
+	Connector      string
+	Revision       int64
+	Verifier       string
+	VerifierParams json.RawMessage
+	Ingress        Ingress
+}
+
+// Matches reports whether the endpoint already verifies and routes as the
+// spec says.
+func (v EndpointVerification) Matches(verifier string, params json.RawMessage, ingress Ingress) bool {
+	return v.Verifier == verifier &&
+		jsonEqual(StoredVerifierParams(v.VerifierParams), StoredVerifierParams(params)) &&
+		jsonEqual(StoredIngress(v.Ingress), StoredIngress(ingress))
+}
+
+// VerificationStore lists and rewrites endpoint verification. Updating checks
+// Revision and returns filament.ErrVersionConflict when the endpoint changed.
+type VerificationStore interface {
+	ListWebhookEndpointVerifications(context.Context) ([]EndpointVerification, error)
+	UpdateWebhookEndpointVerification(context.Context, EndpointVerification) error
+}
+
+// jsonEqual compares two JSON documents by value, so key order and spacing,
+// which a JSONB column does not keep, do not count as a change.
+func jsonEqual(a, b []byte) bool {
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return bytes.Equal(a, b)
+	}
+	return reflect.DeepEqual(x, y)
 }
