@@ -16,7 +16,7 @@ import {
 import CommandPalette from "@galaxy-io/dls/navigation/CommandPalette";
 import { useFilamentCommandItems } from "@galaxy-io/filament-ui/commands";
 import FilamentLayout from "@galaxy-io/filament-ui/FilamentLayout";
-import { FilamentPath } from "@galaxy-io/filament-ui/paths";
+import { FilamentPath, GalaxyProduct, type GalaxyProductUrls } from "@galaxy-io/filament-ui/paths";
 import {
   filamentLayoutRouteOptions,
   filamentNotFoundRouteOptions,
@@ -33,6 +33,11 @@ import {
 const MOUNT_PATH = "ingest";
 
 const filamentTransport = createConnectTransport({ baseUrl: "" });
+
+const FIXTURE_PRODUCT_URLS: GalaxyProductUrls = {
+  [GalaxyProduct.FILAMENT]: `/${MOUNT_PATH}`,
+  [GalaxyProduct.ALCHEMY]: "http://localhost:8780",
+};
 
 const HomePage: FC = () => {
   const commandItems = useFilamentCommandItems({
@@ -53,7 +58,7 @@ const HomePage: FC = () => {
 
 const MountLayout: FC = () => (
   <TransportProvider transport={filamentTransport}>
-    <FilamentLayout />
+    <FilamentLayout productUrls={FIXTURE_PRODUCT_URLS} />
   </TransportProvider>
 );
 

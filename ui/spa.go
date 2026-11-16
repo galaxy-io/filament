@@ -1,10 +1,12 @@
 package ui
 
 import (
+	"bytes"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 const (
@@ -14,10 +16,18 @@ const (
 	spaIndexCacheControl  = "no-cache"
 )
 
-// spaHandler serves the files in build and falls back to index.html for
-// client routes, so deep links load the app. Hashed files under assets/ are
-// cached forever, a missing one is a 404, and index.html is always revalidated.
-func spaHandler(build fs.FS) http.Handler {
+// spaHandler serves the files in build and falls back to index.html, rendered
+// with cfg, for client routes, so deep links load the app. Hashed files under
+// assets/ are cached forever, a missing one is a 404, and index.html is always
+// revalidated.
+func spaHandler(build fs.FS, cfg Config) (http.Handler, error) {
+	index, err := fs.ReadFile(build, spaIndexFile)
+	if err != nil {
+		return nil, err
+	}
+	if index, err = renderIndex(index, cfg); err != nil {
+		return nil, err
+	}
 	fileServer := http.FileServerFS(build)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
@@ -34,8 +44,8 @@ func spaHandler(build fs.FS) http.Handler {
 			return
 		}
 		w.Header().Set("Cache-Control", spaIndexCacheControl)
-		http.ServeFileFS(w, r, build, spaIndexFile)
-	})
+		http.ServeContent(w, r, spaIndexFile, time.Time{}, bytes.NewReader(index))
+	}), nil
 }
 
 func isSPAFile(build fs.FS, name string) bool {
