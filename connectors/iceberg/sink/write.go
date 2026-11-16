@@ -141,6 +141,9 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 		return nil
 	}
 	if deleteSchema != nil {
+		if err := pruneDeletes(ctx, it, rb.policy.Keys, m); err != nil {
+			return fmt.Errorf("prune equality deletes: %w", err)
+		}
 		return commitRowDelta(ctx, it, m, deleteIDs, arrowSchema)
 	}
 
@@ -201,16 +204,22 @@ func equalityDeleteSchema(it *iceTable, keys []string) ([]int, *arrow.Schema, er
 	return ids, sc, nil
 }
 
-// commitRowDelta writes the surviving rows as data files and every touched key
-// as equality deletes, committed as one snapshot. The deletes only shadow rows
-// from earlier snapshots, so the rows added beside them survive.
+// commitRowDelta writes the surviving rows as data files and the remaining
+// touched keys as equality deletes, committed as one snapshot. The deletes only
+// shadow rows from earlier snapshots, so the rows added beside them survive.
 func commitRowDelta(ctx context.Context, it *iceTable, m *mutation, deleteIDs []int, arrowSchema *arrow.Schema) error {
-	txn := it.tbl.NewTransaction()
-	deletes, err := txn.WriteEqualityDeletes(ctx, deleteIDs, retained(m.deletes))
-	if err != nil {
-		return fmt.Errorf("write equality deletes: %w", err)
+	if len(m.live) == 0 && len(m.deletes) == 0 {
+		return nil
 	}
-	rd := txn.NewRowDelta(nil).AddDeletes(deletes...)
+	txn := it.tbl.NewTransaction()
+	rd := txn.NewRowDelta(nil)
+	if len(m.deletes) > 0 {
+		deletes, err := txn.WriteEqualityDeletes(ctx, deleteIDs, retained(m.deletes))
+		if err != nil {
+			return fmt.Errorf("write equality deletes: %w", err)
+		}
+		rd.AddDeletes(deletes...)
+	}
 	if len(m.live) > 0 {
 		for df, err := range table.WriteRecords(ctx, it.tbl, arrowSchema, retained(m.live)) {
 			if err != nil {

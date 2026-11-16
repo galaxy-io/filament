@@ -148,10 +148,17 @@ uses current storage credentials, then opens one Iceberg transaction:
   `write.merge.mode` governs upsert and merge, and `write.delete.mode` governs
   delete. Under `merge-on-read` the sink writes the surviving rows and an
   equality delete for every touched key in one snapshot, so the cost follows
-  the change instead of the table. Under `copy-on-write`, the Iceberg default
-  for tables the sink did not create, it rewrites every data file that may hold
-  a touched key. [Table maintenance](#table-maintenance) compacts equality
-  deletes into the data files.
+  the change instead of the table. A key outside the bounds of every data file
+  gets no delete, so inserts with increasing single-column keys write none.
+  Under `copy-on-write`, the Iceberg default for tables the sink did not
+  create, it rewrites every data file that may hold a touched key.
+  [Table maintenance](#table-maintenance) compacts equality deletes into the
+  data files.
+
+Query engines must read equality deletes to see `merge-on-read` tables
+correctly. Trino and Spark read them. Check any other engine before pointing it
+at these tables, or set `write.merge.mode` and `write.delete.mode` to
+`copy-on-write` on the table.
 
 Buffered rows are invisible until their resource transaction commits. A run
 with several resources commits them sequentially, so a later resource can fail
