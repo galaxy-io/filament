@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	neturl "net/url"
 	"os"
 	"strconv"
@@ -34,6 +35,13 @@ func (w *webhookReceiver) apiOption() server.Option {
 	return server.WithWebhookReceiver(server.WebhookReceiver{
 		MaxBody: w.inbox.MaxBody(), Invalidate: w.cache.Invalidate, PublicBaseURL: w.publicBaseURL,
 	})
+}
+
+// serve mounts the receiver and keeps stored endpoints in step with their
+// source connectors.
+func (w *webhookReceiver) serve(ctx context.Context, mux *http.ServeMux, api *server.Server) {
+	w.receiver.Mount(mux)
+	api.StartWebhookReconciler(ctx)
 }
 
 // webhooksFromEnv provisions the durable inbox only when explicitly

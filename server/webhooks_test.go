@@ -215,3 +215,82 @@ func TestTurningWebhooksOffDisablesTheEndpoint(t *testing.T) {
 		t.Fatalf("endpoint after turning webhooks off = %+v, want disabled with its route kept", endpoint)
 	}
 }
+
+// mutableWebhookSource receives webhooks with whatever spec the test sets,
+// standing in for a connector whose update changes its verifier or routing.
+type mutableWebhookSource struct {
+	recordingSource
+	spec *filament.WebhookSpec
+}
+
+func (s *mutableWebhookSource) Spec() filament.ConnectorSpec {
+	return filament.ConnectorSpec{Name: "mutable-webhooks", Webhook: s.spec}
+}
+
+func (*mutableWebhookSource) Configure(context.Context, filament.Config) error      { return nil }
+func (*mutableWebhookSource) TestConnection(context.Context, filament.Config) error { return nil }
+
+func TestWebhookEndpointsReconcileWithConnectorSpec(t *testing.T) {
+	store := sqlite.NewMemory()
+	t.Cleanup(func() { _ = store.Close() })
+	secrets, err := secretsqlite.New(store.DB(), "test", make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec := &filament.WebhookSpec{Verifier: webhooks.StandardWebhooks, Resources: []string{"pushes"}}
+	sources := registry.NewSources()
+	sources.Register("mutable-webhooks", func() filament.Source { return &mutableWebhookSource{spec: spec} })
+	api := New(worker.Local(sources, registry.NewSinks()), store, nil, nil, WithSecrets(secrets))
+
+	created, err := api.CreateConnection(testCtx(), connect.NewRequest(&ingestionv1.CreateConnectionRequest{
+		Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, Name: "hooks", Connector: "mutable-webhooks",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceID := created.Msg.GetConnection().GetId()
+	if _, err := api.PutWebhookEndpoint(testCtx(), connect.NewRequest(&ingestionv1.PutWebhookEndpointRequest{
+		Endpoint: &ingestionv1.WebhookEndpointConfig{SourceConnectionId: sourceID}, MintSecret: true,
+	})); err != nil {
+		t.Fatal(err)
+	}
+	load := func() webhooks.Endpoint {
+		t.Helper()
+		endpoint, err := store.LoadWebhookEndpointForTenant(context.Background(), filament.DefaultTenantID, sourceID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return endpoint
+	}
+	saved := load()
+
+	// The connector moves to the HMAC profile and routes by event type.
+	spec.Verifier = webhooks.HMAC
+	spec.VerifierParams = []byte(`{"signature":{"header":"X-Hub-Signature-256","prefix":"sha256="},"delivery_id":{"header":"X-GitHub-Delivery"}}`)
+	spec.Ingress = []byte(`{"route":{"event":{"header":"X-GitHub-Event"},"events":{"push":"pushes"}}}`)
+	if err := api.ReconcileWebhookEndpoints(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	updated := load()
+	if updated.Verifier != webhooks.HMAC || updated.Ingress.Route == nil || updated.Ingress.Route.Events["push"] != "pushes" ||
+		updated.Revision != saved.Revision+1 {
+		t.Fatalf("reconciled endpoint = %+v", updated)
+	}
+	// Another pass finds nothing to change.
+	if err := api.ReconcileWebhookEndpoints(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if again := load(); again.Revision != updated.Revision {
+		t.Fatalf("second pass rewrote the endpoint: revision %d, want %d", again.Revision, updated.Revision)
+	}
+
+	// Reading an endpoint reconciles it too.
+	spec.Verifier, spec.VerifierParams, spec.Ingress = webhooks.StandardWebhooks, nil, nil
+	got, err := api.GetWebhookEndpoint(testCtx(), connect.NewRequest(&ingestionv1.GetWebhookEndpointRequest{SourceConnectionId: sourceID}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Msg.GetEndpoint().GetVerifier() != webhooks.StandardWebhooks || !load().Ingress.IsZero() {
+		t.Fatalf("read endpoint = %+v", got.Msg.GetEndpoint())
+	}
+}

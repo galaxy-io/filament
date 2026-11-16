@@ -127,7 +127,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 
 	api.Mount(mux)
 	if webhooks != nil {
-		webhooks.receiver.Mount(mux)
+		webhooks.serve(ctx, mux, api)
 	}
 	mux.Handle("/", ui.Handler())
 	healthState.MarkStarted()

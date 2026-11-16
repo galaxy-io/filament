@@ -36,6 +36,11 @@ func (a *Server) GetWebhookEndpoint(ctx context.Context, req *connect.Request[in
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	if a.reconcileWebhookEndpointOnRead(ctx, endpoint) {
+		if endpoint, err = a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, req.Msg.GetSourceConnectionId()); err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
 	return connect.NewResponse(&ingestionv1.GetWebhookEndpointResponse{Endpoint: a.webhookEndpointProto(endpoint, time.Now())}), nil
 }
 

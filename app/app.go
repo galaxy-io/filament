@@ -230,6 +230,9 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 	if cfg.webhookRetention != nil {
 		cfg.webhookRetention.Start(ctx)
 	}
+	if receiver != nil {
+		api.StartWebhookReconciler(ctx)
+	}
 	mux = http.NewServeMux()
 	api.Mount(mux)
 	if receiver != nil {
