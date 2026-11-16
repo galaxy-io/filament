@@ -218,6 +218,7 @@ A deep link into a flow is a seed. `createFilamentFlowSearch(flow, seed)` in `mo
 - **A seed is read once per open.** The overlay captures it when its session starts and keeps every later edit in memory. The URL never mirrors a draft.
 - **Seeds are ids and names another screen already knows.** Never connection config, secrets, worker configuration or free text.
 - **A stale seed is dropped, never an error.** A missing, deleted or wrong-kind id opens the flow clean, a resource the pipeline no longer has is ignored.
+- **Links into Alchemy use Alchemy's format, never a copy.** Build them with `createAlchemyFunctionHref` and read the result with `parseAlchemyReturnSearch` from `@galaxy-io/alchemy-ui/links`. The Alchemy URL comes from `useFilamentAlchemyUrl` (`module/FilamentAlchemyProvider.tsx`), which is undefined when the host gave `FilamentLayout` no `alchemyUrl`, so the entry point hides. The standalone host reads it from the `filament-runtime-config` JSON script the server writes from `ALCHEMY_URL`.
 - **A seed by id resolves before the flow mounts.** The create-pipeline modal shows `PendingLayout` while `useGetConnectionQueries` loads, the same swap the run modal does for its pipeline.
 
 ```tsx

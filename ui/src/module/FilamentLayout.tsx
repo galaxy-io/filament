@@ -10,6 +10,7 @@ import EditConnectionModal from "@/pages/connections/components/edit/EditConnect
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal";
 
+import { FilamentAlchemyProvider } from "@/module/FilamentAlchemyProvider";
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 import { Flow } from "@/module/types";
@@ -17,9 +18,10 @@ import { createFilamentFlowCloseSearch } from "@/module/utils";
 
 export interface FilamentLayoutProps {
   sidebarFooter?: ReactNode;
+  alchemyUrl?: string;
 }
 
-const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
+const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter, alchemyUrl }) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const {
     connectionId,
@@ -57,7 +59,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   }, [updateSearch]);
 
   return (
-    <>
+    <FilamentAlchemyProvider alchemyUrl={alchemyUrl}>
       <MainLayout sidebarFooter={sidebarFooter}>
         <Outlet />
       </MainLayout>
@@ -91,7 +93,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         resyncResources={resyncResources}
         onClose={handleCloseFlow}
       />
-    </>
+    </FilamentAlchemyProvider>
   );
 };
 

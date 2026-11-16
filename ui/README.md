@@ -40,7 +40,7 @@ pnpm check:host      # type-check and build the fixture host against the package
 
 | Subpath | What |
 |---|---|
-| `./paths` | `FilamentPath` and `createFilamentHref` |
+| `./paths` | `FilamentPath`, `createFilamentHref` and `createFilamentFlowSearch` |
 | `./routes` | one `*RouteOptions` per page, plus `filamentLayoutRouteOptions` and `filamentNotFoundRouteOptions` |
 | `./FilamentLayout` | the shell, its sidebar and the URL-driven drawer and modals |
 | `./commands` | `useFilamentCommandItems({ base, transport })` for a host command palette |
@@ -62,6 +62,13 @@ pnpm check:host      # type-check and build the fixture host against the package
 6. **Own the query client.** Filament works with TanStack's defaults. Skip retries for `NotFound`, `PermissionDenied`, `Unauthenticated`, `InvalidArgument` and `Unimplemented`, or a missing pipeline retries for about 7s before its not-found page. A `staleTime` of 30s is recommended.
 7. **Proxy** `/ingestion.v1.IngestionService`, `/metrics.v1.MetricsService` and `/auth.v1.AuthService` to the Filament API at the transport's `baseUrl`. When another product also serves `metrics.v1.MetricsService`, put one product behind a prefix.
 8. **Give the layout a box.** `FilamentLayout` fills its parent, so the parent needs a definite height (a flex child with `min-height: 0`).
+9. **Point Filament at Alchemy**, when the host also serves it, with `alchemyUrl` on `FilamentLayout`. It is Alchemy's mount path on the same origin, such as `/functions`, or its full URL when Alchemy runs on its own domain. Unset hides every Alchemy link.
+
+### Links into Alchemy
+
+Alchemy owns its link format. An Alchemy entry point in Filament builds its link into Alchemy's create wizard with `createAlchemyFunctionHref(alchemyUrl, returnTo, seed)` and reads what comes back with `parseAlchemyReturnSearch`, both from `@galaxy-io/alchemy-ui/links`, which carries no components. The seed holds a suggested name, a runtime id, the contract the function must accept and return, and a `returnLabel` naming the screen that asked. Create sends the person back to `returnTo` with the new function's id and version, and cancel sends them back without them.
+
+Library code reads `alchemyUrl` with `useFilamentAlchemyUrl` and hides any Alchemy entry point when it is unset. The standalone server writes its runtime config into `index.html` as the JSON script `filament-runtime-config`, with `alchemyUrl` set by `ALCHEMY_URL`, and the standalone app passes it to `FilamentLayout`. Alchemy follows a `returnTo` on another origin only when that origin is in its own `UI_RETURN_ORIGINS`, so a standalone pair needs both set.
 
 ### Releasing
 

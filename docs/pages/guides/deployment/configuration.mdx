@@ -147,6 +147,7 @@ Filament does not export logs through OTLP.
 | `WORKER_URL` | — | **Required.** Address of the persistent worker that answers connector calls, for example `http://filament-worker:8080` |
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant used when a request does not provide one |
 | `METRICSSTORE_PROVIDER` | unset | Unset reads dashboard metrics from the configured datastore. No explicit values are currently supported |
+| `ALCHEMY_URL` | unset | Where Alchemy's web application is served, such as `https://alchemy.example.com`. The web application links there to write functions and gets people back when they finish. Alchemy must list this Filament's origin in its `UI_RETURN_ORIGINS`. Unset hides every Alchemy link |
 
 ### Webhooks
 
@@ -306,7 +307,7 @@ NATS server, SQLite datastore, and read-only environment secret provider.
 | `NATS_STORE_DIR` | `<temporary directory>/filament-standalone` | Embedded JetStream storage directory |
 | `STORE_PATH` | `<NATS_STORE_DIR>/filament.db` | SQLite database path |
 
-Standalone also reads `LOG_LEVEL` and `NATS_TTL_SECONDS`. Its secret provider
+Standalone also reads `LOG_LEVEL`, `NATS_TTL_SECONDS` and `ALCHEMY_URL`. Its secret provider
 maps a reference such as `postgres-creds/dsn` to `POSTGRES_CREDS_DSN`. It
 cannot create, update, or delete secrets.
 

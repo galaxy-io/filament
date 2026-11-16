@@ -34,6 +34,8 @@ const MOUNT_PATH = "ingest";
 
 const filamentTransport = createConnectTransport({ baseUrl: "" });
 
+const FIXTURE_ALCHEMY_URL = "http://localhost:8780";
+
 const HomePage: FC = () => {
   const commandItems = useFilamentCommandItems({
     base: `/${MOUNT_PATH}`,
@@ -53,7 +55,7 @@ const HomePage: FC = () => {
 
 const MountLayout: FC = () => (
   <TransportProvider transport={filamentTransport}>
-    <FilamentLayout />
+    <FilamentLayout alchemyUrl={FIXTURE_ALCHEMY_URL} />
   </TransportProvider>
 );
 

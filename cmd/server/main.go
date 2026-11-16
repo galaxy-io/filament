@@ -26,6 +26,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/identity"
 	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
+	"github.com/galaxy-io/filament/cmd/internal/uiconfig"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
@@ -66,6 +67,11 @@ func run(ctx context.Context, migrateOnly bool) error {
 	// A nil provider means auth is disabled: the API stays unauthenticated
 	// and the UI renders without a session.
 	identityProvider, err := identity.FromEnv(ctx)
+	if err != nil {
+		return err
+	}
+
+	uiConfig, err := uiconfig.FromEnv()
 	if err != nil {
 		return err
 	}
@@ -129,7 +135,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if webhooks != nil {
 		webhooks.receiver.Mount(mux)
 	}
-	mux.Handle("/", ui.Handler())
+	mux.Handle("/", ui.Handler(uiConfig))
 	healthState.MarkStarted()
 	started = true
 	serverLog.Info("server started",

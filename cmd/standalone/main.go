@@ -34,6 +34,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/inline"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
+	"github.com/galaxy-io/filament/cmd/internal/uiconfig"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/datastore/sqlite/metrics"
 	natsbus "github.com/galaxy-io/filament/eventbus/nats"
@@ -62,6 +63,10 @@ func main() {
 
 func run(ctx context.Context) error {
 	webhookConfig, err := standaloneWebhooksFromEnv()
+	if err != nil {
+		return err
+	}
+	uiConfig, err := uiconfig.FromEnv()
 	if err != nil {
 		return err
 	}
@@ -152,7 +157,7 @@ func run(ctx context.Context) error {
 		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithLogger(lg),
 		app.WithSecrets(secrets),
-		app.WithUI(ui.Handler()),
+		app.WithUI(ui.Handler(uiConfig)),
 	}
 	if webhookInbox != nil {
 		options = append(options, app.WithWebhookInbox(webhookInbox, webhookConfig.publicBaseURL, webhookConfig.maxInFlight, retention))

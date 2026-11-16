@@ -37,6 +37,8 @@ server:
     replicas: 1
     # -- Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set.
     publicBaseURL: ""
+  # -- Where Alchemy's web application is served, e.g. `https://alchemy.example.com`. Unset hides every Alchemy link.
+  alchemyURL: ""
   # -- Minimum server log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
 
