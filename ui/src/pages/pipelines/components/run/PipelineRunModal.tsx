@@ -22,7 +22,15 @@ import {
 } from "@/pages/pipelines/components/run/constants";
 import PipelineRunModalResourcesPane from "@/pages/pipelines/components/run/PipelineRunModalResourcesPane";
 import PipelineRunModalSectionChip from "@/pages/pipelines/components/run/PipelineRunModalSectionChip";
-import { canPipelineRunResync, canPipelineRunSubset } from "@/pages/pipelines/components/run/utils";
+import type {
+  PipelineRunModalSeed,
+  PipelineRunModalState,
+} from "@/pages/pipelines/components/run/types";
+import {
+  canPipelineRunResync,
+  canPipelineRunSubset,
+  createPipelineRunModalState,
+} from "@/pages/pipelines/components/run/utils";
 import PipelineWorkerConfigurationEditor from "@/pages/pipelines/components/worker/PipelineWorkerConfigurationEditor";
 import {
   formatWorkerConfiguration,
@@ -33,7 +41,7 @@ import { usePipelineRun } from "@/pages/pipelines/hooks/usePipelineRun";
 import { getPipelineResources } from "@/pages/pipelines/utils";
 
 import { useFilamentNavigate } from "@/module/hooks";
-import { FilamentPath } from "@/module/paths";
+import { createFilamentFlowSearch, FilamentPath } from "@/module/paths";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 
 import { createGetConnectionInput, useGetConnectionQuery } from "@/api/queries/connections";
@@ -49,25 +57,22 @@ import { isNotFoundError } from "@/utils/errors";
 interface PipelineRunModalProps {
   isOpen: boolean;
   pipelineId?: Pipeline["id"];
+  resources?: PipelineRunModalSeed["resources"];
+  resyncResources?: PipelineRunModalSeed["resyncResources"];
   onClose: () => void;
 }
 
 interface PipelineRunModalContentProps {
   isOpen: boolean;
   pipeline: Pipeline;
+  seed: PipelineRunModalSeed;
   onClose: () => void;
-}
-
-interface PipelineRunModalState {
-  workerConfiguration: string;
-  selectedResources: string[];
-  resyncResources: string[];
-  isResourcesPaneOpen: boolean;
 }
 
 const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
   isOpen,
   pipeline,
+  seed,
   onClose,
 }) => {
   const navigate = useFilamentNavigate();
@@ -84,12 +89,13 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
   const canResync = canPipelineRunResync(pipeline, sourceData?.connection);
   const hasResourceOptions = canSubset || canResync;
   const defaultWorkerConfiguration = formatWorkerConfiguration(workerConfiguration);
-  const [state, setState] = useState<PipelineRunModalState>(() => ({
-    workerConfiguration: defaultWorkerConfiguration,
-    selectedResources: resources,
-    resyncResources: [],
-    isResourcesPaneOpen: false,
-  }));
+  const [state, setState] = useState<PipelineRunModalState>(() =>
+    createPipelineRunModalState({
+      resources,
+      workerConfiguration: defaultWorkerConfiguration,
+      seed,
+    }),
+  );
 
   const parsed = parseWorkerConfiguration(state.workerConfiguration);
   const isWorkerDefault =
@@ -136,7 +142,7 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
         void navigate({
           to: FilamentPath.PIPELINE_CANVAS,
           params: { id: pipeline.id },
-          search: ({ flow: _, pipelineId: __, ...rest }: FilamentLayoutSearch) => rest,
+          search: (prev: FilamentLayoutSearch) => ({ ...prev, ...createFilamentFlowSearch() }),
         }),
     });
   };
@@ -251,7 +257,13 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
   );
 };
 
-const PipelineRunModal: FC<PipelineRunModalProps> = ({ isOpen, pipelineId, onClose }) => {
+const PipelineRunModal: FC<PipelineRunModalProps> = ({
+  isOpen,
+  pipelineId,
+  resources,
+  resyncResources,
+  onClose,
+}) => {
   const session = useOverlaySession(isOpen);
   const heldPipelineId = useOverlayRecord(isOpen, pipelineId);
   const { data, error, isError } = useGetPipelineQuery({
@@ -309,6 +321,7 @@ const PipelineRunModal: FC<PipelineRunModalProps> = ({ isOpen, pipelineId, onClo
       key={session}
       isOpen={isOpen}
       pipeline={data.pipeline}
+      seed={{ resources, resyncResources }}
       onClose={onClose}
     />
   );
