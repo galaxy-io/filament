@@ -1,5 +1,9 @@
 import type { FilamentFlowSeed, FilamentLayoutSearch } from "@/module/schemas";
-import type { Flow } from "@/module/types";
+import { type Flow, GalaxyProduct } from "@/module/types";
+
+export type { GalaxyProductUrls } from "@/module/types";
+
+export { GalaxyProduct };
 
 export enum FilamentPath {
   OBSERVABILITY = "./observability",
