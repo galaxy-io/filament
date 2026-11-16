@@ -3,7 +3,7 @@ import type { FC } from "react";
 import { create } from "@bufbuild/protobuf";
 import { PauseIcon, PlayIcon, StopIcon } from "@phosphor-icons/react";
 
-import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import { IconWeight } from "@galaxy-io/dls/icons/Icon";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
@@ -26,9 +26,16 @@ import { getErrorMessage } from "@/utils/errors";
 
 interface PipelinePageActiveRunActionsProps {
   run: RunInfo;
+  isStream?: boolean;
+  isCompact?: boolean;
 }
 
-const PipelinePageActiveRunActions: FC<PipelinePageActiveRunActionsProps> = ({ run }) => {
+const PipelinePageActiveRunActions: FC<PipelinePageActiveRunActionsProps> = ({
+  run,
+  isStream = false,
+  isCompact = false,
+}) => {
+  const buttonSize = isCompact ? ButtonSize.SMALL : ButtonSize.MEDIUM;
   const { toast } = useToast();
   const { mutate: signalRun, isPending: isSignaling, variables } = useSignalRunMutation();
 
@@ -60,25 +67,29 @@ const PipelinePageActiveRunActions: FC<PipelinePageActiveRunActionsProps> = ({ r
 
   return (
     <>
-      <PipelineRunStatus
-        status={run.status}
-        executionStatus={run.executionStatus}
-        error={run.error}
-      />
+      {!isCompact && (
+        <PipelineRunStatus
+          status={run.status}
+          executionStatus={run.executionStatus}
+          error={run.error}
+        />
+      )}
       <Button
-        label={isResuming ? "Resume" : "Pause"}
+        label={`${isResuming ? "Resume" : "Pause"}${isStream ? " stream" : ""}`}
         icon={isResuming ? PlayIcon : PauseIcon}
         iconWeight={IconWeight.FILL}
         variant={ButtonVariant.SECONDARY}
+        size={buttonSize}
         isLoading={pendingSignal === pauseSignal}
         isDisabled={isStopping || isBlocked || pendingSignal === stopSignal}
         onClick={() => handleSignal(pauseSignal)}
       />
       <Button
-        label="Stop"
+        label={isStream ? "Stop stream" : "Stop"}
         icon={StopIcon}
         iconWeight={IconWeight.FILL}
         variant={ButtonVariant.ERROR}
+        size={buttonSize}
         isLoading={pendingSignal === stopSignal}
         isDisabled={isStopping || pendingSignal === pauseSignal}
         onClick={() => handleSignal(stopSignal)}

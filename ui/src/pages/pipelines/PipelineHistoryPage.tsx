@@ -21,7 +21,9 @@ import {
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_VOLUME,
 } from "@/pages/pipelines/history/constants";
 import PipelineHistoryRunInfo from "@/pages/pipelines/history/PipelineHistoryRunInfo";
+import PipelineHistoryStream from "@/pages/pipelines/history/PipelineHistoryStream";
 import { getPipelineHistoryRunTimestamp } from "@/pages/pipelines/history/utils";
+import { usePipelineExecutionLane } from "@/pages/pipelines/hooks/usePipelineExecutionLane";
 
 import {
   useFilamentSearchUpdate,
@@ -34,6 +36,7 @@ import { createGetPipelineInput, useSuspenseGetPipelineQuery } from "@/api/queri
 import { useSuspenseListRunsInfiniteQuery } from "@/api/queries/runs";
 
 import { formatTimestamp, formatVersion } from "@/utils/format";
+import { isContinuousRun } from "@/utils/runs";
 
 const createRunTableColumns = (
   versionById: ReadonlyMap<string, bigint>,
@@ -106,6 +109,7 @@ const PipelineHistoryPage: FC = () => {
   const { data: pipelineData } = useSuspenseGetPipelineQuery({
     input: createGetPipelineInput(id),
   });
+  const { isSplit } = usePipelineExecutionLane();
   const columns = useMemo(() => {
     const versions = pipelineData.pipeline?.versions ?? [];
     const versionById = new Map(versions.map((version) => [version.id, version.version] as const));
@@ -118,7 +122,12 @@ const PipelineHistoryPage: FC = () => {
     },
   );
 
-  const runs = useMemo(() => data.pages.flatMap((page) => page.runs), [data.pages]);
+  const allRuns = useMemo(() => data.pages.flatMap((page) => page.runs), [data.pages]);
+  const runs = useMemo(
+    () => (isSplit ? allRuns.filter((run) => !isContinuousRun(run)) : allRuns),
+    [allRuns, isSplit],
+  );
+  const lastStreamRun = useMemo(() => allRuns.find(isContinuousRun), [allRuns]);
 
   const handleExpandedChange = (expandedRowIds: string[]) => {
     void updateSearch(
@@ -132,24 +141,35 @@ const PipelineHistoryPage: FC = () => {
 
   return (
     <Flex direction={FlexDirection.COLUMN} grow={1} basis={0} minHeight={0} fillWidth>
-      <InfiniteTable<RunInfo>
-        ariaLabel="Run history"
-        columns={columns}
-        data={runs}
-        getRowId={(run) => run.id}
-        emptyState={
-          <EmptyLayout header="No runs yet" description="Run a pipeline to see its history here." />
-        }
-        expandedIds={runIds}
-        onExpandedIdsChange={handleExpandedChange}
-        renderExpandedRow={(row) =>
-          row.status === RunStatus.SCHEDULED ? null : <PipelineHistoryRunInfo runId={row.id} />
-        }
-        isLoading={isFetchingNextPage}
-        onEndReached={() => {
-          if (hasNextPage) fetchNextPage();
-        }}
-      />
+      {isSplit && <PipelineHistoryStream lastStreamRun={lastStreamRun} />}
+      {isSplit && runs.length === 0 && !hasNextPage ? (
+        <EmptyLayout
+          header="No batch runs yet"
+          description="Run the pipeline or set a schedule to read its API resources."
+        />
+      ) : (
+        <InfiniteTable<RunInfo>
+          ariaLabel="Run history"
+          columns={columns}
+          data={runs}
+          getRowId={(run) => run.id}
+          emptyState={
+            <EmptyLayout
+              header="No runs yet"
+              description="Run a pipeline to see its history here."
+            />
+          }
+          expandedIds={runIds}
+          onExpandedIdsChange={handleExpandedChange}
+          renderExpandedRow={(row) =>
+            row.status === RunStatus.SCHEDULED ? null : <PipelineHistoryRunInfo runId={row.id} />
+          }
+          isLoading={isFetchingNextPage}
+          onEndReached={() => {
+            if (hasNextPage) fetchNextPage();
+          }}
+        />
+      )}
     </Flex>
   );
 };

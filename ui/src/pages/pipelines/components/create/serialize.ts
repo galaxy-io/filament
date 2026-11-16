@@ -116,14 +116,15 @@ const createSinkEdges = ({
   rows
     .filter((row) => row.isSelected)
     .map((row) => {
-      const readMode = hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED;
+      const hasRowReadLevers = hasReadLevers && !row.isWebhook;
+      const readMode = hasRowReadLevers ? row.readMode : ReadMode.UNSPECIFIED;
       return create(PipelineEdgeSchema, {
         fromNode: sourceId,
         resource: row.name,
         toNode: sink.connection.id,
         readMode,
         writeMode: hasReadLevers ? row.writeMode : sink.writeMode,
-        cursors: hasReadLevers ? createCursors([row], readMode) : [],
+        cursors: hasRowReadLevers ? createCursors([row], readMode) : [],
         columns: createColumns(row),
         partitions: createPartitions(row, readMode),
       });

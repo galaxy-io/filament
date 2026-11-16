@@ -105,4 +105,9 @@ export const WRITE_MODE_TO_LABEL_MAP: Record<WriteMode, string> = {
 export const CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE = ReadMode.FULL;
 export const CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE = WriteMode.UPSERT;
 
+export const CREATE_PIPELINE_MODAL_WEBHOOK_WRITE_MODES = new Set([
+  WriteMode.UPSERT,
+  WriteMode.APPEND,
+]);
+
 export const CREATE_PIPELINE_MODAL_DEFAULT_CRON = "0 * * * *";

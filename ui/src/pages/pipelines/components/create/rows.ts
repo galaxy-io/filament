@@ -3,9 +3,12 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { GetResourceColumnsResponse, Resource } from "@/gen/ingestion/v1/connectors_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { isWebhookIngressResource } from "@/components/webhooks/utils";
+
 import {
   CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE,
   CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE,
+  CREATE_PIPELINE_MODAL_WEBHOOK_WRITE_MODES,
 } from "@/pages/pipelines/components/create/constants";
 import type {
   CreatePipelineModalResourceRow,
@@ -39,6 +42,31 @@ export const isResourceSelected = (
 ): boolean =>
   resource.isSelectable &&
   (selection?.[resource.name] ?? resource.metadata.default_resources !== "false");
+
+const getRowWriteModeOptions = ({
+  supportedWriteModes,
+  readMode,
+  hasReadLevers,
+  isWebhook,
+}: {
+  supportedWriteModes: WriteMode[];
+  readMode: ReadMode;
+  hasReadLevers: boolean;
+  isWebhook: boolean;
+}): WriteMode[] => {
+  if (!hasReadLevers) return [];
+  if (isWebhook) {
+    return supportedWriteModes.filter((mode) =>
+      CREATE_PIPELINE_MODAL_WEBHOOK_WRITE_MODES.has(mode),
+    );
+  }
+  return getCompatibleWriteModes(supportedWriteModes, [readMode]);
+};
+
+const getDefaultRowWriteMode = (isWebhook: boolean, resource: Resource): WriteMode =>
+  isWebhook && !resource.primaryKey.length
+    ? WriteMode.APPEND
+    : CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE;
 
 const createResourceRows = ({
   state,
@@ -75,23 +103,31 @@ const createResourceRows = ({
       .map((entry) => entry.resource),
   );
   return resources.map((resource) => {
+    const isWebhook = isWebhookIngressResource(resource);
+    const hasRowReadLevers = hasReadLevers && !isWebhook;
     const managedIncremental = managedResources.has(resource.name);
     const resourceColumns = columnsByResource.get(resource.name);
     const isCursorKnown = resourceColumns !== undefined;
     const cursorOptions = getCursorOptions(resourceColumns ?? []);
-    const readModeOptions = hasReadLevers ? (supportedReadModes[resource.name] ?? []) : [];
+    const readModeOptions = hasRowReadLevers ? (supportedReadModes[resource.name] ?? []) : [];
     const defaultReadMode = getDefaultReadMode({
       columns: resourceColumns ?? [],
       readModeOptions,
       managedIncremental,
       fallback: CREATE_PIPELINE_MODAL_DEFAULT_READ_MODE,
     });
-    const readMode = state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode;
-    const writeModeOptions = hasReadLevers
-      ? getCompatibleWriteModes(supportedWriteModes, [readMode])
-      : [];
+    const readMode = isWebhook
+      ? ReadMode.UNSPECIFIED
+      : (state.resourceReadModes[sinkId]?.[resource.name] ?? defaultReadMode);
+    const writeModeOptions = getRowWriteModeOptions({
+      supportedWriteModes,
+      readMode,
+      hasReadLevers,
+      isWebhook,
+    });
     const storedWriteMode =
-      state.resourceWriteModes[sinkId]?.[resource.name] ?? CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE;
+      state.resourceWriteModes[sinkId]?.[resource.name] ??
+      getDefaultRowWriteMode(isWebhook, resource);
     const writeMode = writeModeOptions.includes(storedWriteMode)
       ? storedWriteMode
       : (writeModeOptions[0] ?? WriteMode.UNSPECIFIED);
@@ -103,7 +139,7 @@ const createResourceRows = ({
     const lockedColumns = getLockedColumnNames({
       primaryKey: resource.primaryKey,
       cursor: cursorField,
-      isCursorLocked: hasReadLevers && readMode === ReadMode.INCREMENTAL,
+      isCursorLocked: hasRowReadLevers && readMode === ReadMode.INCREMENTAL,
     });
     const selectedColumns = getEffectiveColumnSelection({
       stored: storedColumns,
@@ -119,6 +155,7 @@ const createResourceRows = ({
     return {
       name: resource.name,
       displayName: resource.displayName || resource.name,
+      isWebhook,
       isSelectable: resource.isSelectable,
       isSelected,
       readMode,
@@ -135,7 +172,7 @@ const createResourceRows = ({
       partitions,
       selectedPartitions,
       status:
-        !hasReadLevers || !isSelected
+        !hasRowReadLevers || !isSelected
           ? undefined
           : getPipelineResourceStatus({
               readMode,
@@ -202,9 +239,13 @@ export const createSinkRows = ({
     };
   });
 
+const hasRowWriteModeChoice = (row: CreatePipelineModalResourceRow, hasReadLevers: boolean) =>
+  row.readModeOptions.length > 0 || (row.isWebhook && hasReadLevers);
+
 export const getIssuesBySink = (
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>,
   sinks: CreatePipelineModalSinkRow[],
+  hasReadLevers: boolean,
 ): Record<Connection["id"], string[]> =>
   Object.fromEntries(
     sinks.map((sink) => {
@@ -218,7 +259,10 @@ export const getIssuesBySink = (
       if (
         !sink.writeModeOptions.length ||
         rows.some(
-          (row) => row.isSelected && row.readModeOptions.length && !row.writeModeOptions.length,
+          (row) =>
+            row.isSelected &&
+            hasRowWriteModeChoice(row, hasReadLevers) &&
+            !row.writeModeOptions.length,
         )
       )
         issues.push("No compatible write mode is available for this route");

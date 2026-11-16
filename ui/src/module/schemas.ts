@@ -1,6 +1,6 @@
 import z from "zod";
 
-import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import { SortBy, SortOrder } from "@/gen/ingestion/v1/sorting_pb";
 import { MetricDimension } from "@/gen/metrics/v1/metrics_pb";
@@ -70,6 +70,7 @@ export const pipelineParamsSchema = z.object({ id: z.string() });
 
 export const pipelineSearchSchema = z.object({
   version: z.coerce.bigint().positive().optional().catch(undefined),
+  mode: z.enum(ExecutionMode).optional().catch(undefined),
 });
 
 export type PipelineSearch = z.infer<typeof pipelineSearchSchema>;

@@ -13,6 +13,7 @@ import {
   ReactFlow,
 } from "@xyflow/react";
 
+import Flex, { AlignItems } from "@galaxy-io/dls/layout/Flex";
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
@@ -32,6 +33,7 @@ import {
 import PipelineCanvasEdge from "@/pages/pipelines/canvas/edges/PipelineCanvasEdge";
 import { getPlaceholderNodes } from "@/pages/pipelines/canvas/graph/layout";
 import { canConnectEdge, expandConnection } from "@/pages/pipelines/canvas/graph/rules";
+import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasRunningEdgeIds } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasRunningEdgeIds";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
@@ -41,6 +43,7 @@ import PipelineCanvasNodeSink from "@/pages/pipelines/canvas/nodes/PipelineCanva
 import PipelineCanvasNodeSource from "@/pages/pipelines/canvas/nodes/PipelineCanvasNodeSource";
 import PipelineCanvasControls from "@/pages/pipelines/canvas/PipelineCanvasControls";
 import PipelineCanvasEditWidget from "@/pages/pipelines/canvas/PipelineCanvasEditWidget";
+import PipelineCanvasLaneSwitcher from "@/pages/pipelines/canvas/PipelineCanvasLaneSwitcher";
 import PipelineCanvasSelectionReveal from "@/pages/pipelines/canvas/PipelineCanvasSelectionReveal";
 import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasViewSwitcher";
 import PipelineCanvasPanelOpenButton from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelOpenButton";
@@ -56,6 +59,7 @@ import {
   mapEdgesToStyledEdges,
   mapElementsToSelected,
 } from "@/pages/pipelines/canvas/utils";
+import { usePipelineExecutionLane } from "@/pages/pipelines/hooks/usePipelineExecutionLane";
 
 const filterSelectionChanges = <T extends { type: string }>(changes: T[]): T[] =>
   changes.filter((change) => change.type !== "select");
@@ -194,10 +198,19 @@ const PipelineCanvasFlow: FC = () => {
   const runningEdgeIds = usePipelineCanvasRunningEdgeIds(state.edges, state.nodes);
 
   const { invalidEdgeIds } = usePipelineCanvasValidation();
+  const { isResourceInLane } = usePipelineExecutionLane();
   const styledEdges = useMemo(
     () =>
-      mapEdgesToStyledEdges(selectedEdges, selectedNodes, theme, runningEdgeIds, invalidEdgeIds),
-    [selectedEdges, selectedNodes, theme, runningEdgeIds, invalidEdgeIds],
+      mapEdgesToStyledEdges(
+        selectedEdges,
+        selectedNodes,
+        theme,
+        runningEdgeIds,
+        invalidEdgeIds,
+      ).map((edge) =>
+        isResourceInLane(getCanvasEdgeResource(edge)) ? edge : { ...edge, hidden: true },
+      ),
+    [selectedEdges, selectedNodes, theme, runningEdgeIds, invalidEdgeIds, isResourceInLane],
   );
 
   return (
@@ -252,7 +265,10 @@ const PipelineCanvasFlow: FC = () => {
       </ReactFlow>
       <FlowToolbar>
         <PipelineCanvasViewSwitcher />
-        <PipelineCanvasPanelOpenButton />
+        <Flex alignItems={AlignItems.CENTER} gap={8}>
+          <PipelineCanvasLaneSwitcher />
+          <PipelineCanvasPanelOpenButton />
+        </Flex>
       </FlowToolbar>
       {!isReadOnly && <PipelineCanvasEditWidget />}
     </FlowWrapper>

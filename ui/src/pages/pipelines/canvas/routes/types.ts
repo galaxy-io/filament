@@ -13,6 +13,7 @@ export interface PipelineCanvasRoute {
   groupIndex: number;
   groupSize: number;
   hasReadLevers: boolean;
+  isWebhook: boolean;
   transformStepCount: number;
   issues: string[];
   isInvalid: boolean;

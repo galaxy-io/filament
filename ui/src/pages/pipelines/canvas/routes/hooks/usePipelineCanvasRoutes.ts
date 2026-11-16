@@ -13,6 +13,7 @@ import { getPipelineCanvasRouteGroupKey } from "@/pages/pipelines/canvas/routes/
 import type { CanvasEdge, CanvasNode } from "@/pages/pipelines/canvas/types";
 import { PipelineCanvasValidationIssueKind } from "@/pages/pipelines/canvas/types";
 import { getTransformStepCount } from "@/pages/pipelines/canvas/utils";
+import { usePipelineExecutionLane } from "@/pages/pipelines/hooks/usePipelineExecutionLane";
 import { usePipelineExecutionMode } from "@/pages/pipelines/hooks/usePipelineExecutionMode";
 
 interface PipelineCanvasRoutesOptions {
@@ -42,6 +43,7 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
   const connectionByNodeId = usePipelineCanvasConnections();
   const { issues, invalidEdgeIds, edgeValidationByEdgeId } = usePipelineCanvasValidation();
   const isContinuous = usePipelineExecutionMode() === ExecutionMode.CONTINUOUS;
+  const { isResourceInLane } = usePipelineExecutionLane();
 
   const routes = useMemo<PipelineCanvasRoute[]>(() => {
     const issuesByEdgeId = new Map<CanvasEdge["id"], string[]>();
@@ -56,20 +58,26 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
 
     const drafts = edges
       .filter((edge) => sinkIds.length === 0 || sinkIds.includes(edge.target))
+      .filter((edge) => isResourceInLane(getCanvasEdgeResource(edge)))
       .map<PipelineCanvasRouteDraft>((edge) => {
         const resource = getCanvasEdgeResource(edge);
         const sourceConnection = connectionByNodeId.get(edge.source);
+        const verdict = edgeValidationByEdgeId.get(edge.id);
+        const isWebhook =
+          !isContinuous && verdict?.effectiveExecutionMode === ExecutionMode.CONTINUOUS;
         return {
           edge,
           resource,
           sourceConnection,
           sinkConnection: connectionByNodeId.get(edge.target),
           groupKey: getPipelineCanvasRouteGroupKey(edge.source, resource),
-          hasReadLevers: sourceConnection?.replication !== ReplicationMode.CDC && !isContinuous,
+          hasReadLevers:
+            sourceConnection?.replication !== ReplicationMode.CDC && !isContinuous && !isWebhook,
+          isWebhook,
           transformStepCount: getTransformStepCount(edge.data?.transform, resource),
           issues: issuesByEdgeId.get(edge.id) ?? [],
           isInvalid: invalidEdgeIds.has(edge.id),
-          verdict: edgeValidationByEdgeId.get(edge.id),
+          verdict,
         };
       })
       .filter((draft) =>
@@ -99,9 +107,10 @@ export const usePipelineCanvasRoutes = ({ search, sinkIds }: PipelineCanvasRoute
     invalidEdgeIds,
     edgeValidationByEdgeId,
     isContinuous,
+    isResourceInLane,
     search,
     sinkIds,
   ]);
 
-  return { routes, hasRoutes: edges.length > 0 };
+  return { routes, hasRoutes: edges.some((edge) => isResourceInLane(getCanvasEdgeResource(edge))) };
 };

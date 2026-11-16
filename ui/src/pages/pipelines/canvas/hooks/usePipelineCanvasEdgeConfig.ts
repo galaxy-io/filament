@@ -18,6 +18,7 @@ interface PipelineCanvasEdgeConfigOptions extends PipelineCanvasEdgeModeOptions 
   resource: Resource["name"];
   defaultCursor: ResourceColumn["name"];
   hasReadLevers: boolean;
+  isWebhook: boolean;
 }
 
 export const usePipelineCanvasEdgeConfig = (
@@ -30,6 +31,7 @@ export const usePipelineCanvasEdgeConfig = (
     resource,
     defaultCursor,
     hasReadLevers,
+    isWebhook,
   }: PipelineCanvasEdgeConfigOptions,
 ) => {
   const { setEdgeConfig, setRouteWriteMode } = usePipelineCanvasActions();
@@ -81,12 +83,12 @@ export const usePipelineCanvasEdgeConfig = (
   };
 
   const handleWriteModeChange = (mode: WriteMode) =>
-    hasReadLevers
+    hasReadLevers || isWebhook
       ? setEdgeConfig(edge.id, {
-          readMode,
+          readMode: isWebhook ? ReadMode.UNSPECIFIED : readMode,
           writeMode: mode,
-          cursors,
-          transform: edge.data?.transform,
+          cursors: isWebhook ? [] : cursors,
+          transform: isWebhook ? undefined : edge.data?.transform,
         })
       : setRouteWriteMode(edge.source, edge.target, mode);
 

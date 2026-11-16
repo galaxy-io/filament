@@ -227,7 +227,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
 
   const issuesBySink = useMemo(() => {
     if (isLoading || discoverError) return {};
-    const issues = getIssuesBySink(rowsBySink, sinks);
+    const issues = getIssuesBySink(rowsBySink, sinks, hasReadLevers);
     if (!isContinuous) {
       return Object.fromEntries(
         sinks.map((sink) => {
@@ -260,7 +260,16 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
         return [sinkId, [...new Set([...(issues[sinkId] ?? []), ...edgeErrors])]];
       }),
     );
-  }, [rowsBySink, sinks, isContinuous, validation, validationError, isLoading, discoverError]);
+  }, [
+    rowsBySink,
+    sinks,
+    hasReadLevers,
+    isContinuous,
+    validation,
+    validationError,
+    isLoading,
+    discoverError,
+  ]);
   const selectedCountBySink = useMemo(() => getSelectedCountBySink(rowsBySink), [rowsBySink]);
 
   return {

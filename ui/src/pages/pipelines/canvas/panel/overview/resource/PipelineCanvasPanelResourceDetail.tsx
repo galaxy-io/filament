@@ -21,6 +21,7 @@ import KeyValueListRow from "@/components/KeyValueListRow";
 import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
 import { isWebhookResource } from "@/components/webhooks/utils";
 import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryUrlCopyButton";
+import WebhookResourceChip from "@/components/webhooks/WebhookResourceChip";
 
 import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
@@ -77,6 +78,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
     isContinuous,
+    isWebhook,
     hasReadLevers,
     isTransformable,
     isLoading,
@@ -116,6 +118,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     resource,
     defaultCursor,
     hasReadLevers,
+    isWebhook,
   });
   const destinationResource = edge.data?.destinationResource ?? "";
   const status = getEdgeResourceStatus(options, { verdict, readMode, writeMode, cursor });
@@ -216,9 +219,12 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
               <KeyValueListRow
                 label="Resource"
                 value={
-                  <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-                    {resource}
-                  </Text>
+                  <Flex alignItems={AlignItems.CENTER} gap={8}>
+                    <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
+                      {resource}
+                    </Text>
+                    {isWebhook && <WebhookResourceChip />}
+                  </Flex>
                 }
               />
               {sourceConnection && isWebhookResource(webhookSpec, resource) && (

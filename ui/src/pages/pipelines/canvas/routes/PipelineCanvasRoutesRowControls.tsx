@@ -92,6 +92,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
     resource,
     defaultCursor,
     hasReadLevers: route.hasReadLevers,
+    isWebhook: route.isWebhook,
   });
 
   const cursorSelectOptions = getCursorSelectOptions(cursorOptions);

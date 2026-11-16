@@ -50,6 +50,7 @@ export interface CreatePipelineModalState {
 export interface CreatePipelineModalResourceRow {
   name: Resource["name"];
   displayName: Resource["displayName"];
+  isWebhook: boolean;
   isSelectable: boolean;
   isSelected: boolean;
   readMode: ReadMode;

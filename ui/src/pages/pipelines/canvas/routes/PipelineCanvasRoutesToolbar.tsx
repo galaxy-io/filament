@@ -23,6 +23,7 @@ import { ConnectorTileSize } from "@/components/connections/types";
 
 import { PIPELINE_CANVAS_VIEW_SWITCHER_INSET } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
+import PipelineCanvasLaneSwitcher from "@/pages/pipelines/canvas/PipelineCanvasLaneSwitcher";
 import PipelineCanvasViewSwitcher from "@/pages/pipelines/canvas/PipelineCanvasViewSwitcher";
 import PipelineCanvasPanelOpenButton from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelOpenButton";
 import {
@@ -145,6 +146,7 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
               : { label: "Add route" })}
           />
         )}
+        <PipelineCanvasLaneSwitcher />
         <PipelineCanvasPanelOpenButton />
       </Flex>
     </Flex>

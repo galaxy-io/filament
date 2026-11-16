@@ -5,6 +5,8 @@ import Box from "@galaxy-io/dls/layout/Box";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
 
+import WebhookResourceChip from "@/components/webhooks/WebhookResourceChip";
+
 import {
   useCreatePipelineModalActions,
   useCreatePipelineModalState,
@@ -24,6 +26,8 @@ const CreatePipelineModalResourcesReadModeCell: FC<
   const { activeSinkId } = useCreatePipelineModalState();
   const { setResourceReadMode } = useCreatePipelineModalActions();
   const options = getReadModeSelectOptions(row.readModeOptions, row.readMode);
+
+  if (row.isWebhook) return <WebhookResourceChip />;
 
   const handleReadModeChange = (id: string | null) => {
     if (id === null) return;

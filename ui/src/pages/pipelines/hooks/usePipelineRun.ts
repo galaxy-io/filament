@@ -5,7 +5,7 @@ import { create } from "@bufbuild/protobuf";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
-import type { WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
+import type { ExecutionMode, WorkerConfiguration } from "@/gen/ingestion/v1/common_pb";
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunPipelineRequestSchema } from "@/gen/ingestion/v1/runs_pb";
 
@@ -19,6 +19,7 @@ interface PipelineRunOptions {
   workerConfiguration?: WorkerConfiguration;
   resources?: string[];
   resyncResources?: string[];
+  executionMode?: ExecutionMode;
   onSuccess?: () => void;
 }
 
@@ -29,7 +30,13 @@ export const usePipelineRun = () => {
   const startRun = useCallback(
     (
       pipeline: Pipeline,
-      { workerConfiguration, resources, resyncResources, onSuccess }: PipelineRunOptions = {},
+      {
+        workerConfiguration,
+        resources,
+        resyncResources,
+        executionMode,
+        onSuccess,
+      }: PipelineRunOptions = {},
     ) => {
       const run = runPipeline(
         create(RunPipelineRequestSchema, {
@@ -37,7 +44,7 @@ export const usePipelineRun = () => {
           workerConfiguration,
           resources,
           resyncResources,
-          options: { executionMode: pipeline.executionMode },
+          options: { executionMode: executionMode ?? pipeline.executionMode },
         }),
       );
       toast.promise(run, {

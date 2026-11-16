@@ -15,6 +15,8 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import PipelineFlow, { PipelineFlowSize } from "@/components/pipelines/PipelineFlow";
 import { formatPipelineName, mapVersionNodesToFlowEndpoints } from "@/components/pipelines/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { getBoundedResources } from "@/components/webhooks/utils";
 
 import {
   PIPELINE_RUN_MODAL_RESOURCES_CARET_SIZE,
@@ -73,13 +75,14 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
   const navigate = useFilamentNavigate();
   const { startRun, isRunning } = usePipelineRun();
   const { workerConfiguration, currentVersion } = pipeline;
-  const resources = getPipelineResources(currentVersion);
   const { sourceId, sinkIds } = mapVersionNodesToFlowEndpoints(currentVersion?.graph?.nodes ?? []);
   const pipelineName = formatPipelineName(pipeline);
   const { data: sourceData } = useGetConnectionQuery({
     input: createGetConnectionInput(sourceId ?? ""),
     options: { enabled: !!sourceId },
   });
+  const { webhookSpec } = useConnectionWebhookSpec(sourceData?.connection);
+  const resources = getBoundedResources(getPipelineResources(currentVersion), webhookSpec);
   const canSubset = canPipelineRunSubset(pipeline, sourceData?.connection);
   const canResync = canPipelineRunResync(pipeline, sourceData?.connection);
   const hasResourceOptions = canSubset || canResync;
@@ -95,7 +98,9 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
   const isWorkerDefault =
     state.workerConfiguration === defaultWorkerConfiguration ||
     (!parsed.error && isWorkerConfigurationEqual(parsed.configuration, workerConfiguration));
-  const runResources = canSubset ? state.selectedResources : resources;
+  const runResources = canSubset
+    ? state.selectedResources.filter((resource) => resources.includes(resource))
+    : resources;
   const isSubset = runResources.length < resources.length;
   const resyncResources = canResync
     ? state.resyncResources.filter((resource) => runResources.includes(resource))

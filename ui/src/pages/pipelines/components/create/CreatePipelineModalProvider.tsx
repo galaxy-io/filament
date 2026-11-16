@@ -12,6 +12,9 @@ import { match } from "ts-pattern";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { isWebhookSplittingExecution } from "@/components/webhooks/utils";
+
 import {
   type AddNotifierAction,
   type AddResourceAction,
@@ -146,10 +149,26 @@ const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProvi
   isOpen,
   children,
 }) => {
-  const [state, dispatch] = useReducer(
+  const [reducerState, dispatch] = useReducer(
     createPipelineModalReducer,
     undefined,
     createInitialCreatePipelineModalState,
+  );
+
+  const { webhookSpec } = useConnectionWebhookSpec(reducerState.sourceConnection);
+  const isSplittingExecution = isWebhookSplittingExecution(webhookSpec);
+  const state = useMemo(
+    () =>
+      isSplittingExecution && reducerState.executionMode !== ExecutionMode.BOUNDED
+        ? {
+            ...reducerState,
+            executionMode: ExecutionMode.BOUNDED,
+            sinkConnections: reducerState.sinkConnections.filter((sink) =>
+              sink.executionModes.includes(ExecutionMode.BOUNDED),
+            ),
+          }
+        : reducerState,
+    [reducerState, isSplittingExecution],
   );
 
   const {
@@ -165,7 +184,9 @@ const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProvi
   } = useCreatePipelineResources(state, isOpen);
 
   const value = useMemo<CreatePipelineModalContextValue>(() => {
-    const supportedExecutionModes = getSupportedExecutionModes(state.sourceConnection);
+    const supportedExecutionModes = isSplittingExecution
+      ? [ExecutionMode.BOUNDED]
+      : getSupportedExecutionModes(state.sourceConnection);
     const isContinuous = state.executionMode === ExecutionMode.CONTINUOUS;
 
     const blockingMessages = sinks.flatMap((sink) =>
@@ -240,6 +261,7 @@ const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProvi
     };
   }, [
     state,
+    isSplittingExecution,
     rowsBySink,
     sinks,
     replication,

@@ -12,6 +12,8 @@ import {
   type ResourceColumns,
 } from "@/gen/ingestion/v1/connectors_pb";
 
+import { isWebhookIngressResource } from "@/components/webhooks/utils";
+
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import type { CanvasEdge } from "@/pages/pipelines/canvas/types";
@@ -27,6 +29,7 @@ interface PipelineCanvasEdgeResourcesOptions {
 
 export interface PipelineCanvasEdgeResources {
   isContinuous: boolean;
+  isWebhook: boolean;
   hasReadLevers: boolean;
   isTransformable: boolean;
   isLoadingColumns: boolean;
@@ -48,13 +51,10 @@ export const usePipelineCanvasEdgeResources = (
   { enabled = true }: PipelineCanvasEdgeResourcesOptions = {},
 ): PipelineCanvasEdgeResources => {
   const executionMode = usePipelineExecutionMode();
-  const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
   const connectionByNodeId = usePipelineCanvasConnections();
   const sourceConnection = connectionByNodeId.get(edge.source);
   const sourceConnectionId = sourceConnection?.id ?? "";
   const isCdc = sourceConnection?.replication === ReplicationMode.CDC;
-  const hasReadLevers = !isCdc && !isContinuous;
-  const isTransformable = !isContinuous;
   const resource = getCanvasEdgeResource(edge);
   const isQueryable = enabled && sourceConnectionId !== "" && resource !== "";
 
@@ -62,6 +62,14 @@ export const usePipelineCanvasEdgeResources = (
     input: create(DiscoverResourcesRequestSchema, { connectionId: sourceConnectionId }),
     options: { ...PROBE_QUERY_OPTIONS, enabled: isQueryable },
   });
+  const discoveredResource = discovered?.resources.find((candidate) => candidate.name === resource);
+  const isWebhook = !!discoveredResource && isWebhookIngressResource(discoveredResource);
+  const isSplittingExecution = !!discovered?.resources.some(isWebhookIngressResource);
+  const isContinuous = isSplittingExecution
+    ? isWebhook
+    : executionMode === ExecutionMode.CONTINUOUS;
+  const hasReadLevers = !isCdc && !isContinuous;
+  const isTransformable = !isContinuous;
 
   const { data: columnsData, isLoading } = useGetResourceColumnsQuery({
     input: create(GetResourceColumnsRequestSchema, {
@@ -78,6 +86,7 @@ export const usePipelineCanvasEdgeResources = (
 
   return {
     isContinuous,
+    isWebhook,
     hasReadLevers,
     isTransformable,
     isLoadingColumns: isQueryable && isLoading,
@@ -89,8 +98,6 @@ export const usePipelineCanvasEdgeResources = (
     isManagedIncremental,
     isColumnSelectable: entry?.selectableColumns ?? false,
     partitions: entry?.partitions ?? NO_PARTITIONS,
-    hasPrimaryKey:
-      (discovered?.resources.find((candidate) => candidate.name === resource)?.primaryKey.length ??
-        0) > 0,
+    hasPrimaryKey: (discoveredResource?.primaryKey.length ?? 0) > 0,
   };
 };
