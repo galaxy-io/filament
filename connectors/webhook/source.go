@@ -37,17 +37,16 @@ func NewWithInbox(i *inbox.Inbox) *Source {
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "webhook", DisplayName: "Webhook", Version: "1",
-		Description:     "Receive signed webhook deliveries through Filament's durable inbox.",
-		DarkLogoURL:     "https://cdn.getgalaxy.io/sources/source-icon-webhook-dark.svg",
-		LightLogoURL:    "https://cdn.getgalaxy.io/sources/source-icon-webhook-light.svg",
-		WebhookVerifier: webhooks.GenericHMAC,
+		Description:  "Receive signed webhook deliveries through Filament's durable inbox.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-webhook-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-webhook-light.svg",
 		Stream: &filament.StreamCapabilities{
 			Input:    filament.InputMessages,
 			Ordering: []filament.Ordering{filament.OrderingNone},
 			Delivery: filament.DeliveryReplayableAtLeastOnce,
 		},
-		Config:    filament.ConfigSchema{Fields: stream.BatchFields()},
-		Resources: filament.ResourceCapabilities{WebhookEndpointBacked: true},
+		Config:  filament.ConfigSchema{Fields: stream.BatchFields()},
+		Webhook: &filament.WebhookSpec{Verifier: webhooks.GenericHMAC, DynamicResources: true},
 	}
 }
 

@@ -1937,6 +1937,68 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetWebhookDeliveryURL": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetWebhookDeliveryURL",
+        "operationId": "ingestion.v1.IngestionService.GetWebhookDeliveryURL",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetWebhookDeliveryURLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetWebhookDeliveryURLResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/GetWebhookEndpoint": {
       "post": {
         "tags": [
@@ -4093,7 +4155,17 @@
           "webhookVerifier": {
             "type": "string",
             "title": "webhook_verifier",
-            "description": "Ingress verifier for sources that receive webhooks. Empty otherwise."
+            "description": "Deprecated: read webhook.verifier.",
+            "deprecated": true
+          },
+          "webhook": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookSpec"
+              }
+            ],
+            "title": "webhook",
+            "description": "Set for sources that receive provider webhooks."
           }
         },
         "title": "ConnectorSpec",
@@ -4859,6 +4931,30 @@
           }
         },
         "title": "GetVersionResponse",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetWebhookDeliveryURLRequest": {
+        "type": "object",
+        "properties": {
+          "sourceConnectionId": {
+            "type": "string",
+            "title": "source_connection_id"
+          }
+        },
+        "title": "GetWebhookDeliveryURLRequest",
+        "additionalProperties": false,
+        "description": "The delivery URL belongs to the source connection, so it is known before the\n endpoint exists. A provider that creates the signing secret needs the URL\n first, and the endpoint needs that secret."
+      },
+      "ingestion.v1.GetWebhookDeliveryURLResponse": {
+        "type": "object",
+        "properties": {
+          "deliveryUrl": {
+            "type": "string",
+            "title": "delivery_url",
+            "description": "\u003cpublic base URL\u003e/hooks/\u003csource_connection_id\u003e, without the resource.\n Empty when the server has no public base URL configured."
+          }
+        },
+        "title": "GetWebhookDeliveryURLResponse",
         "additionalProperties": false
       },
       "ingestion.v1.GetWebhookEndpointRequest": {
@@ -7265,6 +7361,88 @@
         "title": "WebhookEndpointConfig",
         "additionalProperties": false,
         "description": "WebhookEndpointConfig is tenant-owned receiver configuration. Signing keys\n are never returned by a read operation."
+      },
+      "ingestion.v1.WebhookSecretIssuer": {
+        "type": "string",
+        "title": "WebhookSecretIssuer",
+        "enum": [
+          "WEBHOOK_SECRET_ISSUER_UNSPECIFIED",
+          "WEBHOOK_SECRET_ISSUER_FILAMENT",
+          "WEBHOOK_SECRET_ISSUER_PROVIDER"
+        ],
+        "description": "WebhookSecretIssuer says who creates a webhook's signing secret."
+      },
+      "ingestion.v1.WebhookSpec": {
+        "type": "object",
+        "properties": {
+          "verifier": {
+            "type": "string",
+            "title": "verifier",
+            "description": "Verifier profile that authenticates deliveries, and its parameters."
+          },
+          "verifierParams": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "verifier_params"
+          },
+          "dynamicResources": {
+            "type": "boolean",
+            "title": "dynamic_resources",
+            "description": "The endpoint configuration names the resources, rather than the source."
+          },
+          "ingestionField": {
+            "type": "string",
+            "title": "ingestion_field",
+            "description": "Enum connection config field that chooses how a connection reads the\n source: \"api\" (the default), \"webhooks\" or \"both\". Empty means every\n connection of the source receives webhooks."
+          },
+          "setup": {
+            "type": "string",
+            "title": "setup",
+            "description": "Markdown instructions for configuring the sender."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resources",
+            "description": "Resources the source reads from deliveries. Empty when\n dynamic_resources is set and the endpoint names them."
+          },
+          "ingress": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "ingress",
+            "description": "How the receiver routes deliveries sent to the endpoint's single URL.\n Saving an endpoint copies it."
+          },
+          "splitsExecution": {
+            "type": "boolean",
+            "title": "splits_execution",
+            "description": "Webhook resources run continuously while the source's other resources\n run bounded, so one pipeline holds both. The webhook route key then ends\n in \"/continuous\"."
+          },
+          "routed": {
+            "type": "boolean",
+            "title": "routed",
+            "description": "Deliveries may be sent to the endpoint's single URL and are routed to a\n resource by their event type. Each resource keeps its own URL as well."
+          },
+          "secretIssuer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookSecretIssuer"
+              }
+            ],
+            "title": "secret_issuer",
+            "description": "Who creates the signing secret. With PROVIDER the connection must be\n given the provider's secret and Filament never mints one."
+          }
+        },
+        "title": "WebhookSpec",
+        "additionalProperties": false,
+        "description": "WebhookSpec describes how a source receives provider webhooks."
       },
       "ingestion.v1.WorkerConfiguration": {
         "type": "object",
