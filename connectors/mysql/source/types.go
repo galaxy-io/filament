@@ -301,10 +301,27 @@ func parseBytes(w arrowbatch.RowWriter, text []byte) error {
 	return nil
 }
 
-// parseDate reads "YYYY-MM-DD"; MySQL's zero date, which has no calendar
-// meaning, lands as null.
+// zeroInDate reports whether the "YYYY-MM-DD" opening of text carries a 00
+// month or a 00 day. MySQL permits such partial zero dates when
+// NO_ZERO_IN_DATE is off, and they have no calendar meaning, so the parse
+// functions land them as null like the full zero date.
+func zeroInDate(text []byte) bool {
+	if len(text) < len("2006-01-02") || text[4] != '-' || text[7] != '-' {
+		return false
+	}
+	for _, i := range []int{0, 1, 2, 3, 5, 6, 8, 9} {
+		if text[i] < '0' || text[i] > '9' {
+			return false
+		}
+	}
+	return (text[5] == '0' && text[6] == '0') || (text[8] == '0' && text[9] == '0')
+}
+
+// parseDate reads "YYYY-MM-DD"; MySQL's zero dates, the full "0000-00-00"
+// and the partial forms with a 00 month or day, which have no calendar
+// meaning, land as null.
 func parseDate(w arrowbatch.RowWriter, text []byte) error {
-	if string(text) == "0000-00-00" || string(text) == "0000-00-00T00:00:00Z" {
+	if zeroInDate(text) && (len(text) == len("2006-01-02") || text[len("2006-01-02")] == 'T') {
 		w.Null()
 		return nil
 	}
@@ -327,9 +344,10 @@ func parseDate(w arrowbatch.RowWriter, text []byte) error {
 
 // parseDatetime reads "YYYY-MM-DD HH:MM:SS[.ffffff]" as microseconds since the
 // Unix epoch; a timestamp column arrives in UTC (the session and the binlog
-// syncer are both pinned to it). The zero datetime lands as null.
+// syncer are both pinned to it). A zero datetime, full or partial (a 00
+// month or day), lands as null.
 func parseDatetime(w arrowbatch.RowWriter, text []byte) error {
-	if strings.HasPrefix(string(text), "0000-00-00") {
+	if strings.HasPrefix(string(text), "0000-00-00") || zeroInDate(text) {
 		w.Null()
 		return nil
 	}
