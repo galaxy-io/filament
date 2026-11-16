@@ -1,0 +1,323 @@
+version: 1
+name: trello
+display_name: Trello
+description: Work management platform where teams organize projects on boards, track cards through lists, and collaborate in real time.
+# The Galaxy CDN does not host Trello icons yet, so both URLs use the verified
+# official Trello logo SVG on Wikimedia Commons until the CDN asset exists.
+dark_logo_url: https://upload.wikimedia.org/wikipedia/commons/7/7a/Trello-logo-blue.svg
+light_logo_url: https://upload.wikimedia.org/wikipedia/commons/7/7a/Trello-logo-blue.svg
+api_version: "1"
+config:
+  api_key:
+    type: string
+    required: true
+    help: Trello API key from the Trello Auth tab of your app at trello.com/power-ups/admin. The key alone grants nothing and is safe to share.
+  api_token:
+    type: secret
+    required: true
+    help: Trello API token generated from the authorize URL with scope read and expiration never. The token grants access to the whole account, so keep it secret.
+defaults:
+  method: GET
+  # Trello authenticates with key and token query parameters on every request.
+  query:
+    key: "{{ config.api_key }}"
+    token: "{{ config.api_token }}"
+  response:
+    strict_records: true
+connection:
+  base_url: https://api.trello.com/1
+  auth: {none: {}}
+  headers: {Accept: application/json}
+  timeout_seconds: 60
+  rate_limit:
+    # A single token allows 100 requests per 10 seconds, so stay well under it.
+    requests_per_second: 5
+    burst: 1
+resources:
+  - name: myself
+    path: /members/me
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      full_name: string?
+      username: string?
+      avatar_hash: {path: avatarHash, type: string, nullable: true}
+      initials: string?
+      bio: string?
+      confirmed: bool?
+      member_type: string?
+      url: string?
+      id_boards: json?
+      id_organizations: json?
+      prefs: json?
+      trophies: json?
+      premium_features: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: boards
+    path: /members/me/boards
+    query:
+      filter: all
+      fields: all
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      desc: string?
+      closed: bool?
+      id_organization: string?
+      url: string?
+      short_url: string?
+      short_link: string?
+      starred: bool?
+      date_last_activity: timestamptz
+      date_last_view: timestamptz?
+      prefs: json?
+      label_names: json?
+      limits: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      board_id: id
+  - name: organizations
+    path: /members/me/organizations
+    query:
+      filter: all
+    pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      display_name: string?
+      url: string?
+      id_enterprise: string?
+      prefs: json?
+      premium_features: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: lists
+    path: /boards/{board_id}/lists
+    params:
+      board_id: parent.board_id
+    query:
+      filter: all
+      fields: all
+    for_each: boards
+    pagination: none
+    primary_key: [id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      name: string?
+      closed: bool?
+      pos: float64?
+      subscribed: bool?
+      limits: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: cards
+    path: /boards/{board_id}/cards
+    params:
+      board_id: parent.board_id
+    query:
+      # The default filter is visible, which hides archived cards, so pass all.
+      # Limit 1000 is the documented maximum per request.
+      filter: all
+      limit: "1000"
+      fields: all
+    for_each: boards
+    pagination: none
+    primary_key: [id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      list_id: {path: idList, type: string}
+      name: string?
+      desc: string?
+      closed: bool?
+      date_last_activity: timestamptz
+      due: timestamptz?
+      due_complete: bool?
+      start: timestamptz?
+      pos: float64?
+      short_link: string?
+      short_url: string?
+      url: string?
+      labels: json?
+      id_labels: json?
+      id_members: json?
+      id_checklists: json?
+      badges: json?
+      subscribed: bool?
+      cover: json?
+      id_attachment_cover: string?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      card_id: id
+  - name: members
+    path: /boards/{board_id}/members
+    params:
+      board_id: parent.board_id
+    query:
+      fields: all
+    for_each: boards
+    pagination: none
+    # A member can belong to several boards. One row is a member on a board.
+    primary_key: [board_id, id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      full_name: string?
+      username: string?
+      avatar_hash: {path: avatarHash, type: string, nullable: true}
+      initials: string?
+      member_type: string?
+      bio: string?
+      url: string?
+      raw: {path: $, type: json, mode: remainder}
+  - name: labels
+    path: /boards/{board_id}/labels
+    params:
+      board_id: parent.board_id
+    query:
+      limit: "1000"
+      fields: all
+    for_each: boards
+    pagination: none
+    primary_key: [id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      name: string?
+      color: string?
+      uses: int64?
+      raw: {path: $, type: json, mode: remainder}
+  - name: checklists
+    path: /boards/{board_id}/checklists
+    params:
+      board_id: parent.board_id
+    for_each: boards
+    pagination: none
+    primary_key: [id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      card_id: {path: idCard, type: string}
+      name: string?
+      pos: float64?
+      check_items: json?
+      limits: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      checklist_id: id
+  - name: check_items
+    path: /checklists/{checklist_id}/checkItems
+    params:
+      checklist_id: parent.checklist_id
+    for_each: checklists
+    pagination: none
+    primary_key: [id]
+    fields:
+      checklist_id: {path: parent.checklist_id, type: string}
+      id: string
+      name: string?
+      state: string?
+      pos: float64?
+      due: timestamptz?
+      due_reminder: int64?
+      id_member: string?
+      name_data: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: custom_fields
+    path: /boards/{board_id}/customFields
+    params:
+      board_id: parent.board_id
+    for_each: boards
+    pagination: none
+    primary_key: [id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      name: string?
+      type: string?
+      pos: float64?
+      options: json?
+      display: json?
+      field_group: string?
+      model_type: string?
+      id_model: string?
+      raw: {path: $, type: json, mode: remainder}
+  - name: custom_field_items
+    path: /cards/{card_id}/customFieldItems
+    params:
+      card_id: parent.card_id
+    for_each: cards
+    pagination: none
+    primary_key: [id]
+    fields:
+      card_id: {path: parent.card_id, type: string}
+      id: string
+      field_id: {path: idCustomField, type: string}
+      id_model: string?
+      model_type: string?
+      id_value: string?
+      value: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: attachments
+    path: /cards/{card_id}/attachments
+    params:
+      card_id: parent.card_id
+    for_each: cards
+    pagination: none
+    primary_key: [id]
+    fields:
+      card_id: {path: parent.card_id, type: string}
+      id: string
+      bytes: int64?
+      date: timestamptz?
+      edge_color: string?
+      id_member: string?
+      is_upload: bool?
+      mime_type: string?
+      name: string?
+      previews: json?
+      url: string?
+      pos: float64?
+      raw: {path: $, type: json, mode: remainder}
+  - name: actions
+    path: /boards/{board_id}/actions
+    params:
+      board_id: parent.board_id
+    query:
+      # The default filter only returns comments and list moves, so pass all.
+      # Limit 1000 is the documented maximum per request.
+      filter: all
+      limit: "1000"
+    for_each: boards
+    pagination: none
+    primary_key: [id]
+    fields:
+      board_id: {path: parent.board_id, type: string}
+      id: string
+      type: string?
+      date: timestamptz
+      member_creator_id: {path: idMemberCreator, type: string, nullable: true}
+      data: json?
+      member_creator: json?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: date
+      start_param: since
+      inject_into: query
+      checkpoint_key: board_actions_date
+      comparator: time
+      # Board actions fan out across boards but share one watermark. Re-read a
+      # window to cover actions created while the scan runs.
+      overlap_seconds: 300
+      initial: "1970-01-01T00:00:00Z"
+discovery:
+  mode: static
+  # Custom field items and attachments are opt-in. Each needs one request per
+  # card, so they stay out of the default selection on large boards.
+  default_resources: [boards, organizations, lists, cards, members, labels, checklists, check_items, custom_fields, actions]
