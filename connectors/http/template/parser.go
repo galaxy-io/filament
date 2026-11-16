@@ -2,6 +2,8 @@ package template
 
 import (
 	"fmt"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
@@ -10,7 +12,8 @@ import (
 // Grammar (informal):
 //
 //	template       := (text | placeholder)*
-//	placeholder    := "{{" ws ref ws ("|" ws "default" ws stringlit ws)? "}}"
+//	placeholder    := "{{" ws ref ws ("|" ws filter ws)* "}}"
+//	filter         := "default" ws stringlit | "basename"
 //	ref            := identifier ("." key)?
 //	key            := segment ("." segment)*
 //	segment        := [A-Za-z0-9_-]+
@@ -39,12 +42,16 @@ type textChunk string
 
 func (t textChunk) render(_ Scope) (string, error) { return string(t), nil }
 
+type filterSpec struct {
+	name string
+	arg  string
+}
+
 type refChunk struct {
-	scope      string
-	key        string // "" when ref is just `{{ scope }}`
-	hasDefault bool
-	defaultV   string
-	raw        string // original text for error messages
+	scope   string
+	key     string // "" when ref is just `{{ scope }}`
+	filters []filterSpec
+	raw     string // original text for error messages
 }
 
 func (r refChunk) render(scope Scope) (string, error) {
@@ -53,14 +60,52 @@ func (r refChunk) render(scope Scope) (string, error) {
 			errs.ErrTemplateSyntax, r.raw)
 	}
 	v, ok := scope.lookup(r.scope, r.key)
-	if ok {
-		return v, nil
+	for _, f := range r.filters {
+		switch f.name {
+		case "default":
+			if !ok {
+				v = f.arg
+				ok = true
+			}
+		case "basename":
+			if ok {
+				v = applyBasename(v)
+			}
+		}
 	}
-	if r.hasDefault {
-		return r.defaultV, nil
+	if !ok {
+		return "", fmt.Errorf("%w: %s.%s (in %q)",
+			errs.ErrTemplateMissingKey, r.scope, r.key, r.raw)
 	}
-	return "", fmt.Errorf("%w: %s.%s (in %q)",
-		errs.ErrTemplateMissingKey, r.scope, r.key, r.raw)
+	return v, nil
+}
+
+func applyBasename(v string) string {
+	if v == "" {
+		return ""
+	}
+	if strings.Contains(v, "://") {
+		if u, err := url.Parse(v); err == nil && u.Path != "" {
+			b := path.Base(strings.TrimRight(u.Path, "/"))
+			if b == "/" || b == "." {
+				return ""
+			}
+			return b
+		}
+	}
+	clean := v
+	if idx := strings.IndexAny(clean, "?#"); idx >= 0 {
+		clean = clean[:idx]
+	}
+	clean = strings.TrimRight(clean, "/")
+	if clean == "" {
+		return ""
+	}
+	b := path.Base(clean)
+	if b == "/" || b == "." {
+		return ""
+	}
+	return b
 }
 
 // Parse tokenizes s into a reusable Parsed. Returns the first syntax error;
@@ -183,27 +228,31 @@ func (p *parser) parsePlaceholder() (refChunk, error) {
 	}
 	p.skipWS()
 
-	var hasDefault bool
-	var defaultV string
-	if p.peek() == '|' {
+	var filters []filterSpec
+	for p.peek() == '|' {
 		p.pos++
 		p.skipWS()
 		fname := p.readIdent()
-		if fname != "default" {
+		switch fname {
+		case "default":
+			p.skipWS()
+			if p.peek() != '"' {
+				return refChunk{}, p.errf(start,
+					"`default` filter requires a quoted string")
+			}
+			s, err := p.readString(start)
+			if err != nil {
+				return refChunk{}, err
+			}
+			filters = append(filters, filterSpec{name: "default", arg: s})
+		case "basename":
+			filters = append(filters, filterSpec{name: "basename"})
+		case "":
+			return refChunk{}, p.errf(start, "expected filter name after `|`")
+		default:
 			return refChunk{}, p.errf(start,
-				"unknown filter %q (only `default` is supported)", fname)
+				"unknown filter %q (supported: `default`, `basename`)", fname)
 		}
-		p.skipWS()
-		if p.peek() != '"' {
-			return refChunk{}, p.errf(start,
-				"`default` filter requires a quoted string")
-		}
-		s, err := p.readString(start)
-		if err != nil {
-			return refChunk{}, err
-		}
-		hasDefault = true
-		defaultV = s
 		p.skipWS()
 	}
 
@@ -212,11 +261,10 @@ func (p *parser) parsePlaceholder() (refChunk, error) {
 	}
 	end := p.pos
 	return refChunk{
-		scope:      scope,
-		key:        key,
-		hasDefault: hasDefault,
-		defaultV:   defaultV,
-		raw:        p.src[start:end],
+		scope:   scope,
+		key:     key,
+		filters: filters,
+		raw:     p.src[start:end],
 	}, nil
 }
 
