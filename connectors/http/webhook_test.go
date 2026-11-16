@@ -267,3 +267,11 @@ func TestWebhookOnlyConnectionNeedsNoAPIConfig(t *testing.T) {
 
 // Metronome creates each webhook's signing secret, so its spec says so and
 // Filament does not mint one. PostHog accepts the key Filament generates.
+func TestCatalogWebhookSecretIssuer(t *testing.T) {
+	if got := catalogSource(t, "metronome@v2").Spec().Webhook.SecretIssuer; got != filament.WebhookSecretProvider {
+		t.Fatalf("metronome secret issuer = %q", got)
+	}
+	if got := catalogSource(t, "posthog@unversioned").Spec().Webhook; got.ProviderIssuesSecret() {
+		t.Fatalf("posthog secret issuer = %q", got.SecretIssuer)
+	}
+}

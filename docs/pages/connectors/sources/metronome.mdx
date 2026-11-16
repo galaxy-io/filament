@@ -18,6 +18,7 @@ checked locally, but live account reads have not been validated.
 
 | Field | Scope | Default | Description |
 |---|---|---|---|
+| `ingestion` | Connection | `api` | `api` reads the Metronome API. `webhooks` receives notifications and needs no API fields. `both` does both. See [Webhooks](#webhooks). |
 | `api_token` | Connection | | Required secret. API token with access to selected resources. |
 | `customer_archived_states` | Connection | `false,true` | Active and archived customers. `false` selects active only and `true` selects archived only. Also controls customer-dependent reads. |
 | `start_date` | Pipeline | | Inclusive UTC date for usage, invoice breakdowns, spend breakdowns, and legacy costs. |
@@ -184,6 +185,57 @@ grouping key, customer and rate card named schedules, and point-in-time rate
 lookups. The API offers no raw-event listing. For raw events and large accounts,
 use Metronome's [data export](https://docs.metronome.com/guides/reporting-insights/data-export/overview)
 to a warehouse or object store.
+
+## Webhooks
+
+With `ingestion` set to `webhooks` or `both`, the connection offers two
+resources that hold the notifications Metronome pushes to a
+[webhook destination](https://docs.metronome.com/guides/platform-configuration/webhooks/best-practices).
+A `webhooks` connection needs no API token and offers only these resources.
+With `both`, one pipeline can hold them and API resources together. Its schedule and
+**Run** read the API resources, and **Start stream** reads the webhook
+resources continuously. Webhooks also need the server settings described in
+the [webhook source](/pages/connectors/sources/webhook#setup).
+
+Metronome creates the signing secret only after it has the delivery URL, and
+the URL exists only once the connection does. After you create the connection,
+Filament shows its delivery URL. In Metronome, open **Developer → Notifications
+→ Webhooks**, choose **Add** and set that URL. Copy the secret Metronome shows
+into **Signing secret** and save it. To finish later, choose **Set up later**
+and then **Add** in the connection's **Secrets** section. Filament does not
+generate a secret for Metronome. One destination receives every notification
+type, and Filament routes each one by its `type`. Each Metronome webhook has
+its own secret and a connection verifies one, so point one webhook at each
+connection. Sandbox and production need separate connections.
+
+Metronome signs each request with HMAC-SHA256 over `X-Metronome-Date` and the
+body. Filament rejects a request whose signature does not verify or whose date
+is more than five minutes from the server's clock. The payload `id` names one
+triggered notification and stays the same on every delivery attempt, so a
+retried notification is stored once.
+
+| Resource | Notification types | Shape |
+|---|---|---|
+| `system_notifications_webhook` | `contract.*`, `commit.*`, `credit.*` and `subscription.*` system and offset notifications, `invoice.void` | Fields at the top level |
+| `notifications_webhook` | Every other type. Threshold alerts and their resolved notifications, `invoice.finalized`, `invoice.billing_provider_error`, `integration.issue`, marketplace and payment gating notifications | Fields under `properties` |
+
+`system_notifications_webhook` columns are `id`, `type`, `timestamp`,
+`environment_type`, `customer_id`, `contract_id`, `commit_id`, `credit_id`,
+`subscription_id`, `invoice_id`, `invoice_type`, `segment_id`, `offset_id`,
+`offset_duration`, `customer_custom_fields` and `contract_custom_fields`. An
+offset notification carries its policy's type plus `offset_id` and
+`offset_duration`. `notifications_webhook` columns are `id`, `type`, and
+`customer_id`, `alert_id`, `invoice_id` and `timestamp` from `properties`, with
+the whole `properties` object as JSON. Both end with `raw`, the fields the
+manifest does not project.
+
+A system or offset type Metronome adds later reaches `notifications_webhook`
+with its fields in `raw`. Delivery is at least once, so upsert or merge on `id`
+keeps one row per notification. Notifications are minimal. Join on their IDs to
+the API resources for full records. Some types need Metronome to enable them,
+such as `invoice.finalized`. A delivery whose body does not match its resource
+is skipped and counted, as the [webhook source](/pages/connectors/sources/webhook)
+describes.
 
 ## Modes
 
