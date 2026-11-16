@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/json"
 	"maps"
 	"strings"
 	"testing"
@@ -60,12 +61,21 @@ func TestRenderIndex(t *testing.T) {
 	if want := `<head><script type="application/json" id="filament-runtime-config">{}</script></head>`; string(got) != want {
 		t.Errorf("got %s, want %s", got, want)
 	}
-	got, err = renderIndex([]byte("<head></head>"), Config{ProductURLs: map[string]string{"alchemy": "https://a.example.com/</script>"}})
+	hostile := Config{ProductURLs: map[string]string{"alchemy": "https://a.example.com/</script><script>alert(1)"}}
+	got, err = renderIndex([]byte("<head></head>"), hostile)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(got), "/</script></script>") {
-		t.Errorf("config closed the script early: %s", got)
+	if n := strings.Count(string(got), "</script>"); n != 1 {
+		t.Fatalf("got %d </script> tags, want 1: %s", n, got)
+	}
+	payload := strings.TrimSuffix(strings.TrimPrefix(string(got), `<head><script type="application/json" id="filament-runtime-config">`), "</script></head>")
+	var decoded Config
+	if err := json.Unmarshal([]byte(payload), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if !maps.Equal(decoded.ProductURLs, hostile.ProductURLs) {
+		t.Errorf("decoded %v, want %v", decoded.ProductURLs, hostile.ProductURLs)
 	}
 	if _, err := renderIndex([]byte("<html></html>"), Config{}); err == nil {
 		t.Error("want an error for an index.html without </head>")
