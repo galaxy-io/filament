@@ -18,10 +18,11 @@ const (
 	maxCacheEntries    = 10_000
 )
 
-// Resolved is an endpoint with its signing keys already read.
+// Resolved is an endpoint with its signing keys read and its verifier built.
 type Resolved struct {
 	Endpoint Endpoint
 	Keys     [][]byte
+	Verifier Verifier
 }
 
 // EndpointCache keeps recently used endpoints and their keys in memory, so a
@@ -105,6 +106,10 @@ func (c *EndpointCache) load(ctx context.Context, sourceID string) (Resolved, er
 	if endpoint.SourceID != sourceID || endpoint.Tenant == "" {
 		return Resolved{}, filament.ErrNotFound
 	}
+	verifier, err := BuildVerifier(endpoint.Verifier, endpoint.VerifierParams)
+	if err != nil {
+		return Resolved{}, err
+	}
 	refs := endpoint.ActiveKeyRefs(c.now())
 	if len(refs) == 0 {
 		return Resolved{}, errors.New("webhook endpoint has no signing key")
@@ -120,7 +125,7 @@ func (c *EndpointCache) load(ctx context.Context, sourceID string) (Resolved, er
 		}
 		keys = append(keys, secret.Value)
 	}
-	return Resolved{Endpoint: endpoint, Keys: keys}, nil
+	return Resolved{Endpoint: endpoint, Keys: keys, Verifier: verifier}, nil
 }
 
 func (c *EndpointCache) store(sourceID string, entry cacheEntry) {

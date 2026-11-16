@@ -80,10 +80,12 @@ func (h *Receiver) serve(w http.ResponseWriter, r *http.Request) string {
 		return "unavailable"
 	}
 	endpoint := resolved.Endpoint
-	verifier, ok := LookupVerifier(endpoint.Verifier)
-	if !ok {
-		http.Error(w, "endpoint unavailable", http.StatusServiceUnavailable)
-		return "unavailable"
+	verifier := resolved.Verifier
+	if verifier == nil {
+		if verifier, err = BuildVerifier(endpoint.Verifier, endpoint.VerifierParams); err != nil {
+			http.Error(w, "endpoint unavailable", http.StatusServiceUnavailable)
+			return "unavailable"
+		}
 	}
 	limit := endpoint.MaxBodyBytes
 	if limit <= 0 || limit > HardMaxBody {

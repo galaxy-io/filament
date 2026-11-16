@@ -2,6 +2,7 @@ package webhooks
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -36,14 +37,18 @@ var (
 // is the consuming pipeline's decision. SecretRefs hold the primary key first
 // and, during rotation, the previous key.
 type Endpoint struct {
-	Tenant     filament.TenantID
-	SourceID   string
-	Verifier   string
-	Enabled    bool
-	Revision   int64
-	PipelineID string
-	RouteKey   string
-	RouteReady bool
+	Tenant   filament.TenantID
+	SourceID string
+	Verifier string
+	// VerifierParams configure the verifier, copied from the source
+	// connector's webhook spec when the endpoint is saved. Empty for a
+	// verifier that takes none.
+	VerifierParams json.RawMessage
+	Enabled        bool
+	Revision       int64
+	PipelineID     string
+	RouteKey       string
+	RouteReady     bool
 	// Accepting is true while a pipeline that reads this source is running or
 	// paused. When every reader is stopped, new deliveries wait with the sender.
 	Accepting            bool
@@ -73,6 +78,7 @@ type EndpointMutation struct {
 	Tenant                    filament.TenantID
 	SourceID                  string
 	Verifier                  string
+	VerifierParams            json.RawMessage
 	PipelineID                string
 	RouteKey                  string
 	Resources                 []string
@@ -124,8 +130,8 @@ func (m EndpointMutation) Validate() error {
 	case !validSuccessStatus(m.SuccessStatus):
 		return invalid("success status must be 200, 202 or 204")
 	}
-	if _, ok := LookupVerifier(m.Verifier); !ok {
-		return invalid(fmt.Sprintf("unknown verifier %q", m.Verifier))
+	if _, err := BuildVerifier(m.Verifier, m.VerifierParams); err != nil {
+		return invalid(err.Error())
 	}
 	for n, name := range m.Resources {
 		if !ValidResourceName(name) || slices.Contains(m.Resources[:n], name) {
@@ -138,6 +144,15 @@ func (m EndpointMutation) Validate() error {
 		}
 	}
 	return nil
+}
+
+// StoredVerifierParams returns verifier parameters as the store keeps them:
+// a JSON object, "{}" when there are none.
+func StoredVerifierParams(params json.RawMessage) []byte {
+	if emptyParams(params) {
+		return []byte("{}")
+	}
+	return params
 }
 
 func validSuccessStatus(status int) bool {
