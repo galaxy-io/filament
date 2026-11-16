@@ -1,0 +1,100 @@
+# One-off live validation for the Trello source connector (PR for #660):
+# full read of the default resources, then a saved actions pipeline with
+# --sync-mode incremental run twice with a card create between. Runs on a
+# scratch branch in the fork; delete the branch and the TRELLO_API_KEY and
+# TRELLO_API_TOKEN secrets after the validation. The create-card step writes
+# one test card named filament-validation-test to the first board found; it
+# can be archived or deleted from Trello afterwards.
+name: trello-validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out PR branch code
+        uses: actions/checkout@v4
+        with:
+          ref: trello-source-connector
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build Filament
+        run: |
+          go build -o filament ./cmd/filament
+          go build -o filament-standalone ./cmd/standalone
+
+      - name: Start local engine
+        env:
+          TRELLO_API_TOKEN: ${{ secrets.TRELLO_API_TOKEN }}
+        run: |
+          ./filament up -d
+          ./filament status
+
+      - name: Create Trello source, stdout sink, pipelines
+        env:
+          TRELLO_API_KEY: ${{ secrets.TRELLO_API_KEY }}
+          TRELLO_API_TOKEN: ${{ secrets.TRELLO_API_TOKEN }}
+        run: |
+          ./filament source create trello-test --source-connector trello@1 --source-api-key "$TRELLO_API_KEY" --source-api-token-env TRELLO_API_TOKEN
+          ./filament sink create stdout-out --sink-connector stdout
+          ./filament pipeline create trello-full-test --source trello-test --sink stdout-out
+          ./filament pipeline create trello-incr-test --source trello-test --sink stdout-out --resources actions --sync-mode incremental --write-mode append
+
+      - name: Full run over the default resources
+        run: |
+          set -o pipefail
+          ./filament run trello-full-test 2>&1 | tee full.log
+
+      - name: First incremental actions run
+        run: |
+          set -o pipefail
+          ./filament run trello-incr-test 2>&1 | tee incr1.log
+
+      - name: Create a test card on the first board
+        env:
+          TRELLO_API_KEY: ${{ secrets.TRELLO_API_KEY }}
+          TRELLO_API_TOKEN: ${{ secrets.TRELLO_API_TOKEN }}
+        run: |
+          board_id=$(curl -s "https://api.trello.com/1/members/me/boards?key=$TRELLO_API_KEY&token=$TRELLO_API_TOKEN&fields=id&limit=1" | jq -r '.[0].id')
+          echo "board: $board_id"
+          list_id=$(curl -s "https://api.trello.com/1/boards/$board_id/lists?key=$TRELLO_API_KEY&token=$TRELLO_API_TOKEN&fields=id&limit=1" | jq -r '.[0].id')
+          echo "list: $list_id"
+          curl -s -X POST "https://api.trello.com/1/cards?key=$TRELLO_API_KEY&token=$TRELLO_API_TOKEN" --data-urlencode "idList=$list_id" --data-urlencode "name=filament-validation-test" | jq -r '.id, .name'
+
+      - name: Wait for Trello to register the card
+        run: sleep 20
+
+      - name: Second incremental actions run
+        run: |
+          set -o pipefail
+          ./filament run trello-incr-test 2>&1 | tee incr2.log
+
+      - name: Show run history
+        run: ./filament run list trello-incr-test || true
+
+      - name: Summarize record counts per run
+        run: |
+          echo "--- full run ---"
+          grep -i "records" full.log | tail -20 || true
+          echo "--- incremental run 1 ---"
+          grep -i "records" incr1.log | tail -20 || true
+          echo "--- incremental run 2 ---"
+          grep -i "records" incr2.log | tail -20 || true
+
+      - name: Upload run logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: trello-runs
+          path: |
+            full.log
+            incr1.log
+            incr2.log
