@@ -141,9 +141,6 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 		return nil
 	}
 	if deleteSchema != nil {
-		if err := pruneDeletes(ctx, it, rb.policy.Keys, m); err != nil {
-			return fmt.Errorf("prune equality deletes: %w", err)
-		}
 		return commitRowDelta(ctx, it, m, deleteIDs, arrowSchema)
 	}
 
@@ -214,7 +211,7 @@ func commitRowDelta(ctx context.Context, it *iceTable, m *mutation, deleteIDs []
 	txn := it.tbl.NewTransaction()
 	rd := txn.NewRowDelta(nil)
 	if len(m.deletes) > 0 {
-		deletes, err := txn.WriteEqualityDeletes(ctx, deleteIDs, retained(m.deletes))
+		deletes, err := txn.WriteEqualityDeletes(ctx, deleteIDs, borrowed(m.deletes))
 		if err != nil {
 			return fmt.Errorf("write equality deletes: %w", err)
 		}
@@ -240,14 +237,26 @@ func commitRowDelta(ctx context.Context, it *iceTable, m *mutation, deleteIDs []
 	return nil
 }
 
-// retained yields owned batches with an extra reference for writers that
-// release what they consume; the mutation still releases its own.
+// retained yields each batch with an extra reference for WriteRecords, which
+// releases every batch it is handed, including the one it stops on. The
+// mutation still releases its own.
 func retained(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
 	return func(yield func(arrow.RecordBatch, error) bool) {
 		for _, b := range batches {
 			b.Retain()
 			if !yield(b, nil) {
-				b.Release()
+				return
+			}
+		}
+	}
+}
+
+// borrowed yields batches without a reference for WriteEqualityDeletes, whose
+// writers retain what they keep and release nothing they are handed.
+func borrowed(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
+	return func(yield func(arrow.RecordBatch, error) bool) {
+		for _, b := range batches {
+			if !yield(b, nil) {
 				return
 			}
 		}

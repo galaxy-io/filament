@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/apache/iceberg-go/catalog"
@@ -86,6 +87,7 @@ func createProperties(updateMode string) iceberg.Properties {
 		writeMergeModeKey:                            updateMode,
 		icetable.WriteDeleteModeKey:                  updateMode,
 		managedKey:                                   "true",
+		maintainedAtKey:                              strconv.FormatInt(time.Now().UnixMilli(), 10),
 	}
 }
 
