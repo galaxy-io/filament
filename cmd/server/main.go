@@ -131,11 +131,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	defer func() { logHostClose(h.Close(), serverLog) }()
 
-	api.Mount(mux)
-	if webhooks != nil {
-		webhooks.receiver.Mount(mux)
-	}
-	mux.Handle("/", ui.Handler(uiConfig))
+	mountRoutes(mux, api, webhooks, uiConfig)
 	healthState.MarkStarted()
 	started = true
 	serverLog.Info("server started",
@@ -154,6 +150,16 @@ func run(ctx context.Context, migrateOnly bool) error {
 			filament.Field{Key: "event.name", Value: "server.stopping"})
 		return shutdown()
 	}
+}
+
+// mountRoutes serves the API, the webhook receiver when it is enabled, and
+// the UI rendered with uiConfig.
+func mountRoutes(mux *http.ServeMux, api *server.Server, webhooks *webhookReceiver, uiConfig ui.Config) {
+	api.Mount(mux)
+	if webhooks != nil {
+		webhooks.receiver.Mount(mux)
+	}
+	mux.Handle("/", ui.Handler(uiConfig))
 }
 
 func newServerHealthState(store filament.DataStore, tenantEnsured *atomic.Bool, bus func() eventbus.Bus) *health.State {
