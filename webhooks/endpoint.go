@@ -44,11 +44,14 @@ type Endpoint struct {
 	// connector's webhook spec when the endpoint is saved. Empty for a
 	// verifier that takes none.
 	VerifierParams json.RawMessage
-	Enabled        bool
-	Revision       int64
-	PipelineID     string
-	RouteKey       string
-	RouteReady     bool
+	// Ingress routes deliveries sent to the endpoint's single URL, copied
+	// from the spec like VerifierParams.
+	Ingress    Ingress
+	Enabled    bool
+	Revision   int64
+	PipelineID string
+	RouteKey   string
+	RouteReady bool
 	// Accepting is true while a pipeline that reads this source is running or
 	// paused. When every reader is stopped, new deliveries wait with the sender.
 	Accepting            bool
@@ -79,6 +82,7 @@ type EndpointMutation struct {
 	SourceID                  string
 	Verifier                  string
 	VerifierParams            json.RawMessage
+	Ingress                   Ingress
 	PipelineID                string
 	RouteKey                  string
 	Resources                 []string
@@ -131,6 +135,9 @@ func (m EndpointMutation) Validate() error {
 		return invalid("success status must be 200, 202 or 204")
 	}
 	if _, err := BuildVerifier(m.Verifier, m.VerifierParams); err != nil {
+		return invalid(err.Error())
+	}
+	if err := m.Ingress.Validate(); err != nil {
 		return invalid(err.Error())
 	}
 	for n, name := range m.Resources {
