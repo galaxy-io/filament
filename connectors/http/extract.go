@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,7 +44,11 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.parentRecords = make(map[string][]Capture)
 	c.mu.Unlock()
 
-	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
+	requests, err := requestResources(c.manifest.Resources, opts.Resources)
+	if err != nil {
+		return err
+	}
+	topLevel, children := manifest.Split(c.filteredResources(requests))
 
 	outcomes := c.extractConcurrent(ctx, topLevel, sink)
 
@@ -381,6 +386,22 @@ func (c *Connector) buildResourceFilter(resources []string) {
 		}
 		c.enabledResources[resource] = struct{}{}
 	}
+}
+
+// requestResources drops webhook resources, which have no request and are
+// read only by a continuous run. Asking a bounded run for one is an error.
+func requestResources(resources []manifest.Resource, requested []string) ([]manifest.Resource, error) {
+	out := make([]manifest.Resource, 0, len(resources))
+	for _, res := range resources {
+		if !res.IsWebhook() {
+			out = append(out, res)
+			continue
+		}
+		if slices.Contains(requested, res.Name) {
+			return nil, fmt.Errorf("resource %q receives webhooks and is read only by a continuous pipeline", res.Name)
+		}
+	}
+	return out, nil
 }
 
 func (c *Connector) filteredResources(resources []manifest.Resource) []manifest.Resource {

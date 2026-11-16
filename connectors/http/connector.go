@@ -220,12 +220,17 @@ func (c *Connector) TestConnection(ctx context.Context) error {
 	var probe *manifest.Resource
 	for i := range c.manifest.Resources {
 		candidate := &c.manifest.Resources[i]
-		if candidate.Parent == nil && candidate.Mode != "stream" && candidate.Mode != "export" {
+		if candidate.Parent == nil && candidate.Mode != "stream" && candidate.Mode != "export" && !candidate.IsWebhook() {
 			probe = candidate
 			break
 		}
 	}
 	if probe == nil {
+		// A manifest that only receives webhooks makes no requests, and its
+		// deliveries are authenticated by their signatures instead.
+		if onlyWebhooks(c.manifest.Resources) {
+			return nil
+		}
 		return fmt.Errorf("manifest has no top-level request suitable for connection validation")
 	}
 
@@ -300,3 +305,13 @@ func buildLimiter(rl manifest.RateLimit) request.Limiter {
 // SetOAuthStore binds token storage for one authorization before configuration.
 // Both extraction and connection testing use it. Nil keeps in-memory tokens.
 func (c *Connector) SetOAuthStore(store oauth.Store) { c.oauthStore = store }
+
+// onlyWebhooks reports whether every resource is read from webhook deliveries.
+func onlyWebhooks(resources []manifest.Resource) bool {
+	for _, r := range resources {
+		if !r.IsWebhook() {
+			return false
+		}
+	}
+	return len(resources) > 0
+}
