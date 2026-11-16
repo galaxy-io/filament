@@ -21,6 +21,10 @@ const (
 	maintenanceInterval = 10 * time.Minute
 	maintainedAtKey     = "filament.maintenance.last-run-ms"
 
+	// managedKey marks a table the sink created. Only marked tables are
+	// maintained, so a table another tool owns is never compacted or expired.
+	managedKey = "filament.managed"
+
 	// An equality delete applies to every older file of an unpartitioned table,
 	// so folding deletes rewrites the whole table. The threshold sets how many
 	// commits that rewrite is amortized over.
@@ -57,11 +61,11 @@ func (s *Sink) maintainCommitted(ctx context.Context, st *stage) {
 	}
 }
 
-// maintenanceDue reports whether enough commits or time have passed since the
-// last maintenance run stamped on the table.
+// maintenanceDue reports whether the sink created the table and enough commits
+// or time have passed since the last maintenance run stamped on it.
 func maintenanceDue(tbl *table.Table, now time.Time) bool {
 	cur := tbl.CurrentSnapshot()
-	if cur == nil {
+	if cur == nil || tbl.Properties().Get(managedKey, "") != "true" {
 		return false
 	}
 	last := tbl.Properties().GetInt64(maintainedAtKey, 0)

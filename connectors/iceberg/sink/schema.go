@@ -85,6 +85,7 @@ func createProperties(updateMode string) iceberg.Properties {
 		maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
 		writeMergeModeKey:                            updateMode,
 		icetable.WriteDeleteModeKey:                  updateMode,
+		managedKey:                                   "true",
 	}
 }
 
