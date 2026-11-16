@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/internal/compile"
+	"github.com/galaxy-io/filament/webhooks"
 )
 
 type runSubmitter interface {
@@ -27,10 +28,12 @@ type Server struct {
 	orch      runSubmitter
 	bus       eventbus.Bus
 	secrets   filament.Secrets
+	webhooks  webhooks.EndpointStore
+	receiver  WebhookReceiver
 	schedules filament.PipelineScheduleStore
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
-	identity  identity.Provider
+	identity  identity.Authenticator
 	// defaultTenant scopes every request when identity is disabled.
 	defaultTenant filament.TenantID
 	log           filament.Logger
@@ -42,15 +45,30 @@ type Option func(*Server)
 // WithSecrets sets the secrets provider used to resolve secret refs.
 func WithSecrets(secrets filament.Secrets) Option { return func(s *Server) { s.secrets = secrets } }
 
+// WebhookReceiver is what the API needs from this process's webhook receiver.
+type WebhookReceiver struct {
+	// MaxBody is the largest body the inbox stores. Endpoints may not exceed it.
+	MaxBody int64
+	// Invalidate drops a cached endpoint after its configuration changes.
+	Invalidate func(sourceID string)
+	// PublicBaseURL is the origin senders reach, without a trailing slash.
+	// Empty means unknown, and the API then returns no delivery URL.
+	PublicBaseURL string
+}
+
+// WithWebhookReceiver connects endpoint configuration to the local receiver.
+func WithWebhookReceiver(w WebhookReceiver) Option { return func(s *Server) { s.receiver = w } }
+
 // WithMetricsStore sets the run metrics query backend. Unset leaves
 // MetricsService unimplemented.
 func WithMetricsStore(ms filament.MetricsStore) Option { return func(s *Server) { s.metrics = ms } }
 
-// WithIdentity sets the authentication provider. Unset leaves the API
-// unauthenticated and AuthService unimplemented apart from its config
-// document, the same way an unset metrics store leaves MetricsService
-// unimplemented.
-func WithIdentity(p identity.Provider) Option { return func(s *Server) { s.identity = p } }
+// WithIdentity sets the authenticator. Unset leaves the API unauthenticated
+// and AuthService unimplemented apart from its config document, the same way
+// an unset metrics store leaves MetricsService unimplemented. A full
+// identity.Provider also serves AuthService; any other Authenticator leaves
+// sign-in upstream and AuthService answers only its config document.
+func WithIdentity(a identity.Authenticator) Option { return func(s *Server) { s.identity = a } }
 
 // WithDefaultTenant sets the only tenant available when authentication is
 // disabled. Authenticated requests always use the identity provider's tenant.
@@ -85,6 +103,9 @@ func New(worker filament.Worker, store filament.DataStore, orch runSubmitter, bu
 	if schedules, ok := store.(filament.PipelineScheduleStore); ok {
 		s.schedules = schedules
 	}
+	if endpointStore, ok := store.(webhooks.EndpointStore); ok {
+		s.webhooks = endpointStore
+	}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -107,11 +128,15 @@ func (a *Server) Mount(mux *http.ServeMux) {
 	mux.Handle(path, withCORS(handler))
 	path, handler = metricsv1connect.NewMetricsServiceHandler(a, opts...)
 	mux.Handle(path, withCORS(handler))
-	// The provider serves AuthService directly; without one, a stub keeps
-	// the config document answering so the UI can tell auth is off.
+	// A provider serves AuthService directly. Any other authenticator leaves
+	// sign-in upstream, so a stub answers only the config document; without
+	// one, a stub keeps the config document answering so the UI can tell
+	// auth is off.
 	var authHandler authv1connect.AuthServiceHandler = disabledAuth{}
-	if a.identity != nil {
-		authHandler = a.identity
+	if p, ok := a.identity.(identity.Provider); ok {
+		authHandler = p
+	} else if a.identity != nil {
+		authHandler = externalAuth{}
 	}
 	path, handler = authv1connect.NewAuthServiceHandler(authHandler, opts...)
 	mux.Handle(path, withCORS(handler))

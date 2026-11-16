@@ -34,4 +34,6 @@ export interface IngestionV1RunInfo {
     executionMode?: Filament.IngestionV1ExecutionMode | undefined;
     /** Present for continuous runs. records/bytes above reflect committed progress. */
     executionStatus?: Filament.IngestionV1ExecutionStatus | undefined;
+    /** resources this run reads. Empty means every resource its route selects. */
+    resources?: string[] | undefined;
 }

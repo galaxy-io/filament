@@ -158,7 +158,7 @@ Register the sink through a fresh-instance factory:
 func init() {
     registry.RegisterSink(
         "mysink",
-        filament.MaturityAlpha,
+        true,
         func() filament.Sink { return New() },
     )
 }

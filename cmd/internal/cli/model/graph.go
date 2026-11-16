@@ -25,20 +25,27 @@ type PipelineGraphNode struct {
 // PipelineGraphEdge carries every routing setting the deployed API exposes.
 // ReadMode is empty on CDC routes, which have no read lever.
 type PipelineGraphEdge struct {
-	From      string
-	To        string
-	Resource  string
-	Selector  string
-	Cursors   []ResourceCursor
-	Columns   []ResourceColumns
-	ReadMode  string
-	WriteMode string
+	From       string
+	To         string
+	Resource   string
+	Selector   string
+	Cursors    []ResourceCursor
+	Columns    []ResourceColumns
+	Partitions []ResourcePartitions
+	ReadMode   string
+	WriteMode  string
 }
 
 // ResourceColumns is one resource's column selection.
 type ResourceColumns struct {
 	Resource string
 	Columns  []string
+}
+
+// ResourcePartitions is one resource's backfill partition selection.
+type ResourcePartitions struct {
+	Resource   string
+	Partitions []string
 }
 
 // ResourceCursor is one durable incremental cursor override.
@@ -85,8 +92,8 @@ func ProjectSimpleGraph(pipeline *Pipeline, graph PipelineGraph, sourceReplicati
 		if edge.From != source.ID || edge.To != sink.ID {
 			block("more than one source-to-sink route")
 		}
-		if edge.Selector != "" || len(edge.Cursors) > 0 || len(edge.Columns) > 0 {
-			block("selectors, cursor overrides, or column selections in use")
+		if edge.Selector != "" || len(edge.Cursors) > 0 || len(edge.Columns) > 0 || len(edge.Partitions) > 0 {
+			block("selectors, cursor overrides, or column or partition selections in use")
 		}
 		switch {
 		case seen[edge.Resource]:
@@ -213,6 +220,10 @@ func cloneGraph(graph PipelineGraph) *PipelineGraph {
 		out.Edges[i].Columns = slices.Clone(out.Edges[i].Columns)
 		for j := range out.Edges[i].Columns {
 			out.Edges[i].Columns[j].Columns = slices.Clone(out.Edges[i].Columns[j].Columns)
+		}
+		out.Edges[i].Partitions = slices.Clone(out.Edges[i].Partitions)
+		for j := range out.Edges[i].Partitions {
+			out.Edges[i].Partitions[j].Partitions = slices.Clone(out.Edges[i].Partitions[j].Partitions)
 		}
 	}
 	return out

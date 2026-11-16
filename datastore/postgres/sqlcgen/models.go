@@ -330,19 +330,21 @@ type Secret struct {
 }
 
 type StreamAttempt struct {
-	Token           int64
-	StreamID        string
-	TenantID        string
-	ExecutionID     string
-	DesiredRevision int64
-	RequestTtlUs    int64
-	StartedAt       pgtype.Timestamptz
-	ClaimedAt       pgtype.Timestamptz
-	RunSpec         []byte
-	ExpiresAt       pgtype.Timestamptz
-	EndedAt         pgtype.Timestamptz
-	Termination     pgtype.Text
-	Reason          string
+	Token            int64
+	StreamID         string
+	TenantID         string
+	ExecutionID      string
+	DesiredRevision  int64
+	RequestTtlUs     int64
+	StartedAt        pgtype.Timestamptz
+	ClaimedAt        pgtype.Timestamptz
+	RunSpec          []byte
+	ExpiresAt        pgtype.Timestamptz
+	EndedAt          pgtype.Timestamptz
+	Termination      pgtype.Text
+	Reason           string
+	DispatchVersion  string
+	YieldRequestedAt pgtype.Timestamptz
 }
 
 type StreamEpoch struct {
@@ -375,4 +377,21 @@ type User struct {
 	DeletedByUserID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
+}
+
+type WebhookEndpoint struct {
+	SourceConnectionID   string
+	TenantID             string
+	PipelineID           pgtype.Text
+	RouteKey             pgtype.Text
+	ConfigRevision       int64
+	Enabled              bool
+	Verifier             string
+	SecretRefs           []string
+	PreviousKeyExpiresAt pgtype.Timestamptz
+	Resources            []string
+	SuccessStatus        int16
+	MaxBodyBytes         int64
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
 }

@@ -4,7 +4,7 @@
   "default_version": "2026-07-29.dahlia",
   "versions": {
     "2026-07-29.dahlia": {
-      "maturity": "beta"
+      "is_preview": true
     }
   }
 }

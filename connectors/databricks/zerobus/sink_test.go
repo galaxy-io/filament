@@ -168,6 +168,145 @@ func TestSpecAppendOnly(t *testing.T) {
 	}
 }
 
+// TestSpecIngestionTypes checks the planner accepts the append ingestion types,
+// CDC append included, and still rejects every keyed or replacing one.
+func TestSpecIngestionTypes(t *testing.T) {
+	spec := New().Spec()
+	for _, it := range []filament.IngestionType{
+		filament.IngestionFullAppend,
+		filament.IngestionIncrementalAppend,
+		filament.IngestionCDCAppend,
+	} {
+		if err := filament.ValidateSinkIngestion(spec, it); err != nil {
+			t.Errorf("%s: %v", it, err)
+		}
+	}
+	for _, it := range []filament.IngestionType{
+		filament.IngestionFullReplace,
+		filament.IngestionFullUpsert,
+		filament.IngestionIncrementalUpsert,
+		filament.IngestionIncrementalDelete,
+		filament.IngestionCDCMerge,
+	} {
+		if err := filament.ValidateSinkIngestion(spec, it); err == nil {
+			t.Errorf("%s: expected the planner to reject it", it)
+		}
+	}
+}
+
+// cdcHistorySchema returns testSchema shaped the way the engine hands a
+// cdc_append resource to EnsureSchema.
+func cdcHistorySchema(t *testing.T) rowmodel.Schema {
+	t.Helper()
+	rs, err := rowmodel.WithAuditFields(rowmodel.AsCDCAppendHistory(testSchema()), true)
+	if err != nil {
+		t.Fatalf("WithAuditFields: %v", err)
+	}
+	return rs
+}
+
+// TestApplyCDCAppendHistory checks a snapshot row and an insert, update and
+// delete of one key are each appended as a history row with their change
+// columns intact, and that plain append still refuses the same batch.
+func TestApplyCDCAppendHistory(t *testing.T) {
+	ctx := context.Background()
+	fc := &fakeClient{}
+	s := openTestSink(t, fc, nil)
+	rs := cdcHistorySchema(t)
+	if err := s.EnsureSchema(ctx, "users", rs); err != nil {
+		t.Fatalf("EnsureSchema: %v", err)
+	}
+
+	// Columns: id, name, _filament_run_id, _filament_run_started_at,
+	// _filament_operation, _filament_source_position, _filament_sequence.
+	rb := array.NewRecordBuilder(memory.DefaultAllocator, arrowbatch.Schema(rs))
+	defer rb.Release()
+	// The first row comes from the initial snapshot, which has no stream
+	// position, so the engine leaves position and sequence null.
+	rb.Field(0).(*array.Int64Builder).AppendValues([]int64{2, 1, 1, 1}, nil)
+	rb.Field(1).(*array.StringBuilder).AppendValues([]string{"bob", "alice", "alicia", ""}, []bool{true, true, true, false})
+	rb.Field(2).(*array.StringBuilder).AppendValues([]string{"run-1", "run-1", "run-1", "run-1"}, nil)
+	rb.Field(3).AppendNulls(4)
+	rb.Field(4).(*array.StringBuilder).AppendValues([]string{"insert", "insert", "update", "delete"}, nil)
+	rb.Field(5).(*array.StringBuilder).AppendValues([]string{"", "0/16B3748", "0/16B3790", "0/16B37D8"}, []bool{false, true, true, true})
+	rb.Field(6).(*array.Int64Builder).AppendValues([]int64{0, 1, 2, 3}, []bool{false, true, true, true})
+	b := arrowbatch.NewBatch(rb.NewRecord(), arrowbatch.NewOperations([]rowmodel.Operation{rowmodel.OpInsert, rowmodel.OpInsert, rowmodel.OpUpdate, rowmodel.OpDelete}))
+	b.Resource = "users"
+	defer b.Release()
+
+	cdc := filament.WritePolicyForIngestion(filament.IngestionCDCAppend)
+	cdc.Resource = "users"
+	cdc.Keys = []string{"id"}
+	receipt, err := s.Apply(ctx, b, filament.ApplyOptions{Policy: cdc})
+	if err != nil {
+		t.Fatalf("Apply cdc_append: %v", err)
+	}
+	if receipt.Rows != 4 {
+		t.Fatalf("receipt.Rows = %d, want 4", receipt.Rows)
+	}
+	st := fc.streams["main.sales.users"]
+	if st == nil || len(st.ingested) != 1 {
+		t.Fatalf("expected one ingested batch, got %+v", st)
+	}
+	r, err := ipc.NewReader(bytes.NewReader(st.ingested[0]))
+	if err != nil {
+		t.Fatalf("ipc reader: %v", err)
+	}
+	defer r.Release()
+	if !r.Next() {
+		t.Fatal("no record in ingested IPC stream")
+	}
+	rec := r.RecordBatch()
+	if rec.NumCols() != 7 || rec.NumRows() != 4 {
+		t.Fatalf("ingested %d cols x %d rows, want 7 x 4", rec.NumCols(), rec.NumRows())
+	}
+	// Every history row keeps its key, its change and its place in the stream.
+	for name, want := range map[string][]string{
+		"id":                              {"2", "1", "1", "1"},
+		rowmodel.AuditOperationField:      {"insert", "insert", "update", "delete"},
+		rowmodel.AuditSourcePositionField: {array.NullValueStr, "0/16B3748", "0/16B3790", "0/16B37D8"},
+		rowmodel.AuditSequenceField:       {array.NullValueStr, "1", "2", "3"},
+	} {
+		idx := rec.Schema().FieldIndices(name)
+		if len(idx) != 1 {
+			t.Fatalf("ingested schema has no %s column: %v", name, rec.Schema())
+		}
+		for i, w := range want {
+			if got := rec.Column(idx[0]).ValueStr(i); got != w {
+				t.Fatalf("row %d %s = %q, want %q", i, name, got, w)
+			}
+		}
+	}
+	if !rec.Column(1).IsNull(3) {
+		t.Fatal("delete row: name should stay null")
+	}
+
+	plain := filament.WritePolicyForIngestion(filament.IngestionFullAppend)
+	plain.Resource = "users"
+	_, err = s.Apply(ctx, b, filament.ApplyOptions{Policy: plain})
+	if err == nil || !strings.Contains(err.Error(), "does not accept update row") {
+		t.Fatalf("full_append Apply err = %v, want a refused update row", err)
+	}
+	if len(st.ingested) != 1 {
+		t.Fatalf("refused batch was ingested: %d batches", len(st.ingested))
+	}
+}
+
+// TestCreateTableDDLCDCHistory checks create_table renders the CDC history
+// layout: every column nullable and the three change-stream columns typed.
+func TestCreateTableDDLCDCHistory(t *testing.T) {
+	ddl, err := createTableDDL("main", "sales", "users", cdcHistorySchema(t))
+	if err != nil {
+		t.Fatalf("createTableDDL: %v", err)
+	}
+	want := "CREATE TABLE IF NOT EXISTS `main`.`sales`.`users` (`id` BIGINT, `name` STRING, " +
+		"`_filament_run_id` STRING, `_filament_run_started_at` TIMESTAMP, " +
+		"`_filament_operation` STRING, `_filament_source_position` STRING, `_filament_sequence` BIGINT) USING DELTA"
+	if ddl != want {
+		t.Fatalf("ddl=\n%s\nwant\n%s", ddl, want)
+	}
+}
+
 // TestApplyIngestsBatch checks a batch is ingested and the receipt reports rows.
 func TestApplyIngestsBatch(t *testing.T) {
 	ctx := context.Background()

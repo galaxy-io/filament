@@ -54,11 +54,13 @@ type LeaseToken struct {
 }
 
 // StartAttemptRequest supplies immutable execution identity and expected state for admission.
+// DispatchVersion records the release the supervisor dispatched the attempt with.
 type StartAttemptRequest struct {
 	Tenant                                TenantID
 	Stream                                StreamRef
 	Run                                   RunID
 	ExecutionID, PipelineVersionID, Route string
+	DispatchVersion                       string
 	ExpectedRevision                      int64
 	TTL                                   time.Duration
 }
@@ -74,7 +76,11 @@ type StreamActivation struct {
 // Attempt describes one admitted worker lifetime and its lease interval.
 type Attempt struct {
 	// Claimed records that a worker began executing this attempt.
-	Claimed              bool
+	Claimed bool
+	// YieldRequested asks the worker to end cleanly after its current epoch so a
+	// successor can take over. The stream's desired state is unchanged.
+	YieldRequested       bool
+	DispatchVersion      string
 	Spec                 RunSpec
 	Revision             int64
 	Termination          AttemptTermination
@@ -95,6 +101,10 @@ const (
 	AttemptReaped   AttemptTermination = "reaped"
 	AttemptUnproven AttemptTermination = "unproven"
 )
+
+// AttemptReasonUpgrade is the clean end reason of an attempt that yielded to a
+// successor on a newer release. The supervisor restarts it without backoff.
+const AttemptReasonUpgrade = "yielded for upgrade"
 
 // EndAttemptRequest conditionally records termination under the owning lease.
 type EndAttemptRequest struct {
@@ -154,6 +164,9 @@ type ContinuousRunStore interface {
 	ReplicationStreamRunStore
 	ClaimStreamAttempt(context.Context, LeaseToken) error
 	RetireUnclaimedAttempt(context.Context, LeaseToken) error
+	// YieldAttempt marks the live attempt holding the lease. An attempt that
+	// already ended is left as it is.
+	YieldAttempt(context.Context, LeaseToken) error
 	PendingStreamRuns(context.Context, string, int) ([]RunState, error)
 	StreamProgress(context.Context, TenantID, RunID) (int64, int64, time.Time, error)
 }

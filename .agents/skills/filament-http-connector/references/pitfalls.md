@@ -43,6 +43,42 @@ providers. Avoid fixed counts of catalog connectors in guidance or docs.
 - Full upsert refreshes keyed rows but does not remove absent ones. Full replace
   can reflect removals only within the upstream account's visibility and retention.
 
+## Configuration surface
+
+A data engineer sets up a source once and expects it to run unattended. Every
+setting is a cost to every user, so each one must unlock a table they want.
+
+- Start from credentials plus whatever selects the account's host or region.
+  Most shipped manifests stop there or add one shared date window.
+- Do not add a setting that only feeds one resource an ID, name, or key copied
+  from the provider's UI. If no endpoint lists those values, the resource is a
+  lookup, not a table. Exclude it and name the gap in the coverage docs.
+- Exclude debug, sampling, and delivery-log endpoints such as event search by
+  transaction ID or webhook delivery history. They are operational tools, often
+  retention-limited, and rarely what an analyst models.
+- An endpoint that answers one parameterized question, such as one metric by
+  one grouping, is a saved query, not a table. Leave it out unless another
+  resource can enumerate its parameters.
+- Fix a sensible value in the manifest instead of exposing a knob. Use the
+  aggregation grain analysts expect, the provider's default language, or the
+  API's own default. Omit an optional parameter when its default, such as the
+  current time or all records, is what users want.
+- When a schedule or history read requires a start bound, send a fixed date
+  earlier than any account can hold instead of asking for one. Confirm the API
+  accepts it, and keep it out of reads where an early bound means a huge scan.
+- Share one date window across every resource that needs one. Do not add a
+  second date pair or a per-resource date.
+- `required_config` fails the read when its setting is empty, and
+  `for_each_config` repeats a resource once per comma-separated value. Both mark
+  a resource that cannot run without user input, so they should be rare. A
+  manifest that needs several of them is scoped to lookups that should be cut.
+- Compare settings and default tables with an established connector for the
+  same product and with the provider's own warehouse export, when either exists.
+  If the manifest asks for much more, each extra setting needs a concrete table
+  it unlocks.
+- When raw events or large accounts are better served by the provider's native
+  export, say so in the docs instead of approximating it with per-record calls.
+
 ## Requests, selection, and recovery
 
 - Defaults can leak query parameters or pagination into singleton and child

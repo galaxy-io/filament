@@ -89,12 +89,12 @@ Set YAML `api_version: "v3"` and use this registry:
   "name": "example",
   "default_version": "v3",
   "versions": {
-    "v3": { "maturity": "alpha" }
+    "v3": { "is_preview": true }
   }
 }
 ```
 
-The registry owns API version selection and per-version maturity. YAML owns API
+The registry owns API version selection and per-version preview status. YAML owns API
 behavior, configuration, display name, description, and logo URLs. Keep the
 registry name, connector directory, and YAML `name` identical; YAML names do not
 include `@v3`. Do not add provider-specific embeds, constructors, compatibility
@@ -112,8 +112,8 @@ Loader constraints:
   and omit YAML `api_version`. Do not invent a vendor `v1`.
 - Every listed version has `<version>/manifest.yaml`, every version directory is
   listed, and `default_version` names a listed entry.
-- Maturity is `alpha`, `beta`, or `stable` per version; a mature v1 does not make
-  a new v2 mature. Keep registry maturity, source docs, and overview consistent.
+- Set `is_preview` per version. A stable v1 does not make a new v2 stable.
+  Keep the registry flag, source docs, and overview consistent.
 - Missing files, unknown JSON fields, mismatched names, invalid metadata, and
   invalid manifests fail startup. Keep stray files out of the `manifests` root.
 
@@ -172,8 +172,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-example-dark.svg"
 ```
 
 Write a short introduction with the supported data, a link to
-`/pages/connectors/building-a-connector/http-manifests`, and accurate maturity
-and live-validation status. Then use these sections:
+`/pages/connectors/building-a-connector/http-manifests`, and accurate preview and live-validation status. Then use these sections:
 
 | Section | Information users need |
 |---|---|
@@ -205,7 +204,7 @@ Update the current locations:
 
 1. `docs/docs.json`: add the source page among the alphabetical SaaS entries.
 2. `docs/pages/connectors/overview/introduction.mdx`: add a source row with the
-   actual maturity and read modes.
+   actual preview status and read modes.
 
 Do not update `docs/pages/connectors/building-a-connector/http-manifests.mdx`
 for connector work. Source pages may link to it. Changes to that guide belong

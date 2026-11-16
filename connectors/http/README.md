@@ -1,7 +1,7 @@
 # HTTP manifests
 
 Bundled connectors live at `manifests/<name>/<api-version>/manifest.yaml`.
-Their `registry.json` selects the default upstream API version and maturity.
+Their `registry.json` selects the default upstream API version and preview status.
 The manifest grammar is `manifest/grammar.v1.json`.
 
 ## Splitting a manifest

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"connectrpc.com/connect"
@@ -102,6 +103,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := validateColumnSelections(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if err := validatePartitionSelections(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
@@ -218,6 +222,9 @@ func (a *Server) normalizeEdgeModes(ctx context.Context, tenant filament.TenantI
 			if err != nil {
 				return fmt.Errorf("edge %s -> %s: %w", edge.GetFromNode(), edge.GetToNode(), err)
 			}
+			if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+				writeMode = filament.DefaultWriteMode(readMode, sinkSpec)
+			}
 			edge.ReadMode = convert.ReadModeToProto(readMode)
 			edge.WriteMode = convert.WriteModeToProto(writeMode)
 			ingestionType, err = filament.IngestionFor(readMode, writeMode)
@@ -268,6 +275,7 @@ func validateCursorConfigs(edges []*ingestionv1.PipelineEdge) error {
 }
 
 func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
+	routes := map[string][]string{}
 	for _, edge := range edges {
 		seen := make(map[string]struct{}, len(edge.GetColumns()))
 		for _, selection := range edge.GetColumns() {
@@ -295,9 +303,56 @@ func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
 				}
 				names[name] = struct{}{}
 			}
+			if conflictingSelection(routes, edge, resource, selection.GetColumns()) {
+				return fmt.Errorf("conflicting column selection for resource %q", resource)
+			}
 		}
 	}
 	return nil
+}
+
+func validatePartitionSelections(edges []*ingestionv1.PipelineEdge) error {
+	routes := map[string][]string{}
+	for _, edge := range edges {
+		seen := make(map[string]struct{}, len(edge.GetPartitions()))
+		for _, selection := range edge.GetPartitions() {
+			resource := selection.GetResource()
+			if resource == "" {
+				return fmt.Errorf("partition selection resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("partition selection resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate partition selection for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
+			names := make(map[string]struct{}, len(selection.GetPartitions()))
+			for _, name := range selection.GetPartitions() {
+				if name == "" {
+					return fmt.Errorf("partition selection for resource %q names an empty partition", resource)
+				}
+				if _, duplicate := names[name]; duplicate {
+					return fmt.Errorf("partition selection for resource %q repeats partition %q", resource, name)
+				}
+				names[name] = struct{}{}
+			}
+			if conflictingSelection(routes, edge, resource, selection.GetPartitions()) {
+				return fmt.Errorf("conflicting partition selection for resource %q", resource)
+			}
+		}
+	}
+	return nil
+}
+
+// conflictingSelection reports whether another edge of the same route already
+// selected a different list for resource, the conflict compilation rejects.
+func conflictingSelection(routes map[string][]string, edge *ingestionv1.PipelineEdge, resource string, names []string) bool {
+	key := edge.GetFromNode() + "\x00" + edge.GetToNode() + "\x00" + resource
+	sorted := slices.Sorted(slices.Values(names))
+	previous, exists := routes[key]
+	routes[key] = sorted
+	return exists && !slices.Equal(previous, sorted)
 }
 
 // UpdatePipeline changes mutable pipeline metadata. Graph changes are stored as

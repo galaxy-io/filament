@@ -38,7 +38,7 @@ For example, GitHub's registry matches the manifest's `api_version: "2022-11-28"
   "name": "github",
   "default_version": "2022-11-28",
   "versions": {
-    "2022-11-28": { "maturity": "beta" }
+    "2022-11-28": { "is_preview": true }
   }
 }
 ```
@@ -53,9 +53,9 @@ match that version, and every version directory must be listed in the registry.
 use the reserved directory and registry key `unversioned` and omit YAML
 `api_version`; do not invent a vendor `v1`.
 
-Maturity is per API version and must be `alpha`, `beta`, or `stable`.
-New connectors start at `alpha`. Display names, descriptions, logos,
-configuration, and API behavior stay in YAML. Invalid catalog entries stop
+Preview status is per API version. Set `is_preview` to `true` for new
+connectors. Display names, descriptions, logos, configuration, and API
+behavior stay in YAML. Invalid catalog entries stop
 startup with the failing file path. Run `go test ./connectors/http/... ./registry`
 before shipping. Embedded changes require rebuilding and deploying Filament.
 
@@ -709,12 +709,11 @@ connection form show it. When the connection pins a version header such as
 `Stripe-Version` or `Notion-Version`, validation requires `api_version` to
 match its value.
 
-## Maturity
+## Preview status
 
-Manifest-driven integrations start at `alpha`. Their behavior is derived from
-API documentation, and schema validation plus mocked HTTP tests prove internal
-consistency, not fidelity to the live API. They graduate to `beta` once run
-end-to-end against the real service.
+Manifest-driven integrations start with `is_preview: true`. Validation of the
+manifest establishes syntax and engine consistency. Clear the flag only after
+live checks confirm the supported resources and behavior.
 
 ## Related guides
 

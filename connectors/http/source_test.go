@@ -1180,6 +1180,87 @@ discovery:
 	}
 }
 
+func TestChildFanOutSkipsNullParentPathID(t *testing.T) {
+	ctx := context.Background()
+	var childRequests int
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/parents":
+			fmt.Fprint(w, `[{"id":null},{"id":"parent-1"}]`)
+		case "/parents/parent-1/children":
+			childRequests++
+			fmt.Fprint(w, `[{"name":"Child"}]`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer api.Close()
+
+	path := filepath.Join(t.TempDir(), "nullable-parent.yaml")
+	data := fmt.Sprintf(`version: 1
+name: nullable-parent
+display_name: Nullable parent
+description: Test nullable parent ID.
+dark_logo_url: https://cdn.example.com/nullable-parent-dark.svg
+light_logo_url: https://cdn.example.com/nullable-parent-light.svg
+connection:
+  base_url: %s
+resources:
+  - name: parents
+    path: /parents
+    primary_key: []
+    fields:
+      id: string?
+    capture: {parent_id: id}
+    response:
+      records: $
+      pagination: none
+  - name: children
+    path: /parents/{parent_id}/children
+    params: {parent_id: parent.parent_id}
+    for_each: parents
+    primary_key: []
+    fields:
+      parentId: {path: parent.parent_id, type: string}
+      name: string
+    response:
+      records: $
+      pagination: none
+discovery:
+  mode: static
+  include: [parents, children]
+`, api.URL)
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+	src := New()
+	if err := src.Configure(ctx, filament.NewConfig(map[string]any{"manifest_path": path})); err != nil {
+		t.Fatalf("configure: %v", err)
+	}
+	defer src.Teardown(ctx)
+
+	var sink collectSink
+	if err := src.Extract(ctx, &sink, filament.ExtractOpts{}); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if childRequests != 1 {
+		t.Fatalf("child requests = %d, want 1", childRequests)
+	}
+	var parents, children int
+	for _, record := range sink.records {
+		switch record.Resource {
+		case "parents":
+			parents++
+		case "children":
+			children++
+		}
+	}
+	if parents != 2 || children != 1 {
+		t.Fatalf("emitted parent/child records = %d/%d, want 2/1", parents, children)
+	}
+}
+
 func TestCaptureOnlyParentGatesChildFanOutOnSince(t *testing.T) {
 	ctx := context.Background()
 	var threadRequests int

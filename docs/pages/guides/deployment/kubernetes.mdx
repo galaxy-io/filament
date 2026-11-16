@@ -14,6 +14,12 @@ coordinating schedules and runs. Keep `controlPlane.replicas` at `1` and
 leave `controlPlane.autoscaling.enabled` disabled.
 </Warning>
 
+Upgrading the chart restarts the server and control plane as Deployments.
+Worker Jobs for continuous runs keep their image until the new control plane
+asks each one, one at a time, to finish its epoch and exit, then starts it
+again on the new image. See
+[streaming](/pages/guides/concepts/streaming#pause-stop-and-worker-ownership).
+
 ## Install the chart
 
 The default setup uses PostgreSQL as its datastore, NATS JetStream as its event

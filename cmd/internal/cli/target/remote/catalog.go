@@ -37,7 +37,7 @@ func (t *Target) Catalog(ctx context.Context) (model.Catalog, error) {
 				Version:     spec.GetVersion(),
 				APIVersion:  spec.GetApiVersion(),
 				AliasTarget: spec.GetAliasTarget(),
-				Maturity:    maturityFromProto(spec.GetMaturity()),
+				IsPreview:   spec.GetIsPreview(),
 				Modes:       readModesFromProto(spec.GetModes()),
 				Config:      filament.ConfigSchema{Fields: fieldsFromProto(spec.GetConfigSchema().GetFields())},
 			}
@@ -47,7 +47,7 @@ func (t *Target) Catalog(ctx context.Context) (model.Catalog, error) {
 				DisplayName: spec.GetDisplayName(),
 				Description: spec.GetDescription(),
 				Version:     spec.GetVersion(),
-				Maturity:    maturityFromProto(spec.GetMaturity()),
+				IsPreview:   spec.GetIsPreview(),
 				Config:      filament.ConfigSchema{Fields: fieldsFromProto(spec.GetConfigSchema().GetFields())},
 				SchemaField: spec.GetSchemaField(),
 			}
@@ -55,17 +55,6 @@ func (t *Target) Catalog(ctx context.Context) (model.Catalog, error) {
 		}
 	}
 	return catalog, nil
-}
-
-func maturityFromProto(maturity ingestionv1.ConnectorMaturity) filament.ConnectorMaturity {
-	switch maturity {
-	case ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA:
-		return filament.MaturityBeta
-	case ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE:
-		return filament.MaturityStable
-	default:
-		return filament.MaturityAlpha
-	}
 }
 
 // readModesFromProto expands replication modes into read levers: standard

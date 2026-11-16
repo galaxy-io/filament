@@ -11,6 +11,7 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 
+import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
 import { usePipelineCanvasEdgeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeResources";
 import { usePipelineCanvasReadOnly } from "@/pages/pipelines/canvas/providers/canvas/PipelineCanvasProvider";
@@ -21,7 +22,11 @@ import {
   PIPELINE_CANVAS_ROUTES_WRITE_MODE_SELECT_WIDTH,
 } from "@/pages/pipelines/canvas/routes/constants";
 import type { PipelineCanvasRoute } from "@/pages/pipelines/canvas/routes/types";
-import { getEdgeModeOptions, getEdgeResourceStatus } from "@/pages/pipelines/canvas/utils";
+import {
+  getEdgeFieldError,
+  getEdgeModeOptions,
+  getEdgeResourceStatus,
+} from "@/pages/pipelines/canvas/utils";
 import { getCursorSelectOptions } from "@/pages/pipelines/components/resource/utils";
 import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsIssuesChip";
 
@@ -98,7 +103,12 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
     writeMode,
     cursor,
   });
-  const issues = status?.isBlocking ? [...route.issues, status.message] : route.issues;
+  const writeModeError = getEdgeFieldError(route.verdict, PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD);
+  const issues = [
+    ...route.issues,
+    ...(status?.isBlocking ? [status.message] : []),
+    ...(writeModeError !== undefined ? [writeModeError] : []),
+  ];
   const warnings = status && !status.isBlocking ? [status.message] : [];
 
   return (
@@ -165,6 +175,7 @@ const PipelineCanvasRoutesRowControls: FC<PipelineCanvasRoutesRowControlsProps> 
             size={SelectInputSize.SMALL}
             placeholder="Write mode..."
             isDisabled={isReadOnly}
+            isError={writeModeError !== undefined}
           />
         </Box>
       </ControlsGroup>

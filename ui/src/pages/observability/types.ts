@@ -1,3 +1,4 @@
+import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import type { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
 
 export enum ObservabilityTimeframe {
@@ -29,7 +30,27 @@ export enum ObservabilityUsageView {
   MEMORY = "MEMORY",
 }
 
+export interface ObservabilityBandViews {
+  throughput: ObservabilityThroughputView;
+  usage: ObservabilityUsageView;
+}
+
+export type ObservabilityBandViewKey = keyof ObservabilityBandViews;
+
+export type ObservabilityBandPivotKey = "throughputPivot" | "usagePivot";
+
 export interface ObservabilityTimeframeQuery {
   durationMs: number;
   granularity: MetricGranularity;
+}
+
+export enum ObservabilityPipelineHealth {
+  RUNNING = "RUNNING",
+  FAILING = "FAILING",
+  HEALTHY = "HEALTHY",
+}
+
+export interface ObservabilityPipelineEntry {
+  pipeline: Pipeline;
+  health: ObservabilityPipelineHealth;
 }

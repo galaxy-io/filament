@@ -1,0 +1,18 @@
+resources:
+  - name: services
+    path: "/v1/services"
+    method: GET
+    response:
+      records: "$.services"
+      pagination: none
+    primary_key:
+      - name
+      - usage
+    fields:
+      name: string
+      usage: string
+      ips: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder

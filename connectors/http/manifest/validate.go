@@ -285,6 +285,9 @@ func (m *Manifest) validateSemantics() error {
 					_ = agg.Addf(fieldPath, "precision and scale require a valid decimal128 declaration")
 				}
 			}
+			if f.Rounding != "" && (f.Rounding != "half_even" || f.Type != "decimal" || f.Precision == 0) {
+				_ = agg.Addf(fieldPath+".rounding", "requires a fixed decimal with half_even rounding")
+			}
 			if f.Value != nil {
 				validateTemplateScopes(&agg, fieldPath+".value", *f.Value, []string{"config", "parent"})
 				if len(f.Tuple) > 0 || len(f.Shape) > 0 || f.Mode != "" || f.MaxString != "" {

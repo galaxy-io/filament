@@ -32,9 +32,16 @@ export const filamentLayoutSearchSchema = z.object({
   connectorKind: z.enum(ConnectorKind).optional().catch(undefined),
   connector: z.string().optional().catch(undefined),
   connectorSearch: z.string().optional().catch(undefined),
+  sourceId: z.string().optional().catch(undefined),
+  sinkIds: z.array(z.string()).optional().catch(undefined),
+  resources: z.array(z.string()).optional().catch(undefined),
+  resyncResources: z.array(z.string()).optional().catch(undefined),
+  returnFlow: z.literal(Flow.CREATE_PIPELINE).optional().catch(undefined),
 });
 
 export type FilamentLayoutSearch = z.infer<typeof filamentLayoutSearchSchema>;
+
+export type FilamentFlowSeed = Omit<FilamentLayoutSearch, "flow" | "connectionId">;
 
 export const teamSearchSchema = z.object({
   view: z.enum(SettingsTeamView).optional().catch(undefined),
@@ -52,8 +59,7 @@ export const observabilitySearchSchema = z.object({
   usage: z.enum(ObservabilityUsageView).optional().catch(undefined),
   usagePivot: z.enum(MetricDimension).optional().catch(undefined),
   statuses: z.array(z.enum(RunStatus)).optional().catch(undefined),
-  runsBucket: z.coerce.bigint().positive().optional().catch(undefined),
-  runsStatus: z.enum(RunStatus).optional().catch(undefined),
+  pipelinesPage: z.coerce.number().int().positive().optional().catch(undefined),
 });
 
 export type ObservabilitySearch = z.infer<typeof observabilitySearchSchema>;

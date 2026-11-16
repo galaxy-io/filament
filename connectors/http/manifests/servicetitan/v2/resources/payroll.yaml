@@ -35,7 +35,7 @@ resources:
     fields:
       id: int64
       jobId: int64?
-      split: decimal?
+      split: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       active: bool?
       createdOn: string?
       modifiedOn: string?
@@ -62,12 +62,12 @@ resources:
       type: string?
       id: int64
       memo: string?
-      rate: decimal?
-      hours: decimal?
+      rate: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
+      hours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       active: bool?
-      amount: decimal?
+      amount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       postedOn: string?
-      quantity: decimal?
+      quantity: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       createdOn: string?
       invoiceId: int64?
       employeeId: int64?
@@ -97,7 +97,7 @@ resources:
       id: int64?
       date: string?
       active: bool?
-      amount: decimal?
+      amount: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       activity: string?
       createdOn: string?
       payrollId: int64
@@ -106,7 +106,7 @@ resources:
       activityCode: string?
       employeeType: string?
       activityCodeId: int64?
-      amountAdjustment: decimal?
+      amountAdjustment: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       businessUnitName: string?
       employeePayrollId: string?
       budgetCodeId: int64?
@@ -128,7 +128,7 @@ resources:
       locationName: string?
       locationZip: string?
       memo: string?
-      paidDurationHours: decimal?
+      paidDurationHours: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       paidTimeType: string?
       payoutBusinessUnitName: string?
       projectId: int64?
@@ -161,7 +161,7 @@ resources:
       description: string?
       type: string?
       applicableEmployeeType: string?
-      rateInfo: json?
+      rateInfo: json_string?
       createdOn: string?
       modifiedOn: string?
       active: bool?
@@ -180,6 +180,60 @@ resources:
       start_param: from
       inject_into: query
       checkpoint_key: timesheet_codes_export_token
+  - name: activity_codes
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/activity-codes
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      code: string
+      earningCategory: string
+      isDiscretionary: bool
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
+    incremental:
+      response_cursor: continueFrom
+      start_param: from
+      inject_into: query
+      checkpoint_key: activity_codes_export_token
+  - name: payroll_settings
+    path: /payroll/v2/tenant/{{ config.tenant_id }}/export/payroll-settings
+    primary_key: []
+    fields:
+      employeeId: int64
+      employeeType: string
+      externalPayrollId: string?
+      hourlyRate: {type: decimal, precision: 38, scale: 9, rounding: half_even}
+      managerId: int64?
+      payrollBusinessUnitId: int64?
+      isIncludedInPayroll: bool
+      hireDate: string?
+      payType: json?
+      customFields: json?
+      active: bool
+      createdOn: string
+      modifiedOn: string
+      raw: {path: $, type: json, mode: remainder}
+    query:
+      includeRecentChanges: "false"
+    response:
+      pagination:
+        cursor:
+          strict: true
+          response: continueFrom
+          request: query.from
+          more: hasMore
   - name: non_job_timesheets
     path: /payroll/v2/tenant/{{ config.tenant_id }}/non-job-timesheets
     primary_key: [id]

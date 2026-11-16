@@ -248,6 +248,9 @@ func graphFromProto(graph *ingestionv1.PipelineGraph, connections connectionInde
 		for _, selection := range edge.GetColumns() {
 			mapped.Columns = append(mapped.Columns, model.ResourceColumns{Resource: selection.GetResource(), Columns: slices.Clone(selection.GetColumns())})
 		}
+		for _, selection := range edge.GetPartitions() {
+			mapped.Partitions = append(mapped.Partitions, model.ResourcePartitions{Resource: selection.GetResource(), Partitions: slices.Clone(selection.GetPartitions())})
+		}
 		out.Edges = append(out.Edges, mapped)
 	}
 	return out, replication
@@ -299,6 +302,9 @@ func (t *Target) graphToProto(ctx context.Context, pipeline model.Pipeline) (*in
 		}
 		for _, selection := range edge.Columns {
 			mapped.Columns = append(mapped.Columns, &ingestionv1.ResourceColumnSelection{Resource: selection.Resource, Columns: slices.Clone(selection.Columns)})
+		}
+		for _, selection := range edge.Partitions {
+			mapped.Partitions = append(mapped.Partitions, &ingestionv1.ResourcePartitionSelection{Resource: selection.Resource, Partitions: slices.Clone(selection.Partitions)})
 		}
 		out.Edges = append(out.Edges, mapped)
 	}

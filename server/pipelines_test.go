@@ -461,3 +461,31 @@ func TestValidateColumnSelections(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSelectionsRejectConflictsAcrossARoute(t *testing.T) {
+	columns := func(names ...string) []*ingestionv1.ResourceColumnSelection {
+		return []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: names}}
+	}
+	partitions := func(names ...string) []*ingestionv1.ResourcePartitionSelection {
+		return []*ingestionv1.ResourcePartitionSelection{{Resource: "orders", Partitions: names}}
+	}
+	if err := validateColumnSelections([]*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", Columns: columns("id", "email")},
+		{FromNode: "src", ToNode: "snk", Resource: "orders", Columns: columns("email", "id")},
+		{FromNode: "src", ToNode: "other", Resource: "orders", Columns: columns("id")},
+	}); err != nil {
+		t.Fatalf("the same columns in another order, or on another route, must not conflict: %v", err)
+	}
+	if err := validateColumnSelections([]*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", Columns: columns("id", "email")},
+		{FromNode: "src", ToNode: "snk", Resource: "orders", Columns: columns("id")},
+	}); err == nil {
+		t.Fatal("conflicting column selections on one route must fail")
+	}
+	if err := validatePartitionSelections([]*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", Partitions: partitions("orders_2026_10")},
+		{FromNode: "src", ToNode: "snk", Resource: "orders", Partitions: partitions("orders_2026_11")},
+	}); err == nil {
+		t.Fatal("conflicting partition selections on one route must fail")
+	}
+}

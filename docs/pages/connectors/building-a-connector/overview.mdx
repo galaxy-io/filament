@@ -45,12 +45,8 @@ For continuous execution, read
 It explains how a source establishes safe progress, how a sink commits epochs,
 and what each connector must guarantee before a worker can be replaced.
 
-## Maturity
+## Preview status
 
-Registration includes a maturity level, which the API and web app show to users.
-
-- `alpha` is documentation-derived and not yet tested end to end
-- `beta` has run end to end, but is not verified across every supported object
-- `stable` is production-ready across everything it claims to support
-
-Start at alpha. Move it up as coverage arrives.
+Registration includes an `is_preview` flag, which the API and web app show to
+users. Set it to `true` for connectors that have not been confirmed stable.
+Clear it after live validation confirms the supported behavior.

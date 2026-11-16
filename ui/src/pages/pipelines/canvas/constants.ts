@@ -98,6 +98,7 @@ export const PIPELINE_CANVAS_NODE_TYPE_TO_COUNTERPART_TYPE_MAP: Record<
 };
 
 export const PIPELINE_CANVAS_EDGE_TYPE = "pipeline";
+export const PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD = "write_mode";
 
 export const PIPELINE_CANVAS_EDGE_Z_INDEX = 2000;
 export const PIPELINE_CANVAS_OVERLAY_Z_INDEX = 2001;

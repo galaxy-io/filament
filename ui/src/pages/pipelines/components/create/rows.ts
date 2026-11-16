@@ -18,6 +18,7 @@ import {
   getDefaultCursor,
   getDefaultReadMode,
   getEffectiveColumnSelection,
+  getEffectivePartitionSelection,
   getLockedColumnNames,
   getPipelineResourceStatus,
 } from "@/pages/pipelines/components/resource/utils";
@@ -58,6 +59,9 @@ const createResourceRows = ({
 }): CreatePipelineModalResourceRow[] => {
   const columnsByResource = new Map(
     (columns?.resources ?? []).map((entry) => [entry.resource, entry.columns]),
+  );
+  const partitionsByResource = new Map(
+    (columns?.resources ?? []).map((entry) => [entry.resource, entry.partitions]),
   );
   const selectableResources = new Set(
     (columns?.resources ?? [])
@@ -106,6 +110,11 @@ const createResourceRows = ({
       columns: resourceColumns,
       locked: lockedColumns,
     });
+    const partitions = partitionsByResource.get(resource.name) ?? [];
+    const selectedPartitions = getEffectivePartitionSelection({
+      stored: state.resourcePartitions[sinkId]?.[resource.name],
+      partitions,
+    });
 
     return {
       name: resource.name,
@@ -123,6 +132,8 @@ const createResourceRows = ({
       selectedColumns,
       lockedColumns,
       isColumnSelectable: selectableResources.has(resource.name) || storedColumns !== undefined,
+      partitions,
+      selectedPartitions,
       status:
         !hasReadLevers || !isSelected
           ? undefined

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	_ "github.com/galaxy-io/filament/connectors/http"
 	"github.com/galaxy-io/filament/registry"
@@ -42,8 +41,8 @@ func TestLegacyHTTPConnectionWorkflows(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Catalog resolution must retain the actual schema, not merely recognize names.
-	if target.catalog.Sources["github"].Maturity != filament.MaturityBeta {
-		t.Fatal("alias lost catalog maturity")
+	if target.catalog.Sources["github"].IsPreview != false {
+		t.Fatal("alias lost catalog preview flag")
 	}
 	bad := target.document.Sources["input"]
 	bad.Config = map[string]any{"token": "env:GITHUB_TOKEN"}

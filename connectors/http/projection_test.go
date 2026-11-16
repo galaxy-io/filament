@@ -52,6 +52,36 @@ func TestProjectionPreservesJSONNumbers(t *testing.T) {
 	}
 }
 
+func TestProjectionJSONStringKeepsStructuredValueInStringColumn(t *testing.T) {
+	res := manifest.Resource{Fields: manifest.FieldList{
+		{Name: "account", Path: "account", Type: "json_string", Nullable: true},
+		{Name: "label", Path: "label", Type: "json_string", Nullable: true},
+		{Name: "missing", Path: "missing", Type: "json_string", Nullable: true},
+	}}
+	records, err := response.New(manifest.ResponseSpec{Root: "array"}).Records([]byte(`[{"account":{"id":9007199254740993,"name":"Labor"},"label":"plain"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, _, err := projectRecord(res, records[0], nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := row["account"]; got != `{"id":9007199254740993,"name":"Labor"}` {
+		t.Fatalf("account=%v", got)
+	}
+	if row["label"] != "plain" || row["missing"] != nil {
+		t.Fatalf("scalar and null values: %#v", row)
+	}
+	for _, field := range schemaFields(res) {
+		if field.Logical != "string" {
+			t.Fatalf("%s has logical type %s", field.Name, field.Logical)
+		}
+	}
+	if _, err := coerceValue("string", records[0]["account"]); err == nil {
+		t.Fatal("ordinary string field accepted an object")
+	}
+}
+
 func TestProjectionValuesTuplesAndExactDecimals(t *testing.T) {
 	const data = `version: 1
 name: typed

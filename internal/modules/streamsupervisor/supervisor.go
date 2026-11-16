@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/schema"
+	"github.com/galaxy-io/filament/version"
 )
 
 // Supervisor reconciles durable intent and dispatches admitted worker attempts.
@@ -26,6 +27,8 @@ type Supervisor struct {
 	mu       sync.Mutex
 	running  map[string]bool
 	retries  map[string]*retryState
+	// yielded records that this pass already yielded one stale attempt.
+	yielded bool
 }
 
 // New creates a supervisor; a nil dispatcher executes workers in process.
@@ -71,6 +74,7 @@ func (s *Supervisor) Reconcile(ctx context.Context) error {
 	if s.store == nil {
 		return nil
 	}
+	s.yielded = false
 	after := ""
 	for {
 		runs, err := s.store.PendingStreamRuns(ctx, after, 100)
@@ -119,6 +123,9 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 			}
 			return filament.ErrTakeoverBlocked
 		}
+		if a.Claimed && state.Desired == filament.StreamEnabled {
+			return s.yieldStale(ctx, r.Run, a)
+		}
 		if a.Claimed || state.Desired != filament.StreamEnabled {
 			return nil
 		}
@@ -146,7 +153,7 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 				return nil
 			}
 		}
-		admitted, err := s.store.StartAttempt(ctx, filament.StartAttemptRequest{Tenant: r.Tenant, Stream: req.Stream, Run: r.Run, ExecutionID: uuid.NewString(), PipelineVersionID: state.PipelineVersionID, Route: state.Route, ExpectedRevision: state.Revision, TTL: runner.DefaultLeaseTTL})
+		admitted, err := s.store.StartAttempt(ctx, filament.StartAttemptRequest{Tenant: r.Tenant, Stream: req.Stream, Run: r.Run, ExecutionID: uuid.NewString(), PipelineVersionID: state.PipelineVersionID, Route: state.Route, DispatchVersion: version.Version, ExpectedRevision: state.Revision, TTL: runner.DefaultLeaseTTL})
 		if err != nil {
 			return err
 		}
@@ -172,6 +179,27 @@ func (s *Supervisor) reconcileRun(ctx context.Context, r filament.RunState) erro
 			s.deps.Log.Error("continuous attempt ended", err, filament.Field{Key: "execution_id", Value: id})
 		}
 	}(a.Spec)
+	return nil
+}
+
+// yieldStale yields a live attempt dispatched by an older release, at most one
+// per reconcile pass, so an upgrade restarts streams one at a time. The stream
+// stays enabled and the next pass starts a fresh attempt on the current image.
+func (s *Supervisor) yieldStale(ctx context.Context, run filament.RunID, a *filament.Attempt) error {
+	if a.YieldRequested || a.DispatchVersion == version.Version || s.yielded {
+		return nil
+	}
+	if err := s.store.YieldAttempt(ctx, a.Lease); err != nil {
+		return err
+	}
+	s.yielded = true
+	if s.deps.Log != nil {
+		s.deps.Log.Info("continuous attempt yielded for upgrade",
+			filament.Field{Key: "run_id", Value: string(run)},
+			filament.Field{Key: "execution_id", Value: a.Lease.Attempt.ExecutionID},
+			filament.Field{Key: "attempt_version", Value: a.DispatchVersion},
+			filament.Field{Key: "control_plane_version", Value: version.Version})
+	}
 	return nil
 }
 

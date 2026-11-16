@@ -65,6 +65,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if len(group.transforms) > 0 {
 			return nil, fmt.Errorf("%w: continuous execution does not apply transforms", ErrInvalid)
 		}
+		if err := validateContinuousResync(sourceSpec, sourceRef, routeResync(group, resync)); err != nil {
+			return nil, err
+		}
 		resources, _ := routeResources(group)
 		streamID := uuid.NewString()
 		plan, err := planContinuousSource(ctx, c.Worker, sourceRef, resources, streamID, group.source.ConnectionId)
@@ -79,13 +82,12 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		policies := continuousWritePolicies(resources, writePlan.Policy)
 		applyContinuousDestinations(policies, graph.Edges, group)
 		ingestionTypes := continuousIngestionTypes(sourceSpec, sourceRef, resources, writePlan.Policy.Capability.Mode)
-		columns := routeColumns(group)
 		fingerprint, err := continuityFingerprint(sourceRef, sinkRef, writePlan, plan.ContinuityConfig)
 		if err != nil {
 			return nil, err
 		}
 		desired := &filament.ReplicationStream{ID: streamID, Tenant: tenant, PipelineID: p.Id, Route: group.key, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig, ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: v.Id}
-		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: columns, Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), WritePolicies: policies, IngestionTypes: ingestionTypes}}})
+		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: routeSelection(group.columns), Partitions: routeSelection(group.partitions), Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), WritePolicies: policies, IngestionTypes: ingestionTypes}}})
 	}
 	return out, nil
 }
@@ -181,7 +183,7 @@ func normalizeContinuousEdges(edges []*ingestionv1.PipelineEdge) error {
 // continuityFingerprint is conservative about the endpoints and the write
 // shape: no guessing that an edited connection or config is compatible, so a
 // change there forks the generation after stop. It leaves out the selected
-// resources, their columns and destinations on purpose. Those are membership,
+// resources, their columns, partitions and destinations on purpose. Those are membership,
 // which a successor run revises on the same generation.
 func continuityFingerprint(sourceRef, sinkRef filament.Ref, writePlan filament.ContinuousWritePlan, continuity map[string]any) (string, error) {
 	raw, err := json.Marshal(struct {
@@ -234,4 +236,15 @@ func applyContinuousDestinations(policies map[string]filament.WritePolicy, edges
 		}
 		policies[resource] = policy
 	}
+}
+
+// validateContinuousResync rejects a resync on a continuous route whose source
+// cannot read a resource again. Only a change data capture source snapshots a
+// pending member. A message stream resumes from its certified position and
+// leaves the member pending, so every epoch commit would fail.
+func validateContinuousResync(spec filament.ConnectorSpec, ref filament.Ref, resync []string) error {
+	if len(resync) == 0 || filament.ReplicationFor(spec, filament.NewConfig(ref.Config)) == filament.ReplicationCDC {
+		return nil
+	}
+	return fmt.Errorf("%w: resync needs a change data capture source, %s streams cannot read a resource again", ErrInvalid, ref.Connector)
 }

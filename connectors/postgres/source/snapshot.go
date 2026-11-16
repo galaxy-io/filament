@@ -24,11 +24,16 @@ func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 		return err
 	}
 
-	// Sequential path: one worker, no cross-shard concurrency, so no snapshot to
-	// coordinate — read each shard in turn straight off the pool.
+	// Sequential path: one worker reads each shard in turn inside one snapshot,
+	// so a row moving between partitions mid-read is seen exactly once.
 	if opts.Parallelism <= 1 || len(shards) <= 1 {
+		snap, err := s.openSnapshot(ctx)
+		if err != nil {
+			return err
+		}
+		defer snap.close(ctx)
 		for _, sh := range shards {
-			if err := s.extractShard(ctx, sink, s.pool, sh, opts.Limit); err != nil {
+			if err := s.extractShard(ctx, sink, snap.tx, sh, opts.Limit); err != nil {
 				return fmt.Errorf("extract %q: %w", sh.table, err)
 			}
 		}
@@ -90,7 +95,8 @@ type shard struct {
 // only when sharding is enabled, the run is parallel, and the table is larger than
 // shard_pages; otherwise it is a single shard covering the whole heap. Every shard
 // is bounded by the table's current block count — an unbounded ctid scan re-reads to
-// end-of-table on each page, so it is avoided.
+// end-of-table on each page, so it is avoided. A partitioned table has no heap of
+// its own: each leaf it reads is sharded the same way and emits under the table.
 func (s *Source) planShards(ctx context.Context, tables []string, parallelism int) ([]shard, error) {
 	var shards []shard
 	for _, table := range tables {
@@ -98,31 +104,43 @@ func (s *Source) planShards(ctx context.Context, tables []string, parallelism in
 		if err != nil {
 			return nil, fmt.Errorf("lookup pk %q: %w", table, err)
 		}
-		qualified := pgx.Identifier{s.schema, table}.Sanitize()
 		dec, err := s.decoderFor(ctx, table, pkNames(pks))
 		if err != nil {
 			return nil, err
 		}
-
-		pages, err := s.lookupPages(ctx, qualified)
+		relations, err := s.snapshotRelations(ctx, table)
 		if err != nil {
-			return nil, fmt.Errorf("lookup size %q: %w", table, err)
+			return nil, err
 		}
-		window, err := s.windowBlocks(ctx, qualified)
-		if err != nil {
-			return nil, fmt.Errorf("size window %q: %w", table, err)
+		if len(relations) == 0 {
+			// Every partition is deselected: one empty shard still completes the
+			// table, so its snapshot finishes like an empty table's.
+			shards = append(shards, shard{table: table, qualified: pgx.Identifier{s.schema, table}.Sanitize(), dec: dec, windowBlocks: 1})
+			continue
 		}
-		k := shardCount(pages, parallelism, s.shardPages)
-		for i := range k {
-			lo := i * pages / k
-			hi := (i + 1) * pages / k
-			if i == k-1 {
-				hi = pages // exact end; rows live in blocks [0, pages)
+		part := 0
+		for _, qualified := range relations {
+			pages, err := s.lookupPages(ctx, qualified)
+			if err != nil {
+				return nil, fmt.Errorf("lookup size %q: %w", qualified, err)
 			}
-			shards = append(shards, shard{
-				table: table, part: i, qualified: qualified, dec: dec,
-				loBlock: lo, hiBlock: hi, windowBlocks: window,
-			})
+			window, err := s.windowBlocks(ctx, qualified)
+			if err != nil {
+				return nil, fmt.Errorf("size window %q: %w", qualified, err)
+			}
+			k := shardCount(pages, parallelism, s.shardPages)
+			for i := range k {
+				lo := i * pages / k
+				hi := (i + 1) * pages / k
+				if i == k-1 {
+					hi = pages // exact end; rows live in blocks [0, pages)
+				}
+				shards = append(shards, shard{
+					table: table, part: part, qualified: qualified, dec: dec,
+					loBlock: lo, hiBlock: hi, windowBlocks: window,
+				})
+				part++
+			}
 		}
 	}
 	return shards, nil
@@ -296,9 +314,11 @@ func (s *Source) extractShardSnapshot(ctx context.Context, sink arrowbatch.Inlet
 // lookupPages returns the current heap size of the table in 8 KiB blocks, derived
 // from pg_relation_size so it reflects live size even for a freshly loaded table
 // that has never been ANALYZEd (pg_class.relpages would still read 0). The count
-// bounds every shard at the real end of the heap.
+// bounds every shard at the real end of the heap. A partitioned table counts the
+// blocks of its partitions, which hold its rows; pg_partition_tree lists nothing
+// for a plain table, which counts its own.
 func (s *Source) lookupPages(ctx context.Context, qualified string) (int, error) {
-	const q = `SELECT (pg_relation_size($1::regclass) / current_setting('block_size')::bigint)::int`
+	const q = `SELECT (COALESCE((SELECT sum(pg_relation_size(relid)) FROM pg_partition_tree($1::regclass)), pg_relation_size($1::regclass)) / current_setting('block_size')::bigint)::int`
 	var pages int
 	if err := s.pool.QueryRow(ctx, q, qualified).Scan(&pages); err != nil {
 		return 0, err

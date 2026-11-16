@@ -1,4 +1,4 @@
-import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
+import type { Resource, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
@@ -7,6 +7,11 @@ export enum PipelineResourceStatusField {
   CURSOR = "cursor",
   WRITE_MODE = "writeMode",
   COLUMNS = "columns",
+  PARTITIONS = "partitions",
+}
+
+export interface PipelineResourcePartitionRow {
+  name: ResourceColumns["partitions"][number];
 }
 
 export interface PipelineResourceStatus {

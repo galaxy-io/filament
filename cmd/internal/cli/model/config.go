@@ -17,10 +17,8 @@ type Document struct {
 	Pipelines map[string]Pipeline   `json:"pipelines,omitempty" yaml:"pipelines,omitempty"`
 }
 
-// EntityMetadata carries target-owned identity and optimistic concurrency
-// information. It is intentionally excluded from configuration serialization:
-// local targets derive it from the YAML store and remote targets can map it to
-// their native IDs and versions.
+// EntityMetadata carries the deployment's identity and version for an entity.
+// It is excluded from configuration serialization.
 type EntityMetadata struct {
 	ID       string `json:"-" yaml:"-"`
 	Revision string `json:"-" yaml:"-"`
@@ -99,6 +97,14 @@ func NewDocument() Document {
 		Sinks:     map[string]Connection{},
 		Pipelines: map[string]Pipeline{},
 	}
+}
+
+// Connections returns the document's sources or sinks.
+func (d Document) Connections(kind string) map[string]Connection {
+	if kind == "sink" {
+		return d.Sinks
+	}
+	return d.Sources
 }
 
 // Normalize initializes omitted document collections.

@@ -63,6 +63,12 @@ const (
 	// IngestionServiceDeleteConnectionProcedure is the fully-qualified name of the IngestionService's
 	// DeleteConnection RPC.
 	IngestionServiceDeleteConnectionProcedure = "/ingestion.v1.IngestionService/DeleteConnection"
+	// IngestionServiceGetWebhookEndpointProcedure is the fully-qualified name of the IngestionService's
+	// GetWebhookEndpoint RPC.
+	IngestionServiceGetWebhookEndpointProcedure = "/ingestion.v1.IngestionService/GetWebhookEndpoint"
+	// IngestionServicePutWebhookEndpointProcedure is the fully-qualified name of the IngestionService's
+	// PutWebhookEndpoint RPC.
+	IngestionServicePutWebhookEndpointProcedure = "/ingestion.v1.IngestionService/PutWebhookEndpoint"
 	// IngestionServiceValidatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// ValidatePipeline RPC.
 	IngestionServiceValidatePipelineProcedure = "/ingestion.v1.IngestionService/ValidatePipeline"
@@ -128,6 +134,9 @@ const (
 	// IngestionServiceTailRunProcedure is the fully-qualified name of the IngestionService's TailRun
 	// RPC.
 	IngestionServiceTailRunProcedure = "/ingestion.v1.IngestionService/TailRun"
+	// IngestionServiceGetVersionProcedure is the fully-qualified name of the IngestionService's
+	// GetVersion RPC.
+	IngestionServiceGetVersionProcedure = "/ingestion.v1.IngestionService/GetVersion"
 )
 
 // IngestionServiceClient is a client for the ingestion.v1.IngestionService service.
@@ -145,6 +154,9 @@ type IngestionServiceClient interface {
 	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
 	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
+	// Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+	GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error)
+	PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Transformations; the function catalog and per-resource compile check a builder needs.
@@ -176,6 +188,8 @@ type IngestionServiceClient interface {
 	SignalRun(context.Context, *connect.Request[v1.SignalRunRequest]) (*connect.Response[v1.SignalRunResponse], error)
 	// Live progress; server-streams a run's facts with optional snapshot replay.
 	TailRun(context.Context, *connect.Request[v1.TailRunRequest]) (*connect.ServerStreamForClient[v1.TailRunResponse], error)
+	// The build version stamped into the server binary.
+	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
 }
 
 // NewIngestionServiceClient constructs a client for the ingestion.v1.IngestionService service. By
@@ -247,6 +261,18 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceDeleteConnectionProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		getWebhookEndpoint: connect.NewClient[v1.GetWebhookEndpointRequest, v1.GetWebhookEndpointResponse](
+			httpClient,
+			baseURL+IngestionServiceGetWebhookEndpointProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetWebhookEndpoint")),
+			connect.WithClientOptions(opts...),
+		),
+		putWebhookEndpoint: connect.NewClient[v1.PutWebhookEndpointRequest, v1.PutWebhookEndpointResponse](
+			httpClient,
+			baseURL+IngestionServicePutWebhookEndpointProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("PutWebhookEndpoint")),
 			connect.WithClientOptions(opts...),
 		),
 		validatePipeline: connect.NewClient[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse](
@@ -381,6 +407,12 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(ingestionServiceMethods.ByName("TailRun")),
 			connect.WithClientOptions(opts...),
 		),
+		getVersion: connect.NewClient[v1.GetVersionRequest, v1.GetVersionResponse](
+			httpClient,
+			baseURL+IngestionServiceGetVersionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetVersion")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -396,6 +428,8 @@ type ingestionServiceClient struct {
 	getConnection          *connect.Client[v1.GetConnectionRequest, v1.GetConnectionResponse]
 	listConnections        *connect.Client[v1.ListConnectionsRequest, v1.ListConnectionsResponse]
 	deleteConnection       *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
+	getWebhookEndpoint     *connect.Client[v1.GetWebhookEndpointRequest, v1.GetWebhookEndpointResponse]
+	putWebhookEndpoint     *connect.Client[v1.PutWebhookEndpointRequest, v1.PutWebhookEndpointResponse]
 	validatePipeline       *connect.Client[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse]
 	listTransformFunctions *connect.Client[v1.ListTransformFunctionsRequest, v1.ListTransformFunctionsResponse]
 	validateTransform      *connect.Client[v1.ValidateTransformRequest, v1.ValidateTransformResponse]
@@ -418,6 +452,7 @@ type ingestionServiceClient struct {
 	getRun                 *connect.Client[v1.GetRunRequest, v1.GetRunResponse]
 	signalRun              *connect.Client[v1.SignalRunRequest, v1.SignalRunResponse]
 	tailRun                *connect.Client[v1.TailRunRequest, v1.TailRunResponse]
+	getVersion             *connect.Client[v1.GetVersionRequest, v1.GetVersionResponse]
 }
 
 // ListConnectors calls ingestion.v1.IngestionService.ListConnectors.
@@ -468,6 +503,16 @@ func (c *ingestionServiceClient) ListConnections(ctx context.Context, req *conne
 // DeleteConnection calls ingestion.v1.IngestionService.DeleteConnection.
 func (c *ingestionServiceClient) DeleteConnection(ctx context.Context, req *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
 	return c.deleteConnection.CallUnary(ctx, req)
+}
+
+// GetWebhookEndpoint calls ingestion.v1.IngestionService.GetWebhookEndpoint.
+func (c *ingestionServiceClient) GetWebhookEndpoint(ctx context.Context, req *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error) {
+	return c.getWebhookEndpoint.CallUnary(ctx, req)
+}
+
+// PutWebhookEndpoint calls ingestion.v1.IngestionService.PutWebhookEndpoint.
+func (c *ingestionServiceClient) PutWebhookEndpoint(ctx context.Context, req *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error) {
+	return c.putWebhookEndpoint.CallUnary(ctx, req)
 }
 
 // ValidatePipeline calls ingestion.v1.IngestionService.ValidatePipeline.
@@ -580,6 +625,11 @@ func (c *ingestionServiceClient) TailRun(ctx context.Context, req *connect.Reque
 	return c.tailRun.CallServerStream(ctx, req)
 }
 
+// GetVersion calls ingestion.v1.IngestionService.GetVersion.
+func (c *ingestionServiceClient) GetVersion(ctx context.Context, req *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
+	return c.getVersion.CallUnary(ctx, req)
+}
+
 // IngestionServiceHandler is an implementation of the ingestion.v1.IngestionService service.
 type IngestionServiceHandler interface {
 	// Catalog of registered source/sink connectors and their config schemas.
@@ -595,6 +645,9 @@ type IngestionServiceHandler interface {
 	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
 	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
+	// Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+	GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error)
+	PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Transformations; the function catalog and per-resource compile check a builder needs.
@@ -626,6 +679,8 @@ type IngestionServiceHandler interface {
 	SignalRun(context.Context, *connect.Request[v1.SignalRunRequest]) (*connect.Response[v1.SignalRunResponse], error)
 	// Live progress; server-streams a run's facts with optional snapshot replay.
 	TailRun(context.Context, *connect.Request[v1.TailRunRequest], *connect.ServerStream[v1.TailRunResponse]) error
+	// The build version stamped into the server binary.
+	GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error)
 }
 
 // NewIngestionServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -693,6 +748,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceDeleteConnectionProcedure,
 		svc.DeleteConnection,
 		connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetWebhookEndpointHandler := connect.NewUnaryHandler(
+		IngestionServiceGetWebhookEndpointProcedure,
+		svc.GetWebhookEndpoint,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetWebhookEndpoint")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServicePutWebhookEndpointHandler := connect.NewUnaryHandler(
+		IngestionServicePutWebhookEndpointProcedure,
+		svc.PutWebhookEndpoint,
+		connect.WithSchema(ingestionServiceMethods.ByName("PutWebhookEndpoint")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceValidatePipelineHandler := connect.NewUnaryHandler(
@@ -827,6 +894,12 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		connect.WithSchema(ingestionServiceMethods.ByName("TailRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ingestionServiceGetVersionHandler := connect.NewUnaryHandler(
+		IngestionServiceGetVersionProcedure,
+		svc.GetVersion,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetVersion")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/ingestion.v1.IngestionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case IngestionServiceListConnectorsProcedure:
@@ -849,6 +922,10 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceListConnectionsHandler.ServeHTTP(w, r)
 		case IngestionServiceDeleteConnectionProcedure:
 			ingestionServiceDeleteConnectionHandler.ServeHTTP(w, r)
+		case IngestionServiceGetWebhookEndpointProcedure:
+			ingestionServiceGetWebhookEndpointHandler.ServeHTTP(w, r)
+		case IngestionServicePutWebhookEndpointProcedure:
+			ingestionServicePutWebhookEndpointHandler.ServeHTTP(w, r)
 		case IngestionServiceValidatePipelineProcedure:
 			ingestionServiceValidatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceListTransformFunctionsProcedure:
@@ -893,6 +970,8 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceSignalRunHandler.ServeHTTP(w, r)
 		case IngestionServiceTailRunProcedure:
 			ingestionServiceTailRunHandler.ServeHTTP(w, r)
+		case IngestionServiceGetVersionProcedure:
+			ingestionServiceGetVersionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -940,6 +1019,14 @@ func (UnimplementedIngestionServiceHandler) ListConnections(context.Context, *co
 
 func (UnimplementedIngestionServiceHandler) DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeleteConnection is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetWebhookEndpoint is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.PutWebhookEndpoint is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
@@ -1028,4 +1115,8 @@ func (UnimplementedIngestionServiceHandler) SignalRun(context.Context, *connect.
 
 func (UnimplementedIngestionServiceHandler) TailRun(context.Context, *connect.Request[v1.TailRunRequest], *connect.ServerStream[v1.TailRunResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.TailRun is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetVersion(context.Context, *connect.Request[v1.GetVersionRequest]) (*connect.Response[v1.GetVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetVersion is not implemented"))
 }

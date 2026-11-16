@@ -27,6 +27,7 @@ import {
   type SetNodeConfigAction,
   type SetResourceColumnsAction,
   type SetResourceCursorAction,
+  type SetResourcePartitionsAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
   type SetResourceWriteModeAction,
@@ -46,9 +47,10 @@ import createPipelineModalReducer from "@/pages/pipelines/components/create/redu
 import { getDefaultPipelineName } from "@/pages/pipelines/components/create/rows";
 import {
   type CreatePipelineModalContextValue,
+  type CreatePipelineModalSeed,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
-import { createInitialCreatePipelineModalState } from "@/pages/pipelines/components/create/utils";
+import { createSeededCreatePipelineModalState } from "@/pages/pipelines/components/create/utils";
 import { isPipelineNotifierValid } from "@/pages/pipelines/components/notifier/utils";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
@@ -104,6 +106,8 @@ export const useCreatePipelineModalActions = () => {
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_CURSOR, payload }),
       setResourceColumns: (payload: SetResourceColumnsAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_COLUMNS, payload }),
+      setResourcePartitions: (payload: SetResourcePartitionsAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_PARTITIONS, payload }),
       setResourceWriteMode: (payload: SetResourceWriteModeAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE, payload }),
       setSinkWriteMode: (payload: SetSinkWriteModeAction["payload"]) =>
@@ -137,16 +141,18 @@ export const useCreatePipelineModalActions = () => {
 
 interface CreatePipelineModalProviderProps {
   isOpen: boolean;
+  seed: CreatePipelineModalSeed;
 }
 
 const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProviderProps>> = ({
   isOpen,
+  seed,
   children,
 }) => {
   const [state, dispatch] = useReducer(
     createPipelineModalReducer,
-    undefined,
-    createInitialCreatePipelineModalState,
+    seed,
+    createSeededCreatePipelineModalState,
   );
 
   const {

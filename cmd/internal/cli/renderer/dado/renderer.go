@@ -98,31 +98,6 @@ func (r *Renderer) interactiveAvailable() bool {
 	return inputOK && outputOK && term.IsTerminal(int(in.Fd())) && term.IsTerminal(int(out.Fd()))
 }
 
-func interactiveEntryForArgs(args []string) (interactiveEntry, bool) {
-	if len(args) == 0 {
-		return interactiveEntry{}, true
-	}
-	if len(args) == 1 {
-		switch args[0] {
-		case "source", "sink", "pipeline", "config":
-			return interactiveEntry{section: args[0]}, true
-		case "run":
-			// Bare run is an operation: pick a pipeline, run it, exit.
-			return interactiveEntry{section: "run", operation: "run"}, true
-		}
-		return interactiveEntry{}, false
-	}
-	if len(args) == 2 {
-		switch args[0] {
-		case "source", "sink", "pipeline":
-			if args[1] == "create" {
-				return interactiveEntry{section: args[0], operation: args[1]}, true
-			}
-		}
-	}
-	return interactiveEntry{}, false
-}
-
 func (r *Renderer) runInteractiveAt(ctx context.Context, entry interactiveEntry) (runErr error) {
 	renderer := inline.NewRenderer(inline.WithOutput(r.statusWriter()))
 	r.interactiveRenderer = renderer

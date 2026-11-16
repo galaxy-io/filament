@@ -44,7 +44,6 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1config_schema import IngestionV1ConfigSchema
     from .ingestion_v1connection import IngestionV1Connection
     from .ingestion_v1connector_kind import IngestionV1ConnectorKind
-    from .ingestion_v1connector_maturity import IngestionV1ConnectorMaturity
     from .ingestion_v1connector_spec import IngestionV1ConnectorSpec
     from .ingestion_v1create_connection_response import IngestionV1CreateConnectionResponse
     from .ingestion_v1create_pipeline_notifier_response import IngestionV1CreatePipelineNotifierResponse
@@ -70,6 +69,9 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1get_pipeline_version_response import IngestionV1GetPipelineVersionResponse
     from .ingestion_v1get_resource_columns_response import IngestionV1GetResourceColumnsResponse
     from .ingestion_v1get_run_response import IngestionV1GetRunResponse
+    from .ingestion_v1get_version_request import IngestionV1GetVersionRequest
+    from .ingestion_v1get_version_response import IngestionV1GetVersionResponse
+    from .ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
     from .ingestion_v1list_connections_response import IngestionV1ListConnectionsResponse
     from .ingestion_v1list_connectors_response import IngestionV1ListConnectorsResponse
     from .ingestion_v1list_pipeline_notifiers_response import IngestionV1ListPipelineNotifiersResponse
@@ -92,6 +94,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1pipeline_schedule_config import IngestionV1PipelineScheduleConfig
     from .ingestion_v1pipeline_schedule_overlap_policy import IngestionV1PipelineScheduleOverlapPolicy
     from .ingestion_v1pipeline_version import IngestionV1PipelineVersion
+    from .ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
     from .ingestion_v1rate_policy import IngestionV1RatePolicy
     from .ingestion_v1read_mode import IngestionV1ReadMode
     from .ingestion_v1replication_mode import IngestionV1ReplicationMode
@@ -99,8 +102,10 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1requirement_kind import IngestionV1RequirementKind
     from .ingestion_v1resource import IngestionV1Resource
     from .ingestion_v1resource_column import IngestionV1ResourceColumn
+    from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
     from .ingestion_v1resource_columns import IngestionV1ResourceColumns
     from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
+    from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
     from .ingestion_v1resource_validation import IngestionV1ResourceValidation
     from .ingestion_v1run_event import IngestionV1RunEvent
     from .ingestion_v1run_event_fields import IngestionV1RunEventFields
@@ -128,6 +133,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1validate_pipeline_response import IngestionV1ValidatePipelineResponse
     from .ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
     from .ingestion_v1validation_error import IngestionV1ValidationError
+    from .ingestion_v1webhook_endpoint_config import IngestionV1WebhookEndpointConfig
     from .ingestion_v1worker_configuration import IngestionV1WorkerConfiguration
     from .ingestion_v1worker_resources import IngestionV1WorkerResources
     from .ingestion_v1worker_toleration import IngestionV1WorkerToleration
@@ -180,7 +186,6 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ConfigSchema": ".ingestion_v1config_schema",
     "IngestionV1Connection": ".ingestion_v1connection",
     "IngestionV1ConnectorKind": ".ingestion_v1connector_kind",
-    "IngestionV1ConnectorMaturity": ".ingestion_v1connector_maturity",
     "IngestionV1ConnectorSpec": ".ingestion_v1connector_spec",
     "IngestionV1CreateConnectionResponse": ".ingestion_v1create_connection_response",
     "IngestionV1CreatePipelineNotifierResponse": ".ingestion_v1create_pipeline_notifier_response",
@@ -206,6 +211,9 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1GetPipelineVersionResponse": ".ingestion_v1get_pipeline_version_response",
     "IngestionV1GetResourceColumnsResponse": ".ingestion_v1get_resource_columns_response",
     "IngestionV1GetRunResponse": ".ingestion_v1get_run_response",
+    "IngestionV1GetVersionRequest": ".ingestion_v1get_version_request",
+    "IngestionV1GetVersionResponse": ".ingestion_v1get_version_response",
+    "IngestionV1GetWebhookEndpointResponse": ".ingestion_v1get_webhook_endpoint_response",
     "IngestionV1ListConnectionsResponse": ".ingestion_v1list_connections_response",
     "IngestionV1ListConnectorsResponse": ".ingestion_v1list_connectors_response",
     "IngestionV1ListPipelineNotifiersResponse": ".ingestion_v1list_pipeline_notifiers_response",
@@ -228,6 +236,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1PipelineScheduleConfig": ".ingestion_v1pipeline_schedule_config",
     "IngestionV1PipelineScheduleOverlapPolicy": ".ingestion_v1pipeline_schedule_overlap_policy",
     "IngestionV1PipelineVersion": ".ingestion_v1pipeline_version",
+    "IngestionV1PutWebhookEndpointResponse": ".ingestion_v1put_webhook_endpoint_response",
     "IngestionV1RatePolicy": ".ingestion_v1rate_policy",
     "IngestionV1ReadMode": ".ingestion_v1read_mode",
     "IngestionV1ReplicationMode": ".ingestion_v1replication_mode",
@@ -235,8 +244,10 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1RequirementKind": ".ingestion_v1requirement_kind",
     "IngestionV1Resource": ".ingestion_v1resource",
     "IngestionV1ResourceColumn": ".ingestion_v1resource_column",
+    "IngestionV1ResourceColumnSelection": ".ingestion_v1resource_column_selection",
     "IngestionV1ResourceColumns": ".ingestion_v1resource_columns",
     "IngestionV1ResourceCursorConfig": ".ingestion_v1resource_cursor_config",
+    "IngestionV1ResourcePartitionSelection": ".ingestion_v1resource_partition_selection",
     "IngestionV1ResourceValidation": ".ingestion_v1resource_validation",
     "IngestionV1RunEvent": ".ingestion_v1run_event",
     "IngestionV1RunEventFields": ".ingestion_v1run_event_fields",
@@ -264,6 +275,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ValidatePipelineResponse": ".ingestion_v1validate_pipeline_response",
     "IngestionV1ValidateTransformResponse": ".ingestion_v1validate_transform_response",
     "IngestionV1ValidationError": ".ingestion_v1validation_error",
+    "IngestionV1WebhookEndpointConfig": ".ingestion_v1webhook_endpoint_config",
     "IngestionV1WorkerConfiguration": ".ingestion_v1worker_configuration",
     "IngestionV1WorkerResources": ".ingestion_v1worker_resources",
     "IngestionV1WorkerToleration": ".ingestion_v1worker_toleration",
@@ -340,7 +352,6 @@ __all__ = [
     "IngestionV1ConfigSchema",
     "IngestionV1Connection",
     "IngestionV1ConnectorKind",
-    "IngestionV1ConnectorMaturity",
     "IngestionV1ConnectorSpec",
     "IngestionV1CreateConnectionResponse",
     "IngestionV1CreatePipelineNotifierResponse",
@@ -366,6 +377,9 @@ __all__ = [
     "IngestionV1GetPipelineVersionResponse",
     "IngestionV1GetResourceColumnsResponse",
     "IngestionV1GetRunResponse",
+    "IngestionV1GetVersionRequest",
+    "IngestionV1GetVersionResponse",
+    "IngestionV1GetWebhookEndpointResponse",
     "IngestionV1ListConnectionsResponse",
     "IngestionV1ListConnectorsResponse",
     "IngestionV1ListPipelineNotifiersResponse",
@@ -388,6 +402,7 @@ __all__ = [
     "IngestionV1PipelineScheduleConfig",
     "IngestionV1PipelineScheduleOverlapPolicy",
     "IngestionV1PipelineVersion",
+    "IngestionV1PutWebhookEndpointResponse",
     "IngestionV1RatePolicy",
     "IngestionV1ReadMode",
     "IngestionV1ReplicationMode",
@@ -395,8 +410,10 @@ __all__ = [
     "IngestionV1RequirementKind",
     "IngestionV1Resource",
     "IngestionV1ResourceColumn",
+    "IngestionV1ResourceColumnSelection",
     "IngestionV1ResourceColumns",
     "IngestionV1ResourceCursorConfig",
+    "IngestionV1ResourcePartitionSelection",
     "IngestionV1ResourceValidation",
     "IngestionV1RunEvent",
     "IngestionV1RunEventFields",
@@ -424,6 +441,7 @@ __all__ = [
     "IngestionV1ValidatePipelineResponse",
     "IngestionV1ValidateTransformResponse",
     "IngestionV1ValidationError",
+    "IngestionV1WebhookEndpointConfig",
     "IngestionV1WorkerConfiguration",
     "IngestionV1WorkerResources",
     "IngestionV1WorkerToleration",

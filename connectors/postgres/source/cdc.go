@@ -363,6 +363,10 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 	if err != nil {
 		return err
 	}
+	version, err := s.serverVersion(ctx)
+	if err != nil {
+		return err
+	}
 	if !exists {
 		if !s.managePublication {
 			return fmt.Errorf("postgres cdc: publication %q does not exist", s.publication)
@@ -371,7 +375,7 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 		for i, resource := range resources {
 			clauses[i] = s.publicationTableClause(resource, columnLists[resource])
 		}
-		stmt := "CREATE PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " FOR TABLE " + strings.Join(clauses, ", ") + " WITH (publish = 'insert, update, delete')"
+		stmt := "CREATE PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " FOR TABLE " + strings.Join(clauses, ", ") + " WITH (" + publicationOptions(version) + ")"
 		if _, err := s.pool.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("postgres cdc: create publication %q: %w", s.publication, err)
 		}
@@ -385,6 +389,9 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 		if _, err := s.pool.Exec(ctx, stmt); err != nil {
 			return fmt.Errorf("postgres cdc: configure publication operations: %w", err)
 		}
+	}
+	if err := s.ensurePartitionRoots(ctx, resources, version); err != nil {
+		return err
 	}
 	if allTables {
 		return nil
@@ -421,6 +428,53 @@ func (s *Source) ensurePublication(ctx context.Context, resources []string) erro
 		return fmt.Errorf("postgres cdc: publication %q is missing selected tables: %s", s.publication, strings.Join(missing, ", "))
 	}
 	return s.applyPublicationTables(ctx, replace, retired, missing, columnLists)
+}
+
+// publish_via_partition_root names a partitioned table's changes after the
+// table, not the leaf partition they landed in. Partitioned tables join
+// publications from Postgres 13, which is also where the option starts.
+const partitionRootVersion = 130000
+
+// publicationOptions renders the WITH options of a managed publication.
+func publicationOptions(version int) string {
+	if version < partitionRootVersion {
+		return "publish = 'insert, update, delete'"
+	}
+	return "publish = 'insert, update, delete', publish_via_partition_root = true"
+}
+
+// ensurePartitionRoots turns publish_via_partition_root on. An administrator's
+// publication without it is rejected only when a selected table is
+// partitioned, since its changes would arrive under leaf names the stream
+// does not track.
+func (s *Source) ensurePartitionRoots(ctx context.Context, resources []string, version int) error {
+	if version < partitionRootVersion {
+		return nil
+	}
+	var viaRoot bool
+	if err := s.pool.QueryRow(ctx, `SELECT pubviaroot FROM pg_publication WHERE pubname=$1`, s.publication).Scan(&viaRoot); err != nil {
+		return fmt.Errorf("postgres cdc: inspect publication %q: %w", s.publication, err)
+	}
+	if viaRoot {
+		return nil
+	}
+	if s.managePublication {
+		stmt := "ALTER PUBLICATION " + pgx.Identifier{s.publication}.Sanitize() + " SET (publish_via_partition_root = true)"
+		if _, err := s.pool.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("postgres cdc: publish partitioned tables via their root: %w", err)
+		}
+		return nil
+	}
+	for _, resource := range resources {
+		_, partitioned, err := s.leaves(ctx, resource)
+		if err != nil {
+			return err
+		}
+		if partitioned {
+			return fmt.Errorf("postgres cdc: publication %q must set publish_via_partition_root to stream partitioned table %s", s.publication, resource)
+		}
+	}
+	return nil
 }
 
 // applyPublicationTables rewrites the listed tables' column lists, drops the
@@ -509,23 +563,53 @@ func (s *Source) publicationColumnLists(ctx context.Context, resources []string)
 		if !ok {
 			continue
 		}
-		var identity string
-		var identityColumns []string
-		if err := s.pool.QueryRow(ctx, `SELECT c.relreplident, COALESCE((
-			SELECT array_agg(a.attname ORDER BY k.ord)
-			FROM pg_index i
-			JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
-			JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
-			WHERE i.indrelid = c.oid AND i.indisreplident), '{}')::text[]
-			FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = $1 AND c.relname = $2`, s.schema, resource).Scan(&identity, &identityColumns); err != nil {
-			return nil, fmt.Errorf("postgres cdc: replica identity of %s: %w", resource, err)
+		covered, err := s.identityCovered(ctx, resource, selected)
+		if err != nil {
+			return nil, err
 		}
-		if identity == "f" || (identity == "i" && !subsetOf(identityColumns, selected)) {
+		if !covered {
 			continue
 		}
 		lists[resource] = selected
 	}
 	return lists, nil
+}
+
+// identityCovered reports whether a column list of selected covers the
+// replica identity of every heap the table's changes come from: the table
+// itself, or each leaf partition, whose own identity applies even when the
+// stream publishes through the partitioned root.
+func (s *Source) identityCovered(ctx context.Context, resource string, selected []string) (bool, error) {
+	rows, err := s.pool.Query(ctx, `SELECT l.relreplident::text, COALESCE((
+		SELECT array_agg(a.attname ORDER BY k.ord)
+		FROM pg_index i
+		JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord) ON true
+		JOIN pg_attribute a ON a.attrelid = l.oid AND a.attnum = k.attnum
+		WHERE i.indrelid = l.oid AND i.indisreplident), '{}')::text[]
+		FROM pg_class c
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		JOIN pg_class l ON l.oid = c.oid AND c.relkind <> 'p'
+			OR l.oid IN (SELECT relid FROM pg_partition_tree(c.oid) WHERE isleaf AND c.relkind = 'p')
+		WHERE n.nspname = $1 AND c.relname = $2`, s.schema, resource)
+	if err != nil {
+		return false, fmt.Errorf("postgres cdc: replica identity of %s: %w", resource, err)
+	}
+	defer rows.Close()
+	covered := true
+	for rows.Next() {
+		var identity string
+		var identityColumns []string
+		if err := rows.Scan(&identity, &identityColumns); err != nil {
+			return false, fmt.Errorf("postgres cdc: replica identity of %s: %w", resource, err)
+		}
+		if identity == "f" || (identity == "i" && !subsetOf(identityColumns, selected)) {
+			covered = false
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("postgres cdc: replica identity of %s: %w", resource, err)
+	}
+	return covered, nil
 }
 
 func (s *Source) serverVersion(ctx context.Context) (int, error) {

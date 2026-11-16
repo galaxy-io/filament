@@ -9,6 +9,7 @@ import {
   GetResourceColumnsRequestSchema,
   type Resource,
   type ResourceColumn,
+  type ResourceColumns,
 } from "@/gen/ingestion/v1/connectors_pb";
 
 import { getCanvasEdgeResource } from "@/pages/pipelines/canvas/graph/serialize";
@@ -36,8 +37,11 @@ export interface PipelineCanvasEdgeResources {
   defaultCursor: ResourceColumn["name"];
   isManagedIncremental: boolean;
   isColumnSelectable: boolean;
+  partitions: ResourceColumns["partitions"];
   hasPrimaryKey: boolean;
 }
+
+const NO_PARTITIONS: ResourceColumns["partitions"] = [];
 
 export const usePipelineCanvasEdgeResources = (
   edge: CanvasEdge,
@@ -84,6 +88,7 @@ export const usePipelineCanvasEdgeResources = (
     defaultCursor: isManagedIncremental ? "" : getDefaultCursor(columns ?? []),
     isManagedIncremental,
     isColumnSelectable: entry?.selectableColumns ?? false,
+    partitions: entry?.partitions ?? NO_PARTITIONS,
     hasPrimaryKey:
       (discovered?.resources.find((candidate) => candidate.name === resource)?.primaryKey.length ??
         0) > 0,

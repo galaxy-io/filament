@@ -1,16 +1,24 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
-	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
 )
+
+const resourcesGuidance = "An omitted --resources selection means all resources discovered by the source."
+
+const pipelineGuidance = resourcesGuidance + `
+Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
+--unset to remove optional connector fields from an existing pipeline.`
 
 type helpOutput struct {
 	w   io.Writer
@@ -23,8 +31,18 @@ func (o *helpOutput) printf(format string, values ...any) {
 	}
 }
 
-func (o *helpOutput) usage(paint style.Painter, command, rest string) {
-	o.printf("%s\n  %s %s\n", paint.Bold("Usage:"), paint.Accent(command), paint.Muted(rest))
+// usage prints each form of cmd's use line, then its subcommands.
+func (o *helpOutput) usage(paint style.Painter, cmd *cobra.Command) {
+	o.printf("%s\n", paint.Bold("Usage:"))
+	path := cmd.CommandPath()
+	for _, form := range strings.Split(strings.TrimPrefix(cmd.Use, cmd.Name()+" "), " | ") {
+		o.printf("  %s %s\n", paint.Accent(path), paint.Muted(form))
+	}
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() {
+			o.printf("  %s %s\n", paint.Accent(sub.CommandPath()), paint.Muted(strings.TrimPrefix(sub.UseLine(), sub.CommandPath()+" ")))
+		}
+	}
 }
 
 func helpRequested(args []string) bool {
@@ -36,199 +54,122 @@ func helpRequested(args []string) bool {
 	return false
 }
 
-func removeHelp(args []string) []string {
-	result := make([]string, 0, len(args))
+// helpArgs parses the arguments a help request came with. Errors are ignored
+// so partial input still selects which connector flags to show.
+func (a *cliApp) helpArgs(args []string) commandArgs {
+	kept := make([]string, 0, len(args))
 	for _, arg := range args {
 		if arg != "help" && arg != "--help" && arg != "-h" && !strings.HasPrefix(arg, "--help=") {
-			result = append(result, arg)
+			kept = append(kept, arg)
 		}
 	}
-	return result
+	parsed, _ := a.parseCommandArgs(kept)
+	return parsed
 }
 
-func rawFlagValue(args []string, name string) string {
-	flag := "--" + name
-	for i := 0; i < len(args); i++ {
-		if args[i] == flag && i+1 < len(args) {
-			return args[i+1]
-		}
-		if strings.HasPrefix(args[i], flag+"=") {
-			return strings.TrimPrefix(args[i], flag+"=")
-		}
-	}
-	return ""
-}
-
-func (a *cliApp) printConnectionOperationHelp(ctx context.Context, kind, operation string, args []string) error {
-	doc := climodel.NewDocument()
-	if a.service != nil && rawFlagValue(args, kind+"-connector") == "" {
-		loaded, err := a.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		doc = loaded
-	}
+func (a *cliApp) printConnectionOperationHelp(ctx context.Context, cmd *cobra.Command, kind, operation string, args []string) error {
 	out := &helpOutput{w: a.stdout}
-	prefix := kind + "-"
-	connectorName := rawFlagValue(args, prefix+"connector")
-	parsed, _ := a.parseCommandArgs(removeHelp(args))
+	paint := style.New(a.stdout)
+	parsed := a.helpArgs(args)
+	connector := lastFlag(parsed.flags, kind+"-connector")
 	name := firstPositional(parsed)
-	if connectorName == "" && name != "" {
-		if conn, ok := connectionMap(kind, doc)[name]; ok {
-			connectorName = conn.Type
+	if connector == "" && name != "" && a.service != nil {
+		if connection, err := a.service.Connection(ctx, kind, name); err == nil {
+			connector = connection.Type
 		}
 	}
-
-	paint := style.New(a.stdout)
-	switch operation {
-	case "create":
-		out.usage(paint, fmt.Sprintf("filament %s create", kind), fmt.Sprintf("<name> --%sconnector NAME [flags]", prefix))
-	case "edit":
-		out.usage(paint, fmt.Sprintf("filament %s edit", kind), fmt.Sprintf("<name> [flags] [--unset %sFIELD]", prefix))
-	case "discover":
-		out.usage(paint, "filament source discover", "[name] [--source-connector NAME] [flags]")
-	}
-
-	if connectorName == "" {
-		out.printf("\n%s %s\n", paint.Bold("Available "+kind+" connectors:"), strings.Join(a.connectorNames(kind), ", "))
+	out.usage(paint, cmd)
+	if connector == "" {
+		out.printf("\n%s %s\n", paint.Bold("Available "+kind+" connectors:"), strings.Join(a.catalog.Names(kind), ", "))
 		return out.err
 	}
-	schema, ok := a.connectorSchema(kind, connectorName)
-	if !ok {
-		out.printf("\nUnknown %s connector %q.\n", kind, connectorName)
+	schema, err := a.catalog.ConnectionSchema(kind, connector)
+	if err != nil {
+		out.printf("\nUnknown %s connector %q.\n", kind, connector)
 		return out.err
 	}
 	scope := filament.ScopeConnection
 	if operation == "discover" && name != "" {
 		scope = filament.ScopePipeline
 	}
-	out.printf("\n%s\n", paint.Bold(connectorName+" connector flags:"))
-	printSchemaFlags(out, paint, prefix, schema, scope, operation == "discover" && name == "")
+	out.printf("\n%s\n", paint.Bold(connector+" connector flags:"))
+	printSchemaFlags(out, paint, kind+"-", schema, scope, operation == "discover" && name == "")
 	return out.err
 }
 
-func (a *cliApp) printRunHelp(ctx context.Context, args []string) error {
+func (a *cliApp) printRunHelp(ctx context.Context, cmd *cobra.Command, args []string) error {
 	out := &helpOutput{w: a.stdout}
 	paint := style.New(a.stdout)
-	out.printf("%s\n  %s %s\n  %s %s\n  %s %s\n", paint.Bold("Usage:"),
-		paint.Accent("filament run"), paint.Muted("<pipeline> [--resources LIST] [--sync-mode MODE] [--write-mode MODE] [--unset KIND-FIELD]"),
-		paint.Accent("filament run"), paint.Muted("--source-connector NAME --sink-connector NAME [flags]"),
-		paint.Accent("filament run list"), paint.Muted("[pipeline] [--limit N] [--next CURSOR]"))
-	out.printf("\n%s\n", paint.Muted(`An omitted --resources selection means all resources discovered by the source.
-Use --source-<field> and --sink-<field> for connector configuration.`))
+	out.usage(paint, cmd)
+	out.printf("\n%s\n", paint.Muted(resourcesGuidance+"\nUse --source-<field> and --sink-<field> for connector configuration."))
+	parsed := a.helpArgs(args)
 	printed := map[string]bool{}
 	for _, kind := range []string{"source", "sink"} {
-		name := rawFlagValue(args, kind+"-connector")
-		if name == "" {
+		connector := lastFlag(parsed.flags, kind+"-connector")
+		if connector == "" {
 			continue
 		}
-		schema, ok := a.connectorSchema(kind, name)
-		if !ok {
+		schema, err := a.catalog.ConnectionSchema(kind, connector)
+		if err != nil {
 			continue
 		}
-		out.printf("\n%s\n", paint.Bold(name+" "+kind+" flags:"))
+		out.printf("\n%s\n", paint.Bold(connector+" "+kind+" flags:"))
 		printSchemaFlags(out, paint, kind+"-", schema, filament.ScopeConnection, true)
 		printed[kind] = true
 	}
-	parsed, _ := a.parseCommandArgs(removeHelp(args))
 	if name := firstPositional(parsed); name != "" && a.service != nil {
-		if doc, err := a.service.Configuration(ctx); err == nil {
-			if p, ok := doc.Pipelines[name]; ok {
-				for _, item := range []struct{ kind, ref string }{{"source", p.Source.Ref}, {"sink", p.Sink.Ref}} {
-					kind, ref := item.kind, item.ref
-					if printed[kind] {
-						continue
-					}
-					conn, ok := connectionMap(kind, doc)[ref]
-					if !ok {
-						continue
-					}
-					schema, ok := a.connectorSchema(kind, conn.Type)
-					if ok {
-						out.printf("\n%s\n", paint.Bold(conn.Type+" "+kind+" flags:"))
-						printSchemaFlags(out, paint, kind+"-", schema, filament.ScopePipeline, false)
-					}
-				}
-			}
+		if pipeline, err := a.service.Pipeline(ctx, name); err == nil {
+			a.printPipelineFlags(ctx, out, paint, pipeline.Source.Ref, pipeline.Sink.Ref, printed)
 		}
 	}
 	return out.err
 }
 
-func (a *cliApp) printPipelineOperationHelp(ctx context.Context, operation string, args []string) error {
-	doc := climodel.NewDocument()
-	if a.service != nil {
-		loaded, err := a.service.Configuration(ctx)
-		if err != nil {
-			return err
-		}
-		doc = loaded
-	}
+func (a *cliApp) printPipelineOperationHelp(ctx context.Context, cmd *cobra.Command, args []string) error {
 	out := &helpOutput{w: a.stdout}
 	paint := style.New(a.stdout)
-	if operation == "create" {
-		out.usage(paint, "filament pipeline create", "<name> --source NAME --sink NAME [--resources LIST] [flags]")
-	} else {
-		out.usage(paint, "filament pipeline edit", "<name> [flags] [--unset source-FIELD|sink-FIELD]")
-	}
-	out.printf("\n%s\n", paint.Muted(`An omitted --resources selection means all resources discovered by the source.
-Connector pipeline fields use --source-<field> and --sink-<field>. Repeat
---unset to remove optional connector fields from an existing pipeline.`))
-	parsed, _ := a.parseCommandArgs(removeHelp(args))
+	out.usage(paint, cmd)
+	out.printf("\n%s\n", paint.Muted(pipelineGuidance))
+	parsed := a.helpArgs(args)
 	sourceRef := lastFlag(parsed.flags, "source")
 	sinkRef := lastFlag(parsed.flags, "sink")
-	if name := firstPositional(parsed); name != "" {
-		if p, ok := doc.Pipelines[name]; ok {
-			if sourceRef == "" {
-				sourceRef = p.Source.Ref
-			}
-			if sinkRef == "" {
-				sinkRef = p.Sink.Ref
-			}
+	if name := firstPositional(parsed); name != "" && a.service != nil {
+		if pipeline, err := a.service.Pipeline(ctx, name); err == nil {
+			sourceRef = cmp.Or(sourceRef, pipeline.Source.Ref)
+			sinkRef = cmp.Or(sinkRef, pipeline.Sink.Ref)
 		}
 	}
-	for _, item := range []struct{ kind, ref string }{{"source", sourceRef}, {"sink", sinkRef}} {
-		kind, ref := item.kind, item.ref
-		if ref == "" {
-			continue
-		}
-		conn, ok := connectionMap(kind, doc)[ref]
-		if !ok {
-			continue
-		}
-		schema, ok := a.connectorSchema(kind, conn.Type)
-		if !ok {
-			continue
-		}
-		out.printf("\n%s\n", paint.Bold(conn.Type+" "+kind+" flags:"))
-		printSchemaFlags(out, paint, kind+"-", schema, filament.ScopePipeline, false)
-	}
+	a.printPipelineFlags(ctx, out, paint, sourceRef, sinkRef, nil)
 	return out.err
 }
 
-func (a *cliApp) connectorNames(kind string) []string {
-	if kind == "sink" {
-		return a.catalog.SinkNames()
+// printPipelineFlags prints the pipeline-scoped flags of the saved source and
+// sink a pipeline routes between, skipping kinds already printed.
+func (a *cliApp) printPipelineFlags(ctx context.Context, out *helpOutput, paint style.Painter, sourceRef, sinkRef string, skip map[string]bool) {
+	if a.service == nil {
+		return
 	}
-	return a.catalog.SourceNames()
-}
-
-func (a *cliApp) connectorSchema(kind, name string) (filament.ConfigSchema, bool) {
-	if kind == "sink" {
-		spec, ok := a.catalog.Sinks[name]
-		return spec.Config, ok
+	for _, side := range []struct{ kind, ref string }{{"source", sourceRef}, {"sink", sinkRef}} {
+		if side.ref == "" || skip[side.kind] {
+			continue
+		}
+		connection, err := a.service.Connection(ctx, side.kind, side.ref)
+		if err != nil {
+			continue
+		}
+		schema, err := a.catalog.ConnectionSchema(side.kind, connection.Type)
+		if err != nil {
+			continue
+		}
+		out.printf("\n%s\n", paint.Bold(connection.Type+" "+side.kind+" flags:"))
+		printSchemaFlags(out, paint, side.kind+"-", schema, filament.ScopePipeline, false)
 	}
-	spec, ok := a.catalog.Sources[name]
-	return spec.Config, ok
 }
 
 func printSchemaFlags(out *helpOutput, paint style.Painter, prefix string, schema filament.ConfigSchema, scope filament.FieldScope, allScopes bool) {
-	type row struct {
-		plain, painted, help string
-	}
-	rows := []row{}
-	add := func(name, placeholder, help string) {
-		rows = append(rows, row{plain: name + " " + placeholder, painted: paint.Accent(name) + " " + paint.Muted(placeholder), help: help})
+	rows := []flagRow{}
+	add := func(name, placeholder, usage string) {
+		rows = append(rows, flagRow{plain: name + " " + placeholder, painted: paint.Accent(name) + " " + paint.Muted(placeholder), usage: usage})
 	}
 	for _, field := range schema.Fields {
 		actualScope := field.Scope
@@ -239,22 +180,16 @@ func printSchemaFlags(out *helpOutput, paint style.Painter, prefix string, schem
 			continue
 		}
 		name := "--" + prefix + strings.ReplaceAll(field.Name, "_", "-")
-		help := field.Help
+		usage := field.Help
 		if field.Required && field.Default == nil {
-			help += " " + paint.Muted("(required)")
+			usage += " " + paint.Muted("(required)")
 		}
-		add(name, fieldTypeName(field.Type), help)
+		add(name, fieldTypeName(field.Type), usage)
 		if cliapp.IsSecretField(field) {
 			add(name+"-env", "VARIABLE", "environment-variable reference (NAME, $NAME, or ${NAME})")
 		}
 	}
-	width := 0
-	for _, item := range rows {
-		width = max(width, len(item.plain))
-	}
-	for _, item := range rows {
-		out.printf("  %s%s   %s\n", item.painted, strings.Repeat(" ", width-len(item.plain)), item.help)
-	}
+	out.printf("%s", alignFlagRows(rows))
 }
 
 func fieldTypeName(t filament.FieldType) string {

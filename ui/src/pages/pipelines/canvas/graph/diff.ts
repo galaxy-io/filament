@@ -38,6 +38,7 @@ const getEdgeConfigKey = ({
   writeMode,
   cursors,
   columns,
+  partitions,
   transform,
   destinationResource,
 }: PipelineCanvasEdgeData): string =>
@@ -49,6 +50,13 @@ const getEdgeConfigKey = ({
       .map((selection) => ({
         resource: selection.resource,
         columns: [...selection.columns].sort(),
+      }))
+      .sort((left, right) => left.resource.localeCompare(right.resource)),
+  )}|${JSON.stringify(
+    (partitions ?? [])
+      .map((selection) => ({
+        resource: selection.resource,
+        partitions: [...selection.partitions].sort(),
       }))
       .sort((left, right) => left.resource.localeCompare(right.resource)),
   )}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;

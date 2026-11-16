@@ -3,10 +3,12 @@ import { create } from "@bufbuild/protobuf";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
 import { ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
-import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
+import type { Resource, ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 import {
   type ResourceColumnSelection,
   ResourceColumnSelectionSchema,
+  type ResourcePartitionSelection,
+  ResourcePartitionSelectionSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
@@ -109,6 +111,28 @@ export const createResourceColumnSelections = ({
   selected.length === 0 || selected.length === columns.length
     ? []
     : [create(ResourceColumnSelectionSchema, { resource, columns: selected })];
+
+export const getEffectivePartitionSelection = ({
+  stored,
+  partitions,
+}: {
+  stored: ResourcePartitionSelection["partitions"] | undefined;
+  partitions: ResourceColumns["partitions"];
+}): ResourceColumns["partitions"] =>
+  stored === undefined ? partitions : partitions.filter((name) => stored.includes(name));
+
+export const createResourcePartitionSelections = ({
+  resource,
+  selected,
+  partitions,
+}: {
+  resource: Resource["name"];
+  selected: ResourceColumns["partitions"];
+  partitions: ResourceColumns["partitions"];
+}): ResourcePartitionSelection[] =>
+  selected.length === partitions.length
+    ? []
+    : [create(ResourcePartitionSelectionSchema, { resource, partitions: selected })];
 
 export const addColumnToSelections = (
   selections: ResourceColumnSelection[],

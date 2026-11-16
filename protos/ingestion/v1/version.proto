@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+message GetVersionRequest {}
+
+message GetVersionResponse {
+  string version = 1;
+  string commit = 2;
+  string date = 3;
+}

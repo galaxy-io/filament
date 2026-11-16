@@ -1,0 +1,221 @@
+version: 1
+name: asana
+display_name: Asana
+description: Work management platform where teams organize projects, assign tasks, and track progress toward goals across their organization.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-asana-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-asana-light.svg
+api_version: "1.0"
+config:
+  access_token: {type: secret, required: true, help: Asana personal access token or service account token.}
+defaults:
+  method: GET
+  query: {limit: "100"}
+  response:
+    records: $.data
+    strict_records: true
+    pagination:
+      cursor:
+        response: next_page.offset
+        request: query.offset
+        null_terminates: true
+connection:
+  base_url: https://app.asana.com/api/1.0
+  auth: {bearer: config.access_token}
+  headers: {Accept: application/json}
+  timeout_seconds: 60
+  rate_limit:
+    # Free domains allow 150 requests per minute per token.
+    requests_per_second: 2
+    burst: 1
+resources:
+  - name: workspaces
+    path: /workspaces
+    query:
+      opt_fields: name,resource_type,is_organization,email_domains
+    primary_key: [gid]
+    fields:
+      gid: string
+      name: string?
+      resource_type: string?
+      is_organization: bool?
+      email_domains: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      workspace_gid: gid
+  - name: users
+    path: /users
+    query:
+      workspace: "{{ parent.workspace_gid }}"
+      opt_fields: name,email,resource_type,photo
+    for_each: workspaces
+    # Users can belong to several workspaces. One row is a user in a workspace.
+    primary_key: [workspace_gid, gid]
+    fields:
+      workspace_gid: {path: parent.workspace_gid, type: string}
+      gid: string
+      name: string?
+      email: string?
+      resource_type: string?
+      photo: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: teams
+    path: /workspaces/{workspace_gid}/teams
+    params:
+      workspace_gid: parent.workspace_gid
+    query:
+      opt_fields: name,description,visibility,permalink_url,organization.name
+    for_each: workspaces
+    primary_key: [gid]
+    fields:
+      workspace_gid: {path: parent.workspace_gid, type: string}
+      gid: string
+      name: string?
+      description: string?
+      visibility: string?
+      permalink_url: string?
+      organization: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: projects
+    path: /workspaces/{workspace_gid}/projects
+    params:
+      workspace_gid: parent.workspace_gid
+    query:
+      opt_fields: name,resource_subtype,archived,color,completed,completed_at,completed_by.name,created_at,modified_at,due_on,start_on,notes,owner.name,team.name,privacy_setting,default_view,current_status_update.title,current_status_update.status_type,custom_fields.name,custom_fields.display_value,permalink_url
+    for_each: workspaces
+    primary_key: [gid]
+    fields:
+      workspace_gid: {path: parent.workspace_gid, type: string}
+      gid: string
+      name: string?
+      resource_subtype: string?
+      archived: bool?
+      color: string?
+      completed: bool?
+      completed_at: timestamptz?
+      created_at: timestamptz?
+      modified_at: timestamptz?
+      due_on: date?
+      start_on: date?
+      notes: string?
+      owner_gid: {path: owner.gid, type: string, nullable: true}
+      team_gid: {path: team.gid, type: string, nullable: true}
+      privacy_setting: string?
+      default_view: string?
+      permalink_url: string?
+      owner: json?
+      team: json?
+      completed_by: json?
+      current_status_update: json?
+      custom_fields: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      project_gid: gid
+  - name: sections
+    path: /projects/{project_gid}/sections
+    params:
+      project_gid: parent.project_gid
+    query:
+      opt_fields: name,created_at
+    for_each: projects
+    primary_key: [gid]
+    fields:
+      project_gid: {path: parent.project_gid, type: string}
+      gid: string
+      name: string?
+      created_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+  - name: tasks
+    path: /tasks
+    query:
+      project: "{{ parent.project_gid }}"
+      opt_fields: name,resource_subtype,approval_status,completed,completed_at,completed_by.name,created_at,created_by,modified_at,due_on,due_at,start_on,start_at,notes,assignee.name,assignee_section.name,parent.name,memberships.project.name,memberships.section.name,tags.name,followers.name,custom_fields.name,custom_fields.resource_subtype,custom_fields.display_value,custom_fields.number_value,custom_fields.text_value,custom_fields.enum_value.name,custom_fields.multi_enum_values.name,custom_fields.date_value,num_subtasks,num_likes,actual_time_minutes,permalink_url
+    for_each: projects
+    # A task can belong to several projects. One row is a task in a project.
+    primary_key: [project_gid, gid]
+    fields:
+      workspace_gid: {path: parent.workspace_gid, type: string}
+      project_gid: {path: parent.project_gid, type: string}
+      gid: string
+      name: string?
+      resource_subtype: string?
+      approval_status: string?
+      completed: bool?
+      completed_at: timestamptz?
+      created_at: timestamptz?
+      modified_at: timestamptz
+      due_on: date?
+      due_at: timestamptz?
+      start_on: date?
+      start_at: timestamptz?
+      notes: string?
+      assignee_gid: {path: assignee.gid, type: string, nullable: true}
+      num_subtasks: int64?
+      num_likes: int64?
+      actual_time_minutes: float64?
+      permalink_url: string?
+      assignee: json?
+      assignee_section: json?
+      completed_by: json?
+      created_by: json?
+      # A path starting with "parent." reads the fan-out capture, so the
+      # parent task stays a JSON object instead of a projected gid.
+      parent_task: {path: parent, type: json, nullable: true}
+      memberships: json?
+      tags: json?
+      followers: json?
+      custom_fields: json?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: modified_at
+      start_param: modified_since
+      inject_into: query
+      checkpoint_key: tasks_modified_at
+      comparator: time
+      # Tasks fan out across projects but share one watermark. Re-read a
+      # window to cover tasks modified while the scan runs.
+      overlap_seconds: 300
+  - name: tags
+    path: /workspaces/{workspace_gid}/tags
+    params:
+      workspace_gid: parent.workspace_gid
+    query:
+      opt_fields: name,color,notes,created_at,permalink_url
+    for_each: workspaces
+    primary_key: [gid]
+    fields:
+      workspace_gid: {path: parent.workspace_gid, type: string}
+      gid: string
+      name: string?
+      color: string?
+      notes: string?
+      created_at: timestamptz?
+      permalink_url: string?
+      raw: {path: $, type: json, mode: remainder}
+  - name: custom_fields
+    path: /workspaces/{workspace_gid}/custom_fields
+    params:
+      workspace_gid: parent.workspace_gid
+    query:
+      opt_fields: name,description,resource_subtype,type,enabled,enum_options.name,enum_options.color,enum_options.enabled,precision,format,currency_code,is_global_to_workspace,is_formula_field,privacy_setting,created_by.name
+    for_each: workspaces
+    primary_key: [gid]
+    fields:
+      workspace_gid: {path: parent.workspace_gid, type: string}
+      gid: string
+      name: string?
+      description: string?
+      resource_subtype: string?
+      type: string?
+      enabled: bool?
+      precision: int64?
+      format: string?
+      currency_code: string?
+      is_global_to_workspace: bool?
+      is_formula_field: bool?
+      privacy_setting: string?
+      enum_options: json?
+      created_by: json?
+      raw: {path: $, type: json, mode: remainder}
+discovery:
+  mode: static
+  default_resources: [workspaces, users, projects, sections, tasks, tags, custom_fields]

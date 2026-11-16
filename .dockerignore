@@ -3,3 +3,5 @@
 
 **/.DS_Store
 **/*.md
+**/node_modules
+.pnpm-store

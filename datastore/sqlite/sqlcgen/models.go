@@ -222,19 +222,21 @@ type Secret struct {
 }
 
 type StreamAttempt struct {
-	Token           int64
-	StreamID        string
-	TenantID        string
-	ExecutionID     string
-	DesiredRevision int64
-	RequestTtlUs    int64
-	StartedAt       int64
-	ClaimedAt       sql.NullInt64
-	RunSpec         string
-	ExpiresAt       int64
-	EndedAt         sql.NullInt64
-	Termination     sql.NullString
-	Reason          string
+	Token            int64
+	StreamID         string
+	TenantID         string
+	ExecutionID      string
+	DesiredRevision  int64
+	RequestTtlUs     int64
+	StartedAt        int64
+	ClaimedAt        sql.NullInt64
+	RunSpec          string
+	ExpiresAt        int64
+	EndedAt          sql.NullInt64
+	Termination      sql.NullString
+	Reason           string
+	DispatchVersion  string
+	YieldRequestedAt sql.NullInt64
 }
 
 type StreamEpoch struct {
@@ -267,4 +269,21 @@ type User struct {
 	DeletedByUserID sql.NullString
 	CreatedAt       int64
 	UpdatedAt       int64
+}
+
+type WebhookEndpoint struct {
+	SourceConnectionID   string
+	TenantID             string
+	PipelineID           sql.NullString
+	RouteKey             sql.NullString
+	ConfigRevision       int64
+	Enabled              int64
+	Verifier             string
+	SecretRefs           string
+	PreviousKeyExpiresAt sql.NullInt64
+	Resources            string
+	SuccessStatus        int64
+	MaxBodyBytes         int64
+	CreatedAt            int64
+	UpdatedAt            int64
 }

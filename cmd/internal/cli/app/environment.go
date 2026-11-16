@@ -130,6 +130,37 @@ func ConfigWithoutSecretValues(values map[string]any, refs map[string]string) ma
 	return result
 }
 
+// ConfigForConnectionWire removes reference markers while retaining a newly
+// supplied plaintext secret, even when the connection still carries its old
+// ref. The server replaces that ref when it stores the new value.
+func ConfigForConnectionWire(values map[string]any, refs map[string]string) map[string]any {
+	result := model.CloneConfig(values)
+	for path, ref := range refs {
+		parts := strings.Split(path, ".")
+		current := result
+		for _, part := range parts[:len(parts)-1] {
+			nested, ok := current[part].(map[string]any)
+			if !ok {
+				current = nil
+				break
+			}
+			current = nested
+		}
+		if current == nil {
+			continue
+		}
+		value, ok := current[parts[len(parts)-1]].(string)
+		if !ok {
+			continue
+		}
+		name, referenced := EnvironmentReferenceName(value)
+		if (referenced && ref == name) || value == storedSecretReferencePrefix+ref {
+			deleteConfigPath(result, parts)
+		}
+	}
+	return result
+}
+
 // deleteConfigPath removes path from values and reports whether values is
 // now empty, so emptied parents are pruned on the way back up.
 func deleteConfigPath(values map[string]any, path []string) bool {

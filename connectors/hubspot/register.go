@@ -11,5 +11,5 @@ import (
 )
 
 func init() {
-	registry.RegisterSource("hubspot", filament.MaturityAlpha, func() filament.Source { return source.New() })
+	registry.RegisterSource("hubspot", true, func() filament.Source { return source.New() })
 }

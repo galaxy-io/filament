@@ -132,6 +132,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		em.failed(err, nil, false)
 		return nil
 	}
+	if err := SelectPartitions(src, spec.Partitions); err != nil {
+		em.failed(err, nil, false)
+		return nil
+	}
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
 	if err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {

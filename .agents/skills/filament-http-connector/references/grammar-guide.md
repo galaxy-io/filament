@@ -91,6 +91,12 @@ Types: `string | int | bool | duration | enum | object | secret | list`.
 Optional `scope: connection | pipeline`. A `list` declares its allowed values
 in `enum` and uses an array for `default`. See Slack's `conversation_types`.
 
+A resource can declare `required_config: [key]`, which fails the read when that
+setting is empty, and `for_each_config: key`, which repeats the resource once per
+comma-separated value and exposes each as `parent.<key>`. Keep the config block
+small and read [pitfalls.md](pitfalls.md#configuration-surface) before adding
+pipeline settings or either resource field.
+
 ## connection
 
 ```yaml
@@ -202,6 +208,9 @@ Types: `string bool int16 int32 int64 float32 float64 decimal date time timestam
 Use strings for opaque IDs, including long numeric identifiers. Use typed
 numeric columns for quantities and `timestamptz` for timestamps with offsets.
 In expanded fields, nullable is `nullable: true`, not a `?` in `type`.
+Fixed decimal fields may set `rounding: half_even` with `precision` and `scale`
+to round excess fractional digits. Without it, values that exceed the declared
+scale fail.
 `primary_key: []` is valid when rows have no stable identity. Do not manufacture
 a key from text or timestamps that can repeat.
 

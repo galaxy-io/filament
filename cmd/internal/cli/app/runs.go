@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
@@ -41,7 +42,7 @@ func (s *Service) PrepareRun(ctx context.Context, request RunRequest) (model.Run
 			return model.RunSubmission{}, err
 		}
 		testDocument := document
-		testDocument.Pipelines = cloneMap(document.Pipelines)
+		testDocument.Pipelines = maps.Clone(document.Pipelines)
 		testDocument.Pipelines[request.Pipeline] = pipeline
 		if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {
 			return model.RunSubmission{}, err

@@ -11,8 +11,7 @@ import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
 import { CONNECTOR_KIND_TO_NOUN_MAP } from "@/components/connections/constants";
 
-import { useFilamentFlowOpen } from "@/module/hooks";
-import { Flow } from "@/module/types";
+import { useCreatePipelineModalCreateConnection } from "@/pages/pipelines/components/create/hooks/useCreatePipelineModalCreateConnection";
 
 import { IS_DEBUG } from "@/constants";
 
@@ -27,11 +26,7 @@ const CreatePipelineModalConnectionsState: FC<CreatePipelineModalConnectionsStat
   error,
   connectorKind,
 }) => {
-  const openFlow = useFilamentFlowOpen();
-
-  const handleCreateConnection = () => {
-    openFlow(Flow.CREATE_CONNECTION, { connectorKind });
-  };
+  const handleCreateConnection = useCreatePipelineModalCreateConnection(connectorKind);
 
   const actions = (
     <Button

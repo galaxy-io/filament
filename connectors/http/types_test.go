@@ -54,6 +54,34 @@ func TestExtractKeepsIntegerWithinDeclaredWidth(t *testing.T) {
 	}
 }
 
+func TestExtractFixedDecimalRounding(t *testing.T) {
+	for _, tc := range []struct {
+		name, declaration, value, want string
+		wantErr                        bool
+	}{
+		{"strict", `{type: decimal, precision: 38, scale: 9}`, "33.3333333333", "", true},
+		{"extra digits", `{type: decimal, precision: 38, scale: 9, rounding: half_even}`, "33.3333333333", "33.333333333", false},
+		{"half to even", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "1.245", "1.24", false},
+		{"half away from odd", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "1.255", "1.26", false},
+		{"negative half", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "-1.255", "-1.26", false},
+		{"rounded overflow", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "9.995", "", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rows, err := extractValue(t, tc.declaration, tc.value)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), `field "n"`) {
+					t.Fatalf("rows=%q, err=%v, want decimal field error", rows, err)
+				}
+				return
+			}
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("rows=%q, err=%v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
 // extractValue extracts one record whose field n is declared as typ and holds
 // the JSON value, and returns the rows read back from the Arrow batch.
 func extractValue(t *testing.T, typ, value string) ([]string, error) {

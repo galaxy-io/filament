@@ -22,6 +22,7 @@ import {
   PipelineGraphSchema,
   PipelineNodeSchema,
   ResourceColumnSelectionSchema,
+  ResourcePartitionSelectionSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import { CREATE_PIPELINE_MODAL_DEFAULT_WRITE_MODE } from "@/pages/pipelines/components/create/constants";
@@ -82,6 +83,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
     nodeConfigs,
     resourceSelection,
     resourceColumns,
+    resourcePartitions,
     executionMode,
   } = state;
   const validationInput = useMemo(() => {
@@ -90,6 +92,12 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
         .filter(([name]) => resource === "" || name === resource)
         .map(([name, columns]) =>
           create(ResourceColumnSelectionSchema, { resource: name, columns }),
+        );
+    const createPartitionSelections = (sinkId: Connection["id"], resource: string) =>
+      Object.entries(resourcePartitions[sinkId] ?? {})
+        .filter(([name]) => resource === "" || name === resource)
+        .map(([name, partitions]) =>
+          create(ResourcePartitionSelectionSchema, { resource: name, partitions }),
         );
     const createSinkEdges = (sink: Connection) => {
       const writeMode =
@@ -107,6 +115,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
           readMode: hasReadLevers ? ReadMode.FULL : ReadMode.UNSPECIFIED,
           writeMode,
           columns: createColumnSelections(sink.id, resource),
+          partitions: createPartitionSelections(sink.id, resource),
         }),
       );
     };
@@ -141,6 +150,7 @@ export const useCreatePipelineResources = (state: CreatePipelineModalState, isOp
     nodeConfigs,
     resourceSelection,
     resourceColumns,
+    resourcePartitions,
     executionMode,
     resources,
     hasReadLevers,

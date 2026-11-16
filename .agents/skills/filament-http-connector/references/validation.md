@@ -9,9 +9,15 @@ other connectors. Passing one does not establish the others.
 Run from the repository root after authoring the manifest:
 
 ```sh
+just manifest-format
+just manifest-lint
 go test ./connectors/http -run 'Test(Manifests|EmbeddedCatalogRegistration|Catalog)'
 go test ./registry
 ```
+
+CI runs `just manifest-lint`, which fails on any yamlfmt difference, including
+long strings the formatter would unwrap and list items it would indent. Format
+before committing rather than matching its style by hand.
 
 These checks cover registry discovery, upstream API version/default selection, aliases, fresh
 source instances, and every shipped YAML manifest through grammar validation,
@@ -77,7 +83,7 @@ files in the report. A failed global link check is not a passing check just
 because its findings are unrelated.
 
 Inspect the final diff for unintended changes, debug fixtures, credentials,
-generated artifacts, and stale claims about coverage or maturity.
+generated artifacts, and stale claims about coverage or preview status.
 
 ## Live verification and completion
 

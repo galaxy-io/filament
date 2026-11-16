@@ -20,6 +20,16 @@ data:
 
   # Ingestion
   SERVER_ADDR: ":{{ .Values.server.service.port }}"
+  WEBHOOKS_ENABLED: {{ .Values.server.webhooks.enabled | quote }}
+  {{- if .Values.server.webhooks.enabled }}
+  WEBHOOK_MAX_IN_FLIGHT: {{ .Values.server.webhooks.maxInFlight | int64 | quote }}
+  {{- with .Values.server.webhooks.publicBaseURL }}
+  WEBHOOK_PUBLIC_BASE_URL: {{ . | quote }}
+  {{- end }}
+  WEBHOOK_INBOX_MAX_BYTES: {{ .Values.server.webhooks.maxBytes | int64 | quote }}
+  WEBHOOK_INBOX_MAX_MESSAGE_BYTES: {{ .Values.server.webhooks.maxMessageBytes | int64 | quote }}
+  WEBHOOK_INBOX_REPLICAS: {{ .Values.server.webhooks.replicas | int64 | quote }}
+  {{- end }}
 
   # Worker
   WORKER_URL: "http://{{ include "filament.worker.fullname" . }}:{{ .Values.worker.service.port }}"

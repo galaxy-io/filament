@@ -37,7 +37,7 @@ func (s *Service) SavePipeline(ctx context.Context, request SavePipelineRequest)
 		return model.Pipeline{}, err
 	}
 	testDocument := document
-	testDocument.Pipelines = cloneMap(document.Pipelines)
+	testDocument.Pipelines = maps.Clone(document.Pipelines)
 	testDocument.Pipelines[request.Name] = pipeline
 	if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {
 		return model.Pipeline{}, err

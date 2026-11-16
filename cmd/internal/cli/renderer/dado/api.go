@@ -5,12 +5,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sort"
-	"strings"
 
 	"github.com/atterpac/dado/inline"
 
-	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	"github.com/galaxy-io/filament/cmd/internal/cli/model"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
@@ -83,25 +80,10 @@ func (r *Renderer) Interactive() bool {
 	return r.interactiveAvailable()
 }
 
-// CanHandle reports whether args identify an interactive entry point and both
-// terminal streams support interactive rendering.
-func (r *Renderer) CanHandle(args []string) bool {
-	entry, routed := interactiveEntryForArgs(args)
-	if !routed || !r.interactiveAvailable() {
-		return false
-	}
-	// Menus open only under --interactive; operations (wizards, runs) route
-	// interactively regardless.
-	return r.menuMode || entry.operation != ""
-}
-
-// Run opens the interactive renderer at the entry point selected by args.
-func (r *Renderer) Run(ctx context.Context, args []string) error {
-	entry, ok := interactiveEntryForArgs(args)
-	if !ok {
-		return nil
-	}
-	return r.runInteractiveAt(ctx, entry)
+// Open runs the interactive renderer at section, or the main menu when
+// section is empty. A non-empty operation (create, run) exits once it is done.
+func (r *Renderer) Open(ctx context.Context, section, operation string) error {
+	return r.runInteractiveAt(ctx, interactiveEntry{section: section, operation: operation})
 }
 
 func (r *Renderer) statusWriter() io.Writer {
@@ -111,32 +93,6 @@ func (r *Renderer) statusWriter() io.Writer {
 	return r.stdout
 }
 
-func (r *Renderer) connectorNames(kind string) []string {
-	if kind == "sink" {
-		return r.catalog.SinkNames()
-	}
-	return r.catalog.SourceNames()
-}
-
-func (r *Renderer) connectionSchema(kind, connector string) (filament.ConfigSchema, error) {
-	return r.catalog.ConnectionSchema(kind, connector)
-}
-
-// validateName only requires a name; the deployment owns any further rule.
-func validateName(kind, name string) error {
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("%s name is required", kind)
-	}
-	return nil
-}
-
-func connectionMap(kind string, doc model.Document) map[string]model.Connection {
-	if kind == "sink" {
-		return doc.Sinks
-	}
-	return doc.Sources
-}
-
 func ensureConnectionUnreferenced(kind, name string, doc model.Document) error {
 	for pipelineName, pipeline := range doc.Pipelines {
 		if (kind == "source" && pipeline.Source.Ref == name) || (kind == "sink" && pipeline.Sink.Ref == name) {
@@ -144,34 +100,4 @@ func ensureConnectionUnreferenced(kind, name string, doc model.Document) error {
 		}
 	}
 	return nil
-}
-
-func sortedKeys[V any](values map[string]V) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func cloneMap[V any](source map[string]V) map[string]V {
-	result := make(map[string]V, len(source))
-	for key, value := range source {
-		result[key] = value
-	}
-	return result
-}
-
-func splitComma(value string) []string {
-	seen := map[string]bool{}
-	result := []string{}
-	for _, item := range strings.Split(value, ",") {
-		item = strings.TrimSpace(item)
-		if item != "" && !seen[item] {
-			seen[item] = true
-			result = append(result, item)
-		}
-	}
-	return result
 }

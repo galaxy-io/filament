@@ -11,14 +11,18 @@ import {
 
 import { OBSERVABILITY_RUNS_DEFAULT_STATUSES } from "@/pages/observability/components/runs/constants";
 import {
+  OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP,
+  OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP,
+  OBSERVABILITY_DEFAULT_PIPELINES_PAGE,
   OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
   OBSERVABILITY_DEFAULT_RUNS_VIEW,
   OBSERVABILITY_DEFAULT_TIMEFRAME,
 } from "@/pages/observability/constants";
 
-import type { FilamentPath } from "@/module/paths";
+import { createFilamentFlowSearch, type FilamentPath } from "@/module/paths";
 import {
   connectionsSearchSchema,
+  type FilamentFlowSeed,
   type FilamentLayoutSearch,
   filamentLayoutSearchSchema,
   listSearchParamsSchema,
@@ -69,19 +73,11 @@ export const useFilamentSearchUpdate = <TSearch extends object>() => {
 export const useFilamentFlowOpen = () => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   return useCallback(
-    (
-      flow: Flow,
-      {
-        connectorKind,
-        pipelineId,
-      }: Pick<FilamentLayoutSearch, "connectorKind" | "pipelineId"> = {},
-    ) =>
+    (flow: Flow, seed?: FilamentFlowSeed) =>
       void updateSearch((prev) => ({
         ...prev,
+        ...createFilamentFlowSearch(flow, seed),
         connectionId: undefined,
-        flow,
-        connectorKind,
-        pipelineId,
       })),
     [updateSearch],
   );
@@ -129,6 +125,12 @@ export const useObservabilitySearch = () =>
         timeframe: parsed.timeframe ?? OBSERVABILITY_DEFAULT_TIMEFRAME,
         refreshInterval: parsed.refreshInterval ?? OBSERVABILITY_DEFAULT_REFRESH_INTERVAL,
         runs: parsed.runs ?? OBSERVABILITY_DEFAULT_RUNS_VIEW,
+        throughput: parsed.throughput ?? OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP.throughput,
+        throughputPivot:
+          parsed.throughputPivot ?? OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP.throughputPivot,
+        usage: parsed.usage ?? OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP.usage,
+        usagePivot: parsed.usagePivot ?? OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP.usagePivot,
+        pipelinesPage: parsed.pipelinesPage ?? OBSERVABILITY_DEFAULT_PIPELINES_PAGE,
         statuses: parsed.statuses ?? OBSERVABILITY_RUNS_DEFAULT_STATUSES,
       };
     },

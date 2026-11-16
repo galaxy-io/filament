@@ -17,5 +17,5 @@ import (
 // init registers the Databricks sinks on the default registry when this package
 // is imported.
 func init() {
-	registry.RegisterSink("databrickszerobus", filament.MaturityAlpha, func() filament.Sink { return zerobus.New() })
+	registry.RegisterSink("databrickszerobus", true, func() filament.Sink { return zerobus.New() })
 }

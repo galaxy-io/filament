@@ -1,4 +1,5 @@
-// Command filament configures and runs Filament locally.
+// Command filament manages Filament connections, pipelines, and runs against
+// a deployed server or the local engine, filament-standalone.
 package main
 
 import (
@@ -8,8 +9,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-
-	_ "github.com/galaxy-io/filament/cmd/internal/connectors"
 )
 
 func main() {
@@ -28,9 +27,8 @@ func runMain() int {
 		stderr:      os.Stderr,
 		configPath:  path,
 		contextPath: filepath.Join(filepath.Dir(path), "contexts.yaml"),
-		catalog:     loadCatalog(),
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer stop()
 	if err := cli.run(ctx, os.Args[1:]); err != nil {
 		printCLIError(err)

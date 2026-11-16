@@ -1,19 +1,57 @@
-import { MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
+import { create } from "@bufbuild/protobuf";
+
+import { ListPipelinesRequestSchema } from "@/gen/ingestion/v1/pipelines_pb";
+import { MetricDimension, MetricGranularity } from "@/gen/metrics/v1/metrics_pb";
 
 import {
+  type ObservabilityBandPivotKey,
+  type ObservabilityBandViews,
+  ObservabilityPipelineHealth,
   ObservabilityRefreshInterval,
   ObservabilityRunsView,
+  ObservabilityThroughputView,
   ObservabilityTimeframe,
   type ObservabilityTimeframeQuery,
+  ObservabilityUsageView,
 } from "@/pages/observability/types";
 
-export const OBSERVABILITY_WIDGET_BASIS = "400px";
+export const OBSERVABILITY_WORDMARK_SIZE = 20;
+export const OBSERVABILITY_LAYOUT_CONTAINER_NAME = "observability";
+export const OBSERVABILITY_BLOCK_MIN_HEIGHT = 500;
+export const OBSERVABILITY_BLOCK_SIDE_WIDTH = 360;
+export const OBSERVABILITY_BLOCK_STACK_MAX_WIDTH = 1100;
+export const OBSERVABILITY_BLOCK_CONNECTIONS_HEIGHT = 160;
+export const OBSERVABILITY_BLOCK_SIDE_STACKED_HEIGHT = 280;
+export const OBSERVABILITY_LIST_ROW_HEIGHT = 36;
+export const OBSERVABILITY_EMPTY_TILE_SIZE = 20;
+export const OBSERVABILITY_EMPTY_ICON_SIZE = 12;
+export const OBSERVABILITY_LIST_PAGE_SIZE = 1000;
+
+export const OBSERVABILITY_PIPELINES_INPUT = create(ListPipelinesRequestSchema, {
+  includeLastRun: true,
+  includeSchedule: true,
+  pagination: { pageSize: OBSERVABILITY_LIST_PAGE_SIZE },
+});
 export const OBSERVABILITY_SCROLL_END_TOLERANCE_PX = 1;
 export const OBSERVABILITY_WHEEL_LINE_PX = 16;
 
 export const OBSERVABILITY_DEFAULT_TIMEFRAME = ObservabilityTimeframe.TWENTY_FOUR_HOURS;
 export const OBSERVABILITY_DEFAULT_RUNS_VIEW = ObservabilityRunsView.PAST;
+export const OBSERVABILITY_DEFAULT_PIPELINES_PAGE = 1;
 export const OBSERVABILITY_DEFAULT_REFRESH_INTERVAL = ObservabilityRefreshInterval.ONE_MINUTE;
+
+export const OBSERVABILITY_BAND_VIEW_KEY_TO_DEFAULT_MAP: ObservabilityBandViews = {
+  throughput: ObservabilityThroughputView.RECORDS,
+  usage: ObservabilityUsageView.CPU,
+};
+
+export const OBSERVABILITY_BAND_PIVOT_KEY_TO_DEFAULT_MAP: Record<
+  ObservabilityBandPivotKey,
+  MetricDimension
+> = {
+  throughputPivot: MetricDimension.UNSPECIFIED,
+  usagePivot: MetricDimension.PIPELINE_ID,
+};
 
 const OBSERVABILITY_MINUTE_MS = 60 * 1000;
 export const OBSERVABILITY_HOUR_MS = 60 * OBSERVABILITY_MINUTE_MS;
@@ -73,3 +111,12 @@ export const OBSERVABILITY_REFRESH_INTERVAL_TO_MS_MAP: Record<
 };
 
 export const OBSERVABILITY_REFRESH_INTERVAL_SELECT_WIDTH = 160;
+
+export const OBSERVABILITY_PIPELINE_HEALTH_TO_RANK_MAP: Record<
+  ObservabilityPipelineHealth,
+  number
+> = {
+  [ObservabilityPipelineHealth.FAILING]: 0,
+  [ObservabilityPipelineHealth.RUNNING]: 1,
+  [ObservabilityPipelineHealth.HEALTHY]: 2,
+};

@@ -1874,6 +1874,132 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetVersion": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetVersion",
+        "description": "The build version stamped into the server binary.",
+        "operationId": "ingestion.v1.IngestionService.GetVersion",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetVersionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetVersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingestion.v1.IngestionService/GetWebhookEndpoint": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetWebhookEndpoint",
+        "description": "Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.",
+        "operationId": "ingestion.v1.IngestionService.GetWebhookEndpoint",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetWebhookEndpointRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetWebhookEndpointResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/ListConnections": {
       "post": {
         "tags": [
@@ -2303,6 +2429,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ingestion.v1.ListTransformFunctionsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingestion.v1.IngestionService/PutWebhookEndpoint": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "PutWebhookEndpoint",
+        "operationId": "ingestion.v1.IngestionService.PutWebhookEndpoint",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.PutWebhookEndpointRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.PutWebhookEndpointResponse"
                 }
               }
             }
@@ -3570,7 +3758,7 @@
         "enum": [
           "NULL_VALUE"
         ],
-        "description": "`NullValue` is a singleton enumeration to represent the null value for the\n `Value` type union.\n\n The JSON representation for `NullValue` is JSON `null`."
+        "description": "Represents a JSON `null`.\n\n `NullValue` is a sentinel, using an enum with only one value to represent\n the null value for the `Value` type union.\n\n A field of type `NullValue` with any value other than `0` is considered\n invalid. Most ProtoJSON serializers will emit a `Value` with a `null_value`\n set as a JSON `null` regardless of the integer value, and so will round trip\n to a `0` value."
       },
       "google.protobuf.Struct": {
         "type": "object",
@@ -3835,16 +4023,6 @@
         ],
         "description": "ConnectorKind distinguishes a source from a sink in the catalog."
       },
-      "ingestion.v1.ConnectorMaturity": {
-        "type": "string",
-        "title": "ConnectorMaturity",
-        "enum": [
-          "CONNECTOR_MATURITY_UNSPECIFIED",
-          "CONNECTOR_MATURITY_ALPHA",
-          "CONNECTOR_MATURITY_BETA",
-          "CONNECTOR_MATURITY_STABLE"
-        ]
-      },
       "ingestion.v1.ConnectorSpec": {
         "type": "object",
         "properties": {
@@ -3899,14 +4077,6 @@
             "type": "string",
             "title": "schema_field"
           },
-          "maturity": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ingestion.v1.ConnectorMaturity"
-              }
-            ],
-            "title": "maturity"
-          },
           "apiVersion": {
             "type": "string",
             "title": "api_version"
@@ -3915,6 +4085,15 @@
             "type": "string",
             "title": "alias_target",
             "description": "Concrete registration selected by a source catalog alias; empty otherwise."
+          },
+          "isPreview": {
+            "type": "boolean",
+            "title": "is_preview"
+          },
+          "webhookVerifier": {
+            "type": "string",
+            "title": "webhook_verifier",
+            "description": "Ingress verifier for sources that receive webhooks. Empty otherwise."
           }
         },
         "title": "ConnectorSpec",
@@ -4656,6 +4835,56 @@
           }
         },
         "title": "GetRunResponse",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetVersionRequest": {
+        "type": "object",
+        "title": "GetVersionRequest",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetVersionResponse": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "version"
+          },
+          "commit": {
+            "type": "string",
+            "title": "commit"
+          },
+          "date": {
+            "type": "string",
+            "title": "date"
+          }
+        },
+        "title": "GetVersionResponse",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetWebhookEndpointRequest": {
+        "type": "object",
+        "properties": {
+          "sourceConnectionId": {
+            "type": "string",
+            "title": "source_connection_id"
+          }
+        },
+        "title": "GetWebhookEndpointRequest",
+        "additionalProperties": false
+      },
+      "ingestion.v1.GetWebhookEndpointResponse": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookEndpointConfig"
+              }
+            ],
+            "title": "endpoint"
+          }
+        },
+        "title": "GetWebhookEndpointResponse",
         "additionalProperties": false
       },
       "ingestion.v1.ListConnectionsRequest": {
@@ -5413,6 +5642,14 @@
             },
             "title": "columns",
             "description": "columns narrows the columns read from each resource. An all-resource edge\n may configure several resources; a resource-specific edge may configure\n only its own resource. An omitted resource reads every column."
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ResourcePartitionSelection"
+            },
+            "title": "partitions",
+            "description": "partitions narrows the partitions a full read or a change stream's\n initial snapshot backfills from each partitioned resource. The change\n stream still carries every partition, including ones created later. An\n all-resource edge may configure several resources; a resource-specific\n edge may configure only its own resource. An omitted resource backfills\n every partition, and an empty selection backfills none."
           }
         },
         "title": "PipelineEdge",
@@ -5617,6 +5854,61 @@
           }
         },
         "title": "PipelineVersion",
+        "additionalProperties": false
+      },
+      "ingestion.v1.PutWebhookEndpointRequest": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookEndpointConfig"
+              }
+            ],
+            "title": "endpoint"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "title": "expected_revision",
+            "format": "int64",
+            "description": "Zero creates an endpoint. Updates must send the last observed revision."
+          },
+          "importedSecret": {
+            "type": "string",
+            "title": "imported_secret",
+            "description": "Supply an imported provider key or ask Filament to mint one. Omit both on\n update to keep the current key. A newly supplied key replaces the old one,\n which keeps verifying for 72 hours so senders can switch over."
+          },
+          "mintSecret": {
+            "type": "boolean",
+            "title": "mint_secret"
+          },
+          "expectedPipelineVersionId": {
+            "type": "string",
+            "title": "expected_pipeline_version_id",
+            "description": "When set, the endpoint write must use the pipeline's current version.\n Pipeline graph synchronization sends this to reject stale saves."
+          }
+        },
+        "title": "PutWebhookEndpointRequest",
+        "additionalProperties": false
+      },
+      "ingestion.v1.PutWebhookEndpointResponse": {
+        "type": "object",
+        "properties": {
+          "endpoint": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookEndpointConfig"
+              }
+            ],
+            "title": "endpoint"
+          },
+          "mintedSecret": {
+            "type": "string",
+            "title": "minted_secret",
+            "description": "Returned only for a newly minted key. Store it for sender setup now."
+          }
+        },
+        "title": "PutWebhookEndpointResponse",
         "additionalProperties": false
       },
       "ingestion.v1.RatePolicy": {
@@ -5845,6 +6137,14 @@
             "type": "boolean",
             "title": "selectable_columns",
             "description": "The source reads only the columns an edge selects."
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "partitions",
+            "description": "The resource's partitions an edge may select; empty when it is not partitioned."
           }
         },
         "title": "ResourceColumns",
@@ -5868,6 +6168,24 @@
           }
         },
         "title": "ResourceCursorConfig",
+        "additionalProperties": false
+      },
+      "ingestion.v1.ResourcePartitionSelection": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "resource"
+          },
+          "partitions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "partitions"
+          }
+        },
+        "title": "ResourcePartitionSelection",
         "additionalProperties": false
       },
       "ingestion.v1.ResourceValidation": {
@@ -6198,7 +6516,7 @@
               "type": "string"
             },
             "title": "resync_resources",
-            "description": "resync_resources names resources read from the beginning again by the\n runs this call produces. A bounded run forgets their checkpoints first. A\n live continuous run drains and hands over to a successor that snapshots\n them again on the same stream."
+            "description": "resync_resources names resources read from the beginning again by the\n runs this call produces. A bounded run forgets their checkpoints first. A\n live continuous run drains and hands over to a successor that snapshots\n them again on the same stream. A continuous run accepts it only from a\n change data capture source."
           },
           "resources": {
             "type": "array",
@@ -6871,6 +7189,82 @@
         },
         "title": "ValidationError",
         "additionalProperties": false
+      },
+      "ingestion.v1.WebhookEndpointConfig": {
+        "type": "object",
+        "properties": {
+          "sourceConnectionId": {
+            "type": "string",
+            "title": "source_connection_id"
+          },
+          "pipelineId": {
+            "type": "string",
+            "title": "pipeline_id"
+          },
+          "routeKey": {
+            "type": "string",
+            "title": "route_key"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resources",
+            "description": "Resource names accepted at /hooks/\u003csource_connection_id\u003e/\u003cresource\u003e. The\n bound pipeline decides where each one is written."
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled"
+          },
+          "revision": {
+            "type": "string",
+            "title": "revision",
+            "format": "int64"
+          },
+          "successStatus": {
+            "type": "integer",
+            "title": "success_status",
+            "format": "int32"
+          },
+          "maxBodyBytes": {
+            "type": "string",
+            "title": "max_body_bytes",
+            "format": "int64"
+          },
+          "hasSigningSecret": {
+            "type": "boolean",
+            "title": "has_signing_secret"
+          },
+          "routeReady": {
+            "type": "boolean",
+            "title": "route_ready"
+          },
+          "verifier": {
+            "type": "string",
+            "title": "verifier",
+            "description": "Verifier that authenticates deliveries, set from the source connector."
+          },
+          "previousKeyExpiresAt": {
+            "type": "string",
+            "title": "previous_key_expires_at",
+            "format": "int64",
+            "description": "Unix milliseconds until which the replaced signing key still verifies.\n Zero when no replaced key is active."
+          },
+          "accepting": {
+            "type": "boolean",
+            "title": "accepting",
+            "description": "Whether a pipeline that reads this source is running or paused. While\n false, new deliveries get 503 so senders retry until a pipeline starts."
+          },
+          "deliveryUrl": {
+            "type": "string",
+            "title": "delivery_url",
+            "description": "Absolute URL deliveries go to, without the resource:\n \u003cpublic base URL\u003e/hooks/\u003csource_connection_id\u003e. Empty when the server has\n no public base URL configured."
+          }
+        },
+        "title": "WebhookEndpointConfig",
+        "additionalProperties": false,
+        "description": "WebhookEndpointConfig is tenant-owned receiver configuration. Signing keys\n are never returned by a read operation."
       },
       "ingestion.v1.WorkerConfiguration": {
         "type": "object",

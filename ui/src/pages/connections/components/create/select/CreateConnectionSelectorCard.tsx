@@ -10,6 +10,7 @@ import Widget, { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
+import ConnectorPreviewChip from "@/components/connections/ConnectorPreviewChip";
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
 import { formatConnectorName } from "@/components/connections/utils";
@@ -59,7 +60,10 @@ const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
               </Text>
             </FlexItem>
           </Flex>
-          <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          <Flex alignItems={AlignItems.CENTER} gap={4}>
+            <ConnectorPreviewChip isPreview={connector.isPreview} />
+            <ConnectionKindChip kind={connector.kind} size={ChipSize.SMALL} />
+          </Flex>
         </Flex>
 
         <FlexItem grow={1}>

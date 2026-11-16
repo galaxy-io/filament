@@ -32,10 +32,10 @@ const CreateConnectionSelectorSidebar: FC<CreateConnectionSelectorSidebarProps> 
       <Widget variant={WidgetVariant.SECONDARY}>
         <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12}>
           <Text size={TextSize.BODY_SM} weight={TextWeight.MEDIUM} variant={TextVariant.TERTIARY}>
-            Maturity
+            Status
           </Text>
           <Tabs
-            ariaLabel="Maturity"
+            ariaLabel="Status"
             items={shelfItems}
             value={shelf}
             onChange={onShelfChange}

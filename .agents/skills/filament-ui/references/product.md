@@ -118,16 +118,15 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **Who and why.** Anyone opens Filament to confirm everything is fine, then leaves.
 
-**The path.** Observability, the default landing page. Before setup is complete it shows the setup checklist instead.
+**The path.** Observability, the default landing page, under the Filament wordmark. Before setup is complete it shows the setup checklist instead.
 
 **How it should feel.** Answered in seconds, without scrolling. Above the fold, in order of attention.
 
-1. **Failures**, anything failing now, each a link to its run.
-2. **Live runs**, what is running right now.
-3. **The KPI row**, runs, success, records and volume for the timeframe.
-4. **Next scheduled**, what runs next and when.
+1. **Failures**, a calm error banner when a pipeline's latest run failed, however long ago. Details lists each one with its raw error and a link to the run.
+2. **The band**, three tiles for the timeframe. Runs by status, throughput and usage, each with a short chart and the three pipelines behind it.
+3. **The run wall**, the pipelines that need attention first with a thin bar per hour or day, live runs in blue, beside Scheduled, Sources and Sinks. The wall never scrolls inside, so the page always does.
 
-Everything healthy should look boring. Charts sit below for anyone who wants to dig, with the timeframe and pivots in the URL.
+Everything healthy should look boring. History sits below with the timeframe and the status filter in the URL.
 
 **What breaks it.** A healthy dashboard full of color. A failure you have to scroll or filter to find. A panel that blanks the page while it loads.
 

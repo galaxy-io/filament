@@ -1,5 +1,4 @@
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { ConnectorMaturity } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
 
@@ -10,9 +9,7 @@ export const CREATE_CONNECTION_SELECTOR_GRID_COLUMNS = "repeat(3, minmax(0, 1fr)
 
 export const CREATE_CONNECTION_SELECTOR_SHELF_ORDER: CreateConnectionSelectorShelf[] = [
   CreateConnectionSelectorShelf.ALL,
-  CreateConnectionSelectorShelf.STABLE,
-  CreateConnectionSelectorShelf.BETA,
-  CreateConnectionSelectorShelf.ALPHA,
+  CreateConnectionSelectorShelf.PREVIEW,
 ];
 
 export const CREATE_CONNECTION_SELECTOR_SHELF_TO_LABEL_MAP: Record<
@@ -20,9 +17,7 @@ export const CREATE_CONNECTION_SELECTOR_SHELF_TO_LABEL_MAP: Record<
   string
 > = {
   [CreateConnectionSelectorShelf.ALL]: "All",
-  [CreateConnectionSelectorShelf.STABLE]: "Stable",
-  [CreateConnectionSelectorShelf.BETA]: "Beta",
-  [CreateConnectionSelectorShelf.ALPHA]: "Alpha",
+  [CreateConnectionSelectorShelf.PREVIEW]: "Preview",
 };
 export const CREATE_CONNECTION_SELECTOR_CARD_MIN_HEIGHT = 150;
 
@@ -30,12 +25,6 @@ export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = 
   [ConnectorKind.UNSPECIFIED]: "All connector types",
   [ConnectorKind.SOURCE]: "Ingest data from external systems",
   [ConnectorKind.SINK]: "Send data to external destinations",
-};
-
-export const CONNECTOR_KIND_TO_CREATE_TITLE_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "New connection",
-  [ConnectorKind.SOURCE]: "New source",
-  [ConnectorKind.SINK]: "New sink",
 };
 
 export const CONNECTOR_KIND_TO_DOCS_PATH_MAP: Record<ConnectorKind, string> = {
@@ -50,21 +39,4 @@ export const CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP: Record<
 > = {
   [ConnectorKind.SOURCE]: "Connect data sources to move data in.",
   [ConnectorKind.SINK]: "Connect data sinks to move data out.",
-};
-
-export const CONNECTOR_MATURITY_TO_STATUS_MAP: Record<ConnectorMaturity, string | undefined> = {
-  [ConnectorMaturity.UNSPECIFIED]: undefined,
-  [ConnectorMaturity.ALPHA]: "experimental",
-  [ConnectorMaturity.BETA]: "beta",
-  [ConnectorMaturity.STABLE]: undefined,
-};
-
-export const CREATE_CONNECTION_SELECTOR_SHELF_TO_MATURITY_MAP: Record<
-  CreateConnectionSelectorShelf,
-  ConnectorMaturity | undefined
-> = {
-  [CreateConnectionSelectorShelf.ALL]: undefined,
-  [CreateConnectionSelectorShelf.STABLE]: ConnectorMaturity.STABLE,
-  [CreateConnectionSelectorShelf.BETA]: ConnectorMaturity.BETA,
-  [CreateConnectionSelectorShelf.ALPHA]: ConnectorMaturity.ALPHA,
 };

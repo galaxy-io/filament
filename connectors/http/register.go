@@ -32,7 +32,7 @@ func LoadDirectory(directory string) (*registry.Sources, error) {
 
 func registerCatalog(sources *registry.Sources, entries []catalogEntry) {
 	for _, entry := range entries {
-		sources.RegisterWithMaturity(entry.key(), entry.maturity, entry.source)
+		sources.RegisterWithPreview(entry.key(), entry.isPreview, entry.source)
 	}
 	for _, entry := range entries {
 		if entry.isDefault {

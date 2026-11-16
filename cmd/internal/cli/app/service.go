@@ -122,6 +122,16 @@ func (s *Service) Configuration(ctx context.Context) (model.Document, error) {
 	return document, nil
 }
 
+// Connection returns one saved connection by name.
+func (s *Service) Connection(ctx context.Context, kind, name string) (model.Connection, error) {
+	return s.target.GetConnection(ctx, kind, name)
+}
+
+// Pipeline returns one saved pipeline by name.
+func (s *Service) Pipeline(ctx context.Context, name string) (model.Pipeline, error) {
+	return s.target.GetPipeline(ctx, name)
+}
+
 func (s *Service) allConnections(ctx context.Context, kind string) ([]model.NamedConnection, error) {
 	return model.DrainPages(func(request model.PageRequest) (model.Page[model.NamedConnection], error) {
 		return s.target.ListConnections(ctx, kind, request)

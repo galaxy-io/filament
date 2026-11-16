@@ -4,6 +4,7 @@ package upgrade
 import (
 	"archive/tar"
 	"bytes"
+	"cmp"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -12,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,10 +24,11 @@ import (
 )
 
 const (
-	defaultReleaseURL = "https://api.github.com/repos/galaxy-io/filament/releases/latest"
-	maxMetadataBytes  = 4 << 20
-	maxArchiveBytes   = 256 << 20
-	maxBinaryBytes    = 256 << 20
+	defaultReleaseURL  = "https://api.github.com/repos/galaxy-io/filament/releases/latest"
+	defaultDownloadURL = "https://github.com/galaxy-io/filament/releases/download"
+	maxMetadataBytes   = 4 << 20
+	maxArchiveBytes    = 256 << 20
+	maxBinaryBytes     = 256 << 20
 )
 
 // ErrHomebrewManaged indicates that Homebrew, rather than Filament, must
@@ -86,7 +89,7 @@ func Run(ctx context.Context, options Options) (Result, error) {
 		return Result{}, err
 	}
 
-	archiveName, err := releaseArchiveName(options.GOOS, options.GOARCH)
+	archiveName, err := releaseArchiveName("filament", options.GOOS, options.GOARCH)
 	if err != nil {
 		return Result{}, err
 	}
@@ -112,7 +115,7 @@ func Run(ctx context.Context, options Options) (Result, error) {
 	if err := verifyChecksum(archiveName, archive, checksums); err != nil {
 		return Result{}, err
 	}
-	binary, err := extractBinary(archive)
+	binary, err := extractBinary(archive, "filament")
 	if err != nil {
 		return Result{}, err
 	}
@@ -124,6 +127,53 @@ func Run(ctx context.Context, options Options) (Result, error) {
 	}
 	result.Updated = true
 	return result, nil
+}
+
+// InstallOptions names one release binary to install for this platform.
+type InstallOptions struct {
+	Client      *http.Client
+	Version     string
+	Binary      string
+	Destination string
+	GOOS        string
+	GOARCH      string
+	DownloadURL string
+}
+
+// Install downloads Binary from the Version release, verifies it against the
+// release checksums, and atomically writes it to Destination.
+func Install(ctx context.Context, options InstallOptions) error {
+	if options.Client == nil {
+		options.Client = http.DefaultClient
+	}
+	options.GOOS = cmp.Or(options.GOOS, runtime.GOOS)
+	options.GOARCH = cmp.Or(options.GOARCH, runtime.GOARCH)
+	options.DownloadURL = cmp.Or(options.DownloadURL, defaultDownloadURL)
+	tag := canonicalVersion(options.Version)
+	if !semver.IsValid(tag) {
+		return fmt.Errorf("%s has no release to download for version %q", options.Binary, options.Version)
+	}
+	archiveName, err := releaseArchiveName(options.Binary, options.GOOS, options.GOARCH)
+	if err != nil {
+		return err
+	}
+	base := options.DownloadURL + "/" + tag + "/"
+	archive, err := download(ctx, options.Client, base+archiveName, maxArchiveBytes)
+	if err != nil {
+		return fmt.Errorf("download %s: %w", archiveName, err)
+	}
+	checksums, err := download(ctx, options.Client, base+"checksums.txt", maxMetadataBytes)
+	if err != nil {
+		return fmt.Errorf("download checksums.txt: %w", err)
+	}
+	if err := verifyChecksum(archiveName, archive, checksums); err != nil {
+		return err
+	}
+	binary, err := extractBinary(archive, options.Binary)
+	if err != nil {
+		return err
+	}
+	return replaceExecutable(options.Destination, binary)
 }
 
 func reportStatus(options Options, message string) error {
@@ -225,11 +275,11 @@ func upToDate(current, latest string) bool {
 	return semver.IsValid(current) && semver.Compare(current, latest) >= 0
 }
 
-func releaseArchiveName(goos, goarch string) (string, error) {
+func releaseArchiveName(binary, goos, goarch string) (string, error) {
 	if (goos != "darwin" && goos != "linux") || (goarch != "amd64" && goarch != "arm64") {
 		return "", fmt.Errorf("unsupported platform %s/%s", goos, goarch)
 	}
-	return fmt.Sprintf("filament_%s_%s.tar.gz", goos, goarch), nil
+	return fmt.Sprintf("%s_%s_%s.tar.gz", binary, goos, goarch), nil
 }
 
 func (r release) assetURL(name string) (string, error) {
@@ -261,7 +311,7 @@ func verifyChecksum(name string, archive, checksums []byte) error {
 	return nil
 }
 
-func extractBinary(archive []byte) ([]byte, error) {
+func extractBinary(archive []byte, name string) ([]byte, error) {
 	compressed, err := gzip.NewReader(bytes.NewReader(archive))
 	if err != nil {
 		return nil, fmt.Errorf("open release archive: %w", err)
@@ -276,7 +326,7 @@ func extractBinary(archive []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read release archive: %w", err)
 		}
-		if filepath.Base(header.Name) != "filament" || header.Typeflag != tar.TypeReg {
+		if filepath.Base(header.Name) != name || header.Typeflag != tar.TypeReg {
 			continue
 		}
 		if header.Size < 0 || header.Size > maxBinaryBytes {
@@ -291,13 +341,20 @@ func extractBinary(archive []byte) ([]byte, error) {
 		}
 		return binary, nil
 	}
-	return nil, errors.New("release archive does not contain filament")
+	return nil, fmt.Errorf("release archive does not contain %s", name)
 }
 
+// replaceExecutable atomically writes binary to path, keeping an existing
+// file's permissions.
 func replaceExecutable(path string, binary []byte) error {
-	info, err := os.Stat(path)
-	if err != nil {
+	mode := os.FileMode(0o755)
+	if info, err := os.Stat(path); err == nil {
+		mode = info.Mode().Perm() | 0o500
+	} else if !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("inspect current executable: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
 	}
 	temporary, err := os.CreateTemp(filepath.Dir(path), ".filament-upgrade-*")
 	if err != nil {
@@ -309,7 +366,7 @@ func replaceExecutable(path string, binary []byte) error {
 		_ = temporary.Close()
 		return fmt.Errorf("write upgraded executable: %w", err)
 	}
-	if err := temporary.Chmod(info.Mode().Perm() | 0o500); err != nil {
+	if err := temporary.Chmod(mode); err != nil {
 		_ = temporary.Close()
 		return fmt.Errorf("set upgraded executable permissions: %w", err)
 	}

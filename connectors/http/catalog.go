@@ -28,13 +28,31 @@ type catalogRegistry struct {
 }
 
 type catalogVersion struct {
-	Maturity filament.ConnectorMaturity `json:"maturity"`
+	IsPreview bool `json:"is_preview"`
+}
+
+func (v *catalogVersion) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	value, ok := fields["is_preview"]
+	if !ok {
+		return fmt.Errorf("is_preview is required")
+	}
+	if len(fields) != 1 {
+		return fmt.Errorf("unknown catalog version field")
+	}
+	if string(value) != "true" && string(value) != "false" {
+		return fmt.Errorf("is_preview must be a boolean")
+	}
+	return json.Unmarshal(value, &v.IsPreview)
 }
 
 type catalogEntry struct {
 	name      string
 	version   string
-	maturity  filament.ConnectorMaturity
+	isPreview bool
 	isDefault bool
 	data      []byte
 }
@@ -141,11 +159,6 @@ func loadCatalogEntry(files fs.FS, root string, registration catalogRegistry, ve
 		return catalogEntry{}, fmt.Errorf("%s: invalid API version %q (must be a safe directory name)", registryPath, version)
 	}
 	release := registration.Versions[version]
-	switch release.Maturity {
-	case filament.MaturityAlpha, filament.MaturityBeta, filament.MaturityStable:
-	default:
-		return catalogEntry{}, fmt.Errorf("%s: invalid maturity %q for %s", registryPath, release.Maturity, version)
-	}
 	manifestPath := path.Join(root, version, "manifest.yaml")
 	data, err := manifest.ReadFS(files, manifestPath)
 	if err != nil {
@@ -168,7 +181,7 @@ func loadCatalogEntry(files fs.FS, root string, registration catalogRegistry, ve
 	if parsed.DisplayName == "" || parsed.Description == "" || parsed.DarkLogoURL == "" || parsed.LightLogoURL == "" {
 		return catalogEntry{}, fmt.Errorf("%s: missing catalog presentation metadata", manifestPath)
 	}
-	return catalogEntry{name: registration.Name, version: version, maturity: release.Maturity, isDefault: version == registration.DefaultVersion, data: data}, nil
+	return catalogEntry{name: registration.Name, version: version, isPreview: release.IsPreview, isDefault: version == registration.DefaultVersion, data: data}, nil
 }
 
 func (entry catalogEntry) key() string { return entry.name + "@" + entry.version }

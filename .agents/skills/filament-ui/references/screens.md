@@ -5,7 +5,7 @@ The shells Filament has and the rules a screen inside one follows. Reuse a shell
 | You are building | Shell | Reference screen |
 |---|---|---|
 | A top-level list (one row or card per entity, search, a primary "New X") | `PageLayout` with `header`, `actions` and a `ListSearch` `toolbar` | `pages/pipelines/PipelinesPage.tsx`, `pages/connections/ConnectionsPage.tsx` |
-| A dashboard | `PageLayout` with `actions`, a `ScrollArea` of `Widget`s | `pages/observability/ObservabilityPage.tsx`, see [dashboards.md](./dashboards.md) |
+| The landing dashboard | `PageLayout` with the wordmark as `header`, `actions` and a failures `Alert isBanner`, then a `ScrollArea` of a flat band of three tiles, a block of `Widget`s sized by the paged run wall, and the History table | `pages/observability/ObservabilityPage.tsx`, see [dashboards.md](./dashboards.md) |
 | An entity with sub-pages | `PageLayout` with a node `header`, `actions`, `banner` and `tabs`, children in the `Outlet` | `pages/pipelines/PipelinePage.tsx` and its canvas, history and settings children |
 | A settings surface for one entity | a `ScrollArea` of collapsible `Widget` sections, each with its own Save | `pages/pipelines/PipelineSettingsPage.tsx` |
 | Details of an item while the list stays visible | DLS `Drawer` opened by a search param | `pages/connections/components/drawer/ConnectionDrawer.tsx` |
@@ -19,7 +19,7 @@ The shells Filament has and the rules a screen inside one follows. Reuse a shell
 
 `MainLayoutSidebar` is a DLS `SidebarNav` with `hasDividers={false}`, `ariaLabel` "Filament", one item per `FilamentNavItem` (`module/nav.ts` maps each to a label, icon, path and keywords), and a footer with the host's `sidebarFooter` above DLS `PoweredBy`. A new top-level destination is one `FilamentNavItem` member with an entry in each map, a `FilamentPath`, a `*RouteOptions` and its route files.
 
-Every page renders DLS `PageLayout`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
+Every page renders DLS `PageLayout`. The one exception is the Observability setup checklist, a full-page onboarding screen with no header row that renders its own `main` and `h1`. A string `header` renders the `h1`. The 64px header row holds `header` on the left and `actions` on the right, then a divider, then `banner`, `tabs` and the `toolbar` row, then `main` (`BASE`, `overflow: hidden`). A page that scrolls wraps its body in `ScrollArea`.
 
 ## List page
 

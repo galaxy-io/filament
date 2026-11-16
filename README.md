@@ -10,7 +10,7 @@
 [![Tests](https://github.com/galaxy-io/filament/actions/workflows/test.yaml/badge.svg)](https://github.com/galaxy-io/filament/actions/workflows/test.yaml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Ask DeepWiki](https://img.shields.io/badge/DeepWiki-Ask-7B3FE4)](https://deepwiki.com/galaxy-io/filament)
-[![Slack](https://img.shields.io/badge/slack-join-4A154B?logo=slack&logoColor=white)](https://join.slack.com/t/galaxy-filament/shared_invite/zt-486oaagls-WCKm605mP6NCmoB3E7frpQ)
+[![Slack](https://img.shields.io/badge/slack-join-4A154B?logo=slack&logoColor=white)](https://join.slack.com/t/galaxy-io-community/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ)
 
 </div>
 
@@ -98,5 +98,5 @@ See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for repository setup, code genera
 ## Community
 
 - Read the [Filament documentation](https://filament.getgalaxy.io).
-- Ask questions and meet other users in the [Filament Slack community](https://join.slack.com/t/galaxy-filament/shared_invite/zt-486oaagls-WCKm605mP6NCmoB3E7frpQ).
+- Ask questions and meet other users in the [Filament Slack community](https://join.slack.com/t/galaxy-io-community/shared_invite/zt-45qln0zg5-9CTvKVXugvh3sEhpD6KzJQ).
 - Report bugs or propose features through [GitHub Issues](https://github.com/galaxy-io/filament/issues).

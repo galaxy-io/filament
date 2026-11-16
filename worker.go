@@ -68,6 +68,8 @@ type Inspection struct {
 	ManagedIncremental bool
 	// Schema is nil when the source provides none.
 	Schema *RecordSchema
+	// Partitions are empty when the resource is not partitioned.
+	Partitions []string
 }
 
 // Worker answers every connector question the control services ask: the

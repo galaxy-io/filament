@@ -64,6 +64,19 @@ type ColumnSelector interface {
 	SelectColumns(columns map[string][]string) error
 }
 
+// PartitionSelector lets a source backfill only some partitions of a
+// partitioned resource. Partitions lists a resource's partitions, empty when
+// it is not partitioned. The engine calls SelectPartitions like
+// SelectColumns, keyed by source resource name: a full read or a change
+// stream's initial snapshot of a listed resource reads only those
+// partitions, while the change stream still carries every partition. A
+// resource absent from the map reads every partition, and an empty selection
+// reads none.
+type PartitionSelector interface {
+	Partitions(ctx context.Context, resource string) ([]string, error)
+	SelectPartitions(partitions map[string][]string) error
+}
+
 // ResumePlanner builds the initial per-resource checkpoint plan for a resumable run:
 // the shard layout (PK split) plus any cursor carried over from prev. The engine
 // persists the returned plan before extraction so a later resume sees a complete,
@@ -301,11 +314,14 @@ type ConnectorSpec struct {
 	LightLogoURL   string
 	Version        string
 	APIVersion     string
-	Maturity       ConnectorMaturity
+	IsPreview      bool
 	Modes          []ReadMode
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema
 	Resources      ResourceCapabilities
+	// WebhookVerifier names the webhook verifier that authenticates this
+	// source's deliveries. A source that sets it can own a webhook endpoint.
+	WebhookVerifier string
 }
 
 // ConfigSchema declares the fields a connector's Config accepts.
@@ -387,7 +403,7 @@ const (
 )
 
 // ResourceCapabilities advertises what a source can do per resource.
-type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns bool }
+type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns, WebhookEndpointBacked bool }
 
 // ExtractOpts scopes one extraction: which resources, how fast. Read behavior
 // per resource is carried by the checkpoint plan handed to ExtractFrom, not by

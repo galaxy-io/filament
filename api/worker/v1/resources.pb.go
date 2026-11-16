@@ -253,7 +253,9 @@ type Inspection struct {
 	Ranked             bool                   `protobuf:"varint,6,opt,name=ranked,proto3" json:"ranked,omitempty"`
 	ManagedIncremental bool                   `protobuf:"varint,7,opt,name=managed_incremental,json=managedIncremental,proto3" json:"managed_incremental,omitempty"`
 	// schema is unset when the source provides none.
-	Schema        *Schema `protobuf:"bytes,8,opt,name=schema,proto3" json:"schema,omitempty"`
+	Schema *Schema `protobuf:"bytes,8,opt,name=schema,proto3" json:"schema,omitempty"`
+	// partitions are empty when the resource is not partitioned.
+	Partitions    []string `protobuf:"bytes,9,rep,name=partitions,proto3" json:"partitions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -340,6 +342,13 @@ func (x *Inspection) GetManagedIncremental() bool {
 func (x *Inspection) GetSchema() *Schema {
 	if x != nil {
 		return x.Schema
+	}
+	return nil
+}
+
+func (x *Inspection) GetPartitions() []string {
+	if x != nil {
+		return x.Partitions
 	}
 	return nil
 }
@@ -547,7 +556,7 @@ const file_worker_v1_resources_proto_rawDesc = "" +
 	"\x0eInspectRequest\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12/\n" +
 	"\x06config\x18\x02 \x01(\v2\x17.google.protobuf.StructR\x06config\x12\x1c\n" +
-	"\tresources\x18\x03 \x03(\tR\tresources\"\xb9\x02\n" +
+	"\tresources\x18\x03 \x03(\tR\tresources\"\xd9\x02\n" +
 	"\n" +
 	"Inspection\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
@@ -558,7 +567,10 @@ const file_worker_v1_resources_proto_rawDesc = "" +
 	"\acolumns\x18\x05 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\acolumns\x12\x16\n" +
 	"\x06ranked\x18\x06 \x01(\bR\x06ranked\x12/\n" +
 	"\x13managed_incremental\x18\a \x01(\bR\x12managedIncremental\x12)\n" +
-	"\x06schema\x18\b \x01(\v2\x11.worker.v1.SchemaR\x06schema\"q\n" +
+	"\x06schema\x18\b \x01(\v2\x11.worker.v1.SchemaR\x06schema\x12\x1e\n" +
+	"\n" +
+	"partitions\x18\t \x03(\tR\n" +
+	"partitions\"q\n" +
 	"\x06Schema\x12.\n" +
 	"\x06fields\x18\x01 \x03(\v2\x16.worker.v1.SchemaFieldR\x06fields\x12\x1f\n" +
 	"\vprimary_key\x18\x02 \x03(\tR\n" +

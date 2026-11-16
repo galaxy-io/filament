@@ -154,7 +154,7 @@ func TestCanonicalizeDatabaseConnectionConfig(t *testing.T) {
 
 func TestGetConnector(t *testing.T) {
 	sources := registry.NewSources()
-	sources.RegisterWithMaturity("columns", filament.MaturityBeta, func() filament.Source {
+	sources.RegisterWithPreview("columns", true, func() filament.Source {
 		return &columnSource{counts: &columnSourceCounts{}}
 	})
 	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
@@ -169,8 +169,8 @@ func TestGetConnector(t *testing.T) {
 	if got := response.Msg.GetConnector().GetName(); got != "columns" {
 		t.Fatalf("connector name = %q, want %q", got, "columns")
 	}
-	if got := response.Msg.GetConnector().GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA {
-		t.Fatalf("connector maturity = %v, want beta", got)
+	if got := response.Msg.GetConnector().GetIsPreview(); got != true {
+		t.Fatalf("connector preview = %v, want true", got)
 	}
 
 	_, err = api.GetConnector(context.Background(), connect.NewRequest(&ingestionv1.GetConnectorRequest{
@@ -189,9 +189,9 @@ func TestGetConnector(t *testing.T) {
 	}
 }
 
-func TestListConnectorsIncludesConnectorMaturity(t *testing.T) {
+func TestListConnectorsIncludesConnectorPreview(t *testing.T) {
 	sources := registry.NewSources()
-	sources.RegisterWithMaturity("columns", filament.MaturityStable, func() filament.Source {
+	sources.RegisterWithPreview("columns", false, func() filament.Source {
 		return &columnSource{counts: &columnSourceCounts{}}
 	})
 	api := New(worker.Local(sources, registry.NewSinks()), sqlite.NewMemory(), nil, nil)
@@ -205,8 +205,8 @@ func TestListConnectorsIncludesConnectorMaturity(t *testing.T) {
 	if got := len(response.Msg.GetConnectors()); got != 1 {
 		t.Fatalf("connectors = %d, want 1", got)
 	}
-	if got := response.Msg.GetConnectors()[0].GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_STABLE {
-		t.Fatalf("connector maturity = %v, want stable", got)
+	if got := response.Msg.GetConnectors()[0].GetIsPreview(); got != false {
+		t.Fatalf("connector preview = %v, want false", got)
 	}
 }
 
@@ -238,9 +238,9 @@ func TestListConnectorsSearchSortAndPage(t *testing.T) {
 	}
 }
 
-func TestSinkConnectorResponsesIncludeMaturity(t *testing.T) {
+func TestSinkConnectorResponsesIncludePreview(t *testing.T) {
 	sinks := registry.NewSinks()
-	sinks.RegisterWithMaturity("live-sink", filament.MaturityBeta, func() filament.Sink {
+	sinks.RegisterWithPreview("live-sink", true, func() filament.Sink {
 		return &liveProbeSink{probes: &atomic.Int32{}}
 	})
 	api := New(worker.Local(registry.NewSources(), sinks), sqlite.NewMemory(), nil, nil)
@@ -252,8 +252,8 @@ func TestSinkConnectorResponsesIncludeMaturity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := getResponse.Msg.GetConnector().GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA {
-		t.Fatalf("get connector maturity = %v, want beta", got)
+	if got := getResponse.Msg.GetConnector().GetIsPreview(); got != true {
+		t.Fatalf("get connector preview = %v, want true", got)
 	}
 
 	listResponse, err := api.ListConnectors(context.Background(), connect.NewRequest(&ingestionv1.ListConnectorsRequest{
@@ -265,8 +265,8 @@ func TestSinkConnectorResponsesIncludeMaturity(t *testing.T) {
 	if got := len(listResponse.Msg.GetConnectors()); got != 1 {
 		t.Fatalf("connectors = %d, want 1", got)
 	}
-	if got := listResponse.Msg.GetConnectors()[0].GetMaturity(); got != ingestionv1.ConnectorMaturity_CONNECTOR_MATURITY_BETA {
-		t.Fatalf("list connector maturity = %v, want beta", got)
+	if got := listResponse.Msg.GetConnectors()[0].GetIsPreview(); got != true {
+		t.Fatalf("list connector preview = %v, want true", got)
 	}
 }
 

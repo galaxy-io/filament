@@ -45,6 +45,7 @@ export const getCanvasEdgeConfig = (
   writeMode: edge.data?.writeMode ?? baseEdge?.writeMode ?? WriteMode.UNSPECIFIED,
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
   columns: edge.data?.columns ?? baseEdge?.columns ?? [],
+  partitions: edge.data?.partitions ?? baseEdge?.partitions ?? [],
   transform: edge.data && "transform" in edge.data ? edge.data.transform : baseEdge?.transform,
 });
 

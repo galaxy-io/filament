@@ -6,7 +6,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-qbo-dark.svg"
 
 The `qbo` source reads 63 QuickBooks Online accounting resources through the
 v3 REST API using an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
-The connector is alpha and supports sandbox and production accounts.
+The connector supports sandbox and production accounts.
 The `qbo` alias resolves to `qbo@v3`. Live company reads have not been validated.
 
 ## Configuration
@@ -211,9 +211,8 @@ Display names can differ from endpoint names. Sales reports use `ClassSales`,
 | Workforce, payroll, QuickBooks Time, and Payments processing | Separate product APIs outside this accounting source. Accounting Payment records are included. |
 | Create, update, delete, send, and batch mutations | Excluded from this read-only source. |
 
-The new resources remain alpha. Fixture tests verify request construction and
-response handling. No live company reads have been validated. Company currency
-queries in particular still need live confirmation of query pagination and
+Fixture tests verify request construction and response handling. No live
+company reads have been validated. Company currency queries in particular still need live confirmation of query pagination and
 inactive-currency visibility. Optional resource failures remain visible.
 
 ## Modes

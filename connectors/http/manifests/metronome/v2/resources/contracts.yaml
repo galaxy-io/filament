@@ -1,0 +1,554 @@
+resources:
+  - name: contracts
+    path: "/v2/contracts/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_archived: true
+        include_balance: true
+        limit: 20
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: cursor
+          request: body.cursor
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      customer_id: string?
+      package_id: string?
+      uniqueness_key: string?
+      name: string?
+      salesforce_opportunity_id: string?
+      rate_card_id: string?
+      starting_at: timestamptz?
+      commits: json?
+      credits: json?
+      has_more: json?
+      overrides: json?
+      discounts: json?
+      professional_services: json?
+      scheduled_charges: json?
+      scheduled_charges_on_usage_invoices: string?
+      transitions: json?
+      reseller_royalties: json?
+      created_at: timestamptz?
+      created_by: string?
+      netsuite_sales_order_id: string?
+      net_payment_terms_days: decimal?
+      ending_before: timestamptz?
+      archived_at: timestamptz?
+      total_contract_value: decimal?
+      usage_filter: json?
+      usage_statement_schedule: json?
+      multiplier_override_prioritization: string?
+      custom_fields: json?
+      customer_billing_provider_configuration: json?
+      billing_provider_configuration_schedule: json?
+      revenue_system_configuration_schedule: json?
+      recurring_commits: json?
+      recurring_credits: json?
+      spend_threshold_configuration: json?
+      prepaid_balance_threshold_configuration: json?
+      spend_trackers: json?
+      credit_type_conversion_schedules: json?
+      subscriptions: json?
+      hierarchy_configuration: json?
+      priority: decimal?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+    capture:
+      customer_id: customer_id
+      contract_id: id
+  - name: contract_edit_history
+    path: "/v2/contracts/getEditHistory"
+    method: POST
+    for_each: contracts
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        contract_id: "{{ parent.contract_id }}"
+    response:
+      records: "$.data"
+      pagination: none
+    primary_key:
+      - customer_id
+      - contract_id
+      - id
+    fields:
+      id: string
+      timestamp: timestamptz?
+      uniqueness_key: string?
+      add_overrides: json?
+      add_pro_services: json?
+      add_reseller_royalties: json?
+      add_discounts: json?
+      add_scheduled_charges: json?
+      add_commits: json?
+      add_credits: json?
+      add_recurring_commits: json?
+      add_recurring_credits: json?
+      add_usage_filters: json?
+      add_subscriptions: json?
+      add_prepaid_balance_threshold_configuration: json?
+      add_spend_threshold_configuration: json?
+      update_contract_name: string?
+      update_discounts: json?
+      update_scheduled_charges: json?
+      update_commits: json?
+      update_credits: json?
+      update_recurring_commits: json?
+      update_recurring_credits: json?
+      update_contract_end_date: timestamptz?
+      update_refund_invoices: json?
+      update_subscriptions: json?
+      update_prepaid_balance_threshold_configuration: json?
+      update_spend_threshold_configuration: json?
+      archive_commits: json?
+      archive_credits: json?
+      archive_scheduled_charges: json?
+      remove_overrides: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      contract_id:
+        path: parent.contract_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: commits
+    path: "/v1/contracts/customerCommits/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_contract_commits: true
+        include_archived: true
+        include_ledgers: true
+        include_balance: true
+        limit: 25
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      contract: json?
+      type: string?
+      rate_type: string?
+      name: string?
+      priority: decimal?
+      cost_basis: decimal?
+      product: json?
+      access_schedule: json?
+      invoice_schedule: json?
+      invoice_contract: json?
+      recurring_commit_id: string?
+      subscription_config: json?
+      rolled_over_from: json?
+      description: string?
+      rollover_fraction: decimal?
+      applicable_product_ids: json?
+      applicable_product_tags: json?
+      specifiers: json?
+      applicable_contract_ids: json?
+      netsuite_sales_order_id: string?
+      amount: decimal?
+      salesforce_opportunity_id: string?
+      ledger: json?
+      balance: decimal?
+      custom_fields: json?
+      uniqueness_key: string?
+      archived_at: timestamptz?
+      hierarchy_configuration: json?
+      spend_tracker_attributes: json?
+      created_at: timestamptz?
+      created_by: string?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: credits
+    path: "/v1/contracts/customerCredits/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_contract_credits: true
+        include_archived: true
+        include_ledgers: true
+        include_balance: true
+        limit: 25
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      contract: json?
+      type: string?
+      name: string?
+      priority: decimal?
+      product: json?
+      access_schedule: json?
+      description: string?
+      recurring_credit_id: string?
+      subscription_config: json?
+      applicable_product_ids: json?
+      applicable_product_tags: json?
+      specifiers: json?
+      applicable_contract_ids: json?
+      netsuite_sales_order_id: string?
+      salesforce_opportunity_id: string?
+      ledger: json?
+      balance: decimal?
+      custom_fields: json?
+      rate_type: string?
+      uniqueness_key: string?
+      hierarchy_configuration: json?
+      rolled_over_from: json?
+      created_at: timestamptz?
+      created_by: string?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: balances
+    path: "/v1/contracts/customerBalances/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        include_contract_balances: true
+        include_archived: true
+        include_ledgers: true
+        include_balance: true
+        limit: 25
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      contract: json?
+      type: string?
+      rate_type: string?
+      name: string?
+      priority: decimal?
+      cost_basis: decimal?
+      product: json?
+      access_schedule: json?
+      invoice_schedule: json?
+      invoice_contract: json?
+      recurring_commit_id: string?
+      subscription_config: json?
+      rolled_over_from: json?
+      description: string?
+      rollover_fraction: decimal?
+      applicable_product_ids: json?
+      applicable_product_tags: json?
+      specifiers: json?
+      applicable_contract_ids: json?
+      netsuite_sales_order_id: string?
+      amount: decimal?
+      salesforce_opportunity_id: string?
+      ledger: json?
+      balance: decimal?
+      custom_fields: json?
+      uniqueness_key: string?
+      archived_at: timestamptz?
+      hierarchy_configuration: json?
+      spend_tracker_attributes: json?
+      created_at: timestamptz?
+      created_by: string?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: seat_balances
+    path: "/v1/contracts/seatBalances/list"
+    method: POST
+    for_each: contracts
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        contract_id: "{{ parent.contract_id }}"
+        include_credits_and_commits: true
+        include_ledgers: true
+        limit: 25
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: pagination.next_page
+          request: body.cursor
+          null_terminates: true
+    primary_key:
+      - customer_id
+      - contract_id
+      - seat_id
+    fields:
+      seat_id: string
+      balances: json?
+      commits: json?
+      credits: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      contract_id:
+        path: parent.contract_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: subscriptions
+    path: "/v2/contracts/get"
+    method: POST
+    for_each: contracts
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        contract_id: "{{ parent.contract_id }}"
+    response:
+      records: "$.data.subscriptions"
+      pagination: none
+    primary_key:
+      - customer_id
+      - contract_id
+      - id
+    fields:
+      id: string
+      subscription_rate: json?
+      name: string?
+      description: string?
+      collection_schedule: string?
+      proration: json?
+      quantity_schedule: json?
+      billing_periods: json?
+      quantity_management_mode: string?
+      seat_config: json?
+      created_at: timestamptz?
+      starting_at: timestamptz?
+      ending_before: timestamptz?
+      fiat_credit_type_id: string?
+      custom_credit_type_id: string?
+      billing_cycle_config: json?
+      custom_fields: json?
+      product_custom_fields: json?
+      status: string?
+      paid_quantity: decimal?
+      payment_gate_config: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      contract_id:
+        path: parent.contract_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+    capture:
+      subscription_id: id
+  - name: subscription_quantity_history
+    path: "/v1/contracts/getSubscriptionQuantityHistory"
+    method: POST
+    for_each: subscriptions
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        contract_id: "{{ parent.contract_id }}"
+        subscription_id: "{{ parent.subscription_id }}"
+    response:
+      records: "$.data"
+      cardinality: one
+      pagination: none
+    primary_key:
+      - customer_id
+      - contract_id
+      - subscription_id
+    fields:
+      subscription_id:
+        path: parent.subscription_id
+        type: string
+      fiat_credit_type_id: string?
+      custom_credit_type_id: string?
+      history: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      contract_id:
+        path: parent.contract_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: subscription_seats_history
+    path: "/v1/contracts/getSubscriptionSeatsHistory"
+    method: POST
+    for_each: subscriptions
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        contract_id: "{{ parent.contract_id }}"
+        subscription_id: "{{ parent.subscription_id }}"
+        limit: 10
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: body.cursor
+          null_terminates: true
+    primary_key: []
+    fields:
+      starting_at: timestamptz?
+      ending_before: timestamptz?
+      total_quantity: int64?
+      assigned_seat_ids: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      contract_id:
+        path: parent.contract_id
+        type: string
+      subscription_id:
+        path: parent.subscription_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: packages
+    path: "/v1/packages/list"
+    method: POST
+    query:
+      limit: '50'
+    body:
+      encoding: json
+      template:
+        archive_filter: ALL
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      uniqueness_key: string?
+      name: string?
+      rate_card_id: string?
+      aliases: json?
+      duration: json?
+      commits: json?
+      credits: json?
+      overrides: json?
+      scheduled_charges: json?
+      scheduled_charges_on_usage_invoices: string?
+      created_at: timestamptz?
+      created_by: string?
+      net_payment_terms_days: decimal?
+      usage_statement_schedule: json?
+      multiplier_override_prioritization: string?
+      billing_provider: string?
+      delivery_method: string?
+      recurring_commits: json?
+      recurring_credits: json?
+      spend_threshold_configuration: json?
+      prepaid_balance_threshold_configuration: json?
+      spend_trackers: json?
+      subscriptions: json?
+      contract_name: string?
+      archived_at: timestamptz?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+    capture:
+      package_id: id
+  - name: package_contracts
+    path: "/v1/packages/listContractsOnPackage"
+    method: POST
+    for_each: packages
+    query:
+      limit: '50'
+    body:
+      encoding: json
+      template:
+        package_id: "{{ parent.package_id }}"
+        include_archived: true
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key:
+      - package_id
+      - customer_id
+      - contract_id
+    fields:
+      customer_id: string
+      contract_id: string
+      starting_at: timestamptz?
+      ending_before: timestamptz?
+      archived_at: timestamptz?
+      package_id:
+        path: parent.package_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder

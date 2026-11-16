@@ -10,7 +10,6 @@ from ..core.pydantic_utilities import IS_PYDANTIC_V2, UniversalBaseModel, update
 from ..core.serialization import FieldMetadata
 from .ingestion_v1config_schema import IngestionV1ConfigSchema
 from .ingestion_v1connector_kind import IngestionV1ConnectorKind
-from .ingestion_v1connector_maturity import IngestionV1ConnectorMaturity
 from .ingestion_v1replication_mode import IngestionV1ReplicationMode
 
 
@@ -41,7 +40,6 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     schema_field: typing_extensions.Annotated[
         typing.Optional[str], FieldMetadata(alias="schemaField"), pydantic.Field(alias="schemaField")
     ] = None
-    maturity: typing.Optional[IngestionV1ConnectorMaturity] = None
     api_version: typing_extensions.Annotated[
         typing.Optional[str], FieldMetadata(alias="apiVersion"), pydantic.Field(alias="apiVersion")
     ] = None
@@ -55,6 +53,20 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     ] = None
     """
     Concrete registration selected by a source catalog alias; empty otherwise.
+    """
+
+    is_preview: typing_extensions.Annotated[
+        typing.Optional[bool], FieldMetadata(alias="isPreview"), pydantic.Field(alias="isPreview")
+    ] = None
+    webhook_verifier: typing_extensions.Annotated[
+        typing.Optional[str],
+        FieldMetadata(alias="webhookVerifier"),
+        pydantic.Field(
+            alias="webhookVerifier", description="Ingress verifier for sources that receive webhooks. Empty otherwise."
+        ),
+    ] = None
+    """
+    Ingress verifier for sources that receive webhooks. Empty otherwise.
     """
 
     if IS_PYDANTIC_V2:

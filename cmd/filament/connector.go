@@ -17,15 +17,14 @@ values, quoted $NAME or ${NAME} references, or --%[1]s-<field>-env VARIABLE.
 Editing removes a field with --unset %[1]s-<field>.`
 
 func (a *cliApp) connectionCommand(kind string) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:               kind,
-		Short:             fmt.Sprintf("Manage saved %ss", kind),
-		Long:              fmt.Sprintf("Manage saved %ss.\n\n"+connectionGuidance, kind),
-		PersistentPreRunE: a.prepareTarget,
-	}
-	help := func(operation string) func(context.Context, []string) error {
-		return func(ctx context.Context, args []string) error {
-			return a.printConnectionOperationHelp(ctx, kind, operation, args)
+	cmd := a.targetGroup(&cobra.Command{
+		Use:   kind,
+		Short: fmt.Sprintf("Manage saved %ss", kind),
+		Long:  fmt.Sprintf("Manage saved %ss.\n\n"+connectionGuidance, kind),
+	}, kind)
+	help := func(operation string) func(context.Context, *cobra.Command, []string) error {
+		return func(ctx context.Context, cmd *cobra.Command, args []string) error {
+			return a.printConnectionOperationHelp(ctx, cmd, kind, operation, args)
 		}
 	}
 	change := func(operation string) func(context.Context, []string) error {
@@ -65,9 +64,8 @@ func (a *cliApp) connectionCommand(kind string) *cobra.Command {
 }
 
 func (a *cliApp) changeConnection(ctx context.Context, operation, kind string, args []string) error {
-	document, err := a.service.Configuration(ctx)
-	if err != nil {
-		return err
+	if operation == "create" && len(args) == 0 && a.renderer().Interactive() {
+		return a.openInteractive(ctx, kind, operation)
 	}
 	parsed, err := a.parseCommandArgs(args)
 	if err != nil {
@@ -78,11 +76,12 @@ func (a *cliApp) changeConnection(ctx context.Context, operation, kind string, a
 		return fmt.Errorf("%s name is required; example: filament %s %s production --%s-connector postgres --%s-dsn-env POSTGRES_DSN", kind, kind, operation, kind, kind)
 	}
 	var existing *climodel.Connection
-	if current, ok := connectionMap(kind, document)[name]; ok {
+	if operation == "edit" {
+		current, err := a.service.Connection(ctx, kind, name)
+		if err != nil {
+			return err
+		}
 		existing = &current
-	}
-	if operation == "edit" && existing == nil {
-		return fmt.Errorf("%s %q does not exist", kind, name)
 	}
 	request, err := a.connectionRequestFromFlags(operation, kind, name, existing, parsed.flags)
 	if err != nil {
@@ -95,12 +94,8 @@ func (a *cliApp) changeConnection(ctx context.Context, operation, kind string, a
 }
 
 func (a *cliApp) deleteConnection(ctx context.Context, kind, name string, force bool) error {
-	document, err := a.service.Configuration(ctx)
-	if err != nil {
+	if _, err := a.service.Connection(ctx, kind, name); err != nil {
 		return err
-	}
-	if _, ok := connectionMap(kind, document)[name]; !ok {
-		return fmt.Errorf("%s %q does not exist", kind, name)
 	}
 	if !force {
 		confirmed, err := a.confirmDelete(kind, name)
@@ -111,7 +106,7 @@ func (a *cliApp) deleteConnection(ctx context.Context, kind, name string, force 
 	if err := a.service.DeleteSavedConnection(ctx, kind, name); err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
+	_, err := fmt.Fprintf(a.statusWriter(), "Deleted %s %q.\n", kind, name)
 	return err
 }
 
@@ -138,10 +133,7 @@ func (a *cliApp) connectionRequestFromFlags(operation, kind, name string, existi
 		return request, err
 	}
 	unsetTargets := map[string]func(){}
-	for flagName, configName := range unsetNames {
-		configName := configName
-		unsetTargets[flagName] = func() { patch.Unset = append(patch.Unset, configName) }
-	}
+	addUnsetTargets(unsetTargets, unsetNames, &patch)
 	if err := applyFieldUnsets(flags, unsetTargets, allowed); err != nil {
 		return request, err
 	}
@@ -150,13 +142,6 @@ func (a *cliApp) connectionRequestFromFlags(operation, kind, name string, existi
 	}
 	request.Config = patch
 	return request, nil
-}
-
-func connectionMap(kind string, document climodel.Document) map[string]climodel.Connection {
-	if kind == "sink" {
-		return document.Sinks
-	}
-	return document.Sources
 }
 
 // connectionUsage maps each saved connection to the pipelines referencing it.

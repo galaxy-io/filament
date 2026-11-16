@@ -8,9 +8,10 @@ The `filament` CLI manages connections, pipelines, and runs. It works against
 the local runtime or a deployed Filament server. A context selects the target,
 and most management commands work with both.
 
-The built-in `local` context needs no external services. It runs Filament in
-process with file-backed SQLite and an in-process event bus. State, secrets,
-run history, and checkpoints survive between commands.
+The built-in `local` context needs no external services. It runs a local
+engine, `filament-standalone`, that the CLI downloads for its own version on
+first use. State, secrets, run history, and checkpoints survive between
+commands.
 
 ## Install
 
@@ -62,8 +63,9 @@ CI.
 | `filament pipeline <create\|edit\|list\|delete>` | Manage pipelines |
 | `filament run [pipeline]` | Run a saved pipeline or an inline transfer |
 | `filament run list [pipeline]` | List run history |
-| `filament up` | Keep the local runtime and web UI running |
-| `filament down` | Stop a detached local runtime |
+| `filament up` | Keep the local engine and web UI running |
+| `filament down` | Stop the local engine started by `up` |
+| `filament engine install` | Download the local engine ahead of first use |
 | `filament status` | Show the selected context and runtime |
 | `filament context <add\|list\|current\|use\|rename\|delete>` | Manage targets |
 | `filament auth <login\|status\|logout>` | Manage remote authentication |
@@ -211,10 +213,11 @@ Direct runs support full reads only. They do not keep run history or
 checkpoints. Remote contexts run saved pipelines without overrides; edit the
 remote pipeline before running it when its configuration must change.
 
-## Local runtime
+## Local engine
 
-Normal local commands start the embedded runtime, perform one operation, and
-stop it. Use `up` to keep the API and web UI available:
+Normal local commands start the local engine, perform one operation, and stop
+it. While `up` is running, local commands use that engine instead. Use `up` to
+keep the API and web UI available:
 
 ```sh
 filament up
@@ -230,6 +233,10 @@ filament down
 
 `filament up` only accepts a local context. It uses the same SQLite database
 and secrets as other local commands.
+
+The engine is meant for local testing, not production. `filament engine
+install` downloads it ahead of time, for example in CI or before going
+offline. Set `FILAMENT_ENGINE` to run a different binary.
 
 ## Local configuration
 

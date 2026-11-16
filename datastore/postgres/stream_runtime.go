@@ -269,7 +269,7 @@ func attemptFromRow(row *sqlcgen.StreamAttempt, stream *sqlcgen.ReplicationStrea
 	ref := filament.AttemptRef{RunID: spec.Run, ExecutionID: row.ExecutionID, StreamID: stream.ID, Generation: stream.Generation, Token: row.Token}
 	spec.StreamAttempt = &ref
 	spec.ExecutionID = row.ExecutionID
-	return filament.Attempt{Claimed: row.ClaimedAt.Valid, Lease: filament.LeaseToken{Tenant: filament.TenantID(row.TenantID), Attempt: ref}, Spec: spec, Revision: row.DesiredRevision, StartedAt: row.StartedAt.Time, ExpiresAt: row.ExpiresAt.Time, EndedAt: fromTimestamptz(row.EndedAt), Termination: filament.AttemptTermination(row.Termination.String), Reason: row.Reason}, nil
+	return filament.Attempt{Claimed: row.ClaimedAt.Valid, YieldRequested: row.YieldRequestedAt.Valid, DispatchVersion: row.DispatchVersion, Lease: filament.LeaseToken{Tenant: filament.TenantID(row.TenantID), Attempt: ref}, Spec: spec, Revision: row.DesiredRevision, StartedAt: row.StartedAt.Time, ExpiresAt: row.ExpiresAt.Time, EndedAt: fromTimestamptz(row.EndedAt), Termination: filament.AttemptTermination(row.Termination.String), Reason: row.Reason}, nil
 }
 
 // latestPositions reads the cumulative snapshot stored with the last committed epoch.

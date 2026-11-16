@@ -138,7 +138,8 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				WritePolicies:       destinationWritePolicies(group),
 				CheckpointRoute:     key,
 				CursorConfigs:       group.cursorConfigs,
-				Columns:             routeColumns(group),
+				Columns:             routeSelection(group.columns),
+				Partitions:          routeSelection(group.partitions),
 				Resync:              routeResync(group, resync),
 				Options:             options,
 				ScheduleID:          scheduleID,
@@ -259,13 +260,14 @@ func routeResync(group *routeGroup, resync []string) []string {
 	return out
 }
 
-// routeColumns returns the route's column selections, or nil when every
-// resource reads every column, so requests without a selection stay unchanged.
-func routeColumns(group *routeGroup) map[string][]string {
-	if len(group.columns) == 0 {
+// routeSelection returns a route's per-resource column or partition
+// selections, or nil when no resource narrows its read, so requests without a
+// selection stay unchanged.
+func routeSelection(selection map[string][]string) map[string][]string {
+	if len(selection) == 0 {
 		return nil
 	}
-	return group.columns
+	return selection
 }
 
 func routeResources(group *routeGroup) (resources, selectors []string) {
@@ -420,10 +422,18 @@ func (c *Compiler) resolveNodeRef(ctx context.Context, node *ingestionv1.Pipelin
 		return filament.Ref{}, fmt.Errorf("%w: node %q references missing connection %q", ErrInvalid, node.GetId(), node.GetConnectionId())
 	}
 	overlay := structMap(node.GetConfig())
-	if schema, err := c.schemaFor(ctx, conn.Kind, conn.Connector); err == nil {
+	schema, err := c.schemaFor(ctx, conn.Kind, conn.Connector)
+	switch {
+	case err == nil:
 		if err := ValidateOverlayConfig(schema, overlay); err != nil {
 			return filament.Ref{}, fmt.Errorf("%w: node %q: %v", ErrInvalid, node.GetId(), err)
 		}
+		if err := ValidateOverlaySecretRefs(schema, node.GetSecretRefs()); err != nil {
+			return filament.Ref{}, fmt.Errorf("%w: node %q: %v", ErrInvalid, node.GetId(), err)
+		}
+	case len(node.GetSecretRefs()) > 0 || len(overlay) > 0:
+		// Without the schema there is no telling which fields a node may set.
+		return filament.Ref{}, fmt.Errorf("%w: node %q: node config and secret refs need the connector schema: %v", ErrInvalid, node.GetId(), err)
 	}
 	return filament.Ref{
 		Connector:  conn.Connector,

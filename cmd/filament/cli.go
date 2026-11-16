@@ -10,7 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/galaxy-io/filament"
+	"github.com/spf13/cobra"
+
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	cliauth "github.com/galaxy-io/filament/cmd/internal/cli/auth"
 	"github.com/galaxy-io/filament/cmd/internal/cli/contexts"
@@ -19,14 +20,12 @@ import (
 	textrenderer "github.com/galaxy-io/filament/cmd/internal/cli/renderer/text"
 	"github.com/galaxy-io/filament/cmd/internal/cli/settings"
 	"github.com/galaxy-io/filament/cmd/internal/cli/style"
-	localtarget "github.com/galaxy-io/filament/cmd/internal/cli/target/local"
 	remotetarget "github.com/galaxy-io/filament/cmd/internal/cli/target/remote"
 )
 
 type cliApp struct {
-	sources        filament.SourceRegistry
 	stdin          io.Reader
-	stopEmbedded   func()
+	stopEngine     func()
 	stdout         io.Writer
 	stderr         io.Writer
 	configPath     string
@@ -42,8 +41,8 @@ type cliApp struct {
 
 func (a *cliApp) run(ctx context.Context, args []string) error {
 	defer func() {
-		if a.stopEmbedded != nil {
-			a.stopEmbedded()
+		if a.stopEngine != nil {
+			a.stopEngine()
 		}
 	}()
 	saved, err := settings.Load(a.settingsPath())
@@ -62,17 +61,11 @@ func (a *cliApp) run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	if a.catalog.Sources == nil {
+		a.catalog = a.loadCatalog()
+	}
 	if err := a.printBanner(args); err != nil {
 		return err
-	}
-	if a.renderer().CanHandle(args) {
-		if err := a.initializeTarget(ctx); err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintln(a.statusWriter()); err != nil {
-			return err
-		}
-		return a.renderer().Run(ctx, args)
 	}
 	root := a.rootCommand()
 	root.SetArgs(args)
@@ -88,23 +81,55 @@ func (a *cliApp) renderer() *dadorenderer.Renderer {
 	})
 }
 
-func (a *cliApp) initializeTarget(ctx context.Context) error {
+// openInteractive hands the terminal to the interactive renderer at section,
+// or the main menu when section is empty. The target must be initialized.
+func (a *cliApp) openInteractive(ctx context.Context, section, operation string) error {
+	if _, err := fmt.Fprintln(a.statusWriter()); err != nil {
+		return err
+	}
+	return a.renderer().Open(ctx, section, operation)
+}
+
+// menu opens section's interactive menu under --interactive on a terminal,
+// and prints the command's help otherwise.
+func (a *cliApp) menu(section string) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 || !a.menuMode || !a.renderer().Interactive() {
+			return cmd.Help()
+		}
+		if err := a.initializeTarget(cmd.Context()); err != nil {
+			return err
+		}
+		return a.openInteractive(cmd.Context(), section, "")
+	}
+}
+
+// selectContext resolves the context this invocation runs against, with a
+// --config override applied to a local context.
+func (a *cliApp) selectContext() (contexts.NamedTarget, error) {
 	selected := contexts.NamedTarget{
 		Name:   "local",
 		Target: contexts.Target{Kind: contexts.KindLocal, ConfigPath: a.configPath},
 	}
 	if a.contextPath != "" {
 		var err error
-		selected, err = a.contextRegistry().Resolve(a.contextName)
-		if err != nil {
-			return err
+		if selected, err = a.contextRegistry().Resolve(a.contextName); err != nil {
+			return selected, err
 		}
 	}
 	if a.configOverride {
 		if selected.Target.Kind != contexts.KindLocal {
-			return fmt.Errorf("--config can only override a local context")
+			return selected, fmt.Errorf("--config can only override a local context")
 		}
 		selected.Target.ConfigPath = a.configPath
+	}
+	return selected, nil
+}
+
+func (a *cliApp) initializeTarget(ctx context.Context) error {
+	selected, err := a.selectContext()
+	if err != nil {
+		return err
 	}
 	a.target = selected
 	if selected.Target.Kind == contexts.KindRemote {
@@ -115,20 +140,11 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 		a.service = cliapp.NewService(remotetarget.NewTarget(options))
 	} else {
 		a.configPath = selected.Target.ConfigPath
-		endpoint, secrets, stop, err := a.startEmbedded(ctx)
+		target, stop, err := a.openLocal(ctx)
 		if err != nil {
 			return err
 		}
-		a.stopEmbedded = stop
-		target := localtarget.NewTarget(
-			localtarget.Store{Path: a.configPath},
-			remotetarget.NewTarget(remotetarget.Options{Endpoint: endpoint}),
-			secrets,
-			localtarget.WithSources(a.sources),
-		)
-		if err := target.ApplyIfChanged(ctx, a.markerPath()); err != nil {
-			return fmt.Errorf("apply %s: %w", a.configPath, err)
-		}
+		a.stopEngine = stop
 		a.service = cliapp.NewService(target)
 	}
 	catalog, err := a.service.Catalog(ctx)
@@ -136,66 +152,55 @@ func (a *cliApp) initializeTarget(ctx context.Context) error {
 		return err
 	}
 	a.catalog = catalog
+	if selected.Target.Kind == contexts.KindLocal {
+		a.saveCatalog(catalog)
+	}
 	return nil
 }
 
+// extractGlobalFlags removes the global flags from any position. Dynamic
+// commands parse their own flags, so cobra cannot see globals that follow them.
 func (a *cliApp) extractGlobalFlags(args []string) ([]string, error) {
+	values := map[string]func(string) error{
+		"config": func(value string) error {
+			a.configPath, a.configOverride = value, true
+			return nil
+		},
+		"context": func(value string) error {
+			a.contextName = value
+			return nil
+		},
+		"layout": func(value string) error {
+			layout, err := style.ParseLayout(value)
+			a.layout = layout
+			return err
+		},
+	}
 	result := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--config" {
-			if i+1 >= len(args) {
-				return nil, fmt.Errorf("--config requires a path")
-			}
-			a.configPath = args[i+1]
-			a.configOverride = true
-			i++
-			continue
-		}
-		if strings.HasPrefix(args[i], "--config=") {
-			a.configPath = strings.TrimPrefix(args[i], "--config=")
-			a.configOverride = true
-			continue
-		}
-		if args[i] == "--context" {
-			if i+1 >= len(args) {
-				return nil, fmt.Errorf("--context requires a name")
-			}
-			a.contextName = args[i+1]
-			i++
-			continue
-		}
-		if args[i] == "--layout" {
-			if i+1 >= len(args) {
-				return nil, fmt.Errorf("--layout requires boxed or plain")
-			}
-			layout, err := style.ParseLayout(args[i+1])
-			if err != nil {
-				return nil, err
-			}
-			a.layout = layout
-			i++
-			continue
-		}
-		if strings.HasPrefix(args[i], "--layout=") {
-			layout, err := style.ParseLayout(strings.TrimPrefix(args[i], "--layout="))
-			if err != nil {
-				return nil, err
-			}
-			a.layout = layout
-			continue
-		}
 		if args[i] == "-i" || args[i] == "--interactive" {
 			a.menuMode = true
 			continue
 		}
-		if strings.HasPrefix(args[i], "--context=") {
-			a.contextName = strings.TrimPrefix(args[i], "--context=")
-			if a.contextName == "" {
-				return nil, fmt.Errorf("--context requires a name")
-			}
+		name, value, inline := strings.Cut(strings.TrimPrefix(args[i], "--"), "=")
+		set, global := values[name]
+		if !global || !strings.HasPrefix(args[i], "--") {
+			result = append(result, args[i])
 			continue
 		}
-		result = append(result, args[i])
+		if !inline {
+			if i+1 >= len(args) {
+				return nil, fmt.Errorf("--%s requires a value", name)
+			}
+			i++
+			value = args[i]
+		}
+		if value == "" {
+			return nil, fmt.Errorf("--%s requires a value", name)
+		}
+		if err := set(value); err != nil {
+			return nil, err
+		}
 	}
 	return result, nil
 }

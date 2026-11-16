@@ -183,7 +183,8 @@ export type RunPipelineRequest = Message<"ingestion.v1.RunPipelineRequest"> & {
    * resync_resources names resources read from the beginning again by the
    * runs this call produces. A bounded run forgets their checkpoints first. A
    * live continuous run drains and hands over to a successor that snapshots
-   * them again on the same stream.
+   * them again on the same stream. A continuous run accepts it only from a
+   * change data capture source.
    *
    * @generated from field: repeated string resync_resources = 5;
    */

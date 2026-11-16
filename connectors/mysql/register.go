@@ -13,6 +13,6 @@ import (
 )
 
 func init() {
-	registry.RegisterSource("mysql", filament.MaturityBeta, func() filament.Source { return source.New() })
-	registry.RegisterSink("mysql", filament.MaturityAlpha, func() filament.Sink { return sink.New() })
+	registry.RegisterSource("mysql", false, func() filament.Source { return source.New() })
+	registry.RegisterSink("mysql", false, func() filament.Sink { return sink.New() })
 }

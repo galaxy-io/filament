@@ -436,7 +436,7 @@
         "oneOf": [
           {
             "type": "string",
-            "pattern": "^(string|bool|int16|int32|int64|float32|float64|decimal|date|time|timestamp|timestamptz|json|uuid)\\??$"
+            "pattern": "^(string|json_string|bool|int16|int32|int64|float32|float64|decimal|date|time|timestamp|timestamptz|json|uuid)\\??$"
           },
           {
             "type": "object",
@@ -444,11 +444,12 @@
             "additionalProperties": false,
             "properties": {
               "path": { "type": "string" },
-              "type": { "type": "string", "enum": ["string", "bool", "int16", "int32", "int64", "float32", "float64", "decimal", "date", "time", "timestamp", "timestamptz", "json", "uuid"] },
+              "type": { "type": "string", "enum": ["string", "json_string", "bool", "int16", "int32", "int64", "float32", "float64", "decimal", "date", "time", "timestamp", "timestamptz", "json", "uuid"] },
               "value": { "type": "string" },
               "tuple": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
               "precision": { "type": "integer", "minimum": 1, "maximum": 38 },
               "scale": { "type": "integer", "minimum": 0, "maximum": 38 },
+              "rounding": { "type": "string", "enum": ["half_even"] },
               "max_string": { "type": "string", "minLength": 1 },
               "shape": { "type": "object", "additionalProperties": { "type": "string" } },
               "mode": { "type": "string", "enum": ["raw", "remainder", ""] },

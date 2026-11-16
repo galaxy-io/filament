@@ -3,9 +3,32 @@ version: 2
 project_name: filament
 
 builds:
-  - dir: cmd
+  - id: filament
+    dir: cmd
     main: ./filament
     binary: filament
+    env:
+      - CGO_ENABLED=0
+      - GOWORK=off
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/galaxy-io/filament/version.Version={{ .Version }}
+      - -X github.com/galaxy-io/filament/version.Commit={{ .ShortCommit }}
+      - -X github.com/galaxy-io/filament/version.Date={{ .CommitDate }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: standalone
+    dir: cmd
+    main: ./standalone
+    binary: filament-standalone
     env:
       - CGO_ENABLED=0
       - GOWORK=off
@@ -27,9 +50,17 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
-  - formats:
+  - ids:
+      - filament
+    formats:
       - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - id: standalone
+    ids:
+      - standalone
+    formats:
+      - tar.gz
+    name_template: "filament-standalone_{{ .Os }}_{{ .Arch }}"
 
 checksum:
   name_template: checksums.txt

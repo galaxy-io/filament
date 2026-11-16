@@ -42,6 +42,8 @@ message Inspection {
   bool managed_incremental = 7;
   // schema is unset when the source provides none.
   Schema schema = 8;
+  // partitions are empty when the resource is not partitioned.
+  repeated string partitions = 9;
 }
 
 // Schema is a resource's record schema exactly as the source reports it.

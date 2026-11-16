@@ -48,7 +48,7 @@ const ConnectionDrawerSection: FC<PropsWithChildren<ConnectionDrawerSectionProps
         </Flex>
       }
       defaultIsOpen={isOpenInitial}
-      isFlush={!!count && isFlush}
+      isFlush={count !== 0 && isFlush}
     >
       {count === 0 ? (
         <Box padding={12}>

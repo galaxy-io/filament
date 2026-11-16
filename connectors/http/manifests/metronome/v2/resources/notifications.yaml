@@ -1,0 +1,82 @@
+resources:
+  - name: threshold_notifications
+    path: "/v1/customer-alerts/list"
+    method: POST
+    for_each: customers
+    body:
+      encoding: json
+      template:
+        customer_id: "{{ parent.customer_id }}"
+        alert_statuses:
+          - enabled
+          - disabled
+          - archived
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: next_page
+          request: query.next_page
+          null_terminates: true
+    primary_key: []
+    fields:
+      customer_status: string?
+      triggered_by: string?
+      alert: json?
+      customer_id:
+        path: parent.customer_id
+        type: string
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: offset_notifications
+    path: "/v2/notifications/offset/list"
+    method: POST
+    body:
+      encoding: json
+      template:
+        archive_filter: ALL
+    response:
+      records: "$.data"
+      pagination:
+        cursor:
+          response: cursor
+          request: body.cursor
+          null_terminates: true
+    primary_key:
+      - id
+    fields:
+      id: string
+      name: string?
+      type: string?
+      policy: json?
+      environment_type: string?
+      created_at: timestamptz?
+      created_by: string?
+      archived_at: timestamptz?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder
+  - name: system_notifications
+    path: "/v2/notifications/system/list"
+    method: POST
+    body:
+      encoding: json
+      template: {}
+    response:
+      records: "$.data"
+      pagination: none
+      error:
+        path: cursor
+        when_present: true
+    primary_key: []
+    fields:
+      type: string?
+      is_enabled: bool?
+      policy: json?
+      raw:
+        path: "$"
+        type: json
+        mode: remainder

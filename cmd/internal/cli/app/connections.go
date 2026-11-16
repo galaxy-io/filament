@@ -40,10 +40,10 @@ func (s *Service) SaveConnection(ctx context.Context, request SaveConnectionRequ
 	}
 	testDocument := document
 	if request.Kind == "source" {
-		testDocument.Sources = cloneMap(document.Sources)
+		testDocument.Sources = maps.Clone(document.Sources)
 		testDocument.Sources[request.Name] = connection
 	} else {
-		testDocument.Sinks = cloneMap(document.Sinks)
+		testDocument.Sinks = maps.Clone(document.Sinks)
 		testDocument.Sinks[request.Name] = connection
 	}
 	if err := s.target.ValidateConfiguration(ctx, testDocument); err != nil {

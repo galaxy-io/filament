@@ -29,7 +29,7 @@ Four binaries under `cmd/` share one wiring layer in `cmd/internal/`. Each `main
 - `cmd/server` serves the ConnectRPC API and the embedded UI, persists pipelines and runs, and publishes `run.requested` facts. It never executes a run. `-migrate` applies datastore migrations and exits.
 - `cmd/control-plane` is the orchestration loop. It fires schedules, dispatches requested runs, reaps stale ones, and folds worker facts back into the datastore. Its modules live in `internal/modules/` (`tracker`, `dispatch`, `scheduler`, `reaper`, `notifier`, `streamsupervisor`). Run exactly one replica.
 - `cmd/worker` executes one already persisted run and exits. It learns its assignment from `RUN_ID`, `TENANT_ID` and, for continuous runs, `EXECUTION_ID`. Everything else arrives through the worker Secret and ConfigMap. It gets no Kubernetes service-account token.
-- `cmd/standalone` and the CLI's local mode run the whole stack in one process over SQLite, composed by `app/`. Standalone embeds NATS, the CLI uses the in-process bus. `cmd/server` does not use `app/`.
+- `cmd/standalone` runs the whole stack in one process over SQLite and embedded NATS, composed by `app/`. It is the CLI's local engine: the CLI starts it per command or attaches to the one `filament up` started, and runs untracked inline runs through `standalone run`. The CLI itself links no connectors. `cmd/server` does not use `app/`.
 
 `DISPATCH_MODE` picks the dispatcher in `cmd/internal/dispatch`. `kubernetes` (the default) creates one batch Job per run through `internal/modules/dispatch/k8s`, configured by the `K8S_*` variables in its `config.go`. `inproc` runs the engine inside the control plane, which is what `just control-plane` and `just dev` use.
 

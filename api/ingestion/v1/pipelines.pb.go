@@ -181,7 +181,14 @@ type PipelineEdge struct {
 	// columns narrows the columns read from each resource. An all-resource edge
 	// may configure several resources; a resource-specific edge may configure
 	// only its own resource. An omitted resource reads every column.
-	Columns       []*ResourceColumnSelection `protobuf:"bytes,10,rep,name=columns,proto3" json:"columns,omitempty"`
+	Columns []*ResourceColumnSelection `protobuf:"bytes,10,rep,name=columns,proto3" json:"columns,omitempty"`
+	// partitions narrows the partitions a full read or a change stream's
+	// initial snapshot backfills from each partitioned resource. The change
+	// stream still carries every partition, including ones created later. An
+	// all-resource edge may configure several resources; a resource-specific
+	// edge may configure only its own resource. An omitted resource backfills
+	// every partition, and an empty selection backfills none.
+	Partitions    []*ResourcePartitionSelection `protobuf:"bytes,11,rep,name=partitions,proto3" json:"partitions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -286,6 +293,13 @@ func (x *PipelineEdge) GetColumns() []*ResourceColumnSelection {
 	return nil
 }
 
+func (x *PipelineEdge) GetPartitions() []*ResourcePartitionSelection {
+	if x != nil {
+		return x.Partitions
+	}
+	return nil
+}
+
 type ResourceColumnSelection struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Resource      string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
@@ -338,6 +352,58 @@ func (x *ResourceColumnSelection) GetColumns() []string {
 	return nil
 }
 
+type ResourcePartitionSelection struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Resource      string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
+	Partitions    []string               `protobuf:"bytes,2,rep,name=partitions,proto3" json:"partitions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResourcePartitionSelection) Reset() {
+	*x = ResourcePartitionSelection{}
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResourcePartitionSelection) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResourcePartitionSelection) ProtoMessage() {}
+
+func (x *ResourcePartitionSelection) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResourcePartitionSelection.ProtoReflect.Descriptor instead.
+func (*ResourcePartitionSelection) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ResourcePartitionSelection) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
+func (x *ResourcePartitionSelection) GetPartitions() []string {
+	if x != nil {
+		return x.Partitions
+	}
+	return nil
+}
+
 type ResourceCursorConfig struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Resource        string                 `protobuf:"bytes,1,opt,name=resource,proto3" json:"resource,omitempty"`
@@ -349,7 +415,7 @@ type ResourceCursorConfig struct {
 
 func (x *ResourceCursorConfig) Reset() {
 	*x = ResourceCursorConfig{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[3]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -361,7 +427,7 @@ func (x *ResourceCursorConfig) String() string {
 func (*ResourceCursorConfig) ProtoMessage() {}
 
 func (x *ResourceCursorConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[3]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -374,7 +440,7 @@ func (x *ResourceCursorConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceCursorConfig.ProtoReflect.Descriptor instead.
 func (*ResourceCursorConfig) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{3}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ResourceCursorConfig) GetResource() string {
@@ -408,7 +474,7 @@ type PipelineGraph struct {
 
 func (x *PipelineGraph) Reset() {
 	*x = PipelineGraph{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[4]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -420,7 +486,7 @@ func (x *PipelineGraph) String() string {
 func (*PipelineGraph) ProtoMessage() {}
 
 func (x *PipelineGraph) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[4]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +499,7 @@ func (x *PipelineGraph) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineGraph.ProtoReflect.Descriptor instead.
 func (*PipelineGraph) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{4}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PipelineGraph) GetNodes() []*PipelineNode {
@@ -466,7 +532,7 @@ type PipelineVersion struct {
 
 func (x *PipelineVersion) Reset() {
 	*x = PipelineVersion{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[5]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -478,7 +544,7 @@ func (x *PipelineVersion) String() string {
 func (*PipelineVersion) ProtoMessage() {}
 
 func (x *PipelineVersion) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[5]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -491,7 +557,7 @@ func (x *PipelineVersion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineVersion.ProtoReflect.Descriptor instead.
 func (*PipelineVersion) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{5}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PipelineVersion) GetId() string {
@@ -579,7 +645,7 @@ type Pipeline struct {
 
 func (x *Pipeline) Reset() {
 	*x = Pipeline{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[6]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +657,7 @@ func (x *Pipeline) String() string {
 func (*Pipeline) ProtoMessage() {}
 
 func (x *Pipeline) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[6]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +670,7 @@ func (x *Pipeline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pipeline.ProtoReflect.Descriptor instead.
 func (*Pipeline) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{6}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Pipeline) GetTenantId() string {
@@ -731,7 +797,7 @@ type PipelineScheduleConfig struct {
 
 func (x *PipelineScheduleConfig) Reset() {
 	*x = PipelineScheduleConfig{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[7]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -743,7 +809,7 @@ func (x *PipelineScheduleConfig) String() string {
 func (*PipelineScheduleConfig) ProtoMessage() {}
 
 func (x *PipelineScheduleConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[7]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -756,7 +822,7 @@ func (x *PipelineScheduleConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineScheduleConfig.ProtoReflect.Descriptor instead.
 func (*PipelineScheduleConfig) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{7}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *PipelineScheduleConfig) GetCron() string {
@@ -801,7 +867,7 @@ type PipelineSchedule struct {
 
 func (x *PipelineSchedule) Reset() {
 	*x = PipelineSchedule{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[8]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -813,7 +879,7 @@ func (x *PipelineSchedule) String() string {
 func (*PipelineSchedule) ProtoMessage() {}
 
 func (x *PipelineSchedule) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[8]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -826,7 +892,7 @@ func (x *PipelineSchedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PipelineSchedule.ProtoReflect.Descriptor instead.
 func (*PipelineSchedule) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{8}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PipelineSchedule) GetId() string {
@@ -880,7 +946,7 @@ type CreatePipelineRequest struct {
 
 func (x *CreatePipelineRequest) Reset() {
 	*x = CreatePipelineRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[9]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +958,7 @@ func (x *CreatePipelineRequest) String() string {
 func (*CreatePipelineRequest) ProtoMessage() {}
 
 func (x *CreatePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[9]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +971,7 @@ func (x *CreatePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{9}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreatePipelineRequest) GetName() string {
@@ -953,7 +1019,7 @@ type CreatePipelineResponse struct {
 
 func (x *CreatePipelineResponse) Reset() {
 	*x = CreatePipelineResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[10]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -965,7 +1031,7 @@ func (x *CreatePipelineResponse) String() string {
 func (*CreatePipelineResponse) ProtoMessage() {}
 
 func (x *CreatePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[10]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -978,7 +1044,7 @@ func (x *CreatePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineResponse.ProtoReflect.Descriptor instead.
 func (*CreatePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{10}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreatePipelineResponse) GetPipeline() *Pipeline {
@@ -1005,7 +1071,7 @@ type CreatePipelineScheduleRequest struct {
 
 func (x *CreatePipelineScheduleRequest) Reset() {
 	*x = CreatePipelineScheduleRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[11]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1083,7 @@ func (x *CreatePipelineScheduleRequest) String() string {
 func (*CreatePipelineScheduleRequest) ProtoMessage() {}
 
 func (x *CreatePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[11]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1096,7 @@ func (x *CreatePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{11}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreatePipelineScheduleRequest) GetPipelineId() string {
@@ -1056,7 +1122,7 @@ type CreatePipelineScheduleResponse struct {
 
 func (x *CreatePipelineScheduleResponse) Reset() {
 	*x = CreatePipelineScheduleResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[12]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1068,7 +1134,7 @@ func (x *CreatePipelineScheduleResponse) String() string {
 func (*CreatePipelineScheduleResponse) ProtoMessage() {}
 
 func (x *CreatePipelineScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[12]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1081,7 +1147,7 @@ func (x *CreatePipelineScheduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineScheduleResponse.ProtoReflect.Descriptor instead.
 func (*CreatePipelineScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{12}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreatePipelineScheduleResponse) GetSchedule() *PipelineSchedule {
@@ -1101,7 +1167,7 @@ type UpdatePipelineScheduleRequest struct {
 
 func (x *UpdatePipelineScheduleRequest) Reset() {
 	*x = UpdatePipelineScheduleRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[13]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1113,7 +1179,7 @@ func (x *UpdatePipelineScheduleRequest) String() string {
 func (*UpdatePipelineScheduleRequest) ProtoMessage() {}
 
 func (x *UpdatePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[13]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1126,7 +1192,7 @@ func (x *UpdatePipelineScheduleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePipelineScheduleRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineScheduleRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{13}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdatePipelineScheduleRequest) GetPipelineId() string {
@@ -1152,7 +1218,7 @@ type UpdatePipelineScheduleResponse struct {
 
 func (x *UpdatePipelineScheduleResponse) Reset() {
 	*x = UpdatePipelineScheduleResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[14]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1164,7 +1230,7 @@ func (x *UpdatePipelineScheduleResponse) String() string {
 func (*UpdatePipelineScheduleResponse) ProtoMessage() {}
 
 func (x *UpdatePipelineScheduleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[14]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1177,7 +1243,7 @@ func (x *UpdatePipelineScheduleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePipelineScheduleResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineScheduleResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{14}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdatePipelineScheduleResponse) GetSchedule() *PipelineSchedule {
@@ -1197,7 +1263,7 @@ type CreatePipelineVersionRequest struct {
 
 func (x *CreatePipelineVersionRequest) Reset() {
 	*x = CreatePipelineVersionRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[15]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1209,7 +1275,7 @@ func (x *CreatePipelineVersionRequest) String() string {
 func (*CreatePipelineVersionRequest) ProtoMessage() {}
 
 func (x *CreatePipelineVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[15]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1222,7 +1288,7 @@ func (x *CreatePipelineVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineVersionRequest.ProtoReflect.Descriptor instead.
 func (*CreatePipelineVersionRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{15}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreatePipelineVersionRequest) GetPipelineId() string {
@@ -1248,7 +1314,7 @@ type CreatePipelineVersionResponse struct {
 
 func (x *CreatePipelineVersionResponse) Reset() {
 	*x = CreatePipelineVersionResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[16]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1260,7 +1326,7 @@ func (x *CreatePipelineVersionResponse) String() string {
 func (*CreatePipelineVersionResponse) ProtoMessage() {}
 
 func (x *CreatePipelineVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[16]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1273,7 +1339,7 @@ func (x *CreatePipelineVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePipelineVersionResponse.ProtoReflect.Descriptor instead.
 func (*CreatePipelineVersionResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{16}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreatePipelineVersionResponse) GetVersion() *PipelineVersion {
@@ -1297,7 +1363,7 @@ type UpdatePipelineRequest struct {
 
 func (x *UpdatePipelineRequest) Reset() {
 	*x = UpdatePipelineRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[17]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1309,7 +1375,7 @@ func (x *UpdatePipelineRequest) String() string {
 func (*UpdatePipelineRequest) ProtoMessage() {}
 
 func (x *UpdatePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[17]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1322,7 +1388,7 @@ func (x *UpdatePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePipelineRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{17}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdatePipelineRequest) GetPipelineId() string {
@@ -1369,7 +1435,7 @@ type UpdatePipelineResponse struct {
 
 func (x *UpdatePipelineResponse) Reset() {
 	*x = UpdatePipelineResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[18]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1381,7 +1447,7 @@ func (x *UpdatePipelineResponse) String() string {
 func (*UpdatePipelineResponse) ProtoMessage() {}
 
 func (x *UpdatePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[18]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1394,7 +1460,7 @@ func (x *UpdatePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePipelineResponse.ProtoReflect.Descriptor instead.
 func (*UpdatePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{18}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdatePipelineResponse) GetPipeline() *Pipeline {
@@ -1416,7 +1482,7 @@ type GetPipelineRequest struct {
 
 func (x *GetPipelineRequest) Reset() {
 	*x = GetPipelineRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[19]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1428,7 +1494,7 @@ func (x *GetPipelineRequest) String() string {
 func (*GetPipelineRequest) ProtoMessage() {}
 
 func (x *GetPipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[19]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1441,7 +1507,7 @@ func (x *GetPipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelineRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{19}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetPipelineRequest) GetId() string {
@@ -1481,7 +1547,7 @@ type GetPipelineResponse struct {
 
 func (x *GetPipelineResponse) Reset() {
 	*x = GetPipelineResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[20]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1493,7 +1559,7 @@ func (x *GetPipelineResponse) String() string {
 func (*GetPipelineResponse) ProtoMessage() {}
 
 func (x *GetPipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[20]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1506,7 +1572,7 @@ func (x *GetPipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineResponse.ProtoReflect.Descriptor instead.
 func (*GetPipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{20}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetPipelineResponse) GetPipeline() *Pipeline {
@@ -1526,7 +1592,7 @@ type GetPipelineVersionRequest struct {
 
 func (x *GetPipelineVersionRequest) Reset() {
 	*x = GetPipelineVersionRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[21]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1538,7 +1604,7 @@ func (x *GetPipelineVersionRequest) String() string {
 func (*GetPipelineVersionRequest) ProtoMessage() {}
 
 func (x *GetPipelineVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[21]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1551,7 +1617,7 @@ func (x *GetPipelineVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineVersionRequest.ProtoReflect.Descriptor instead.
 func (*GetPipelineVersionRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{21}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetPipelineVersionRequest) GetPipelineId() string {
@@ -1577,7 +1643,7 @@ type GetPipelineVersionResponse struct {
 
 func (x *GetPipelineVersionResponse) Reset() {
 	*x = GetPipelineVersionResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[22]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1589,7 +1655,7 @@ func (x *GetPipelineVersionResponse) String() string {
 func (*GetPipelineVersionResponse) ProtoMessage() {}
 
 func (x *GetPipelineVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[22]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1602,7 +1668,7 @@ func (x *GetPipelineVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPipelineVersionResponse.ProtoReflect.Descriptor instead.
 func (*GetPipelineVersionResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{22}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetPipelineVersionResponse) GetVersion() *PipelineVersion {
@@ -1623,7 +1689,7 @@ type ListPipelineVersionsRequest struct {
 
 func (x *ListPipelineVersionsRequest) Reset() {
 	*x = ListPipelineVersionsRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[23]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1635,7 +1701,7 @@ func (x *ListPipelineVersionsRequest) String() string {
 func (*ListPipelineVersionsRequest) ProtoMessage() {}
 
 func (x *ListPipelineVersionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[23]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1648,7 +1714,7 @@ func (x *ListPipelineVersionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelineVersionsRequest.ProtoReflect.Descriptor instead.
 func (*ListPipelineVersionsRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{23}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListPipelineVersionsRequest) GetPipelineId() string {
@@ -1682,7 +1748,7 @@ type ListPipelineVersionsResponse struct {
 
 func (x *ListPipelineVersionsResponse) Reset() {
 	*x = ListPipelineVersionsResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[24]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1694,7 +1760,7 @@ func (x *ListPipelineVersionsResponse) String() string {
 func (*ListPipelineVersionsResponse) ProtoMessage() {}
 
 func (x *ListPipelineVersionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[24]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1707,7 +1773,7 @@ func (x *ListPipelineVersionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelineVersionsResponse.ProtoReflect.Descriptor instead.
 func (*ListPipelineVersionsResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{24}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListPipelineVersionsResponse) GetVersions() []*PipelineVersion {
@@ -1739,7 +1805,7 @@ type ListPipelinesRequest struct {
 
 func (x *ListPipelinesRequest) Reset() {
 	*x = ListPipelinesRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[25]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1751,7 +1817,7 @@ func (x *ListPipelinesRequest) String() string {
 func (*ListPipelinesRequest) ProtoMessage() {}
 
 func (x *ListPipelinesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[25]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1764,7 +1830,7 @@ func (x *ListPipelinesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelinesRequest.ProtoReflect.Descriptor instead.
 func (*ListPipelinesRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{25}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListPipelinesRequest) GetIncludeDeleted() bool {
@@ -1826,7 +1892,7 @@ type ListPipelinesResponse struct {
 
 func (x *ListPipelinesResponse) Reset() {
 	*x = ListPipelinesResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[26]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1838,7 +1904,7 @@ func (x *ListPipelinesResponse) String() string {
 func (*ListPipelinesResponse) ProtoMessage() {}
 
 func (x *ListPipelinesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[26]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1851,7 +1917,7 @@ func (x *ListPipelinesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPipelinesResponse.ProtoReflect.Descriptor instead.
 func (*ListPipelinesResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{26}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ListPipelinesResponse) GetPipelines() []*Pipeline {
@@ -1877,7 +1943,7 @@ type DeletePipelineRequest struct {
 
 func (x *DeletePipelineRequest) Reset() {
 	*x = DeletePipelineRequest{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[27]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1889,7 +1955,7 @@ func (x *DeletePipelineRequest) String() string {
 func (*DeletePipelineRequest) ProtoMessage() {}
 
 func (x *DeletePipelineRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[27]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1902,7 +1968,7 @@ func (x *DeletePipelineRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePipelineRequest.ProtoReflect.Descriptor instead.
 func (*DeletePipelineRequest) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{27}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *DeletePipelineRequest) GetId() string {
@@ -1920,7 +1986,7 @@ type DeletePipelineResponse struct {
 
 func (x *DeletePipelineResponse) Reset() {
 	*x = DeletePipelineResponse{}
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[28]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1932,7 +1998,7 @@ func (x *DeletePipelineResponse) String() string {
 func (*DeletePipelineResponse) ProtoMessage() {}
 
 func (x *DeletePipelineResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ingestion_v1_pipelines_proto_msgTypes[28]
+	mi := &file_ingestion_v1_pipelines_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1945,7 +2011,7 @@ func (x *DeletePipelineResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeletePipelineResponse.ProtoReflect.Descriptor instead.
 func (*DeletePipelineResponse) Descriptor() ([]byte, []int) {
-	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{28}
+	return file_ingestion_v1_pipelines_proto_rawDescGZIP(), []int{29}
 }
 
 var File_ingestion_v1_pipelines_proto protoreflect.FileDescriptor
@@ -1962,7 +2028,7 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"secretRefs\x1a=\n" +
 	"\x0fSecretRefsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd2\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9c\x04\n" +
 	"\fPipelineEdge\x12\x1b\n" +
 	"\tfrom_node\x18\x01 \x01(\tR\bfromNode\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x12\x17\n" +
@@ -1975,10 +2041,18 @@ const file_ingestion_v1_pipelines_proto_rawDesc = "" +
 	"\x14destination_resource\x18\b \x01(\tR\x13destinationResource\x125\n" +
 	"\ttransform\x18\t \x01(\v2\x17.google.protobuf.StructR\ttransform\x12?\n" +
 	"\acolumns\x18\n" +
-	" \x03(\v2%.ingestion.v1.ResourceColumnSelectionR\acolumns\"O\n" +
+	" \x03(\v2%.ingestion.v1.ResourceColumnSelectionR\acolumns\x12H\n" +
+	"\n" +
+	"partitions\x18\v \x03(\v2(.ingestion.v1.ResourcePartitionSelectionR\n" +
+	"partitions\"O\n" +
 	"\x17ResourceColumnSelection\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x18\n" +
-	"\acolumns\x18\x02 \x03(\tR\acolumns\"s\n" +
+	"\acolumns\x18\x02 \x03(\tR\acolumns\"X\n" +
+	"\x1aResourcePartitionSelection\x12\x1a\n" +
+	"\bresource\x18\x01 \x01(\tR\bresource\x12\x1e\n" +
+	"\n" +
+	"partitions\x18\x02 \x03(\tR\n" +
+	"partitions\"s\n" +
 	"\x14ResourceCursorConfig\x12\x1a\n" +
 	"\bresource\x18\x01 \x01(\tR\bresource\x12\x14\n" +
 	"\x05field\x18\x02 \x01(\tR\x05field\x12)\n" +
@@ -2130,99 +2204,101 @@ func file_ingestion_v1_pipelines_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_pipelines_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_ingestion_v1_pipelines_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
+var file_ingestion_v1_pipelines_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_ingestion_v1_pipelines_proto_goTypes = []any{
 	(PipelineScheduleOverlapPolicy)(0),     // 0: ingestion.v1.PipelineScheduleOverlapPolicy
 	(*PipelineNode)(nil),                   // 1: ingestion.v1.PipelineNode
 	(*PipelineEdge)(nil),                   // 2: ingestion.v1.PipelineEdge
 	(*ResourceColumnSelection)(nil),        // 3: ingestion.v1.ResourceColumnSelection
-	(*ResourceCursorConfig)(nil),           // 4: ingestion.v1.ResourceCursorConfig
-	(*PipelineGraph)(nil),                  // 5: ingestion.v1.PipelineGraph
-	(*PipelineVersion)(nil),                // 6: ingestion.v1.PipelineVersion
-	(*Pipeline)(nil),                       // 7: ingestion.v1.Pipeline
-	(*PipelineScheduleConfig)(nil),         // 8: ingestion.v1.PipelineScheduleConfig
-	(*PipelineSchedule)(nil),               // 9: ingestion.v1.PipelineSchedule
-	(*CreatePipelineRequest)(nil),          // 10: ingestion.v1.CreatePipelineRequest
-	(*CreatePipelineResponse)(nil),         // 11: ingestion.v1.CreatePipelineResponse
-	(*CreatePipelineScheduleRequest)(nil),  // 12: ingestion.v1.CreatePipelineScheduleRequest
-	(*CreatePipelineScheduleResponse)(nil), // 13: ingestion.v1.CreatePipelineScheduleResponse
-	(*UpdatePipelineScheduleRequest)(nil),  // 14: ingestion.v1.UpdatePipelineScheduleRequest
-	(*UpdatePipelineScheduleResponse)(nil), // 15: ingestion.v1.UpdatePipelineScheduleResponse
-	(*CreatePipelineVersionRequest)(nil),   // 16: ingestion.v1.CreatePipelineVersionRequest
-	(*CreatePipelineVersionResponse)(nil),  // 17: ingestion.v1.CreatePipelineVersionResponse
-	(*UpdatePipelineRequest)(nil),          // 18: ingestion.v1.UpdatePipelineRequest
-	(*UpdatePipelineResponse)(nil),         // 19: ingestion.v1.UpdatePipelineResponse
-	(*GetPipelineRequest)(nil),             // 20: ingestion.v1.GetPipelineRequest
-	(*GetPipelineResponse)(nil),            // 21: ingestion.v1.GetPipelineResponse
-	(*GetPipelineVersionRequest)(nil),      // 22: ingestion.v1.GetPipelineVersionRequest
-	(*GetPipelineVersionResponse)(nil),     // 23: ingestion.v1.GetPipelineVersionResponse
-	(*ListPipelineVersionsRequest)(nil),    // 24: ingestion.v1.ListPipelineVersionsRequest
-	(*ListPipelineVersionsResponse)(nil),   // 25: ingestion.v1.ListPipelineVersionsResponse
-	(*ListPipelinesRequest)(nil),           // 26: ingestion.v1.ListPipelinesRequest
-	(*ListPipelinesResponse)(nil),          // 27: ingestion.v1.ListPipelinesResponse
-	(*DeletePipelineRequest)(nil),          // 28: ingestion.v1.DeletePipelineRequest
-	(*DeletePipelineResponse)(nil),         // 29: ingestion.v1.DeletePipelineResponse
-	nil,                                    // 30: ingestion.v1.PipelineNode.SecretRefsEntry
-	(ConnectorKind)(0),                     // 31: ingestion.v1.ConnectorKind
-	(*structpb.Struct)(nil),                // 32: google.protobuf.Struct
-	(ReadMode)(0),                          // 33: ingestion.v1.ReadMode
-	(WriteMode)(0),                         // 34: ingestion.v1.WriteMode
-	(*RunInfo)(nil),                        // 35: ingestion.v1.RunInfo
-	(*WorkerConfiguration)(nil),            // 36: ingestion.v1.WorkerConfiguration
-	(ExecutionMode)(0),                     // 37: ingestion.v1.ExecutionMode
-	(*PaginationRequest)(nil),              // 38: ingestion.v1.PaginationRequest
-	(*SortingRequest)(nil),                 // 39: ingestion.v1.SortingRequest
-	(*PaginationResponse)(nil),             // 40: ingestion.v1.PaginationResponse
+	(*ResourcePartitionSelection)(nil),     // 4: ingestion.v1.ResourcePartitionSelection
+	(*ResourceCursorConfig)(nil),           // 5: ingestion.v1.ResourceCursorConfig
+	(*PipelineGraph)(nil),                  // 6: ingestion.v1.PipelineGraph
+	(*PipelineVersion)(nil),                // 7: ingestion.v1.PipelineVersion
+	(*Pipeline)(nil),                       // 8: ingestion.v1.Pipeline
+	(*PipelineScheduleConfig)(nil),         // 9: ingestion.v1.PipelineScheduleConfig
+	(*PipelineSchedule)(nil),               // 10: ingestion.v1.PipelineSchedule
+	(*CreatePipelineRequest)(nil),          // 11: ingestion.v1.CreatePipelineRequest
+	(*CreatePipelineResponse)(nil),         // 12: ingestion.v1.CreatePipelineResponse
+	(*CreatePipelineScheduleRequest)(nil),  // 13: ingestion.v1.CreatePipelineScheduleRequest
+	(*CreatePipelineScheduleResponse)(nil), // 14: ingestion.v1.CreatePipelineScheduleResponse
+	(*UpdatePipelineScheduleRequest)(nil),  // 15: ingestion.v1.UpdatePipelineScheduleRequest
+	(*UpdatePipelineScheduleResponse)(nil), // 16: ingestion.v1.UpdatePipelineScheduleResponse
+	(*CreatePipelineVersionRequest)(nil),   // 17: ingestion.v1.CreatePipelineVersionRequest
+	(*CreatePipelineVersionResponse)(nil),  // 18: ingestion.v1.CreatePipelineVersionResponse
+	(*UpdatePipelineRequest)(nil),          // 19: ingestion.v1.UpdatePipelineRequest
+	(*UpdatePipelineResponse)(nil),         // 20: ingestion.v1.UpdatePipelineResponse
+	(*GetPipelineRequest)(nil),             // 21: ingestion.v1.GetPipelineRequest
+	(*GetPipelineResponse)(nil),            // 22: ingestion.v1.GetPipelineResponse
+	(*GetPipelineVersionRequest)(nil),      // 23: ingestion.v1.GetPipelineVersionRequest
+	(*GetPipelineVersionResponse)(nil),     // 24: ingestion.v1.GetPipelineVersionResponse
+	(*ListPipelineVersionsRequest)(nil),    // 25: ingestion.v1.ListPipelineVersionsRequest
+	(*ListPipelineVersionsResponse)(nil),   // 26: ingestion.v1.ListPipelineVersionsResponse
+	(*ListPipelinesRequest)(nil),           // 27: ingestion.v1.ListPipelinesRequest
+	(*ListPipelinesResponse)(nil),          // 28: ingestion.v1.ListPipelinesResponse
+	(*DeletePipelineRequest)(nil),          // 29: ingestion.v1.DeletePipelineRequest
+	(*DeletePipelineResponse)(nil),         // 30: ingestion.v1.DeletePipelineResponse
+	nil,                                    // 31: ingestion.v1.PipelineNode.SecretRefsEntry
+	(ConnectorKind)(0),                     // 32: ingestion.v1.ConnectorKind
+	(*structpb.Struct)(nil),                // 33: google.protobuf.Struct
+	(ReadMode)(0),                          // 34: ingestion.v1.ReadMode
+	(WriteMode)(0),                         // 35: ingestion.v1.WriteMode
+	(*RunInfo)(nil),                        // 36: ingestion.v1.RunInfo
+	(*WorkerConfiguration)(nil),            // 37: ingestion.v1.WorkerConfiguration
+	(ExecutionMode)(0),                     // 38: ingestion.v1.ExecutionMode
+	(*PaginationRequest)(nil),              // 39: ingestion.v1.PaginationRequest
+	(*SortingRequest)(nil),                 // 40: ingestion.v1.SortingRequest
+	(*PaginationResponse)(nil),             // 41: ingestion.v1.PaginationResponse
 }
 var file_ingestion_v1_pipelines_proto_depIdxs = []int32{
-	31, // 0: ingestion.v1.PipelineNode.kind:type_name -> ingestion.v1.ConnectorKind
-	32, // 1: ingestion.v1.PipelineNode.config:type_name -> google.protobuf.Struct
-	30, // 2: ingestion.v1.PipelineNode.secret_refs:type_name -> ingestion.v1.PipelineNode.SecretRefsEntry
-	4,  // 3: ingestion.v1.PipelineEdge.cursors:type_name -> ingestion.v1.ResourceCursorConfig
-	33, // 4: ingestion.v1.PipelineEdge.read_mode:type_name -> ingestion.v1.ReadMode
-	34, // 5: ingestion.v1.PipelineEdge.write_mode:type_name -> ingestion.v1.WriteMode
-	32, // 6: ingestion.v1.PipelineEdge.transform:type_name -> google.protobuf.Struct
+	32, // 0: ingestion.v1.PipelineNode.kind:type_name -> ingestion.v1.ConnectorKind
+	33, // 1: ingestion.v1.PipelineNode.config:type_name -> google.protobuf.Struct
+	31, // 2: ingestion.v1.PipelineNode.secret_refs:type_name -> ingestion.v1.PipelineNode.SecretRefsEntry
+	5,  // 3: ingestion.v1.PipelineEdge.cursors:type_name -> ingestion.v1.ResourceCursorConfig
+	34, // 4: ingestion.v1.PipelineEdge.read_mode:type_name -> ingestion.v1.ReadMode
+	35, // 5: ingestion.v1.PipelineEdge.write_mode:type_name -> ingestion.v1.WriteMode
+	33, // 6: ingestion.v1.PipelineEdge.transform:type_name -> google.protobuf.Struct
 	3,  // 7: ingestion.v1.PipelineEdge.columns:type_name -> ingestion.v1.ResourceColumnSelection
-	1,  // 8: ingestion.v1.PipelineGraph.nodes:type_name -> ingestion.v1.PipelineNode
-	2,  // 9: ingestion.v1.PipelineGraph.edges:type_name -> ingestion.v1.PipelineEdge
-	5,  // 10: ingestion.v1.PipelineVersion.graph:type_name -> ingestion.v1.PipelineGraph
-	6,  // 11: ingestion.v1.Pipeline.current_version:type_name -> ingestion.v1.PipelineVersion
-	6,  // 12: ingestion.v1.Pipeline.versions:type_name -> ingestion.v1.PipelineVersion
-	35, // 13: ingestion.v1.Pipeline.last_run:type_name -> ingestion.v1.RunInfo
-	9,  // 14: ingestion.v1.Pipeline.schedule:type_name -> ingestion.v1.PipelineSchedule
-	36, // 15: ingestion.v1.Pipeline.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	37, // 16: ingestion.v1.Pipeline.execution_mode:type_name -> ingestion.v1.ExecutionMode
-	0,  // 17: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
-	8,  // 18: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
-	8,  // 19: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	36, // 20: ingestion.v1.CreatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	37, // 21: ingestion.v1.CreatePipelineRequest.execution_mode:type_name -> ingestion.v1.ExecutionMode
-	7,  // 22: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	9,  // 23: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	8,  // 24: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	9,  // 25: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	8,  // 26: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
-	9,  // 27: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
-	5,  // 28: ingestion.v1.CreatePipelineVersionRequest.graph:type_name -> ingestion.v1.PipelineGraph
-	6,  // 29: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	36, // 30: ingestion.v1.UpdatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
-	37, // 31: ingestion.v1.UpdatePipelineRequest.execution_mode:type_name -> ingestion.v1.ExecutionMode
-	7,  // 32: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	7,  // 33: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
-	6,  // 34: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
-	38, // 35: ingestion.v1.ListPipelineVersionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	39, // 36: ingestion.v1.ListPipelineVersionsRequest.sorting:type_name -> ingestion.v1.SortingRequest
-	6,  // 37: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
-	40, // 38: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	38, // 39: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
-	39, // 40: ingestion.v1.ListPipelinesRequest.sorting:type_name -> ingestion.v1.SortingRequest
-	7,  // 41: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
-	40, // 42: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
-	43, // [43:43] is the sub-list for method output_type
-	43, // [43:43] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	4,  // 8: ingestion.v1.PipelineEdge.partitions:type_name -> ingestion.v1.ResourcePartitionSelection
+	1,  // 9: ingestion.v1.PipelineGraph.nodes:type_name -> ingestion.v1.PipelineNode
+	2,  // 10: ingestion.v1.PipelineGraph.edges:type_name -> ingestion.v1.PipelineEdge
+	6,  // 11: ingestion.v1.PipelineVersion.graph:type_name -> ingestion.v1.PipelineGraph
+	7,  // 12: ingestion.v1.Pipeline.current_version:type_name -> ingestion.v1.PipelineVersion
+	7,  // 13: ingestion.v1.Pipeline.versions:type_name -> ingestion.v1.PipelineVersion
+	36, // 14: ingestion.v1.Pipeline.last_run:type_name -> ingestion.v1.RunInfo
+	10, // 15: ingestion.v1.Pipeline.schedule:type_name -> ingestion.v1.PipelineSchedule
+	37, // 16: ingestion.v1.Pipeline.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	38, // 17: ingestion.v1.Pipeline.execution_mode:type_name -> ingestion.v1.ExecutionMode
+	0,  // 18: ingestion.v1.PipelineScheduleConfig.overlap_policy:type_name -> ingestion.v1.PipelineScheduleOverlapPolicy
+	9,  // 19: ingestion.v1.PipelineSchedule.config:type_name -> ingestion.v1.PipelineScheduleConfig
+	9,  // 20: ingestion.v1.CreatePipelineRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	37, // 21: ingestion.v1.CreatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	38, // 22: ingestion.v1.CreatePipelineRequest.execution_mode:type_name -> ingestion.v1.ExecutionMode
+	8,  // 23: ingestion.v1.CreatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	10, // 24: ingestion.v1.CreatePipelineResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	9,  // 25: ingestion.v1.CreatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	10, // 26: ingestion.v1.CreatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	9,  // 27: ingestion.v1.UpdatePipelineScheduleRequest.schedule:type_name -> ingestion.v1.PipelineScheduleConfig
+	10, // 28: ingestion.v1.UpdatePipelineScheduleResponse.schedule:type_name -> ingestion.v1.PipelineSchedule
+	6,  // 29: ingestion.v1.CreatePipelineVersionRequest.graph:type_name -> ingestion.v1.PipelineGraph
+	7,  // 30: ingestion.v1.CreatePipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	37, // 31: ingestion.v1.UpdatePipelineRequest.worker_configuration:type_name -> ingestion.v1.WorkerConfiguration
+	38, // 32: ingestion.v1.UpdatePipelineRequest.execution_mode:type_name -> ingestion.v1.ExecutionMode
+	8,  // 33: ingestion.v1.UpdatePipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	8,  // 34: ingestion.v1.GetPipelineResponse.pipeline:type_name -> ingestion.v1.Pipeline
+	7,  // 35: ingestion.v1.GetPipelineVersionResponse.version:type_name -> ingestion.v1.PipelineVersion
+	39, // 36: ingestion.v1.ListPipelineVersionsRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	40, // 37: ingestion.v1.ListPipelineVersionsRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	7,  // 38: ingestion.v1.ListPipelineVersionsResponse.versions:type_name -> ingestion.v1.PipelineVersion
+	41, // 39: ingestion.v1.ListPipelineVersionsResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	39, // 40: ingestion.v1.ListPipelinesRequest.pagination:type_name -> ingestion.v1.PaginationRequest
+	40, // 41: ingestion.v1.ListPipelinesRequest.sorting:type_name -> ingestion.v1.SortingRequest
+	8,  // 42: ingestion.v1.ListPipelinesResponse.pipelines:type_name -> ingestion.v1.Pipeline
+	41, // 43: ingestion.v1.ListPipelinesResponse.pagination:type_name -> ingestion.v1.PaginationResponse
+	44, // [44:44] is the sub-list for method output_type
+	44, // [44:44] is the sub-list for method input_type
+	44, // [44:44] is the sub-list for extension type_name
+	44, // [44:44] is the sub-list for extension extendee
+	0,  // [0:44] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_pipelines_proto_init() }
@@ -2240,7 +2316,7 @@ func file_ingestion_v1_pipelines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_pipelines_proto_rawDesc), len(file_ingestion_v1_pipelines_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   30,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
