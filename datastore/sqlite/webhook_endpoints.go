@@ -185,6 +185,46 @@ func sqliteWebhookEndpoint(row *sqlcgen.GetWebhookEndpointBySourceRow) (webhooks
 	return endpoint, nil
 }
 
+// ListWebhookEndpointVerifications returns what each live endpoint copied
+// from its source connector's webhook spec.
+func (s *Store) ListWebhookEndpointVerifications(ctx context.Context) ([]webhooks.EndpointVerification, error) {
+	rows, err := s.q.ListWebhookEndpointVerifications(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list webhook endpoint verifications: %w", err)
+	}
+	out := make([]webhooks.EndpointVerification, 0, len(rows))
+	for _, row := range rows {
+		ingress, err := webhooks.ParseIngress([]byte(row.Ingress))
+		if err != nil {
+			return nil, fmt.Errorf("webhook endpoint %q: %w", row.SourceConnectionID, err)
+		}
+		out = append(out, webhooks.EndpointVerification{
+			Tenant: filament.TenantID(row.TenantID), SourceID: row.SourceConnectionID, Connector: row.Connector,
+			Revision: row.ConfigRevision, Verifier: row.Verifier, VerifierParams: json.RawMessage(row.VerifierParams),
+			Ingress: ingress,
+		})
+	}
+	return out, nil
+}
+
+// UpdateWebhookEndpointVerification rewrites an endpoint's verification at
+// the revision it was read at.
+func (s *Store) UpdateWebhookEndpointVerification(ctx context.Context, v webhooks.EndpointVerification) error {
+	n, err := s.q.UpdateWebhookEndpointVerification(ctx, sqlcgen.UpdateWebhookEndpointVerificationParams{
+		SourceConnectionID: v.SourceID, TenantID: string(v.Tenant), ExpectedRevision: v.Revision,
+		UpdatedAt: nowMillis(), Verifier: v.Verifier,
+		VerifierParams: string(webhooks.StoredVerifierParams(v.VerifierParams)),
+		Ingress:        string(webhooks.StoredIngress(v.Ingress)),
+	})
+	if err != nil {
+		return fmt.Errorf("update webhook endpoint verification: %w", err)
+	}
+	if n != 1 {
+		return filament.ErrVersionConflict
+	}
+	return nil
+}
+
 // WebhookReleases reports the least certified position of each live consumer.
 func (s *Store) WebhookReleases(ctx context.Context, stream string, incarnation time.Time) ([]inbox.Release, error) {
 	rows, err := s.q.ListWebhookReleases(ctx)

@@ -42,6 +42,21 @@ UPDATE webhook_endpoints SET config_revision = @next_revision,
 WHERE source_connection_id = @source_connection_id AND tenant_id = @tenant_id
   AND config_revision = @expected_revision;
 
+-- name: ListWebhookEndpointVerifications :many
+-- The verification each live endpoint copied from its source connector, so
+-- the server can bring it up to date with the connector's current spec.
+SELECT e.source_connection_id, e.tenant_id, e.config_revision, c.connector,
+  e.verifier, e.verifier_params, e.ingress
+FROM webhook_endpoints e
+JOIN connections c ON c.id = e.source_connection_id AND c.tenant_id = e.tenant_id
+WHERE c.kind = 'source' AND NOT c.is_deleted;
+
+-- name: UpdateWebhookEndpointVerification :execrows
+UPDATE webhook_endpoints SET config_revision = config_revision + 1,
+  updated_at = @updated_at, verifier = @verifier, verifier_params = @verifier_params, ingress = @ingress
+WHERE source_connection_id = @source_connection_id AND tenant_id = @tenant_id
+  AND config_revision = @expected_revision;
+
 -- name: ListWebhookReleases :many
 -- One row per endpoint. consumer_positions holds the latest certified
 -- positions of every stream that can still resume reading the endpoint's

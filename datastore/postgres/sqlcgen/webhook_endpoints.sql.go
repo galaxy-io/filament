@@ -161,6 +161,54 @@ func (q *Queries) InsertWebhookEndpoint(ctx context.Context, arg InsertWebhookEn
 	return result.RowsAffected(), nil
 }
 
+const listWebhookEndpointVerifications = `-- name: ListWebhookEndpointVerifications :many
+SELECT e.source_connection_id, e.tenant_id, e.config_revision, c.connector,
+  e.verifier, e.verifier_params, e.ingress
+FROM webhook_endpoints e
+JOIN connections c ON c.id = e.source_connection_id AND c.tenant_id = e.tenant_id
+WHERE c.kind = 'source' AND NOT c.is_deleted
+`
+
+type ListWebhookEndpointVerificationsRow struct {
+	SourceConnectionID string
+	TenantID           string
+	ConfigRevision     int64
+	Connector          string
+	Verifier           string
+	VerifierParams     []byte
+	Ingress            []byte
+}
+
+// The verification each live endpoint copied from its source connector, so
+// the server can bring it up to date with the connector's current spec.
+func (q *Queries) ListWebhookEndpointVerifications(ctx context.Context) ([]*ListWebhookEndpointVerificationsRow, error) {
+	rows, err := q.db.Query(ctx, listWebhookEndpointVerifications)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*ListWebhookEndpointVerificationsRow
+	for rows.Next() {
+		var i ListWebhookEndpointVerificationsRow
+		if err := rows.Scan(
+			&i.SourceConnectionID,
+			&i.TenantID,
+			&i.ConfigRevision,
+			&i.Connector,
+			&i.Verifier,
+			&i.VerifierParams,
+			&i.Ingress,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWebhookReleases = `-- name: ListWebhookReleases :many
 SELECT e.source_connection_id, e.tenant_id, c.is_deleted AS deleted,
   COALESCE((
@@ -255,6 +303,39 @@ func (q *Queries) UpdateWebhookEndpoint(ctx context.Context, arg UpdateWebhookEn
 		arg.Resources,
 		arg.SuccessStatus,
 		arg.MaxBodyBytes,
+		arg.SourceConnectionID,
+		arg.TenantID,
+		arg.ExpectedRevision,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateWebhookEndpointVerification = `-- name: UpdateWebhookEndpointVerification :execrows
+UPDATE webhook_endpoints SET config_revision = config_revision + 1,
+  updated_at = $1, verifier = $2, verifier_params = $3, ingress = $4
+WHERE source_connection_id = $5 AND tenant_id = $6
+  AND config_revision = $7
+`
+
+type UpdateWebhookEndpointVerificationParams struct {
+	UpdatedAt          pgtype.Timestamptz
+	Verifier           string
+	VerifierParams     []byte
+	Ingress            []byte
+	SourceConnectionID string
+	TenantID           string
+	ExpectedRevision   int64
+}
+
+func (q *Queries) UpdateWebhookEndpointVerification(ctx context.Context, arg UpdateWebhookEndpointVerificationParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateWebhookEndpointVerification,
+		arg.UpdatedAt,
+		arg.Verifier,
+		arg.VerifierParams,
+		arg.Ingress,
 		arg.SourceConnectionID,
 		arg.TenantID,
 		arg.ExpectedRevision,

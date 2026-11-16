@@ -149,3 +149,50 @@ func TestWebhookEndpointIngressRoundTrip(t *testing.T) {
 		t.Fatalf("loaded ingress = %+v, %v", loaded.Ingress, err)
 	}
 }
+
+func TestWebhookEndpointVerificationUpdate(t *testing.T) {
+	ctx := context.Background()
+	store, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	tenant := filament.TenantID("tenant-one")
+	if err := store.EnsureTenant(ctx, tenant, "Tenant One"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateConnection(ctx, filament.Connection{
+		ID: "github-source", Tenant: string(tenant), Kind: filament.ConnectorKindSource,
+		Name: "source", Connector: "github",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mutation := webhooks.EndpointMutation{
+		Tenant: tenant, SourceID: "github-source", SecretRefs: []string{"key"}, Verifier: webhooks.StandardWebhooks,
+		Ingress: webhooks.Ingress{Route: &webhooks.Route{
+			Event: webhooks.ValueSource{Header: "X-Github-Event"}, Events: map[string]string{"push": "pushes"},
+		}},
+	}
+	mutation.ApplyDefaults()
+	endpoint, err := store.PutWebhookEndpoint(ctx, mutation)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	listed, err := store.ListWebhookEndpointVerifications(ctx)
+	if err != nil || len(listed) != 1 || listed[0].Connector != "github" || listed[0].Revision != endpoint.Revision {
+		t.Fatalf("listed = %+v, %v", listed, err)
+	}
+	v := listed[0]
+	v.Verifier, v.Ingress = webhooks.GenericHMAC, webhooks.Ingress{}
+	if err := store.UpdateWebhookEndpointVerification(ctx, v); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.UpdateWebhookEndpointVerification(ctx, v); !errors.Is(err, filament.ErrVersionConflict) {
+		t.Fatalf("stale update: %v", err)
+	}
+	got, err := store.LoadWebhookEndpointForTenant(ctx, tenant, "github-source")
+	if err != nil || got.Verifier != webhooks.GenericHMAC || !got.Ingress.IsZero() || got.Revision != endpoint.Revision+1 {
+		t.Fatalf("updated = %+v, %v", got, err)
+	}
+}
