@@ -1,7 +1,9 @@
 import { type FC, type RefObject, useState } from "react";
 
+import { PlusIcon } from "@phosphor-icons/react";
 import { keepPreviousData } from "@tanstack/react-query";
 
+import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Skeleton, { SkeletonSize, SkeletonVariant } from "@galaxy-io/dls/feedback/Skeleton";
 import { useEndReached } from "@galaxy-io/dls/hooks/useEndReached";
 import SearchInput from "@galaxy-io/dls/inputs/SearchInput";
@@ -13,9 +15,13 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 
-import { CONNECTOR_KIND_TO_PLURAL_NOUN_MAP } from "@/components/connections/constants";
+import {
+  CONNECTOR_KIND_TO_CREATE_TITLE_MAP,
+  CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
+} from "@/components/connections/constants";
 
 import { CREATE_PIPELINE_MODAL_CONNECTION_GHOST_COUNT } from "@/pages/pipelines/components/create/constants";
+import { useCreatePipelineModalCreateConnection } from "@/pages/pipelines/components/create/hooks/useCreatePipelineModalCreateConnection";
 import CreatePipelineModalConnectionRow from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionRow";
 import CreatePipelineModalConnectionRowFrame from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionRowFrame";
 import CreatePipelineModalConnectionsState from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalConnectionsState";
@@ -43,6 +49,8 @@ const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneP
   kind,
 }) => {
   const [state, setState] = useState<CreatePipelineModalConnectionsPaneState>(DEFAULT_STATE);
+
+  const handleCreateConnection = useCreatePipelineModalCreateConnection(kind);
 
   const handleSearch = (q: string) => {
     setState((prev) => ({ ...prev, q }));
@@ -145,19 +153,21 @@ const CreatePipelineModalConnectionsPane: FC<CreatePipelineModalConnectionsPaneP
       basis={0}
       minWidth={0}
     >
-      <Flex
-        alignItems={AlignItems.START}
-        direction={FlexDirection.COLUMN}
-        gap={8}
-        padding={8}
-        fillWidth
-      >
-        <SearchInput
-          ariaLabel={`Search ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind]}`}
-          placeholder={`Search ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind]}...`}
-          debounceMs={LIST_SEARCH_DEBOUNCE_MS}
-          onSearch={handleSearch}
-          fillWidth
+      <Flex alignItems={AlignItems.CENTER} gap={8} padding={8} fillWidth>
+        <FlexItem grow={1} minWidth={0}>
+          <SearchInput
+            ariaLabel={`Search ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind]}`}
+            placeholder={`Search ${CONNECTOR_KIND_TO_PLURAL_NOUN_MAP[kind]}...`}
+            debounceMs={LIST_SEARCH_DEBOUNCE_MS}
+            onSearch={handleSearch}
+            fillWidth
+          />
+        </FlexItem>
+        <Button
+          label={CONNECTOR_KIND_TO_CREATE_TITLE_MAP[kind]}
+          icon={PlusIcon}
+          variant={ButtonVariant.SECONDARY}
+          onClick={handleCreateConnection}
         />
       </Flex>
       <Divider />

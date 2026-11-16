@@ -27,12 +27,6 @@ export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = 
   [ConnectorKind.SINK]: "Send data to external destinations",
 };
 
-export const CONNECTOR_KIND_TO_CREATE_TITLE_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "New connection",
-  [ConnectorKind.SOURCE]: "New source",
-  [ConnectorKind.SINK]: "New sink",
-};
-
 export const CONNECTOR_KIND_TO_DOCS_PATH_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.UNSPECIFIED]: "/pages/connectors/overview/introduction",
   [ConnectorKind.SOURCE]: "/pages/connectors/overview/introduction#sources",

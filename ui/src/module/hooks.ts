@@ -19,9 +19,10 @@ import {
   OBSERVABILITY_DEFAULT_TIMEFRAME,
 } from "@/pages/observability/constants";
 
-import type { FilamentPath } from "@/module/paths";
+import { createFilamentFlowSearch, type FilamentPath } from "@/module/paths";
 import {
   connectionsSearchSchema,
+  type FilamentFlowSeed,
   type FilamentLayoutSearch,
   filamentLayoutSearchSchema,
   listSearchParamsSchema,
@@ -72,19 +73,11 @@ export const useFilamentSearchUpdate = <TSearch extends object>() => {
 export const useFilamentFlowOpen = () => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   return useCallback(
-    (
-      flow: Flow,
-      {
-        connectorKind,
-        pipelineId,
-      }: Pick<FilamentLayoutSearch, "connectorKind" | "pipelineId"> = {},
-    ) =>
+    (flow: Flow, seed?: FilamentFlowSeed) =>
       void updateSearch((prev) => ({
         ...prev,
+        ...createFilamentFlowSearch(flow, seed),
         connectionId: undefined,
-        flow,
-        connectorKind,
-        pipelineId,
       })),
     [updateSearch],
   );
