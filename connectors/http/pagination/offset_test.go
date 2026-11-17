@@ -48,7 +48,7 @@ func TestOffsetContinuationAcrossShortPages(t *testing.T) {
 			if err != nil || req.URL.Query().Get("status") != "completed" || req.URL.Query().Get("limit") != "50" {
 				t.Fatalf("request=%v err=%v", req, err)
 			}
-			next, err := p.Next(nil, map[string]any{"meta": map[string]any{"has_more": true}}, count)
+			next, err := p.Next(nil, map[string]any{"meta": map[string]any{"has_more": true}}, make([]map[string]any, count))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -39,7 +39,7 @@ func (p *nextURLPaginator) Apply(req *http.Request, s State) (map[string]any, er
 	return nil, nil
 }
 
-func (p *nextURLPaginator) Next(_ *http.Response, body map[string]any, _ int) (State, error) {
+func (p *nextURLPaginator) Next(_ *http.Response, body map[string]any, _ []map[string]any) (State, error) {
 	next, _, err := paths.AsString(body, p.path)
 	switch {
 	case errors.Is(err, errs.ErrPathMissing), errors.Is(err, errs.ErrPathNull):
