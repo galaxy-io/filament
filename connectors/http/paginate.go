@@ -134,7 +134,7 @@ func (c *Connector) paginate(
 
 		// Decode body for paginators that consume response paths (cursor, next_url).
 		// Root-array bodies decode as nil — ok, those pagers don't use body.
-		state, err = pag.Next(resp, decodeBody(raw), records)
+		state, err = pag.Next(resp, decodeBody(raw), len(records))
 		if err != nil {
 			return totalRecords, pageCount, fmt.Errorf("paginator next on %s: %w", res.Name, err)
 		}
