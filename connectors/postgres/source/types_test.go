@@ -25,6 +25,8 @@ func TestTextForms(t *testing.T) {
 		{textFloat8, f64(math.Inf(-1)), "-Infinity"},
 		{textNumeric, numericWire(0, -1, 4, 500), "0.0500"},
 		{textNumeric, numericWire(numericNeg, 0, 0, 5), "-5"},
+		{textNumeric, numericWire(0, 0, 0xFFFE, 1200), "1200"},           // dscale -2: round(1234.5, -2)
+		{textNumeric, numericWire(numericNeg, 1, 0xFFFC, 12), "-120000"}, // dscale -4
 		{textNumeric, numericWire(numericNaN, 0, 0), "NaN"},
 		{textDate, be32(0), "2000-01-01"},
 		{textDate, be32(-730119), "0001-01-01"},

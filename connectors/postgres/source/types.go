@@ -309,7 +309,7 @@ func parseNumeric(src []byte) (numeric, error) {
 		ndigits: int(binary.BigEndian.Uint16(src[0:2])),
 		weight:  int(beInt16(src[2:4])),
 		sign:    binary.BigEndian.Uint16(src[4:6]),
-		dscale:  int(binary.BigEndian.Uint16(src[6:8])),
+		dscale:  int(beInt16(src[6:8])), // signed: a value rounded left of the point carries a negative dscale
 		digits:  src[8:],
 	}
 	if len(n.digits) != 2*n.ndigits {
