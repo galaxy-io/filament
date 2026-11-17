@@ -325,6 +325,9 @@ resources:
       inject_into: query
       checkpoint_key: board_actions_date
       comparator: time
+      # The watermark only promotes once the fan-out over all boards
+      # completes, so an interrupted run replays instead of skipping boards.
+      commit_on_complete: true
       # Board actions fan out across boards but share one watermark. Re-read a
       # window to cover actions created while the scan runs.
       overlap_seconds: 300

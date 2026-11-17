@@ -264,8 +264,8 @@ func (m *Manifest) validateSemantics() error {
 				_ = agg.Addf(path+".for_each_config", "requires a top-level full-read paginated resource")
 			}
 		}
-		if r.Incremental != nil && r.Incremental.CommitOnComplete && (r.Parent != nil || r.Mode != "paginated" || r.Incremental.ResponseCursor != "") {
-			_ = agg.Addf(path+".incremental.commit_on_complete", "requires a top-level paginated row cursor")
+		if r.Incremental != nil && r.Incremental.CommitOnComplete && (r.Mode != "paginated" || r.Incremental.ResponseCursor != "") {
+			_ = agg.Addf(path+".incremental.commit_on_complete", "requires a paginated row cursor")
 		}
 		if r.Pagination.PageSizeFrom != "" && m.Config[r.Pagination.PageSizeFrom].Type != "int" {
 			_ = agg.Addf(path+".pagination", "page_size_from must name an integer config field")
