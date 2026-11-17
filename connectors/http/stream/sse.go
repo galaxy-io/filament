@@ -3,7 +3,6 @@ package stream
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -57,8 +56,8 @@ func (r *sseReader) Read(ctx context.Context, body io.Reader, emit EmitFunc) err
 		if r.eventFilter != "" && event != r.eventFilter {
 			return nil
 		}
-		var record map[string]any
-		if err := json.Unmarshal([]byte(data.String()), &record); err != nil {
+		record, err := decodeRecord([]byte(data.String()))
+		if err != nil {
 			errCount++
 			logger.Warn("sse malformed data block",
 				"block", blockNum,
