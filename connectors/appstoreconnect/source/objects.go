@@ -31,7 +31,7 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 		return s.readApps(ctx, w, r, limit)
 	}
 	if cp == nil {
-		_, err := s.walkResource(ctx, r, limit, time.Time{}, upper, func(row recordRow) error {
+		_, _, err := s.walkResource(ctx, r, limit, time.Time{}, upper, func(row recordRow) error {
 			return appendRecord(w, r, row, nil)
 		})
 		return err
@@ -57,7 +57,7 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 		completed = previous
 	}
 	var pending *recordRow
-	exhausted, err := s.walkResource(ctx, r, limit, searchStart, upper, func(row recordRow) error {
+	exhausted, capTime, err := s.walkResource(ctx, r, limit, searchStart, upper, func(row recordRow) error {
 		if pending != nil {
 			if err := appendRecord(w, r, *pending, nil); err != nil {
 				return err
@@ -76,6 +76,12 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 	if pending == nil {
 		return nil
 	}
+	if !capTime.IsZero() && completed.After(capTime) {
+		completed = capTime
+		if completed.Before(previous) {
+			completed = previous
+		}
+	}
 	var key []string
 	if exhausted {
 		key = []string{completed.UTC().Format(time.RFC3339Nano)}
@@ -83,16 +89,18 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 	return appendRecord(w, r, *pending, key)
 }
 
-func (s *Source) walkResource(ctx context.Context, r resource, limit int, lower, upper time.Time, visit func(recordRow) error) (bool, error) {
+func (s *Source) walkResource(ctx context.Context, r resource, limit int, lower, upper time.Time, visit func(recordRow) error) (bool, time.Time, error) {
 	switch r.name {
 	case "customer_reviews":
-		return s.walkCustomerReviews(ctx, r, limit, lower, upper, visit)
+		exhausted, err := s.walkCustomerReviews(ctx, r, limit, lower, upper, visit)
+		return exhausted, time.Time{}, err
 	case "analytics_reports":
-		return s.walkAnalyticsReports(ctx, r, limit, lower, upper, visit)
+		exhausted, err := s.walkAnalyticsReports(ctx, r, limit, lower, upper, visit)
+		return exhausted, time.Time{}, err
 	case "sales_reports":
 		return s.walkSalesReports(ctx, r, limit, lower, upper, visit)
 	default:
-		return false, fmt.Errorf("unsupported resource %s", r.name)
+		return false, time.Time{}, fmt.Errorf("unsupported resource %s", r.name)
 	}
 }
 
@@ -243,7 +251,7 @@ func (s *Source) walkAnalyticsReports(ctx context.Context, r resource, limit int
 							Name     string `json:"name"`
 						}
 						_ = json.Unmarshal(repObj.Attributes, &repAttrs)
-						instPath := "/v1/analyticsReports/" + url.PathEscape(repObj.ID) + "/instances?limit=200"
+						instPath := "/v1/analyticsReports/" + url.PathEscape(repObj.ID) + "/instances?filter[granularity]=DAILY&limit=200"
 						for instPath != "" {
 							var instPage jsonAPIPage
 							if err := s.client.requestJSON(ctx, r.name, http.MethodGet, instPath, &instPage); err != nil {
@@ -330,16 +338,17 @@ func (s *Source) walkAnalyticsReports(ctx context.Context, r resource, limit int
 	return true, nil
 }
 
-func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lower, upper time.Time, visit func(recordRow) error) (bool, error) {
+func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lower, upper time.Time, visit func(recordRow) error) (bool, time.Time, error) {
 	startDay := upper.Truncate(24*time.Hour).AddDate(0, 0, -defaultSalesBackfillDays)
 	if !lower.IsZero() && !lower.Equal(initialWatermark) {
 		startDay = lower.UTC().Truncate(24 * time.Hour)
 	}
 	endDay := upper.UTC().Truncate(24 * time.Hour)
 	emitted := 0
+	var earliestMissing time.Time
 	for day := startDay; day.Before(endDay); day = day.AddDate(0, 0, 1) {
 		if err := ctx.Err(); err != nil {
-			return false, err
+			return false, earliestMissing, err
 		}
 		dateStr := day.Format("2006-01-02")
 		query := url.Values{
@@ -354,9 +363,12 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 		if err != nil {
 			var api *apiError
 			if errors.As(err, &api) && api.Status == http.StatusNotFound {
+				if earliestMissing.IsZero() {
+					earliestMissing = day
+				}
 				continue // Report not yet available for this date.
 			}
-			return false, err
+			return false, earliestMissing, err
 		}
 		for idx, metricsMap := range rows {
 			rawMetrics, _ := json.Marshal(metricsMap)
@@ -370,15 +382,15 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 				attributes: rawMetrics,
 			}
 			if err := visit(row); err != nil {
-				return false, err
+				return false, earliestMissing, err
 			}
 			emitted++
 			if limit > 0 && emitted >= limit {
-				return false, nil
+				return false, earliestMissing, nil
 			}
 		}
 	}
-	return true, nil
+	return true, earliestMissing, nil
 }
 
 func (s *Source) downloadGzipTSV(ctx context.Context, resourceName, pathOrURL string) ([]map[string]string, error) {
@@ -427,9 +439,19 @@ func (s *Source) downloadGzipTSV(ctx context.Context, resourceName, pathOrURL st
 		out = append(out, row)
 	}
 	if s.client.observe != nil {
-		s.client.observe(filament.SourceProgress{Kind: filament.SourceProgressPageFetched, Resource: resourceName, Records: int64(len(out)), Bytes: int64(len(data)), URI: pathOrURL})
+		s.client.observe(filament.SourceProgress{Kind: filament.SourceProgressPageFetched, Resource: resourceName, Records: int64(len(out)), Bytes: int64(len(data)), URI: redactedURI(pathOrURL)})
 	}
 	return out, nil
+}
+
+// redactedURI removes the query string, which can carry signed download credentials.
+func redactedURI(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	u.RawQuery = ""
+	return u.String()
 }
 
 func normalizeNextLink(next, current string) (string, error) {

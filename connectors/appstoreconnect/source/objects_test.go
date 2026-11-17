@@ -71,6 +71,7 @@ func (s *captureSink) Apply(_ context.Context, b *arrowbatch.Batch, _ filament.A
 func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 	pemKey, _ := generateTestP8Key(t)
 	var serverURL string
+	var observedURIs []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case req.URL.Path == "/v1/apps":
@@ -82,18 +83,23 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 		case req.URL.Path == "/v1/analyticsReportRequests/req-1/reports":
 			_, _ = w.Write([]byte(`{"data":[{"id":"rep-1","type":"analyticsReports","attributes":{"category":"APP_USAGE","name":"App Sessions"}}]}`))
 		case req.URL.Path == "/v1/analyticsReports/rep-1/instances":
+			if req.URL.Query().Get("filter[granularity]") != "DAILY" {
+				t.Errorf("expected filter[granularity]=DAILY, got %q", req.URL.RawQuery)
+			}
 			_, _ = w.Write([]byte(`{"data":[{"id":"inst-1","type":"analyticsReportInstances","attributes":{"processingDate":"2026-11-16"}}]}`))
 		case req.URL.Path == "/v1/analyticsReportInstances/inst-1/segments":
-			_, _ = fmt.Fprintf(w, `{"data":[{"id":"seg-1","type":"analyticsReportSegments","attributes":{"url":"%s/download/seg-1.tsv.gz"}}]}`, serverURL)
+			_, _ = fmt.Fprintf(w, `{"data":[{"id":"seg-1","type":"analyticsReportSegments","attributes":{"url":"%s/download/seg-1.tsv.gz?X-Amz-Signature=secret123"}}]}`, serverURL)
 		case req.URL.Path == "/download/seg-1.tsv.gz":
 			w.Header().Set("Content-Type", "application/a-gzip")
 			_, _ = w.Write(gzipBytes(t, "Date\tApp Name\tSessions\n2026-11-16\tGalaxy App\t42\n2026-11-16\tGalaxy App\t18\n"))
 		case strings.HasPrefix(req.URL.Path, "/v1/salesReports"):
-			if req.URL.Query().Get("filter[reportDate]") == "2026-11-16" {
+			reportDate := req.URL.Query().Get("filter[reportDate]")
+			if reportDate == "2026-11-15" {
 				w.Header().Set("Content-Type", "application/a-gzip")
 				_, _ = w.Write(gzipBytes(t, "Provider\tSKU\tCountry Code\tProduct Type Identifier\tUnits\nAPPLE\tSKU-1\tUS\t1F\t99\n"))
 				return
 			}
+			// Simulate 2026-11-16 report not yet published (404).
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"errors":[{"id":"not-found","code":"NOT_FOUND"}]}`))
 		default:
@@ -117,8 +123,56 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 	s.client.baseURL, s.client.limiter = server.URL, rate.NewLimiter(rate.Inf, 1)
 	s.now = func() time.Time { return testTime }
 
-	for _, resName := range []string{"customer_reviews", "analytics_reports", "sales_reports"} {
-		prev := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	// 1. Verify initial bootstrap on sales_reports caps watermark at earliest 404 date (2026-11-16) when earlier days exist.
+	plans, err := s.PlanIncremental(t.Context(), []string{"sales_reports"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesSink := &captureSink{}
+	plan, err := filament.ResolveIngestionPlan(t.Context(), s, salesSink, filament.RunSpec{
+		Resources:      []string{"sales_reports"},
+		IngestionTypes: map[string]filament.IngestionType{"sales_reports": filament.IngestionIncrementalUpsert},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := pipeline.New(pipeline.Config{Sink: salesSink, WritePolicies: plan.WritePolicies, Options: filament.RunOptions{BatchMaxRows: 1}})
+	p.Start(t.Context())
+	err = s.ExtractFrom(t.Context(), p.Records(), filament.ExtractOpts{
+		Resources: []string{"sales_reports"},
+		Observe: func(prog filament.SourceProgress) {
+			if prog.URI != "" {
+				observedURIs = append(observedURIs, prog.URI)
+			}
+		},
+	}, plans)
+	p.CloseIngest(err)
+	if waitErr := p.Wait(); waitErr != nil {
+		t.Fatal(waitErr)
+	}
+	if len(salesSink.rows) != 1 {
+		t.Fatalf("sales_reports rows = %d, want 1", len(salesSink.rows))
+	}
+	// Since 2026-11-15 had data (and days before 11-15 returned 404 on bootstrap), let's also test incremental from 2026-11-16 where 11-15 succeeds and 11-16 is 404.
+	prev := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
+	incPlans, err := s.PlanIncremental(t.Context(), []string{"sales_reports"}, map[string]filament.Checkpoint{"sales_reports": watermarkPlan("sales_reports", prev)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	salesIncSink := &captureSink{}
+	pInc := pipeline.New(pipeline.Config{Sink: salesIncSink, WritePolicies: plan.WritePolicies, Options: filament.RunOptions{BatchMaxRows: 1}})
+	pInc.Start(t.Context())
+	err = s.ExtractFrom(t.Context(), pInc.Records(), filament.ExtractOpts{Resources: []string{"sales_reports"}}, incPlans)
+	pInc.CloseIngest(err)
+	if waitErr := pInc.Wait(); waitErr != nil {
+		t.Fatal(waitErr)
+	}
+	if gotKey := salesIncSink.rows[len(salesIncSink.rows)-1].key; !slices.Equal(gotKey, []string{"2026-11-16T00:00:00Z"}) {
+		t.Fatalf("incremental sales watermark = %v, want [2026-11-16T00:00:00Z]", gotKey)
+	}
+
+	// 2. Verify customer_reviews and analytics_reports + URI query redaction.
+	for _, resName := range []string{"customer_reviews", "analytics_reports"} {
 		plans, err := s.PlanIncremental(t.Context(), []string{resName}, map[string]filament.Checkpoint{resName: watermarkPlan(resName, prev)}, nil)
 		if err != nil {
 			t.Fatal(err)
@@ -133,7 +187,14 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 		}
 		p := pipeline.New(pipeline.Config{Sink: sink, WritePolicies: plan.WritePolicies, Options: filament.RunOptions{BatchMaxRows: 1}})
 		p.Start(t.Context())
-		err = s.ExtractFrom(t.Context(), p.Records(), filament.ExtractOpts{Resources: []string{resName}}, plans)
+		err = s.ExtractFrom(t.Context(), p.Records(), filament.ExtractOpts{
+			Resources: []string{resName},
+			Observe: func(prog filament.SourceProgress) {
+				if prog.URI != "" {
+					observedURIs = append(observedURIs, prog.URI)
+				}
+			},
+		}, plans)
 		p.CloseIngest(err)
 		if waitErr := p.Wait(); waitErr != nil {
 			t.Fatal(waitErr)
@@ -141,9 +202,19 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 		if len(sink.rows) == 0 {
 			t.Fatalf("%s emitted 0 rows", resName)
 		}
-		lastKey := sink.rows[len(sink.rows)-1].key
-		if len(lastKey) != 1 || !strings.HasPrefix(lastKey[0], "2026-11-16T") {
-			t.Fatalf("%s unexpected final watermark key: %v", resName, lastKey)
+	}
+	for _, u := range observedURIs {
+		if strings.Contains(u, "X-Amz-Signature") || strings.Contains(u, "?") {
+			t.Fatalf("unredacted query in progress URI: %q", u)
 		}
+	}
+}
+
+func TestSameOriginPreventsTokenLeakage(t *testing.T) {
+	if !sameOrigin("https://api.appstoreconnect.apple.com/v1/apps", "https://api.appstoreconnect.apple.com") {
+		t.Fatal("expected sameOrigin to match identical host")
+	}
+	if sameOrigin("https://api.appstoreconnect.apple.com.attacker.example/report.gz", "https://api.appstoreconnect.apple.com") {
+		t.Fatal("sameOrigin matched attacker subdomain prefix")
 	}
 }

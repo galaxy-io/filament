@@ -1,6 +1,7 @@
 package appstoreconnect
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -12,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,8 +22,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/galaxy-io/filament"
-
-	"context"
 )
 
 const (
@@ -49,8 +49,10 @@ func newClient(issuerID, keyID, rawPrivateKey string) (*client, error) {
 	if err != nil {
 		return nil, err
 	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 60 * time.Second
 	return &client{
-		http:       &http.Client{Timeout: 60 * time.Second, Transport: http.DefaultTransport.(*http.Transport).Clone()},
+		http:       &http.Client{Transport: transport},
 		baseURL:    defaultBaseURL,
 		issuerID:   issuerID,
 		keyID:      keyID,
@@ -173,7 +175,7 @@ func (c *client) requestBytes(ctx context.Context, resource, method, pathOrURL, 
 		if err != nil {
 			return nil, err
 		}
-		if !isExternal || strings.HasPrefix(targetURL, c.baseURL) {
+		if !isExternal || sameOrigin(targetURL, c.baseURL) {
 			tok, err := c.bearerToken(time.Now())
 			if err != nil {
 				return nil, err
@@ -212,6 +214,19 @@ func (c *client) requestBytes(ctx context.Context, resource, method, pathOrURL, 
 		}
 	}
 	return nil, nil
+}
+
+// sameOrigin reports whether rawURL uses the same scheme and host as base.
+func sameOrigin(rawURL, base string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	b, err := url.Parse(base)
+	if err != nil {
+		return false
+	}
+	return u.Scheme == b.Scheme && strings.EqualFold(u.Host, b.Host)
 }
 
 func retryDelay(value string, attempt int, now time.Time) time.Duration {

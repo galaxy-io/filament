@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/galaxy-io/filament"
 )
@@ -36,8 +38,24 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		switch {
 		case appsErr != nil:
 			probeErr = appsErr
-		case r.name == "sales_reports" && s.vendorNumber == "":
-			probeErr = &apiError{Status: http.StatusForbidden, Code: "MISSING_VENDOR_NUMBER", Title: "vendor_number is required for sales_reports"}
+		case r.name == "sales_reports":
+			if s.vendorNumber == "" {
+				probeErr = &apiError{Status: http.StatusForbidden, Code: "MISSING_VENDOR_NUMBER", Title: "vendor_number is required for sales_reports"}
+			} else {
+				probeDate := s.now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -2).Format("2006-01-02")
+				q := url.Values{
+					"filter[frequency]":     {"DAILY"},
+					"filter[reportDate]":    {probeDate},
+					"filter[reportSubType]": {"SUMMARY"},
+					"filter[reportType]":    {"SALES"},
+					"filter[vendorNumber]":  {s.vendorNumber},
+				}
+				_, err := s.client.requestBytes(ctx, r.name, http.MethodGet, "/v1/salesReports?"+q.Encode(), "application/a-gzip, application/json")
+				var api *apiError
+				if err != nil && (!errors.As(err, &api) || api.Status != http.StatusNotFound) {
+					probeErr = err
+				}
+			}
 		case r.name == "analytics_reports" && len(appsPage.Data) > 0:
 			var reqPage jsonAPIPage
 			path := "/v1/apps/" + appsPage.Data[0].ID + "/analyticsReportRequests?limit=1"
