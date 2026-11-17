@@ -119,19 +119,21 @@ resources:
       subscribed: bool?
       limits: json?
       raw: {path: $, type: json, mode: remainder}
+    capture:
+      list_id: id
   - name: cards
-    path: /boards/{board_id}/cards
+    path: /lists/{list_id}/cards
     params:
-      board_id: parent.board_id
+      list_id: parent.list_id
     query:
       # The default filter is visible, which hides archived cards, so pass all.
-      # Limit 1000 is the documented maximum per request. Cards come back in
-      # board position order while before filters on creation date, so paging
-      # by the last card ID can skip cards; boards over 1000 cards stay capped.
+      # Limit 1000 is the documented maximum per request, applied per list.
+      # Cards fan out over lists, so a board with more than 1000 cards is
+      # fully returned unless one list holds more than 1000 cards.
       filter: all
       limit: "1000"
       fields: all
-    for_each: boards
+    for_each: lists
     pagination: none
     primary_key: [id]
     fields:
