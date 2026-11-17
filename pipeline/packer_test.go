@@ -12,8 +12,8 @@ import (
 	"github.com/apache/arrow-go/v18/arrow/memory"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/alchemy"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/transform"
 )
 

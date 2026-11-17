@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/alchemy"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/runner"
 )

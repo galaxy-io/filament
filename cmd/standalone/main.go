@@ -31,9 +31,9 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
-	"github.com/galaxy-io/filament/cmd/internal/alchemy"
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/cmd/internal/inline"
+	"github.com/galaxy-io/filament/cmd/internal/integrations/alchemy"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/secret"
 	"github.com/galaxy-io/filament/datastore/sqlite"

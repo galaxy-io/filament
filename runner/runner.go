@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/alchemy"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/transform"
