@@ -266,6 +266,16 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 	if loadErr != nil && !errors.Is(loadErr, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeInternal, loadErr)
 	}
+	var webhookSecretRefs []string
+	if loadErr == nil && conn.Kind == filament.ConnectorKindSource && a.webhooks != nil {
+		endpoint, err := a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, id)
+		if err != nil && !errors.Is(err, filament.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if err == nil {
+			webhookSecretRefs = endpoint.SecretRefs
+		}
+	}
 
 	pipelines, _, err := a.store.ListPipelines(ctx, filament.PipelineFilter{Tenant: string(tenant)})
 	if err != nil {
@@ -291,6 +301,7 @@ func (a *Server) DeleteConnection(ctx context.Context, req *connect.Request[inge
 
 	if loadErr == nil {
 		a.deleteSecretRefs(ctx, mapValues(conn.SecretRefs))
+		a.deleteSecretRefs(ctx, webhookSecretRefs)
 	}
 	return connect.NewResponse(&ingestionv1.DeleteConnectionResponse{}), nil
 }

@@ -11,10 +11,15 @@ import { Placement } from "@galaxy-io/dls/theme/enums";
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
+import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+
+import { useWebhookEndpointSync } from "@/components/webhooks/hooks/useWebhookEndpointSync";
+
 import {
   mapCanvasStateToVersionRequest,
   mapPipelineVersionToCanvasState,
 } from "@/pages/pipelines/canvas/graph/serialize";
+import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasValidation } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasValidation";
 import {
   usePipelineCanvasActions,
@@ -50,6 +55,11 @@ const PipelinePageEditActions: FC = () => {
 
   const { mutate: createPipelineVersion, isPending: isSaving } = useCreatePipelineVersionMutation();
   const { issues, isPending: isValidating, isError } = usePipelineCanvasValidation();
+  const connectionByNodeId = usePipelineCanvasConnections();
+  const syncWebhookEndpoint = useWebhookEndpointSync();
+  const sourceConnection = [...connectionByNodeId.values()].find(
+    (connection) => connection?.kind === ConnectorKind.SOURCE,
+  );
 
   const saveIssues = useMemo<PipelineCanvasValidationIssue[]>(
     () => [
@@ -94,6 +104,7 @@ const PipelinePageEditActions: FC = () => {
             header: "Pipeline saved",
             variant: ToastVariant.SUCCESS,
           });
+          void syncWebhookEndpoint({ sourceConnection, pipelineId: id });
         },
         onError: (error) => {
           toast({

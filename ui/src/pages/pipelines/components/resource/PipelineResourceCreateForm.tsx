@@ -10,6 +10,12 @@ import TextInput from "@galaxy-io/dls/inputs/TextInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import Widget, { WidgetSize, WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
+import {
+  WEBHOOK_RESOURCE_PLACEHOLDER,
+  WEBHOOK_RESOURCE_TOOLTIP,
+} from "@/components/webhooks/constants";
+import { getWebhookResourceError } from "@/components/webhooks/utils";
+
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 import type { PipelineResourceCreateState } from "@/pages/pipelines/components/resource/types";
 
@@ -24,6 +30,7 @@ interface PipelineResourceCreateFormProps {
   onSave: (state: PipelineResourceCreateState) => void;
   onCancel: () => void;
   variant?: WidgetVariant;
+  isWebhook?: boolean;
 }
 
 const DEFAULT_STATE: PipelineResourceCreateState = {
@@ -37,6 +44,7 @@ const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   onSave,
   onCancel,
   variant = WidgetVariant.TERTIARY,
+  isWebhook = false,
 }) => {
   const [state, setState] = useState<PipelineResourceCreateState>(() => ({
     ...DEFAULT_STATE,
@@ -44,7 +52,11 @@ const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
   }));
 
   const trimmed = { ...state, resource: state.resource.trim() };
-  const error = trimmed.resource === "" ? undefined : getError(trimmed);
+  const getResourceError = () => {
+    if (trimmed.resource === "") return undefined;
+    return getError(trimmed) ?? (isWebhook ? getWebhookResourceError(trimmed.resource) : undefined);
+  };
+  const error = getResourceError();
   const isSaveDisabled = trimmed.resource === "" || trimmed.sinkId === "" || error !== undefined;
 
   const sinkOptions: SelectOption[] = sinks.map((sink) => ({
@@ -57,12 +69,13 @@ const PipelineResourceCreateForm: FC<PipelineResourceCreateFormProps> = ({
       <Widget variant={variant} size={WidgetSize.LARGE} gap={12}>
         <TextInput
           label="Resource"
+          labelTooltip={isWebhook ? WEBHOOK_RESOURCE_TOOLTIP : undefined}
           value={state.resource}
           onChange={(resource) => setState((prev) => ({ ...prev, resource }))}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !isSaveDisabled) onSave(trimmed);
           }}
-          placeholder="orders.>"
+          placeholder={isWebhook ? WEBHOOK_RESOURCE_PLACEHOLDER : "orders.>"}
           error={error}
           autoFocus
           variant={InputVariant.TERTIARY}

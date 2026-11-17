@@ -26,6 +26,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/identity"
 	"github.com/galaxy-io/filament/cmd/internal/metricsstore"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
+	"github.com/galaxy-io/filament/cmd/internal/uiconfig"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
@@ -70,6 +71,11 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 
+	uiConfig, err := uiconfig.FromEnv()
+	if err != nil {
+		return err
+	}
+
 	tenantEnsured := ensureDefaultTenant(ctx, deps.Store, serverLog)
 
 	// Health endpoints listen before the NATS connect wait so liveness
@@ -77,29 +83,13 @@ func run(ctx context.Context, migrateOnly bool) error {
 	addr := serverAddress()
 	mux := http.NewServeMux()
 	var eventBus eventbus.Bus
-	healthState := health.New(2*time.Second,
-		func(ctx context.Context) error {
-			if err := deps.Store.Ping(ctx); err != nil {
-				return err
-			}
-			if !tenantEnsured.Load() {
-				if err := deps.Store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
-					return err
-				}
-				tenantEnsured.Store(true)
-			}
-			return nil
-		},
-		func(ctx context.Context) error {
-			if checker, ok := eventBus.(eventbus.ReadinessChecker); ok {
-				return checker.Ready(ctx)
-			}
-			return nil
-		},
-	)
+	healthState := newServerHealthState(deps.Store, tenantEnsured, func() eventbus.Bus { return eventBus })
 	healthState.Mount(mux)
 	mux.Handle("/version", version.Handler())
-	srv := &http.Server{Addr: addr, Handler: otelhttp.NewHandler(mux, "server"), ReadHeaderTimeout: 10 * time.Second}
+	srv := &http.Server{
+		Addr: addr, Handler: otelhttp.NewHandler(mux, "server"),
+		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second,
+	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
 	started := false
@@ -126,6 +116,14 @@ func run(ctx context.Context, migrateOnly bool) error {
 	if identityProvider != nil {
 		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
 	}
+	webhooks, closeWebhooks, err := webhooksFromEnv(ctx, deps.Store, deps.Secrets, deps.Metrics)
+	if err != nil {
+		return err
+	}
+	if webhooks != nil {
+		defer closeWebhooks()
+		apiOpts = append(apiOpts, webhooks.apiOption())
+	}
 	api := server.New(deps.Worker, deps.Store, orch, eventBus, apiOpts...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
@@ -133,8 +131,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	defer func() { logHostClose(h.Close(), serverLog) }()
 
-	api.Mount(mux)
-	mux.Handle("/", ui.Handler())
+	mountRoutes(mux, api, webhooks, uiConfig)
 	healthState.MarkStarted()
 	started = true
 	serverLog.Info("server started",
@@ -153,6 +150,39 @@ func run(ctx context.Context, migrateOnly bool) error {
 			filament.Field{Key: "event.name", Value: "server.stopping"})
 		return shutdown()
 	}
+}
+
+// mountRoutes serves the API, the webhook receiver when it is enabled, and
+// the UI rendered with uiConfig.
+func mountRoutes(mux *http.ServeMux, api *server.Server, webhooks *webhookReceiver, uiConfig ui.Config) {
+	api.Mount(mux)
+	if webhooks != nil {
+		webhooks.receiver.Mount(mux)
+	}
+	mux.Handle("/", ui.Handler(uiConfig))
+}
+
+func newServerHealthState(store filament.DataStore, tenantEnsured *atomic.Bool, bus func() eventbus.Bus) *health.State {
+	return health.New(2*time.Second,
+		func(ctx context.Context) error {
+			if err := store.Ping(ctx); err != nil {
+				return err
+			}
+			if !tenantEnsured.Load() {
+				if err := store.EnsureTenant(ctx, filament.TenantID(defaultTenantID()), "Default tenant"); err != nil {
+					return err
+				}
+				tenantEnsured.Store(true)
+			}
+			return nil
+		},
+		func(ctx context.Context) error {
+			if checker, ok := bus().(eventbus.ReadinessChecker); ok {
+				return checker.Ready(ctx)
+			}
+			return nil
+		},
+	)
 }
 
 func logHostClose(err error, log filament.Logger) {

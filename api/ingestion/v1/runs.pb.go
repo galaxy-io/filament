@@ -518,7 +518,8 @@ type RunPipelineRequest struct {
 	// resync_resources names resources read from the beginning again by the
 	// runs this call produces. A bounded run forgets their checkpoints first. A
 	// live continuous run drains and hands over to a successor that snapshots
-	// them again on the same stream.
+	// them again on the same stream. A continuous run accepts it only from a
+	// change data capture source.
 	ResyncResources []string `protobuf:"bytes,5,rep,name=resync_resources,json=resyncResources,proto3" json:"resync_resources,omitempty"`
 	// resources limits a bounded run to these routed resources. Empty runs every
 	// routed resource. A continuous run, or a change-stream route named in part,

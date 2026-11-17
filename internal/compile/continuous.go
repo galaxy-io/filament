@@ -65,6 +65,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if len(group.transforms) > 0 {
 			return nil, fmt.Errorf("%w: continuous execution does not apply transforms", ErrInvalid)
 		}
+		if err := validateContinuousResync(sourceSpec, sourceRef, routeResync(group, resync)); err != nil {
+			return nil, err
+		}
 		resources, _ := routeResources(group)
 		streamID := uuid.NewString()
 		plan, err := planContinuousSource(ctx, c.Worker, sourceRef, resources, streamID, group.source.ConnectionId)
@@ -233,4 +236,15 @@ func applyContinuousDestinations(policies map[string]filament.WritePolicy, edges
 		}
 		policies[resource] = policy
 	}
+}
+
+// validateContinuousResync rejects a resync on a continuous route whose source
+// cannot read a resource again. Only a change data capture source snapshots a
+// pending member. A message stream resumes from its certified position and
+// leaves the member pending, so every epoch commit would fail.
+func validateContinuousResync(spec filament.ConnectorSpec, ref filament.Ref, resync []string) error {
+	if len(resync) == 0 || filament.ReplicationFor(spec, filament.NewConfig(ref.Config)) == filament.ReplicationCDC {
+		return nil
+	}
+	return fmt.Errorf("%w: resync needs a change data capture source, %s streams cannot read a resource again", ErrInvalid, ref.Connector)
 }
