@@ -241,7 +241,9 @@ persistence:
   # -- Persistence provider.
   type: postgres
 
-  # -- Run database migrations as a post-install/post-upgrade hook Job.
+  # -- Run database migrations as a hook Job: pre-install/pre-upgrade when
+  # `existingSecret` is set and the vendored PostgreSQL is off, otherwise
+  # post-install/post-upgrade.
   migrate: true
   # -- Migration Job resource requests and limits.
   migrateResources: {}
