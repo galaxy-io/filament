@@ -1,0 +1,75 @@
+---
+title: "Jira source connector"
+sidebarTitle: "Jira"
+description: "Read projects, issues, users, and reference data from Jira Cloud with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-jira-dark.svg"
+---
+
+Connector ID `jira`
+
+The Jira source reads projects, issues, users, issue types, statuses, priorities, resolutions, and field definitions from Jira Cloud. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It has been validated against a live Jira Cloud
+site with a personal API token. The live run covered the connection probe, all
+nine resources, the `nextPageToken` walk on issue search, and an incremental
+read that returned only the issue updated after the watermark. It targets Jira Cloud platform REST API version `3`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `site` | Connection | | Required. Jira Cloud site subdomain, the part before `.atlassian.net`. For `https://example.atlassian.net` enter `example`. |
+| `email` | Connection | | Required. Email address of the Atlassian account that owns the API token. |
+| `api_token` | Connection | | Required. Secret. Classic Atlassian API token created at `id.atlassian.com`. Scoped tokens do not work with Basic auth. |
+
+Create a classic API token in your
+[Atlassian account security settings](https://id.atlassian.com/manage-profile/security/api-tokens). Scoped tokens are for OAuth and fail here with a 401. The token reads what its account can see. Use a service account token for unattended syncs so the data does not change when a person leaves the team. See
+[Basic auth for REST APIs](https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/).
+
+Connection testing calls `GET /rest/api/3/myself`. Every request goes to
+`https://<site>.atlassian.net`.
+
+## Resources
+
+All resources except `myself` are selected by default.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `myself` | `GET /rest/api/3/myself` |  |
+| `projects` | `GET /rest/api/3/project/search` |  |
+| `issues` | `POST /rest/api/3/search/jql` |  |
+| `users` | `GET /rest/api/3/users/search` |  |
+| `issue_types` | `GET /rest/api/3/issuetype` |  |
+| `statuses` | `GET /rest/api/3/status` |  |
+| `priorities` | `GET /rest/api/3/priority/search` |  |
+| `resolutions` | `GET /rest/api/3/resolution/search` |  |
+| `fields` | `GET /rest/api/3/field` |  |
+
+IDs are Jira ID strings. Issues carry their project ID and key, and the account IDs of their assignee, reporter, and creator. References to other objects remain JSON columns, and every resource includes a `raw` column for unmapped fields. Issues return a fixed field list, so `raw` does not contain custom field values.
+
+`myself` returns one row for the account that owns the API token. It is also the connection test. It is not selected by default.
+
+### Coverage limits
+
+- **Issue comments, worklogs, and attachments**. Comments, worklogs, and attachments need a request per issue and are not included.
+- **Custom fields**. Issue search requests a fixed list of standard fields. Custom field values are not returned.
+- **Boards, sprints, and versions**. Agile boards, sprints, and versions live under the Jira Software API and are not included.
+- **Changelogs**. Issue history needs a request per issue and is not included.
+- **Visibility**. Reads reflect what the token's account can see. Removed records and records hidden by permissions are not available as deletion events.
+
+## Modes
+
+All resources report their read mode in the connector settings. Use **full upsert** to refresh rows, or **full replace** to remove rows no longer returned.
+
+`issues` supports incremental reads on `updated`. The first run reads from the start of time, and later runs ask Jira for issues updated since the last stored watermark, with a five minute overlap so edits made while a run is in flight are not missed. JQL takes the watermark as an unquoted epoch-milliseconds number. Incremental reads do not detect deleted issues. Run a periodic full replace of `issues` to remove them.
+
+## Behavior
+
+- **Auth**. Every request sends the account email and API token as HTTP Basic credentials. Authentication and permission errors fail the read.
+- **Pagination**. Issue search follows `nextPageToken` in the request body until the token is absent. Project, user, priority, and resolution lists page with `startAt` and `maxResults`. Issue type, status, and field lists return one page.
+- **Fields**. Issue search requests a fixed list of standard fields. Other resources return their full objects.
+- **Rate limiting**. Requests are paced at five per second with a burst of one, below the 100-per-second burst limit for API token traffic. The HTTP engine retries throttled requests and honors `Retry-After`.
+- **Jira Cloud only**. Jira Server and Data Center use a different API version and are not supported.
+
+See [Jira Cloud platform REST API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/intro/) and
+[rate limiting](https://developer.atlassian.com/cloud/jira/platform/rate-limiting/) for service limits.
