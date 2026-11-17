@@ -512,6 +512,9 @@ type PaginationSpec struct {
 
 	// next_url
 	NextURLPath string `yaml:"next_url_path,omitempty"`
+
+	// last_record
+	LastRecordField string `yaml:"last_record_field,omitempty"`
 }
 
 // UnmarshalYAML accepts concise pagination strategies while retaining a
@@ -568,6 +571,20 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		}
 		p.Strict = spec.Strict
 		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
+	case "last_record":
+		var spec struct {
+			Field    string `yaml:"field"`
+			Request  string `yaml:"request"`
+			PageSize int    `yaml:"page_size"`
+		}
+		if err := value.Decode(&spec); err != nil {
+			return err
+		}
+		target, param, ok := strings.Cut(spec.Request, ".")
+		if !ok || (target != "query" && target != "body" && target != "header") {
+			return fmt.Errorf("last_record.request must be query.<name>, body.<path>, or header.<name>")
+		}
+		p.Type, p.LastRecordField, p.InjectInto, p.CursorParam, p.PageSize = "last_record", spec.Field, target, param, spec.PageSize
 	case "offset":
 		var spec struct {
 			Start        int    `yaml:"start"`
