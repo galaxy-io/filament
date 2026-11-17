@@ -61,7 +61,7 @@ func main() {
 }
 
 func run(ctx context.Context) error {
-	webhookConfig, err := standaloneWebhooksFromEnv()
+	config, err := standaloneConfigFromEnv()
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer nc.Close()
-	webhookInbox, retention, err := openStandaloneWebhooks(ctx, nc, webhookConfig)
+	webhookInbox, retention, err := openStandaloneWebhooks(ctx, nc, config.webhooks)
 	if err != nil {
 		return err
 	}
@@ -152,10 +152,10 @@ func run(ctx context.Context) error {
 		app.WithMetricsStore(metrics.New(store.DB())),
 		app.WithLogger(lg),
 		app.WithSecrets(secrets),
-		app.WithUI(ui.Handler()),
+		app.WithUI(ui.Handler(config.ui)),
 	}
 	if webhookInbox != nil {
-		options = append(options, app.WithWebhookInbox(webhookInbox, webhookConfig.publicBaseURL, webhookConfig.maxInFlight, retention))
+		options = append(options, app.WithWebhookInbox(webhookInbox, config.webhooks.publicBaseURL, config.webhooks.maxInFlight, retention))
 	}
 	return app.Run(ctx, options...)
 }
