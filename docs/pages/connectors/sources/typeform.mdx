@@ -7,7 +7,7 @@ icon: "https://cdn.getgalaxy.io/sources/source-icon-typeform-dark.svg"
 
 Connector ID `typeform`
 
-The Typeform source reads account details, workspaces, form definitions, and submissions from Typeform. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). It has been verified against Typeform's official REST API documentation and validated against the manifest grammar, but has not yet been tested against a live production account. It targets the unversioned REST API.
+The Typeform source reads account details, workspaces, form definitions, and submissions from Typeform. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). It has been verified against Typeform's official REST API documentation and validated against a live Typeform account. It targets the unversioned REST API.
 
 ## Configuration
 
@@ -33,7 +33,7 @@ Create a personal access token in **Account → Personal tokens** inside your Ty
 
 `account`, `workspaces`, `forms`, `form_details`, and `responses` are selected by default. `themes`, `images`, and `webhooks` are optional.
 
-`account` queries `/me` to fetch the account ID, alias, email, and language.
+`account` queries `/me` to fetch the user ID, alias, email, and language.
 
 `workspaces` returns workspace metadata, sharing status, and form counts.
 

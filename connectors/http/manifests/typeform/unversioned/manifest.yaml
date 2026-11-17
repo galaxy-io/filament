@@ -24,6 +24,7 @@ connection:
     bearer: config.token
   headers:
     Accept: application/json
+    User-Agent: filament/1.0
   timeout_seconds: 60
   rate_limit:
     requests_per_second: 2
@@ -35,9 +36,9 @@ resources:
       records: $
       cardinality: one
       pagination: none
-    primary_key: [account_id]
+    primary_key: [user_id]
     fields:
-      account_id: string
+      user_id: string
       email: string?
       alias: string?
       language: string?
