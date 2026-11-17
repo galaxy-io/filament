@@ -99,7 +99,7 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 				_, _ = w.Write(gzipBytes(t, "Provider\tSKU\tCountry Code\tProduct Type Identifier\tUnits\nAPPLE\tSKU-1\tUS\t1F\t99\n"))
 				return
 			}
-			// Simulate 2026-11-16 report not yet published (404).
+			// Simulate 2026-11-16 report not yet published (404) and older days (e.g. 2026-10-20) having no sales (404 outside 7-day retry window).
 			w.WriteHeader(http.StatusNotFound)
 			_, _ = w.Write([]byte(`{"errors":[{"id":"not-found","code":"NOT_FOUND"}]}`))
 		default:
@@ -111,19 +111,28 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 
 	s := New()
 	cfg := filament.NewConfig(map[string]any{
-		"issuer_id":     "issuer-1",
-		"key_id":        "KEY1234567",
-		"private_key":   pemKey,
-		"vendor_number": "88001122",
+		"issuer_id":           "issuer-1",
+		"key_id":              "KEY1234567",
+		"private_key":         pemKey,
+		"vendor_number":       "88001122",
+		"app_ids":             "app-1",
+		"start_date":          "2026-10-20",
+		"requests_per_second": 10,
 	})
 	if err := s.Configure(t.Context(), cfg); err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = s.Teardown(t.Context()) }()
+	if s.client.limiter.Limit() != rate.Limit(10) {
+		t.Fatalf("limiter = %v, want 10", s.client.limiter.Limit())
+	}
 	s.client.baseURL, s.client.limiter = server.URL, rate.NewLimiter(rate.Inf, 1)
 	s.now = func() time.Time { return testTime }
 
-	// 1. Verify initial bootstrap on sales_reports caps watermark at earliest 404 date (2026-11-16) when earlier days exist.
+	// 1. Initial bootstrap on sales_reports: older 404s (2026-10-20..11-09) are outside the 7-day retry window,
+	// 2026-11-10..11-14 are within the 7-day window (earliest missing in window is 2026-11-10).
+	// Now set start_date to 2026-11-15 so 2026-11-15 succeeds and 2026-11-16 is the earliest missing day.
+	s.startDate = time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
 	plans, err := s.PlanIncremental(t.Context(), []string{"sales_reports"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -153,9 +162,17 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 	if len(salesSink.rows) != 1 {
 		t.Fatalf("sales_reports rows = %d, want 1", len(salesSink.rows))
 	}
-	// Since 2026-11-15 had data (and days before 11-15 returned 404 on bootstrap), let's also test incremental from 2026-11-16 where 11-15 succeeds and 11-16 is 404.
-	prev := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
-	incPlans, err := s.PlanIncremental(t.Context(), []string{"sales_reports"}, map[string]filament.Checkpoint{"sales_reports": watermarkPlan("sales_reports", prev)}, nil)
+	if gotKey := salesSink.rows[0].key; !slices.Equal(gotKey, []string{"2026-11-16T00:00:00Z"}) {
+		t.Fatalf("initial sales watermark = %v, want [2026-11-16T00:00:00Z]", gotKey)
+	}
+	firstSavedMark, err := time.Parse(time.RFC3339Nano, salesSink.rows[0].key[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstCheckpoint := watermarkPlan("sales_reports", firstSavedMark)
+
+	// Resume from the checkpoint produced by the first run.
+	incPlans, err := s.PlanIncremental(t.Context(), []string{"sales_reports"}, map[string]filament.Checkpoint{"sales_reports": firstCheckpoint}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,6 +189,7 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 	}
 
 	// 2. Verify customer_reviews and analytics_reports + URI query redaction.
+	prev := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
 	for _, resName := range []string{"customer_reviews", "analytics_reports"} {
 		plans, err := s.PlanIncremental(t.Context(), []string{resName}, map[string]filament.Checkpoint{resName: watermarkPlan(resName, prev)}, nil)
 		if err != nil {

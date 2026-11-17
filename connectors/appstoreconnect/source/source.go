@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/time/rate"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -20,6 +21,8 @@ import (
 type Source struct {
 	client       *client
 	vendorNumber string
+	appIDs       []string
+	startDate    time.Time
 	lookbacks    map[string]time.Duration
 	now          func() time.Time
 }
@@ -57,6 +60,14 @@ func (s *Source) Validate(cfg filament.Config) error {
 	if _, err := parseECPrivateKey(rawKey); err != nil {
 		return fmt.Errorf("appstoreconnect source: invalid private_key: %w", err)
 	}
+	if rawStart := strings.TrimSpace(cfg.String("start_date")); rawStart != "" {
+		if _, err := time.Parse("2006-01-02", rawStart); err != nil {
+			return fmt.Errorf("appstoreconnect source: invalid start_date %q (expected YYYY-MM-DD)", rawStart)
+		}
+	}
+	if rps := cfg.Int("requests_per_second"); rps < 0 {
+		return fmt.Errorf("appstoreconnect source: requests_per_second must be non-negative")
+	}
 	return nil
 }
 
@@ -73,10 +84,29 @@ func (s *Source) Configure(_ context.Context, cfg filament.Config) error {
 	if err != nil {
 		return err
 	}
+	if rps := cfg.Int("requests_per_second"); rps > 0 {
+		c.limiter = rate.NewLimiter(rate.Limit(rps), 1)
+	}
 	s.client = c
 	s.vendorNumber = strings.TrimSpace(cfg.String("vendor_number"))
+	s.appIDs = parseCSVList(cfg.String("app_ids"))
+	s.startDate = time.Time{}
+	if rawStart := strings.TrimSpace(cfg.String("start_date")); rawStart != "" {
+		parsed, _ := time.Parse("2006-01-02", rawStart)
+		s.startDate = parsed.UTC()
+	}
 	s.lookbacks = make(map[string]time.Duration)
 	return nil
+}
+
+func parseCSVList(raw string) []string {
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 // TestConnection verifies credentials with a lightweight read against /v1/apps.

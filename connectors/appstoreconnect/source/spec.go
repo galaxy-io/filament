@@ -33,6 +33,18 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				Name: "vendor_number", Type: filament.FieldString, Required: false, Scope: filament.ScopeConnection,
 				Help: "Optional Apple Vendor Number required when extracting daily sales_reports",
 			},
+			{
+				Name: "app_ids", Type: filament.FieldString, Required: false, Scope: filament.ScopeConnection,
+				Help: "Optional comma-separated App Store Connect app IDs to filter extraction",
+			},
+			{
+				Name: "start_date", Type: filament.FieldString, Required: false, Scope: filament.ScopeConnection,
+				Help: "Optional YYYY-MM-DD initial backfill start date for daily sales_reports (defaults to 30 days ago UTC)",
+			},
+			{
+				Name: "requests_per_second", Type: filament.FieldInt, Required: false, Default: 2, Scope: filament.ScopeConnection,
+				Help: "Maximum API requests per second (defaults to 2)",
+			},
 		}},
 		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}

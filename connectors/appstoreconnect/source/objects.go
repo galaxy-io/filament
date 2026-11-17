@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,7 +21,11 @@ import (
 	"github.com/galaxy-io/filament/arrowbatch"
 )
 
-const defaultSalesBackfillDays = 30
+const (
+	defaultSalesBackfillDays = 30
+	// salesRetryWindowDays bounds how long a missing daily sales report keeps the checkpoint pinned.
+	salesRetryWindowDays = 7
+)
 
 func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r resource, limit int, upper time.Time, cp filament.Checkpoint) error {
 	w, err := sink.Builder(r.name, 0, schemaFor(r))
@@ -29,6 +34,9 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 	}
 	if r.name == "apps" {
 		return s.readApps(ctx, w, r, limit)
+	}
+	if r.name == "sales_reports" || r.name == "analytics_reports" {
+		upper = upper.UTC().Truncate(24 * time.Hour)
 	}
 	if cp == nil {
 		_, _, err := s.walkResource(ctx, r, limit, time.Time{}, upper, func(row recordRow) error {
@@ -105,6 +113,9 @@ func (s *Source) walkResource(ctx context.Context, r resource, limit int, lower,
 }
 
 func (s *Source) listAppIDs(ctx context.Context, resourceName string) ([]string, error) {
+	if len(s.appIDs) > 0 {
+		return slices.Clone(s.appIDs), nil
+	}
 	var ids []string
 	nextPath := "/v1/apps?limit=200"
 	for nextPath != "" {
@@ -128,6 +139,9 @@ func (s *Source) listAppIDs(ctx context.Context, resourceName string) ([]string,
 
 func (s *Source) readApps(ctx context.Context, w arrowbatch.RowWriter, r resource, limit int) error {
 	nextPath := "/v1/apps?limit=200"
+	if len(s.appIDs) > 0 {
+		nextPath += "&filter[id]=" + url.QueryEscape(strings.Join(s.appIDs, ","))
+	}
 	emitted := 0
 	for nextPath != "" {
 		var page jsonAPIPage
@@ -138,6 +152,9 @@ func (s *Source) readApps(ctx context.Context, w arrowbatch.RowWriter, r resourc
 			s.client.observe(filament.SourceProgress{Kind: filament.SourceProgressPageFetched, Resource: r.name, Records: int64(len(page.Data)), URI: "/v1/apps"})
 		}
 		for _, item := range page.Data {
+			if len(s.appIDs) > 0 && !slices.Contains(s.appIDs, item.ID) {
+				continue
+			}
 			row := recordRow{
 				id:         item.ID,
 				attributes: item.Attributes,
@@ -339,11 +356,14 @@ func (s *Source) walkAnalyticsReports(ctx context.Context, r resource, limit int
 }
 
 func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lower, upper time.Time, visit func(recordRow) error) (bool, time.Time, error) {
-	startDay := upper.Truncate(24*time.Hour).AddDate(0, 0, -defaultSalesBackfillDays)
+	endDay := upper.UTC().Truncate(24 * time.Hour)
+	startDay := endDay.AddDate(0, 0, -defaultSalesBackfillDays)
+	if !s.startDate.IsZero() {
+		startDay = s.startDate.UTC().Truncate(24 * time.Hour)
+	}
 	if !lower.IsZero() && !lower.Equal(initialWatermark) {
 		startDay = lower.UTC().Truncate(24 * time.Hour)
 	}
-	endDay := upper.UTC().Truncate(24 * time.Hour)
 	emitted := 0
 	var earliestMissing time.Time
 	for day := startDay; day.Before(endDay); day = day.AddDate(0, 0, 1) {
@@ -363,10 +383,10 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 		if err != nil {
 			var api *apiError
 			if errors.As(err, &api) && api.Status == http.StatusNotFound {
-				if earliestMissing.IsZero() {
+				if earliestMissing.IsZero() && !day.Before(endDay.AddDate(0, 0, -salesRetryWindowDays)) {
 					earliestMissing = day
 				}
-				continue // Report not yet available for this date.
+				continue // Report not yet available or no sales for this date.
 			}
 			return false, earliestMissing, err
 		}
