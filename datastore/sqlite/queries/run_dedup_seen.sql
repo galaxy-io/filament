@@ -6,3 +6,8 @@ ON CONFLICT (tenant_id, run_id) DO UPDATE
   SET last_seq = excluded.last_seq, updated_at = excluded.updated_at
   WHERE run_dedup_seen.last_seq < excluded.last_seq
 RETURNING last_seq;
+
+-- name: GetDedupSeen :one
+-- Reads the (tenant, run) high-water mark without advancing it.
+SELECT last_seq FROM run_dedup_seen
+WHERE tenant_id = @tenant_id AND run_id = @run_id;
