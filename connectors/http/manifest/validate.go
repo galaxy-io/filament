@@ -373,20 +373,6 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
-		if r.Pagination.Type == "last_record" {
-			if r.Pagination.LastRecordField == "" {
-				_ = agg.Addf(path+".pagination.last_record_field", "is required")
-			}
-			if r.Pagination.InjectInto != "query" && r.Pagination.InjectInto != "body" && r.Pagination.InjectInto != "header" {
-				_ = agg.Addf(path+".pagination.inject_into", "last_record requires query, body, or header")
-			}
-			if r.Pagination.CursorParam == "" {
-				_ = agg.Addf(path+".pagination.cursor_param", "is required")
-			}
-			if r.Pagination.PageSize <= 0 {
-				_ = agg.Addf(path+".pagination.page_size", "must be greater than 0")
-			}
-		}
 		if r.Pagination.Strict && (r.Pagination.Type != "cursor" || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "") {
 			_ = agg.Addf(path+".pagination", "strict cursor pagination requires more and records paths")
 		}
@@ -648,7 +634,7 @@ func validateIncrementalInitial(spec IncrementalSpec) error {
 func paginationInjectionCollides(pagination PaginationSpec, incremental IncrementalSpec) bool {
 	target, param := "", ""
 	switch pagination.Type {
-	case "cursor", "last_record":
+	case "cursor":
 		target, param = pagination.InjectInto, pagination.CursorParam
 	case "offset":
 		if pagination.OffsetParam == incremental.StartParam {
