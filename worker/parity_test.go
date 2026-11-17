@@ -18,6 +18,7 @@ import (
 
 	// The root module's connectors, so the parity check covers real specs,
 	// aliases and every capability shape they declare.
+	_ "github.com/galaxy-io/filament/connectors/appstoreconnect"
 	_ "github.com/galaxy-io/filament/connectors/clickhouse"
 	_ "github.com/galaxy-io/filament/connectors/http"
 	_ "github.com/galaxy-io/filament/connectors/hubspot"

@@ -1,0 +1,33 @@
+---
+title: "App Store Connect source connector"
+sidebarTitle: "App Store Connect"
+description: "Full and incremental reads of Apple App Store Connect apps, customer reviews, analytics report segments, and daily sales reports with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-apple-dark.svg"
+---
+
+Connector ID `appstoreconnect`
+
+The App Store Connect source reads app catalog metadata, customer reviews,
+analytics report segments, and daily sales reports using Apple's ES256 JWT
+authentication and streaming gzipped TSV parser.
+
+## Configuration
+
+| Field | Scope | Description |
+|---|---|---|
+| `issuer_id` | Connection | Required. App Store Connect API Issuer ID (UUID). |
+| `key_id` | Connection | Required. 10-character App Store Connect Key ID. |
+| `private_key` | Connection | Required. Secret. PKCS#8 ECDSA P-256 private key (`.p8` PEM contents). |
+| `vendor_number` | Connection | Optional. Required only when extracting `sales_reports`. |
+
+## Resources
+
+Enabled by default: **apps, customer_reviews, and analytics_reports**.
+
+Optional resources: **sales_reports** (requires `vendor_number`).
+
+## Incremental
+
+`customer_reviews` checkpoints `created_at`, `analytics_reports` checkpoints
+`processing_date`, and `sales_reports` checkpoints `report_date`. `apps`
+is a full-refresh catalog resource.
