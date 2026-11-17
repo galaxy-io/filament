@@ -319,6 +319,9 @@ type ConnectorSpec struct {
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema
 	Resources      ResourceCapabilities
+	// WebhookVerifier names the webhook verifier that authenticates this
+	// source's deliveries. A source that sets it can own a webhook endpoint.
+	WebhookVerifier string
 }
 
 // ConfigSchema declares the fields a connector's Config accepts.
@@ -400,7 +403,7 @@ const (
 )
 
 // ResourceCapabilities advertises what a source can do per resource.
-type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns bool }
+type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns, WebhookEndpointBacked bool }
 
 // ExtractOpts scopes one extraction: which resources, how fast. Read behavior
 // per resource is carried by the checkpoint plan handed to ExtractFrom, not by

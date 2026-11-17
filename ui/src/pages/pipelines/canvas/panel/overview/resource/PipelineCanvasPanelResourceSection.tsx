@@ -14,6 +14,7 @@ import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
+import { isWebhookConnector } from "@/components/webhooks/utils";
 
 import { PIPELINE_CANVAS_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
@@ -82,6 +83,9 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
   );
 
   const canCreate = isContinuous && !isReadOnly && !!sourceNode && sinkNodes.length > 0;
+  const isWebhook = isWebhookConnector(
+    sourceNode ? connectionByNodeId.get(sourceNode.id)?.connector : undefined,
+  );
 
   const getCreateError = ({ resource, sinkId }: PipelineResourceCreateState) =>
     sourceNode &&
@@ -133,6 +137,7 @@ const PipelineCanvasPanelResourceSection: FC<PipelineCanvasPanelResourceSectionP
               }))}
               getError={getCreateError}
               onSave={handleCreate}
+              isWebhook={isWebhook}
               onCancel={() => setLocalState((prev) => ({ ...prev, isCreating: false }))}
             />
             {edges.length > 0 && <Divider />}

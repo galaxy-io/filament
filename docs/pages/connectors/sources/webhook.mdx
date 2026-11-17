@@ -1,0 +1,164 @@
+---
+title: "Webhook source connector"
+sidebarTitle: "Webhook"
+description: "Receive signed event envelopes through a durable JetStream inbox"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-webhook-dark.svg"
+---
+
+Connector ID `webhook`
+
+The webhook source accepts event deliveries over HTTP and consumes them in a
+continuous run. Each configured resource produces append-only rows. A webhook
+event does not update a snapshot table on its own.
+
+## Setup
+
+Enable [webhooks](/pages/guides/deployment/configuration#webhooks)
+on the server and use PostgreSQL for the shared datastore. Set
+`WEBHOOK_PUBLIC_BASE_URL` so the endpoint reports full delivery URLs.
+
+In the web UI, creating a webhook source generates its signing key. Filament
+shows the key once with the delivery URL. Copy it into the sender before you
+close the dialog. To replace the key, open the source and choose **Rotate** in
+its **Secrets** section. The new key is shown once and the previous key keeps
+verifying for 72 hours. A source without a key shows **Generate** there
+instead.
+
+Create a continuous pipeline that reads the source. On the **Select resources**
+step, add each resource by name with **Add resource**. Enter `issues`, not
+`/issues`. Filament builds the path `/hooks/<source-connection-id>/issues`.
+Creating the pipeline registers those resources on the endpoint and turns it
+on. Resources added later on the canvas are registered when the pipeline is
+saved, and saving it with none turns the endpoint off. The source has no
+separate switch. Run the pipeline to start receiving deliveries. Until it runs,
+senders get `503` and retry. The source's **Endpoints** section shows
+the endpoint status and copies the URL for each resource.
+
+For local development, run `just infra` followed by `just dev`. The dev recipe
+enables webhooks with a single-replica inbox and starts the worker,
+control plane, API, and UI. The UI runs at `http://localhost:5173` and the
+receiver listens on `http://localhost:8080`.
+
+## Endpoint API
+
+`PutWebhookEndpoint` configures the endpoint without the web UI. The endpoint
+lists resource names only. The pipeline decides where each resource is written.
+`DiscoverResources` lists the names already registered on a saved endpoint.
+
+The endpoint can be created disabled before the pipeline exists. To enable it,
+set `pipelineId` and `routeKey` to a persisted continuous route. The route does
+not need to be running. Once a run starts, `routeReady` reports whether the
+route reads every registered resource. Send the last returned `revision` as
+`expectedRevision` on every update. With `WEBHOOK_PUBLIC_BASE_URL` set, the
+endpoint returns `deliveryUrl`, the full URL without the resource.
+
+Supply `importedSecret` for a sender's signing key or set `mintSecret` to have
+Filament create one. A minted key appears only in that write response. Read
+operations return `hasSigningSecret` and never return the key. A rotation keeps
+the replaced key valid for 72 hours so senders can switch over.
+`previousKeyExpiresAt` reports when it stops verifying. Configuration changes
+reach every server replica within 15 seconds.
+
+## Sending deliveries
+
+Send a POST request to `/hooks/<source-connection-id>/<resource>` with the
+original body, an `X-Filament-Delivery-Id` header, an
+`X-Filament-Timestamp` header containing a Unix timestamp, and an
+`X-Filament-Signature` header. Sign the UTF-8 bytes of
+`<timestamp>.<delivery-id>.<raw-body>` with HMAC-SHA256 under the signing key.
+Send the signature as `sha256=` followed by lowercase hexadecimal.
+
+The receiver returns the configured success status only after the inbox
+confirms storage. The default is `202`. A repeated delivery ID with identical
+bytes returns its original receipt while retained.
+
+## Delivery lifecycle
+
+An enabled endpoint accepts deliveries for its registered resources while a
+pipeline that reads its source is running or paused. Pausing leaves deliveries
+waiting in the inbox. When every pipeline that reads the source is stopped, new
+deliveries get `503` with `Retry-After`, so senders keep them and retry. A
+stopped pipeline that starts again resumes from its certified position.
+Disabling the endpoint stops acceptance. New requests then return `404`, while
+authenticated retries of retained deliveries still resolve their original
+receipt.
+
+Deliveries carry no pipeline routing. The consuming run decides where each one
+goes. A new pipeline version reads every delivery its predecessor had not
+certified. A new stream generation, such as one created by changing the
+destination connection, starts with no certified position and reads every
+delivery still in the inbox. A delivery for a resource the stream does not
+select is skipped with a warning in the worker log and counts as processed.
+
+## Message columns
+
+With a PostgreSQL destination, set the sink's `schema_evolution` to `strict` or
+`nullable_add` to project JSON object members into Arrow and PostgreSQL
+columns. Filament discovers the layout from a complete accepted batch before
+writing any rows. Strings and booleans use native types. Numbers, arrays, and
+nested objects use JSON so their values retain their shape and precision. With
+`nullable_add`, later batches may add nullable fields. Incompatible changes
+block the consuming attempt for review.
+
+Every projected row also carries `delivery_id`, `provider_delivery_id`,
+`received_at`, `metadata`, `tenant_id`, `source_connection_id`, and Filament
+event identity columns. The pipeline adds its run audit columns. The original
+body remains in the JetStream inbox for the retention period. A non-object body
+uses a `payload` byte column.
+
+When schema evolution is disabled, the source keeps the original envelope
+layout with `delivery_id`, `provider_delivery_id`, `received_at`, `payload`,
+and `metadata`. In PostgreSQL, read the payload as JSON with
+`convert_from(payload, 'UTF8')::jsonb`. A stream that has already certified
+this layout needs a new stream generation before switching to projected message
+columns.
+
+## Batch settings
+
+The webhook source connection controls when the worker commits accepted
+deliveries. The first limit reached closes the batch.
+
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `batch_max_records` | `1000` | Commit after this many deliveries |
+| `batch_max_bytes` | `4194304` | Commit after this many raw payload bytes |
+| `batch_max_wait` | `1s` | Commit a partial batch this long after its first delivery |
+
+The receiver still responds as soon as JetStream stores a valid delivery.
+The worker then reads up to these limits, writes them in one sink transaction,
+and certifies the whole group. The certified position is the only record of
+progress. The worker keeps no consumer state in NATS. A larger batch improves
+throughput but delays visibility in the destination. The limits are saved on
+the source connection and apply to new continuous executions.
+
+The worker prefetches up to 512 deliveries ahead of the batch it is building.
+The prefetch holds at most 8 MiB, or two of the largest inbox messages when
+that is more.
+
+## Recovery and limits
+
+The receiver stores one immutable message per accepted delivery in the
+file-backed `WEBHOOK_INBOX` stream. The source commits destination writes and
+then certifies an epoch. A crash before certification may repeat destination
+effects. Configure the destination for idempotent event identities where
+duplicate effects matter.
+
+The control plane purges a delivery once it is older than the retention period
+and every stream that can resume reading its source has certified it. That
+includes running, paused and stopped streams. A delivery no stream has
+certified is kept for at most the hold period, 30 days by default. Past it the
+delivery is dropped, counted in `filament_webhook_expired_total`, and logged
+with its source. `filament_webhook_oldest_unreleased_seconds` reports how long
+the oldest waiting delivery has waited. Alert on it well before the hold
+period ends.
+
+A delivery for a deleted source, or for a source no stream can resume, is
+purged on age alone. Once a deleted source's deliveries are all purged, its
+endpoint record is removed too. A purged delivery no longer deduplicates, so
+set retention longer than any sender's retry horizon. Size the inbox for the
+retention period plus the longest expected backlog. A full inbox answers every
+delivery with `503`.
+
+Automatic resource creation from incoming requests, provider-specific signing
+profiles, bounded extraction, and webhooks in standalone mode are not
+available.

@@ -16,7 +16,7 @@ export const usePipelineCanvasConnections = () => {
     () => [...new Set(connectionNodes.map((node) => node.data.connectionId))],
     [connectionNodes],
   );
-  const connections = useGetConnectionQueries(connectionIds);
+  const { connections } = useGetConnectionQueries(connectionIds);
 
   return useMemo(() => {
     const connectionsById = new Map(connections.map((connection) => [connection.id, connection]));

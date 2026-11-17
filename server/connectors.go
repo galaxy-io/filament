@@ -197,6 +197,27 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 		if _, connector, err = connectorForSavedConnection(conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, connector); err != nil {
 			return nil, err
 		}
+		if a.webhooks != nil {
+			spec, err := a.worker.SourceSpec(ctx, connector)
+			if err != nil {
+				return nil, connectorError(err)
+			}
+			if spec.Resources.WebhookEndpointBacked {
+				endpoint, err := a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, id)
+				if errors.Is(err, filament.ErrNotFound) {
+					return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{}), nil
+				}
+				if err != nil {
+					return nil, connect.NewError(connect.CodeInternal, err)
+				}
+				names := slices.Sorted(slices.Values(endpoint.Resources))
+				resources := make([]*ingestionv1.Resource, 0, len(names))
+				for _, name := range names {
+					resources = append(resources, &ingestionv1.Resource{Name: name, IsSelectable: true})
+				}
+				return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{Resources: resources}), nil
+			}
+		}
 		if config, err = a.savedConnectionConfig(ctx, conn, ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, config); err != nil {
 			return nil, err
 		}

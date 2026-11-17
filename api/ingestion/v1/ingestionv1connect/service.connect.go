@@ -63,6 +63,12 @@ const (
 	// IngestionServiceDeleteConnectionProcedure is the fully-qualified name of the IngestionService's
 	// DeleteConnection RPC.
 	IngestionServiceDeleteConnectionProcedure = "/ingestion.v1.IngestionService/DeleteConnection"
+	// IngestionServiceGetWebhookEndpointProcedure is the fully-qualified name of the IngestionService's
+	// GetWebhookEndpoint RPC.
+	IngestionServiceGetWebhookEndpointProcedure = "/ingestion.v1.IngestionService/GetWebhookEndpoint"
+	// IngestionServicePutWebhookEndpointProcedure is the fully-qualified name of the IngestionService's
+	// PutWebhookEndpoint RPC.
+	IngestionServicePutWebhookEndpointProcedure = "/ingestion.v1.IngestionService/PutWebhookEndpoint"
 	// IngestionServiceValidatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// ValidatePipeline RPC.
 	IngestionServiceValidatePipelineProcedure = "/ingestion.v1.IngestionService/ValidatePipeline"
@@ -148,6 +154,9 @@ type IngestionServiceClient interface {
 	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
 	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
+	// Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+	GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error)
+	PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Transformations; the function catalog and per-resource compile check a builder needs.
@@ -252,6 +261,18 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceDeleteConnectionProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
+			connect.WithClientOptions(opts...),
+		),
+		getWebhookEndpoint: connect.NewClient[v1.GetWebhookEndpointRequest, v1.GetWebhookEndpointResponse](
+			httpClient,
+			baseURL+IngestionServiceGetWebhookEndpointProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetWebhookEndpoint")),
+			connect.WithClientOptions(opts...),
+		),
+		putWebhookEndpoint: connect.NewClient[v1.PutWebhookEndpointRequest, v1.PutWebhookEndpointResponse](
+			httpClient,
+			baseURL+IngestionServicePutWebhookEndpointProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("PutWebhookEndpoint")),
 			connect.WithClientOptions(opts...),
 		),
 		validatePipeline: connect.NewClient[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse](
@@ -407,6 +428,8 @@ type ingestionServiceClient struct {
 	getConnection          *connect.Client[v1.GetConnectionRequest, v1.GetConnectionResponse]
 	listConnections        *connect.Client[v1.ListConnectionsRequest, v1.ListConnectionsResponse]
 	deleteConnection       *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
+	getWebhookEndpoint     *connect.Client[v1.GetWebhookEndpointRequest, v1.GetWebhookEndpointResponse]
+	putWebhookEndpoint     *connect.Client[v1.PutWebhookEndpointRequest, v1.PutWebhookEndpointResponse]
 	validatePipeline       *connect.Client[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse]
 	listTransformFunctions *connect.Client[v1.ListTransformFunctionsRequest, v1.ListTransformFunctionsResponse]
 	validateTransform      *connect.Client[v1.ValidateTransformRequest, v1.ValidateTransformResponse]
@@ -480,6 +503,16 @@ func (c *ingestionServiceClient) ListConnections(ctx context.Context, req *conne
 // DeleteConnection calls ingestion.v1.IngestionService.DeleteConnection.
 func (c *ingestionServiceClient) DeleteConnection(ctx context.Context, req *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
 	return c.deleteConnection.CallUnary(ctx, req)
+}
+
+// GetWebhookEndpoint calls ingestion.v1.IngestionService.GetWebhookEndpoint.
+func (c *ingestionServiceClient) GetWebhookEndpoint(ctx context.Context, req *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error) {
+	return c.getWebhookEndpoint.CallUnary(ctx, req)
+}
+
+// PutWebhookEndpoint calls ingestion.v1.IngestionService.PutWebhookEndpoint.
+func (c *ingestionServiceClient) PutWebhookEndpoint(ctx context.Context, req *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error) {
+	return c.putWebhookEndpoint.CallUnary(ctx, req)
 }
 
 // ValidatePipeline calls ingestion.v1.IngestionService.ValidatePipeline.
@@ -612,6 +645,9 @@ type IngestionServiceHandler interface {
 	GetConnection(context.Context, *connect.Request[v1.GetConnectionRequest]) (*connect.Response[v1.GetConnectionResponse], error)
 	ListConnections(context.Context, *connect.Request[v1.ListConnectionsRequest]) (*connect.Response[v1.ListConnectionsResponse], error)
 	DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error)
+	// Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+	GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error)
+	PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Transformations; the function catalog and per-resource compile check a builder needs.
@@ -712,6 +748,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceDeleteConnectionProcedure,
 		svc.DeleteConnection,
 		connect.WithSchema(ingestionServiceMethods.ByName("DeleteConnection")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetWebhookEndpointHandler := connect.NewUnaryHandler(
+		IngestionServiceGetWebhookEndpointProcedure,
+		svc.GetWebhookEndpoint,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetWebhookEndpoint")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServicePutWebhookEndpointHandler := connect.NewUnaryHandler(
+		IngestionServicePutWebhookEndpointProcedure,
+		svc.PutWebhookEndpoint,
+		connect.WithSchema(ingestionServiceMethods.ByName("PutWebhookEndpoint")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceValidatePipelineHandler := connect.NewUnaryHandler(
@@ -874,6 +922,10 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceListConnectionsHandler.ServeHTTP(w, r)
 		case IngestionServiceDeleteConnectionProcedure:
 			ingestionServiceDeleteConnectionHandler.ServeHTTP(w, r)
+		case IngestionServiceGetWebhookEndpointProcedure:
+			ingestionServiceGetWebhookEndpointHandler.ServeHTTP(w, r)
+		case IngestionServicePutWebhookEndpointProcedure:
+			ingestionServicePutWebhookEndpointHandler.ServeHTTP(w, r)
 		case IngestionServiceValidatePipelineProcedure:
 			ingestionServiceValidatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceListTransformFunctionsProcedure:
@@ -967,6 +1019,14 @@ func (UnimplementedIngestionServiceHandler) ListConnections(context.Context, *co
 
 func (UnimplementedIngestionServiceHandler) DeleteConnection(context.Context, *connect.Request[v1.DeleteConnectionRequest]) (*connect.Response[v1.DeleteConnectionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.DeleteConnection is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetWebhookEndpoint is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.PutWebhookEndpoint is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {

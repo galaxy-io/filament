@@ -23,7 +23,28 @@ podLabels: {}
 # Provider credentials live in a separate Secret so workers never receive them.
 existingSecret: ""
 
+galaxy:
+  # -- Where each Galaxy product's UI is served, e.g. `alchemy: https://alchemy.example.com`
+  # (`GALAXY_<PRODUCT>_URL`). Products link to each other through these and send people back
+  # only to them. Set the same block on every product.
+  productUrls:
+    alchemy: ""
+    filament: ""
+
 server:
+  webhooks:
+    # -- Enable signed webhook ingestion on the server.
+    enabled: false
+    # -- Maximum concurrent webhook requests per server replica.
+    maxInFlight: 64
+    # -- Durable JetStream inbox capacity in bytes.
+    maxBytes: 1073741824
+    # -- Largest stored webhook message in bytes, including its envelope.
+    maxMessageBytes: 2097152
+    # -- JetStream replicas for the webhook inbox.
+    replicas: 1
+    # -- Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set.
+    publicBaseURL: ""
   # -- Minimum server log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
 
@@ -100,6 +121,11 @@ controlPlane:
 
   # -- Minimum control-plane log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
+
+  # -- Hours a webhook delivery stays in the inbox before it may be purged. Also the window in which a sender's retry is recognized as a duplicate. Applies when `server.webhooks.enabled` is true.
+  webhookRetentionHours: 168
+  # -- Most hours a webhook delivery no pipeline has read stays in the inbox. Past it the delivery is dropped. Must be at least `webhookRetentionHours`.
+  webhookMaxHoldHours: 720
 
   image:
     # -- Control plane image repository.
@@ -437,6 +463,9 @@ nats:
         pvc:
           # -- PVC size for the vendored NATS JetStream file store.
           size: 10Gi
+    merge:
+      # -- Largest NATS message in bytes. Must be at least `server.webhooks.maxMessageBytes`.
+      max_payload: 2097152
   container:
     # -- Merged into the vendored NATS container spec. Sets resources so the
     # pod is not BestEffort QoS (first evicted under node pressure); the
