@@ -3,6 +3,7 @@ import type { DraggableAttributes, DraggableSyntheticListeners } from "@dnd-kit/
 
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
+import type { AlchemyFunction } from "@/gen/ingestion/v1/alchemy_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import type { Resource, ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type {
@@ -54,6 +55,7 @@ export enum TransformStepKind {
   RENAME = "rename",
   DROP = "drop",
   COMPUTE = "compute",
+  ALCHEMY = "alchemy",
   RAW = "raw",
 }
 
@@ -76,16 +78,30 @@ export type TransformStep =
       outputs: TransformComputeOutput[];
       where: TransformExpr | null;
     }
+  | {
+      id: string;
+      kind: TransformStepKind.ALCHEMY;
+      function: AlchemyFunction["id"];
+      version: number;
+    }
   | { id: string; kind: TransformStepKind.RAW; json: JsonValue };
 
 export type TransformEditableStep = Exclude<TransformStep, { kind: TransformStepKind.RAW }>;
 export type TransformRenameStep = Extract<TransformStep, { kind: TransformStepKind.RENAME }>;
 export type TransformDropStep = Extract<TransformStep, { kind: TransformStepKind.DROP }>;
 export type TransformComputeStep = Extract<TransformStep, { kind: TransformStepKind.COMPUTE }>;
+export interface TransformAlchemyReturnMessage {
+  request: string;
+  functionId: string;
+  version: number;
+}
+
+export type TransformAlchemyStep = Extract<TransformStep, { kind: TransformStepKind.ALCHEMY }>;
 
 export enum TransformActionKind {
   RENAME = "rename",
   DROP = "drop",
+  ALCHEMY = "alchemy",
   COPY = "copy",
   LITERAL = "literal",
   FUNCTION = "function",
@@ -94,6 +110,7 @@ export enum TransformActionKind {
 export type TransformAction =
   | { kind: TransformActionKind.RENAME }
   | { kind: TransformActionKind.DROP }
+  | { kind: TransformActionKind.ALCHEMY }
   | { kind: TransformActionKind.COPY }
   | { kind: TransformActionKind.LITERAL; literalKind: TransformLiteralKind }
   | { kind: TransformActionKind.FUNCTION; fn: TransformFunction["name"] };
@@ -120,6 +137,7 @@ export interface PipelineTransformFieldsEnvironment {
 
 export interface PipelineTransformFieldsEditor {
   columns: ResourceColumn[];
+  arrowSchema: Uint8Array | undefined;
   types: Map<string, string>;
   errors: Map<string, string[]>;
   isDisabled: boolean;

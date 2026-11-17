@@ -14,6 +14,7 @@ import {
   formatTransformStep,
   TransformSummaryPartKind,
 } from "@/pages/pipelines/components/transform/grammar/format";
+import PipelineTransformFieldsAlchemyFunctionChip from "@/pages/pipelines/components/transform/PipelineTransformFieldsAlchemyFunctionChip";
 import { usePipelineTransformFieldsEnvironment } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
 import type { TransformStep } from "@/pages/pipelines/components/transform/types";
 
@@ -89,6 +90,15 @@ const PipelineTransformFieldsStepSummary: FC<PipelineTransformFieldsStepSummaryP
                 </ChipSlot>
               ),
             )
+            .with(TransformSummaryPartKind.FUNCTION, () => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional
+              <ChipSlot key={index} $isRemoved={false}>
+                <PipelineTransformFieldsAlchemyFunctionChip
+                  functionId={part.text}
+                  version={part.version ?? 0}
+                />
+              </ChipSlot>
+            ))
             .with(TransformSummaryPartKind.VALUE, () => (
               // biome-ignore lint/suspicious/noArrayIndexKey: parts are positional
               <Span key={index} variant={SpanVariant.PRIMARY} family={FontFamily.MONO}>
