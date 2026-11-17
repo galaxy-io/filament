@@ -6,7 +6,6 @@ package appstoreconnect
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
@@ -124,7 +123,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	}
 	defer c.http.CloseIdleConnections()
 	var page jsonAPIPage
-	if err := c.requestJSON(ctx, "apps", http.MethodGet, "/v1/apps?limit=1", &page); err != nil {
+	if err := c.requestJSON(ctx, "apps", "/v1/apps?limit=1", &page); err != nil {
 		return fmt.Errorf("appstoreconnect source: list apps: %w", err)
 	}
 	return nil

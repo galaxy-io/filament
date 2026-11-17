@@ -104,7 +104,7 @@ func TestClientRetriesRateLimitsAndServerErrors(t *testing.T) {
 	defer c.http.CloseIdleConnections()
 	c.baseURL, c.limiter = server.URL, rate.NewLimiter(rate.Inf, 1)
 	var out jsonAPIPage
-	if err := c.requestJSON(t.Context(), "apps", http.MethodGet, "/v1/apps", &out); err != nil {
+	if err := c.requestJSON(t.Context(), "apps", "/v1/apps", &out); err != nil {
 		t.Fatal(err)
 	}
 	if attempts != 3 {
@@ -127,7 +127,7 @@ func TestClientDoesNotRetryAccessErrorsOrExposeSensitiveDetail(t *testing.T) {
 	}
 	defer c.http.CloseIdleConnections()
 	c.baseURL = server.URL
-	err = c.requestJSON(t.Context(), "apps", http.MethodGet, "/v1/apps", &jsonAPIPage{})
+	err = c.requestJSON(t.Context(), "apps", "/v1/apps", &jsonAPIPage{})
 	var api *apiError
 	if !errors.As(err, &api) || api.Status != http.StatusForbidden || attempts != 1 {
 		t.Fatalf("attempts=%d error=%v", attempts, err)
@@ -152,7 +152,7 @@ func TestClientCancellationStopsRetryWait(t *testing.T) {
 	}
 	defer c.http.CloseIdleConnections()
 	c.baseURL = server.URL
-	if err := c.requestJSON(ctx, "apps", http.MethodGet, "/v1/apps", &jsonAPIPage{}); !errors.Is(err, context.Canceled) {
+	if err := c.requestJSON(ctx, "apps", "/v1/apps", &jsonAPIPage{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
 }

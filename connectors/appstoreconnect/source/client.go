@@ -150,8 +150,8 @@ func parseAPIError(status int, data []byte) *apiError {
 	return failure
 }
 
-func (c *client) requestJSON(ctx context.Context, resource, method, path string, output any) error {
-	data, err := c.requestBytes(ctx, resource, method, path, "application/json")
+func (c *client) requestJSON(ctx context.Context, resource, path string, output any) error {
+	data, err := c.requestBytes(ctx, resource, path, "application/json")
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (c *client) requestJSON(ctx context.Context, resource, method, path string,
 	return nil
 }
 
-func (c *client) requestBytes(ctx context.Context, resource, method, pathOrURL, accept string) ([]byte, error) {
+func (c *client) requestBytes(ctx context.Context, resource, pathOrURL, accept string) ([]byte, error) {
 	targetURL := pathOrURL
 	isExternal := strings.HasPrefix(pathOrURL, "http://") || strings.HasPrefix(pathOrURL, "https://")
 	if !isExternal {
@@ -171,7 +171,7 @@ func (c *client) requestBytes(ctx context.Context, resource, method, pathOrURL, 
 		if err := c.limiter.Wait(ctx); err != nil {
 			return nil, err
 		}
-		req, err := http.NewRequestWithContext(ctx, method, targetURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, http.NoBody)
 		if err != nil {
 			return nil, err
 		}

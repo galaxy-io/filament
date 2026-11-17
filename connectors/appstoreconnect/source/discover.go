@@ -20,7 +20,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		return filament.DiscoverResult{}, fmt.Errorf("appstoreconnect source: discover before configure")
 	}
 	var appsPage jsonAPIPage
-	appsErr := s.client.requestJSON(ctx, "apps", http.MethodGet, "/v1/apps?limit=1", &appsPage)
+	appsErr := s.client.requestJSON(ctx, "apps", "/v1/apps?limit=1", &appsPage)
 	if appsErr != nil && !unavailable(appsErr) {
 		return filament.DiscoverResult{}, fmt.Errorf("appstoreconnect source: discover apps: %w", appsErr)
 	}
@@ -50,7 +50,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 					"filter[reportType]":    {"SALES"},
 					"filter[vendorNumber]":  {s.vendorNumber},
 				}
-				_, err := s.client.requestBytes(ctx, r.name, http.MethodGet, "/v1/salesReports?"+q.Encode(), "application/a-gzip, application/json")
+				_, err := s.client.requestBytes(ctx, r.name, "/v1/salesReports?"+q.Encode(), "application/a-gzip, application/json")
 				var api *apiError
 				if err != nil && (!errors.As(err, &api) || api.Status != http.StatusNotFound) {
 					probeErr = err
@@ -59,7 +59,7 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 		case r.name == "analytics_reports" && len(appsPage.Data) > 0:
 			var reqPage jsonAPIPage
 			path := "/v1/apps/" + appsPage.Data[0].ID + "/analyticsReportRequests?limit=1"
-			probeErr = s.client.requestJSON(ctx, r.name, http.MethodGet, path, &reqPage)
+			probeErr = s.client.requestJSON(ctx, r.name, path, &reqPage)
 		}
 		if probeErr != nil {
 			if !unavailable(probeErr) {

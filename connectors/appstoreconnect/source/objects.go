@@ -120,7 +120,7 @@ func (s *Source) listAppIDs(ctx context.Context, resourceName string) ([]string,
 	nextPath := "/v1/apps?limit=200"
 	for nextPath != "" {
 		var page jsonAPIPage
-		if err := s.client.requestJSON(ctx, resourceName, http.MethodGet, nextPath, &page); err != nil {
+		if err := s.client.requestJSON(ctx, resourceName, nextPath, &page); err != nil {
 			return nil, err
 		}
 		for _, item := range page.Data {
@@ -145,7 +145,7 @@ func (s *Source) readApps(ctx context.Context, w arrowbatch.RowWriter, r resourc
 	emitted := 0
 	for nextPath != "" {
 		var page jsonAPIPage
-		if err := s.client.requestJSON(ctx, r.name, http.MethodGet, nextPath, &page); err != nil {
+		if err := s.client.requestJSON(ctx, r.name, nextPath, &page); err != nil {
 			return err
 		}
 		if s.client.observe != nil {
@@ -189,7 +189,7 @@ func (s *Source) walkCustomerReviews(ctx context.Context, r resource, limit int,
 				return false, err
 			}
 			var page jsonAPIPage
-			if err := s.client.requestJSON(ctx, r.name, http.MethodGet, nextPath, &page); err != nil {
+			if err := s.client.requestJSON(ctx, r.name, nextPath, &page); err != nil {
 				return false, err
 			}
 			if s.client.observe != nil {
@@ -252,97 +252,13 @@ func (s *Source) walkAnalyticsReports(ctx context.Context, r resource, limit int
 		reqPath := "/v1/apps/" + url.PathEscape(appID) + "/analyticsReportRequests?limit=200"
 		for reqPath != "" {
 			var reqPage jsonAPIPage
-			if err := s.client.requestJSON(ctx, r.name, http.MethodGet, reqPath, &reqPage); err != nil {
+			if err := s.client.requestJSON(ctx, r.name, reqPath, &reqPage); err != nil {
 				return false, err
 			}
 			for _, reqObj := range reqPage.Data {
-				repPath := "/v1/analyticsReportRequests/" + url.PathEscape(reqObj.ID) + "/reports?limit=200"
-				for repPath != "" {
-					var repPage jsonAPIPage
-					if err := s.client.requestJSON(ctx, r.name, http.MethodGet, repPath, &repPage); err != nil {
-						return false, err
-					}
-					for _, repObj := range repPage.Data {
-						var repAttrs struct {
-							Category string `json:"category"`
-							Name     string `json:"name"`
-						}
-						_ = json.Unmarshal(repObj.Attributes, &repAttrs)
-						instPath := "/v1/analyticsReports/" + url.PathEscape(repObj.ID) + "/instances?filter[granularity]=DAILY&limit=200"
-						for instPath != "" {
-							var instPage jsonAPIPage
-							if err := s.client.requestJSON(ctx, r.name, http.MethodGet, instPath, &instPage); err != nil {
-								return false, err
-							}
-							for _, instObj := range instPage.Data {
-								var instAttrs struct {
-									ProcessingDate string `json:"processingDate"`
-								}
-								_ = json.Unmarshal(instObj.Attributes, &instAttrs)
-								procDate, err := parseDateOrRFC3339(instAttrs.ProcessingDate)
-								if err != nil {
-									return false, fmt.Errorf("instance %s invalid processingDate %q: %w", instObj.ID, instAttrs.ProcessingDate, err)
-								}
-								if !procDate.Before(upper) || (!lower.IsZero() && procDate.Before(lower)) {
-									continue
-								}
-								segPath := "/v1/analyticsReportInstances/" + url.PathEscape(instObj.ID) + "/segments?limit=200"
-								for segPath != "" {
-									var segPage jsonAPIPage
-									if err := s.client.requestJSON(ctx, r.name, http.MethodGet, segPath, &segPage); err != nil {
-										return false, err
-									}
-									for _, segObj := range segPage.Data {
-										var segAttrs struct {
-											URL string `json:"url"`
-										}
-										_ = json.Unmarshal(segObj.Attributes, &segAttrs)
-										if segAttrs.URL == "" {
-											continue
-										}
-										rows, err := s.downloadGzipTSV(ctx, r.name, segAttrs.URL)
-										if err != nil {
-											return false, err
-										}
-										for idx, metricsMap := range rows {
-											rawMetrics, _ := json.Marshal(metricsMap)
-											rowID := fmt.Sprintf("%s:%s:%d", instObj.ID, segObj.ID, idx)
-											row := recordRow{
-												id:         rowID,
-												appID:      appID,
-												category:   repAttrs.Category,
-												name:       repAttrs.Name,
-												cursorTime: procDate,
-												attributes: rawMetrics,
-											}
-											if err := visit(row); err != nil {
-												return false, err
-											}
-											emitted++
-											if limit > 0 && emitted >= limit {
-												return false, nil
-											}
-										}
-									}
-									nextSeg, err := normalizeNextLink(segPage.Links.Next, segPath)
-									if err != nil {
-										return false, err
-									}
-									segPath = nextSeg
-								}
-							}
-							nextInst, err := normalizeNextLink(instPage.Links.Next, instPath)
-							if err != nil {
-								return false, err
-							}
-							instPath = nextInst
-						}
-					}
-					nextRep, err := normalizeNextLink(repPage.Links.Next, repPath)
-					if err != nil {
-						return false, err
-					}
-					repPath = nextRep
+				done, err := s.walkAnalyticsRequestReports(ctx, r.name, appID, reqObj.ID, limit, &emitted, lower, upper, visit)
+				if err != nil || !done {
+					return done, err
 				}
 			}
 			nextReq, err := normalizeNextLink(reqPage.Links.Next, reqPath)
@@ -351,6 +267,113 @@ func (s *Source) walkAnalyticsReports(ctx context.Context, r resource, limit int
 			}
 			reqPath = nextReq
 		}
+	}
+	return true, nil
+}
+
+func (s *Source) walkAnalyticsRequestReports(ctx context.Context, resName, appID, requestID string, limit int, emitted *int, lower, upper time.Time, visit func(recordRow) error) (bool, error) {
+	repPath := "/v1/analyticsReportRequests/" + url.PathEscape(requestID) + "/reports?limit=200"
+	for repPath != "" {
+		var repPage jsonAPIPage
+		if err := s.client.requestJSON(ctx, resName, repPath, &repPage); err != nil {
+			return false, err
+		}
+		for _, repObj := range repPage.Data {
+			var repAttrs struct {
+				Category string `json:"category"`
+				Name     string `json:"name"`
+			}
+			_ = json.Unmarshal(repObj.Attributes, &repAttrs)
+			done, err := s.walkAnalyticsReportInstances(ctx, resName, appID, repObj.ID, repAttrs.Category, repAttrs.Name, limit, emitted, lower, upper, visit)
+			if err != nil || !done {
+				return done, err
+			}
+		}
+		nextRep, err := normalizeNextLink(repPage.Links.Next, repPath)
+		if err != nil {
+			return false, err
+		}
+		repPath = nextRep
+	}
+	return true, nil
+}
+
+func (s *Source) walkAnalyticsReportInstances(ctx context.Context, resName, appID, reportID, category, name string, limit int, emitted *int, lower, upper time.Time, visit func(recordRow) error) (bool, error) {
+	instPath := "/v1/analyticsReports/" + url.PathEscape(reportID) + "/instances?filter[granularity]=DAILY&limit=200"
+	for instPath != "" {
+		var instPage jsonAPIPage
+		if err := s.client.requestJSON(ctx, resName, instPath, &instPage); err != nil {
+			return false, err
+		}
+		for _, instObj := range instPage.Data {
+			var instAttrs struct {
+				ProcessingDate string `json:"processingDate"`
+			}
+			_ = json.Unmarshal(instObj.Attributes, &instAttrs)
+			procDate, err := parseDateOrRFC3339(instAttrs.ProcessingDate)
+			if err != nil {
+				return false, fmt.Errorf("instance %s invalid processingDate %q: %w", instObj.ID, instAttrs.ProcessingDate, err)
+			}
+			if !procDate.Before(upper) || (!lower.IsZero() && procDate.Before(lower)) {
+				continue
+			}
+			done, err := s.walkAnalyticsInstanceSegments(ctx, resName, appID, instObj.ID, category, name, procDate, limit, emitted, visit)
+			if err != nil || !done {
+				return done, err
+			}
+		}
+		nextInst, err := normalizeNextLink(instPage.Links.Next, instPath)
+		if err != nil {
+			return false, err
+		}
+		instPath = nextInst
+	}
+	return true, nil
+}
+
+func (s *Source) walkAnalyticsInstanceSegments(ctx context.Context, resName, appID, instanceID, category, name string, procDate time.Time, limit int, emitted *int, visit func(recordRow) error) (bool, error) {
+	segPath := "/v1/analyticsReportInstances/" + url.PathEscape(instanceID) + "/segments?limit=200"
+	for segPath != "" {
+		var segPage jsonAPIPage
+		if err := s.client.requestJSON(ctx, resName, segPath, &segPage); err != nil {
+			return false, err
+		}
+		for _, segObj := range segPage.Data {
+			var segAttrs struct {
+				URL string `json:"url"`
+			}
+			_ = json.Unmarshal(segObj.Attributes, &segAttrs)
+			if segAttrs.URL == "" {
+				continue
+			}
+			rows, err := s.downloadGzipTSV(ctx, resName, segAttrs.URL)
+			if err != nil {
+				return false, err
+			}
+			for idx, metricsMap := range rows {
+				rawMetrics, _ := json.Marshal(metricsMap)
+				row := recordRow{
+					id:         fmt.Sprintf("%s:%s:%d", instanceID, segObj.ID, idx),
+					appID:      appID,
+					category:   category,
+					name:       name,
+					cursorTime: procDate,
+					attributes: rawMetrics,
+				}
+				if err := visit(row); err != nil {
+					return false, err
+				}
+				*emitted++
+				if limit > 0 && *emitted >= limit {
+					return false, nil
+				}
+			}
+		}
+		nextSeg, err := normalizeNextLink(segPage.Links.Next, segPath)
+		if err != nil {
+			return false, err
+		}
+		segPath = nextSeg
 	}
 	return true, nil
 }
@@ -414,7 +437,7 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 }
 
 func (s *Source) downloadGzipTSV(ctx context.Context, resourceName, pathOrURL string) ([]map[string]string, error) {
-	data, err := s.client.requestBytes(ctx, resourceName, http.MethodGet, pathOrURL, "application/a-gzip, application/json")
+	data, err := s.client.requestBytes(ctx, resourceName, pathOrURL, "application/a-gzip, application/json")
 	if err != nil {
 		return nil, err
 	}
