@@ -61,7 +61,7 @@ func (p *pagePaginator) Apply(req *http.Request, s State) (map[string]any, error
 	return nil, nil
 }
 
-func (p *pagePaginator) Next(_ *http.Response, body map[string]any, records []map[string]any) (State, error) {
+func (p *pagePaginator) Next(_ *http.Response, body map[string]any, recordCount int) (State, error) {
 	if p.hasMorePath != "" {
 		more, err := hasMore(body, p.hasMorePath)
 		if err != nil {
@@ -72,7 +72,7 @@ func (p *pagePaginator) Next(_ *http.Response, body map[string]any, records []ma
 		}
 		return State{Page: p.lastPage + 1}, nil
 	}
-	if recordCount := len(records); recordCount == 0 || recordCount < p.pageSize {
+	if recordCount == 0 || recordCount < p.pageSize {
 		return State{Done: true}, nil
 	}
 	if p.totalPagesPath != "" {

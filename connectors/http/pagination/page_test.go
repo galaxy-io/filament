@@ -29,11 +29,11 @@ func TestPageInjectionAndTermination(t *testing.T) {
 			} else if body != nil || req.URL.Query().Get("variables.page") != "2" || req.URL.Query().Get("variables.limit") != "50" || req.URL.Query().Get("keep") != "yes" {
 				t.Fatalf("body=%v query=%s", body, req.URL.RawQuery)
 			}
-			next, err := p.Next(nil, nil, make([]map[string]any, 50))
+			next, err := p.Next(nil, nil, 50)
 			if err != nil || next.Page != 3 {
 				t.Fatalf("next=%+v err=%v", next, err)
 			}
-			next, err = p.Next(nil, nil, make([]map[string]any, 49))
+			next, err = p.Next(nil, nil, 49)
 			if err != nil || !next.Done {
 				t.Fatalf("next=%+v err=%v", next, err)
 			}
@@ -49,7 +49,7 @@ func TestPageExplicitMoreOverridesShortPages(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "https://example.com", nil)
 	_, _ = p.Apply(req, State{Page: 3})
 	for _, count := range []int{0, 1, 50} {
-		next, err := p.Next(nil, map[string]any{"pagination": map[string]any{"more": true}}, make([]map[string]any, count))
+		next, err := p.Next(nil, map[string]any{"pagination": map[string]any{"more": true}}, count)
 		if err != nil || next.Page != 4 || next.Done {
 			t.Fatalf("count=%d next=%+v err=%v", count, next, err)
 		}
@@ -74,7 +74,7 @@ func TestExplicitContinuation(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				next, err := p.Next(nil, tc.body, make([]map[string]any, 50))
+				next, err := p.Next(nil, tc.body, 50)
 				if (err != nil) != tc.fail || next.Done != tc.done {
 					t.Fatalf("next=%+v err=%v; want done=%v fail=%v", next, err, tc.done, tc.fail)
 				}

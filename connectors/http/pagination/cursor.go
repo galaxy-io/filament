@@ -72,7 +72,7 @@ func (p *cursorPaginator) Apply(req *http.Request, s State) (map[string]any, err
 	return nil, nil
 }
 
-func (p *cursorPaginator) Next(_ *http.Response, body map[string]any, _ []map[string]any) (State, error) {
+func (p *cursorPaginator) Next(_ *http.Response, body map[string]any, _ int) (State, error) {
 	if p.hasMorePath != "" {
 		more, err := hasMore(body, p.hasMorePath)
 		if err != nil {
