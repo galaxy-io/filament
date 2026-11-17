@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha256"
 	"encoding/csv"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -413,11 +411,21 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 			}
 			return false, earliestMissing, err
 		}
-		for idx, metricsMap := range rows {
+		for _, metricsMap := range rows {
 			rawMetrics, _ := json.Marshal(metricsMap)
-			sum := sha256.Sum256(fmt.Appendf(nil, "%s:%d:%s", dateStr, idx, rawMetrics))
+			beginDate := metricsMap["Begin Date"]
+			if beginDate == "" {
+				beginDate = dateStr
+			}
+			compositeID := strings.Join([]string{
+				metricsMap["Provider"],
+				metricsMap["SKU"],
+				beginDate,
+				metricsMap["Country Code"],
+				metricsMap["Product Type Identifier"],
+			}, ":")
 			row := recordRow{
-				id:         hex.EncodeToString(sum[:16]),
+				id:         compositeID,
 				appID:      metricsMap["SKU"],
 				category:   metricsMap["Country Code"],
 				name:       metricsMap["Product Type Identifier"],

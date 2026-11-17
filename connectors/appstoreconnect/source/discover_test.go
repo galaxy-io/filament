@@ -74,3 +74,31 @@ func TestIncrementalRejectsUnsupportedResourcesAndCheckpoints(t *testing.T) {
 		t.Fatal("invalid cursor field accepted")
 	}
 }
+
+func TestPlanIncrementalResetsWatermarkWhenAppIDsChange(t *testing.T) {
+	s := New()
+	s.appIDs = []string{"app-1"}
+	savedTime := time.Date(2026, 11, 16, 10, 0, 0, 0, time.UTC)
+	cp1 := watermarkPlanWithApps("customer_reviews", savedTime, "app-1")
+
+	// Same app_ids preserves saved watermark.
+	plansSame, err := s.PlanIncremental(t.Context(), []string{"customer_reviews"}, map[string]filament.Checkpoint{"customer_reviews": cp1}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markSame, err := planWatermark("customer_reviews", plansSame["customer_reviews"])
+	if err != nil || !markSame.Equal(savedTime) {
+		t.Fatalf("expected preserved watermark %v, got %v (err=%v)", savedTime, markSame, err)
+	}
+
+	// Adding app-2 resets watermark to initialWatermark so app-2 is backfilled from the beginning.
+	s.appIDs = []string{"app-1", "app-2"}
+	plansChanged, err := s.PlanIncremental(t.Context(), []string{"customer_reviews"}, map[string]filament.Checkpoint{"customer_reviews": cp1}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	markChanged, err := planWatermark("customer_reviews", plansChanged["customer_reviews"])
+	if err != nil || !markChanged.Equal(initialWatermark) {
+		t.Fatalf("expected reset watermark %v on app_ids change, got %v (err=%v)", initialWatermark, markChanged, err)
+	}
+}

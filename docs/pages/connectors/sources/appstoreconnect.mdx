@@ -19,8 +19,8 @@ authentication and streaming gzipped TSV parser.
 | `key_id` | Connection | Required. 10-character App Store Connect Key ID. |
 | `private_key` | Connection | Required. Secret. PKCS#8 ECDSA P-256 private key (`.p8` PEM contents). |
 | `vendor_number` | Connection | Optional. Required only when extracting `sales_reports`. |
-| `app_ids` | Connection | Optional. Comma-separated App Store Connect app IDs filter. |
-| `start_date` | Connection | Optional. `YYYY-MM-DD` initial backfill start date for `sales_reports`. |
+| `app_ids` | Connection | Optional. Comma-separated App Store Connect app IDs filter. Applies to `apps`, `customer_reviews`, and `analytics_reports` only. `sales_reports` ignores this filter and returns rows for all apps under `vendor_number`. |
+| `start_date` | Connection | Optional. `YYYY-MM-DD` initial backfill start date for `sales_reports` (defaults to 30 days ago UTC through yesterday UTC). |
 | `requests_per_second` | Connection | Optional. Maximum API requests per second (default `2`). |
 
 ## Resources
@@ -33,4 +33,6 @@ Optional resources: **sales_reports** (requires `vendor_number`).
 
 `customer_reviews` checkpoints `created_at`, `analytics_reports` checkpoints
 `processing_date`, and `sales_reports` checkpoints `report_date`. `apps`
-is a full-refresh catalog resource.
+is a full-refresh catalog resource. Changing `app_ids` automatically resets the
+saved watermark for `customer_reviews` and `analytics_reports` so newly added
+apps are backfilled from the beginning.

@@ -35,7 +35,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			},
 			{
 				Name: "app_ids", Type: filament.FieldString, Required: false, Scope: filament.ScopeConnection,
-				Help: "Optional comma-separated App Store Connect app IDs to filter extraction",
+				Help: "Optional comma-separated App Store Connect app IDs to filter apps, customer_reviews, and analytics_reports. sales_reports ignores this setting.",
 			},
 			{
 				Name: "start_date", Type: filament.FieldString, Required: false, Scope: filament.ScopeConnection,

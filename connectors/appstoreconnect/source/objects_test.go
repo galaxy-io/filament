@@ -191,7 +191,7 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 	// 2. Verify customer_reviews and analytics_reports + URI query redaction.
 	prev := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
 	for _, resName := range []string{"customer_reviews", "analytics_reports"} {
-		plans, err := s.PlanIncremental(t.Context(), []string{resName}, map[string]filament.Checkpoint{resName: watermarkPlan(resName, prev)}, nil)
+		plans, err := s.PlanIncremental(t.Context(), []string{resName}, map[string]filament.Checkpoint{resName: watermarkPlanWithApps(resName, prev, "app-1")}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
