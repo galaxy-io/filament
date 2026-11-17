@@ -11,6 +11,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -792,7 +793,12 @@ func TestSlackEmbeddedManifestAndMessageFanOut(t *testing.T) {
 	var historyChannels []string
 	var replyScopes []string
 	var conversationTypes string
+	var mu sync.Mutex
 	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// The thread-reply fan-out runs parents concurrently, so the handler
+		// must not touch shared state without the lock.
+		mu.Lock()
+		defer mu.Unlock()
 		authorization = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
