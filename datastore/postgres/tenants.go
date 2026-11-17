@@ -85,3 +85,17 @@ func tenantFromRow(id, name string, created, updated *time.Time) Tenant {
 	}
 	return t
 }
+
+var _ filament.TenantDirectory = (*Store)(nil)
+
+// TenantExternalID returns the provider id a tenant was resolved from.
+func (s *Store) TenantExternalID(ctx context.Context, id filament.TenantID) (string, error) {
+	ext, err := s.q.TenantExternalID(ctx, string(id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", fmt.Errorf("tenant %q: %w", id, filament.ErrNotFound)
+	}
+	if err != nil {
+		return "", fmt.Errorf("datastore/postgres: tenant external id: %w", err)
+	}
+	return ext, nil
+}

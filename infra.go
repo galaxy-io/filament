@@ -316,6 +316,11 @@ var ErrRunOverlap = errors.New("run overlaps an active replication route")
 // schedule is eligible to be reclaimed.
 const ScheduleLeaseTTL = 5 * time.Minute
 
+// TenantDirectory maps a tenant id back to its identity provider's id; "" means no provider minted it.
+type TenantDirectory interface {
+	TenantExternalID(ctx context.Context, id TenantID) (string, error)
+}
+
 // ScheduleStore persists schedules and hands out due ones under a claim, so
 // concurrent schedulers never double-fire.
 type ScheduleStore interface {
