@@ -18,17 +18,18 @@ config:
     help: Trello API token generated from the authorize URL with scope read and expiration never. The token grants access to the whole account, so keep it secret.
 defaults:
   method: GET
-  # Trello authenticates with key and token query parameters on every request.
-  query:
-    key: "{{ config.api_key }}"
-    token: "{{ config.api_token }}"
   response:
     # Every list endpoint returns a root JSON array, so records are the body.
     records: $
     strict_records: true
 connection:
   base_url: https://api.trello.com/1
-  auth: {none: {}}
+  # Trello accepts the key and token in an Authorization header using its
+  # OAuth format, so credentials never appear in request URLs or logs.
+  auth:
+    header:
+      name: Authorization
+      value: OAuth oauth_consumer_key="{{ config.api_key }}", oauth_token="{{ config.api_token }}"
   headers: {Accept: application/json}
   timeout_seconds: 60
   rate_limit:
@@ -124,7 +125,9 @@ resources:
       board_id: parent.board_id
     query:
       # The default filter is visible, which hides archived cards, so pass all.
-      # Limit 1000 is the documented maximum per request.
+      # Limit 1000 is the documented maximum per request. Cards come back in
+      # board position order while before filters on creation date, so paging
+      # by the last card ID can skip cards; boards over 1000 cards stay capped.
       filter: all
       limit: "1000"
       fields: all
@@ -293,11 +296,17 @@ resources:
       board_id: parent.board_id
     query:
       # The default filter only returns comments and list moves, so pass all.
-      # Limit 1000 is the documented maximum per request.
+      # Limit 1000 is the documented maximum per request. Actions come back
+      # newest first, so before pages through the full history from the last
+      # action ID on each page until a short page.
       filter: all
       limit: "1000"
     for_each: boards
-    pagination: none
+    pagination:
+      last_record:
+        field: id
+        request: query.before
+        page_size: 1000
     primary_key: [id]
     fields:
       board_id: {path: parent.board_id, type: string}

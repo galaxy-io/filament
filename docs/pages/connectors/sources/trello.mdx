@@ -54,8 +54,9 @@ IDs are Trello ID strings. Cards carry their board and list IDs, and the IDs of 
 
 ### Coverage limits
 
-- **Cards over 1000 per board**. Trello returns at most 1000 cards per request and offers no page cursor for card lists, so a board with more than 1000 cards is capped at 1000 cards per read.
-- **Actions over 1000 per window**. An incremental window with more than 1000 new actions returns only 1000 rows, so very busy boards need frequent runs.
+- **Cards over 1000 per board**. Trello returns at most 1000 cards per request. Cards come back in board position order while the `before` parameter filters on creation date, so paging by the last card ID can skip cards. This connector reads the first 1000 cards per board and stops, so a board with more than 1000 cards is capped at 1000 cards per read. A full replace on such a board also drops the cards past the cap from the destination.
+- **Actions over 1000 per window**. Actions page through the full history with the `before` parameter, using the last action ID as the cursor until a short page, so no cap applies. Very busy boards need more requests, not more frequent runs.
+- **Labels over 1000 per board**. Labels request up to 1000 rows per call and are not paged. Boards rarely reach that many labels, but a board that does is capped at 1000 labels per read.
 - **Excluded action types**. Label changes, check item creates and deletes, comment edits and deletes, and member removals never appear in the actions feed. They still update the card `dateLastActivity`, so a full card refresh catches the changed card but not the event itself.
 - **Custom field items and attachments**. Each needs one request per card, so they are opt-in and not selected by default.
 - **Search and notifications**. Search is a relevance endpoint with no time cursor and stricter limits, so it is not included. Notifications are per-member read state, not board data.
@@ -65,12 +66,14 @@ IDs are Trello ID strings. Cards carry their board and list IDs, and the IDs of 
 
 All resources report their read mode in the connector settings. Use **full upsert** to refresh rows, or **full replace** to remove rows no longer returned.
 
-`actions` supports incremental reads on `date`. The first run reads from the start of time, and later runs ask Trello for actions created since the last stored watermark, with a five minute overlap so actions created while a run is in flight are not missed. The watermark is sent as an RFC3339 timestamp. Incremental reads do not detect deleted actions. Run a periodic full replace of `actions` to remove them.
+`actions` supports incremental reads on `date`. The first run reads from the start of time, and later runs ask Trello for actions created since the last stored watermark, with a five minute overlap so actions created while a run is in flight are not missed. The watermark is sent as an RFC3339 timestamp. Incremental reads do not detect deleted actions. Run a periodic full replace of `actions` to remove them. Full reads page through the complete action history, so a full replace drops nothing that still exists in Trello.
+
+Board actions share one watermark across boards. A board added after the first sync only gets actions from its first run onward, so its earlier actions are never backfilled. If a run is paused before every board is read, the shared watermark can advance past actions on the unread boards, and the resume does not re-read them.
 
 ## Behavior
 
-- **Auth**. Every request sends the API key and token as query parameters. Authentication and permission errors fail the read.
-- **Pagination**. Trello returns list results as one array per request with no next-page token. Cards, labels, and actions request up to 1000 rows per call. Other lists return their full array in one request.
+- **Auth**. Every request sends the API key and token in an `Authorization` header using Trello's OAuth format. Credentials never appear in request URLs, so they cannot leak into logs through error messages. Authentication and permission errors fail the read.
+- **Pagination**. Trello returns list results as one array per request with no next-page token. Actions page with the `before` parameter from the last action ID until a short page. Cards and labels request up to 1000 rows per call. Other lists return their full array in one request.
 - **Fields**. List and card endpoints return full objects. Nested objects stay JSON columns.
 - **Archived items**. Cards and lists pass `filter=all`, so archived cards and closed lists are included.
 - **Comments**. Comments are board actions of type `commentCard`, so they arrive in `actions` with the comment text in the `data` column. There is no separate comments resource.
