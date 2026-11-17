@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/alchemy"
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/api/metrics/v1/metricsv1connect"
@@ -34,6 +35,7 @@ type Server struct {
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
 	identity  identity.Authenticator
+	alchemy   *alchemy.Client
 	// defaultTenant scopes every request when identity is disabled.
 	defaultTenant filament.TenantID
 	log           filament.Logger

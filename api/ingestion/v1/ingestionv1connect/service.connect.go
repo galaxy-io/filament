@@ -78,6 +78,12 @@ const (
 	// IngestionServiceValidateTransformProcedure is the fully-qualified name of the IngestionService's
 	// ValidateTransform RPC.
 	IngestionServiceValidateTransformProcedure = "/ingestion.v1.IngestionService/ValidateTransform"
+	// IngestionServiceListAlchemyFunctionsProcedure is the fully-qualified name of the
+	// IngestionService's ListAlchemyFunctions RPC.
+	IngestionServiceListAlchemyFunctionsProcedure = "/ingestion.v1.IngestionService/ListAlchemyFunctions"
+	// IngestionServiceGetAlchemyFunctionProcedure is the fully-qualified name of the IngestionService's
+	// GetAlchemyFunction RPC.
+	IngestionServiceGetAlchemyFunctionProcedure = "/ingestion.v1.IngestionService/GetAlchemyFunction"
 	// IngestionServiceCreatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// CreatePipeline RPC.
 	IngestionServiceCreatePipelineProcedure = "/ingestion.v1.IngestionService/CreatePipeline"
@@ -162,6 +168,8 @@ type IngestionServiceClient interface {
 	// Transformations; the function catalog and per-resource compile check a builder needs.
 	ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error)
 	ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error)
+	ListAlchemyFunctions(context.Context, *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error)
+	GetAlchemyFunction(context.Context, *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -291,6 +299,18 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceValidateTransformProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("ValidateTransform")),
+			connect.WithClientOptions(opts...),
+		),
+		listAlchemyFunctions: connect.NewClient[v1.ListAlchemyFunctionsRequest, v1.ListAlchemyFunctionsResponse](
+			httpClient,
+			baseURL+IngestionServiceListAlchemyFunctionsProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ListAlchemyFunctions")),
+			connect.WithClientOptions(opts...),
+		),
+		getAlchemyFunction: connect.NewClient[v1.GetAlchemyFunctionRequest, v1.GetAlchemyFunctionResponse](
+			httpClient,
+			baseURL+IngestionServiceGetAlchemyFunctionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetAlchemyFunction")),
 			connect.WithClientOptions(opts...),
 		),
 		createPipeline: connect.NewClient[v1.CreatePipelineRequest, v1.CreatePipelineResponse](
@@ -433,6 +453,8 @@ type ingestionServiceClient struct {
 	validatePipeline       *connect.Client[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse]
 	listTransformFunctions *connect.Client[v1.ListTransformFunctionsRequest, v1.ListTransformFunctionsResponse]
 	validateTransform      *connect.Client[v1.ValidateTransformRequest, v1.ValidateTransformResponse]
+	listAlchemyFunctions   *connect.Client[v1.ListAlchemyFunctionsRequest, v1.ListAlchemyFunctionsResponse]
+	getAlchemyFunction     *connect.Client[v1.GetAlchemyFunctionRequest, v1.GetAlchemyFunctionResponse]
 	createPipeline         *connect.Client[v1.CreatePipelineRequest, v1.CreatePipelineResponse]
 	createPipelineVersion  *connect.Client[v1.CreatePipelineVersionRequest, v1.CreatePipelineVersionResponse]
 	updatePipeline         *connect.Client[v1.UpdatePipelineRequest, v1.UpdatePipelineResponse]
@@ -528,6 +550,16 @@ func (c *ingestionServiceClient) ListTransformFunctions(ctx context.Context, req
 // ValidateTransform calls ingestion.v1.IngestionService.ValidateTransform.
 func (c *ingestionServiceClient) ValidateTransform(ctx context.Context, req *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error) {
 	return c.validateTransform.CallUnary(ctx, req)
+}
+
+// ListAlchemyFunctions calls ingestion.v1.IngestionService.ListAlchemyFunctions.
+func (c *ingestionServiceClient) ListAlchemyFunctions(ctx context.Context, req *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error) {
+	return c.listAlchemyFunctions.CallUnary(ctx, req)
+}
+
+// GetAlchemyFunction calls ingestion.v1.IngestionService.GetAlchemyFunction.
+func (c *ingestionServiceClient) GetAlchemyFunction(ctx context.Context, req *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error) {
+	return c.getAlchemyFunction.CallUnary(ctx, req)
 }
 
 // CreatePipeline calls ingestion.v1.IngestionService.CreatePipeline.
@@ -653,6 +685,8 @@ type IngestionServiceHandler interface {
 	// Transformations; the function catalog and per-resource compile check a builder needs.
 	ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error)
 	ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error)
+	ListAlchemyFunctions(context.Context, *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error)
+	GetAlchemyFunction(context.Context, *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -778,6 +812,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceValidateTransformProcedure,
 		svc.ValidateTransform,
 		connect.WithSchema(ingestionServiceMethods.ByName("ValidateTransform")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceListAlchemyFunctionsHandler := connect.NewUnaryHandler(
+		IngestionServiceListAlchemyFunctionsProcedure,
+		svc.ListAlchemyFunctions,
+		connect.WithSchema(ingestionServiceMethods.ByName("ListAlchemyFunctions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetAlchemyFunctionHandler := connect.NewUnaryHandler(
+		IngestionServiceGetAlchemyFunctionProcedure,
+		svc.GetAlchemyFunction,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetAlchemyFunction")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceCreatePipelineHandler := connect.NewUnaryHandler(
@@ -932,6 +978,10 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceListTransformFunctionsHandler.ServeHTTP(w, r)
 		case IngestionServiceValidateTransformProcedure:
 			ingestionServiceValidateTransformHandler.ServeHTTP(w, r)
+		case IngestionServiceListAlchemyFunctionsProcedure:
+			ingestionServiceListAlchemyFunctionsHandler.ServeHTTP(w, r)
+		case IngestionServiceGetAlchemyFunctionProcedure:
+			ingestionServiceGetAlchemyFunctionHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineProcedure:
 			ingestionServiceCreatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineVersionProcedure:
@@ -1039,6 +1089,14 @@ func (UnimplementedIngestionServiceHandler) ListTransformFunctions(context.Conte
 
 func (UnimplementedIngestionServiceHandler) ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ValidateTransform is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ListAlchemyFunctions(context.Context, *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListAlchemyFunctions is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetAlchemyFunction(context.Context, *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetAlchemyFunction is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error) {
