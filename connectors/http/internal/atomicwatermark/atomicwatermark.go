@@ -10,6 +10,7 @@ package atomicwatermark
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"sync/atomic"
 
@@ -107,12 +108,21 @@ func (Lex) Less(a, b string) (bool, error) { return a < b, nil }
 // Name returns "lex".
 func (Lex) Name() string { return "lex" }
 
-// Numeric parses both sides as float64 and compares numerically. Returns
-// ErrPathType-wrapped errors on parse failure (no silent lex fallback).
+// Numeric compares both sides numerically. Integer-shaped values compare
+// exactly; anything else parses as float64. Returns ErrPathType-wrapped
+// errors on parse failure (no silent lex fallback).
 type Numeric struct{}
 
 // Less reports whether a is numerically less than b.
 func (Numeric) Less(a, b string) (bool, error) {
+	// Integer-shaped values compare exactly. Ids past 2^53 (snowflake ids,
+	// epoch nanoseconds) have neighbours float64 cannot tell apart, and a
+	// float compare would call them equal and stall the watermark.
+	if ai, ok := integerValue(a); ok {
+		if bi, ok := integerValue(b); ok {
+			return ai.Cmp(bi) < 0, nil
+		}
+	}
 	af, err := strconv.ParseFloat(a, 64)
 	if err != nil {
 		return false, fmt.Errorf("%w: numeric watermark: %q is not a number", errs.ErrPathType, a)
@@ -122,6 +132,13 @@ func (Numeric) Less(a, b string) (bool, error) {
 		return false, fmt.Errorf("%w: numeric watermark: %q is not a number", errs.ErrPathType, b)
 	}
 	return af < bf, nil
+}
+
+// integerValue parses s as an exact integer when it is integer-shaped (an
+// optional sign and digits only). Decimals and exponents report false so the
+// caller falls back to the float comparison.
+func integerValue(s string) (*big.Int, bool) {
+	return new(big.Int).SetString(s, 10)
 }
 
 // Name returns "numeric".
