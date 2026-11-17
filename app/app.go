@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/alchemy"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
@@ -44,6 +45,7 @@ import (
 	"github.com/galaxy-io/filament/internal/modules/tracker"
 	"github.com/galaxy-io/filament/internal/modules/webhookretention"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/server"
@@ -66,6 +68,9 @@ type Config struct {
 	Log     filament.Logger
 
 	notifierEnabled  bool
+	alchemy          *alchemy.Client
+	functions        runner.Functions
+	functionBatch    pipeline.FunctionBatch
 	webhookInbox     *inbox.Inbox
 	webhookBaseURL   string
 	webhookSlots     int
@@ -93,6 +98,16 @@ func WithSinks(s filament.SinkRegistry) Option { return func(c *Config) { c.Sink
 
 // WithSecrets sets the secrets provider used to resolve secret refs (default: none).
 func WithSecrets(s filament.Secrets) Option { return func(c *Config) { c.Secrets = s } }
+
+// WithAlchemy enables alchemy transform steps; a nil client leaves them disabled.
+func WithAlchemy(client *alchemy.Client, batch pipeline.FunctionBatch) Option {
+	return func(c *Config) {
+		if client == nil {
+			return
+		}
+		c.alchemy, c.functions, c.functionBatch = client, client, batch
+	}
+}
 
 // WithNotifier enables webhook delivery using the configured datastore and secrets.
 func WithNotifier() Option { return func(c *Config) { c.notifierEnabled = true } }
@@ -188,13 +203,16 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 			MaxBody: cfg.webhookInbox.MaxBody(), Invalidate: cache.Invalidate, PublicBaseURL: cfg.webhookBaseURL,
 		}))
 	}
+	if cfg.alchemy != nil {
+		apiOptions = append(apiOptions, server.WithAlchemy(cfg.alchemy))
+	}
 	api := server.New(w, cfg.Store, orch, cfg.Bus, apiOptions...)
 	scheduleStore, ok := cfg.Store.(filament.ScheduleStore)
 	if !ok {
 		return nil, nil, nil, fmt.Errorf("datastore %q does not support schedules", cfg.Store.Name())
 	}
 	sched := scheduler.New(scheduleStore)
-	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Worker: w, Log: cfg.Log}
+	deps := module.Deps{Bus: cfg.Bus, DataStore: cfg.Store, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Worker: w, Log: cfg.Log, Functions: cfg.functions, FunctionBatch: cfg.functionBatch}
 	modules := []module.Module{tracker.New(), engine.New(), orch, sched}
 	if cfg.notifierEnabled {
 		modules = append(modules, notifier.New())
@@ -207,7 +225,7 @@ func compose(ctx context.Context, cfg Config) (mux *http.ServeMux, mounted []str
 		return nil, nil, nil, fmt.Errorf("mount: %w", err)
 	}
 	streamStore, _ := cfg.Store.(filament.ContinuousRunStore)
-	streams := streamsupervisor.New(runner.Deps{Bus: cfg.Bus, DataStore: cfg.Store, StreamStore: streamStore, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log}, nil)
+	streams := streamsupervisor.New(runner.Deps{Bus: cfg.Bus, DataStore: cfg.Store, StreamStore: streamStore, Secrets: cfg.Secrets, Sources: cfg.Sources, Sinks: cfg.Sinks, Log: cfg.Log, Functions: cfg.functions, FunctionBatch: cfg.functionBatch}, nil)
 	h := host.New(cfg.Bus)
 	ctx, cancel := context.WithCancel(ctx)
 	cleanup = func() {

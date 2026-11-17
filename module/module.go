@@ -10,6 +10,8 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
+	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/runner"
 )
 
 // Module is an ingestion behavior — scheduler, orchestrator, engine, tracker,
@@ -40,6 +42,10 @@ type Deps struct {
 	Log     filament.Logger
 	Metrics filament.Metrics
 	Tracer  filament.Tracer
+
+	// Functions and FunctionBatch back alchemy transform steps; nil Functions fails runs that use one.
+	Functions     runner.Functions
+	FunctionBatch pipeline.FunctionBatch
 }
 
 // MountAll injects d into each module and returns them as host.Runnables ready

@@ -38,6 +38,20 @@ data:
   REAPER_STALE_AFTER_SECONDS: {{ . | quote }}
   {{- end }}
 
+  # Alchemy
+  {{- with .Values.alchemy.serverUrl | default .Values.galaxy.productUrls.alchemy }}
+  GALAXY_ALCHEMY_SERVER_URL: {{ . | quote }}
+  {{- if $.Values.auth.enabled }}
+  AUTH_PROVIDER: {{ $.Values.auth.type | quote }}
+  {{- end }}
+  {{- with $.Values.alchemy.batchMaxBytes }}
+  ALCHEMY_BATCH_MAX_BYTES: {{ . | quote }}
+  {{- end }}
+  {{- with $.Values.alchemy.maxInFlight }}
+  ALCHEMY_MAX_IN_FLIGHT: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+
   # Observability
   LOG_LEVEL: {{ .Values.controlPlane.logLevel | quote }}
   {{- with .Values.observability.otel.endpoint }}

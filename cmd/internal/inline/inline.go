@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/cmd/internal/alchemy"
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
@@ -44,12 +45,16 @@ func Run(ctx context.Context, sources filament.SourceRegistry, sinks filament.Si
 	defer func() { _ = subscription.Close() }()
 	store := sqlite.NewMemory()
 	defer func() { _ = store.Close() }()
+	alc, err := alchemy.FromEnv(store)
+	if err != nil {
+		return err
+	}
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	done := make(chan error, 1)
 	go func() {
-		done <- runner.RunOne(runCtx, runner.Deps{Bus: bus, DataStore: store, Sources: sources, Sinks: sinks}, spec)
+		done <- runner.RunOne(runCtx, runner.Deps{Bus: bus, DataStore: store, Sources: sources, Sinks: sinks, Functions: alc.Functions, FunctionBatch: alc.FunctionBatch}, spec)
 	}()
 	go signals(runCtx, bus, spec, lines)
 

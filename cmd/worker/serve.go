@@ -133,6 +133,7 @@ func startExecutor(parent context.Context, sources filament.SourceRegistry, sink
 	streams := streamsupervisor.New(runner.Deps{
 		Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets,
 		Sources: sources, Sinks: sinks, Log: deps.Log, Tracer: deps.Tracer,
+		Functions: deps.Alchemy.Functions, FunctionBatch: deps.Alchemy.FunctionBatch,
 	}, nil)
 	streams.Start(ctx)
 	checks := []health.Check{deps.Store.Ping, func(ctx context.Context) error {

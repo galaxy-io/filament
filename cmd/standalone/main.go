@@ -15,6 +15,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
+	"github.com/galaxy-io/filament/cmd/internal/alchemy"
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/cmd/internal/inline"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
@@ -60,6 +62,12 @@ func main() {
 	}
 }
 
+// standalonePaths is where the embedded NATS and the SQLite store keep their data, from NATS_STORE_DIR and STORE_PATH.
+func standalonePaths() (dir, storePath string) {
+	dir = cmp.Or(os.Getenv("NATS_STORE_DIR"), filepath.Join(os.TempDir(), "filament-standalone"))
+	return dir, cmp.Or(os.Getenv("STORE_PATH"), filepath.Join(dir, "filament.db"))
+}
+
 func run(ctx context.Context) error {
 	config, err := standaloneConfigFromEnv()
 	if err != nil {
@@ -77,14 +85,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	dir := os.Getenv("NATS_STORE_DIR")
-	if dir == "" {
-		dir = filepath.Join(os.TempDir(), "filament-standalone")
-	}
-	storePath := os.Getenv("STORE_PATH")
-	if storePath == "" {
-		storePath = filepath.Join(dir, "filament.db")
-	}
+	dir, storePath := standalonePaths()
 	unlock, err := lockStore(storePath)
 	if err != nil {
 		return err
@@ -143,8 +144,13 @@ func run(ctx context.Context) error {
 		return err
 	}
 
+	alc, err := alchemy.FromEnv(store)
+	if err != nil {
+		return err
+	}
 	options := []app.Option{
 		app.WithNotifier(),
+		app.WithAlchemy(alc.Client, alc.FunctionBatch),
 		app.WithBus(bus),
 		app.WithSources(runtimeSources),
 		app.WithSinks(sinks),
