@@ -10,9 +10,9 @@ import (
 	functionsv1 "github.com/galaxy-io/alchemy/api/functions/v1"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/alchemy"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/identity"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/transform"
 )
 

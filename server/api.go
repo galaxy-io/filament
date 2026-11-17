@@ -7,12 +7,12 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/galaxy-io/filament"
-	"github.com/galaxy-io/filament/alchemy"
 	"github.com/galaxy-io/filament/api/auth/v1/authv1connect"
 	"github.com/galaxy-io/filament/api/ingestion/v1/ingestionv1connect"
 	"github.com/galaxy-io/filament/api/metrics/v1/metricsv1connect"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/identity"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/webhooks"
 )
