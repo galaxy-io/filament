@@ -98,8 +98,8 @@ func loadSinkSchemas(ctx context.Context, src filament.Source, snk filament.Sink
 	return out, nil
 }
 
-// resolveContracts fetches, once per run, the contracts the run's resources reference.
-func resolveContracts(ctx context.Context, fns Functions, def *transform.Definition, resources []string) (transform.Contracts, error) {
+// resolveContracts fetches, once per run, the contracts the run's resources reference, failing on the first that cannot run.
+func resolveContracts(ctx context.Context, tenant filament.TenantID, fns transform.FunctionService, def *transform.Definition, resources []string) (transform.Contracts, error) {
 	refs := def.Functions(resources...)
 	if len(refs) == 0 {
 		return nil, nil
@@ -107,9 +107,11 @@ func resolveContracts(ctx context.Context, fns Functions, def *transform.Definit
 	if fns == nil {
 		return nil, errors.New("the transform calls alchemy functions, but alchemy is not configured on this worker")
 	}
-	resolved := fns.Resolve(ctx, refs)
-	if err := resolved.Err(); err != nil {
-		return nil, err
+	contracts := fns.Resolve(ctx, tenant, refs)
+	for _, ref := range refs {
+		if _, err := contracts.Contract(ref); err != nil {
+			return nil, err
+		}
 	}
-	return resolved, nil
+	return contracts, nil
 }

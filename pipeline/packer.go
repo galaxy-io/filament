@@ -178,7 +178,7 @@ func (p *Pipeline) runPack(ctx context.Context, j *packJob) {
 		p.setErr(fmt.Errorf("transform %s seq %d: pack: %w", first.Resource, first.Seq, err))
 		return
 	}
-	rows, err = p.applyInChunks(ctx, j.plan, in, packBytes(j.items))
+	rows, err = j.plan.Apply(ctx, p.alloc, in)
 	in.Release()
 	in = nil
 	if err != nil {
@@ -208,45 +208,12 @@ func (p *Pipeline) runPack(ctx context.Context, j *packJob) {
 	j.out = out
 }
 
-// applyInChunks applies plan over in, in row ranges small enough that no single alchemy call exceeds the byte budget.
-func (p *Pipeline) applyInChunks(ctx context.Context, plan *transform.Plan, in arrow.RecordBatch, bytes int64) (arrow.RecordBatch, error) {
-	total := in.NumRows()
-	if bytes <= p.batchMaxBytes || total <= 1 {
-		return plan.Apply(ctx, p.alloc, in)
-	}
-	step := max(total*p.batchMaxBytes/bytes, 1)
-	var parts []arrow.RecordBatch
-	defer func() {
-		for _, part := range parts {
-			part.Release()
-		}
-	}()
-	for lo := int64(0); lo < total; lo += step {
-		slice := in.NewSlice(lo, min(lo+step, total))
-		part, err := plan.Apply(ctx, p.alloc, slice)
-		slice.Release()
-		if err != nil {
-			return nil, err
-		}
-		parts = append(parts, part)
-	}
-	return p.concatRecords(parts)
-}
-
 func batchRows(items []queuedBatch) []arrow.RecordBatch {
 	recs := make([]arrow.RecordBatch, len(items))
 	for i, item := range items {
 		recs[i] = item.batch.Rows()
 	}
 	return recs
-}
-
-func packBytes(items []queuedBatch) int64 {
-	var n int64
-	for _, item := range items {
-		n += item.batch.Bytes()
-	}
-	return n
 }
 
 // concatRecords joins records column by column into a new record; a single record is retained, not copied.

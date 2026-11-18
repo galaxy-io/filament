@@ -13,7 +13,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -25,15 +24,19 @@ var (
 	nField = arrow.NewSchema([]arrow.Field{{Name: "id", Type: arrow.PrimitiveTypes.Int64}, {Name: "n", Type: arrow.BinaryTypes.String, Nullable: true}}, nil)
 )
 
-// functionsFunc adapts a function over the input record to Functions.
-type functionsFunc func(in arrow.RecordBatch) (alchemy.Result, error)
+// functionsFunc adapts a function over the input record to a FunctionService.
+type functionsFunc func(in arrow.RecordBatch) (transform.Result, error)
 
-func (f functionsFunc) Invoke(_ context.Context, _ alchemy.Request, in arrow.RecordBatch) (alchemy.Result, error) {
+func (f functionsFunc) Resolve(context.Context, filament.TenantID, []transform.FunctionRef) transform.Contracts {
+	return transform.ContractMap{}
+}
+
+func (f functionsFunc) Invoke(_ context.Context, _ filament.TenantID, _ transform.Call, in arrow.RecordBatch) (transform.Result, error) {
 	return f(in)
 }
 
 // xNames echoes the input's ids with every n set to X.
-func xNames(in arrow.RecordBatch) alchemy.Result {
+func xNames(in arrow.RecordBatch) transform.Result {
 	b := array.NewStringBuilder(memory.DefaultAllocator)
 	defer b.Release()
 	for range in.NumRows() {
@@ -41,7 +44,7 @@ func xNames(in arrow.RecordBatch) alchemy.Result {
 	}
 	col := b.NewArray()
 	defer col.Release()
-	return alchemy.Result{Record: array.NewRecordBatch(nField, []arrow.Array{in.Column(0), col}, in.NumRows())}
+	return transform.Result{Record: array.NewRecordBatch(nField, []arrow.Array{in.Column(0), col}, in.NumRows())}
 }
 
 // idSink records the ids and n values of every batch it writes, in order.
@@ -79,7 +82,7 @@ func userRowsN(n int) []row {
 	return rows
 }
 
-func runPacked(t *testing.T, sink filament.Sink, fns Functions, cfg Config, rows []row) error {
+func runPacked(t *testing.T, sink filament.Sink, fns transform.FunctionService, cfg Config, rows []row) error {
 	t.Helper()
 	cfg.Tenant, cfg.Run, cfg.Sink = "t1", "r1", sink
 	cfg.WritePolicies = defaultWritePolicies(rows)
@@ -104,7 +107,7 @@ func runPacked(t *testing.T, sink filament.Sink, fns Functions, cfg Config, rows
 func TestPackerPacksSmallBatchesIntoOneCall(t *testing.T) {
 	var calls []int64
 	sink := &idSink{}
-	fns := functionsFunc(func(in arrow.RecordBatch) (alchemy.Result, error) {
+	fns := functionsFunc(func(in arrow.RecordBatch) (transform.Result, error) {
 		calls = append(calls, in.NumRows())
 		return xNames(in), nil
 	})
@@ -128,10 +131,10 @@ func TestPackerPacksSmallBatchesIntoOneCall(t *testing.T) {
 func TestPackerFailureWritesNothingAtOrAfterIt(t *testing.T) {
 	boom := errors.New("function failed after retries")
 	sink := &idSink{}
-	fns := functionsFunc(func(in arrow.RecordBatch) (alchemy.Result, error) {
+	fns := functionsFunc(func(in arrow.RecordBatch) (transform.Result, error) {
 		for _, id := range in.Column(0).(*array.Int64).Int64Values() {
 			if id == 5 {
-				return alchemy.Result{}, boom
+				return transform.Result{}, boom
 			}
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -153,7 +156,7 @@ func TestPackerFailureWritesNothingAtOrAfterIt(t *testing.T) {
 func TestPackerReleasesEverything(t *testing.T) {
 	mem := memory.NewCheckedAllocator(memory.NewGoAllocator())
 	defer mem.AssertSize(t, 0)
-	fns := functionsFunc(func(in arrow.RecordBatch) (alchemy.Result, error) { return xNames(in), nil })
+	fns := functionsFunc(func(in arrow.RecordBatch) (transform.Result, error) { return xNames(in), nil })
 	if err := runPacked(t, &idSink{}, fns, Config{Allocator: mem}, userRowsN(9)); err != nil {
 		t.Fatal(err)
 	}

@@ -13,13 +13,13 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/pipeline"
-	"github.com/galaxy-io/filament/runner"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // Config is what a binary needs for alchemy steps; Functions is nil, not a nil client, when disabled.
 type Config struct {
 	Client        *alchemy.Client
-	Functions     runner.Functions
+	Functions     transform.FunctionService
 	FunctionBatch pipeline.FunctionBatch
 }
 

@@ -18,7 +18,6 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
-	"github.com/galaxy-io/filament/integrations/alchemy"
 	oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
 	"github.com/galaxy-io/filament/pipeline"
 	"github.com/galaxy-io/filament/transform"
@@ -41,14 +40,8 @@ type Deps struct {
 	Log         filament.Logger
 	Tracer      filament.Tracer
 	// Functions backs alchemy steps; nil fails runs that use one.
-	Functions     Functions
+	Functions     transform.FunctionService
 	FunctionBatch pipeline.FunctionBatch
-}
-
-// Functions resolves and invokes alchemy functions; *alchemy.Client satisfies it.
-type Functions interface {
-	pipeline.Functions
-	Resolve(ctx context.Context, refs []transform.FunctionRef) *alchemy.Resolved
 }
 
 // SpecFromState builds the RunSpec to execute from a persisted run state.
@@ -254,7 +247,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
 			return nil
 		}
-		if contracts, err = resolveContracts(alchemy.WithTenant(extractCtx, spec.Tenant), deps.Functions, transformDef, spec.Resources); err != nil {
+		if contracts, err = resolveContracts(extractCtx, spec.Tenant, deps.Functions, transformDef, spec.Resources); err != nil {
 			abortSink(ctx, deps, snk)
 			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
 			return nil

@@ -49,6 +49,7 @@ import (
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/runner"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/transform"
 	"github.com/galaxy-io/filament/version"
 	"github.com/galaxy-io/filament/webhooks"
 	"github.com/galaxy-io/filament/webhooks/inbox"
@@ -69,7 +70,7 @@ type Config struct {
 
 	notifierEnabled  bool
 	alchemy          *alchemy.Client
-	functions        runner.Functions
+	functions        transform.FunctionService
 	functionBatch    pipeline.FunctionBatch
 	webhookInbox     *inbox.Inbox
 	webhookBaseURL   string

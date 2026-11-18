@@ -65,7 +65,7 @@ type Config struct {
 	Transform *transform.Definition
 	// Contracts and Functions back alchemy steps.
 	Contracts     transform.Contracts
-	Functions     Functions
+	Functions     transform.FunctionService
 	FunctionBatch FunctionBatch
 }
 
@@ -112,7 +112,7 @@ type Pipeline struct {
 	audit         *AuditConfig
 	transform     *transform.Definition
 	contracts     transform.Contracts
-	functions     Functions
+	functions     transform.FunctionService
 	batchMaxBytes int64
 	maxInFlight   int
 
@@ -219,7 +219,7 @@ func (p *Pipeline) Start(ctx context.Context) {
 		p.doneCh.Do(func() { close(p.done) })
 	}()
 	go p.ticker(ctx)
-	if p.transform != nil && len(p.transform.Functions()) > 0 {
+	if p.contracts != nil {
 		p.twg.Add(1)
 		go p.packer(ctx)
 	} else {
