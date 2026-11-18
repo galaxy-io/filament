@@ -3,10 +3,10 @@ package alchemy
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	mrand "math/rand/v2"
 	"net/http"
 	"sync"
 	"time"
@@ -29,6 +29,10 @@ const (
 	lookupTimeout = 30 * time.Second
 	// DefaultMaxPayloadBytes matches alchemy's default input and output cap.
 	DefaultMaxPayloadBytes = 64 << 20
+	// maxAttempts bounds sends of one input when alchemy is briefly unreachable.
+	maxAttempts = 4
+	// retryBase is the first retry's upper delay, doubling each attempt.
+	retryBase = 250 * time.Millisecond
 )
 
 // Config configures a Client; only URL is required, and Credentials need Tenants.
@@ -84,40 +88,29 @@ func New(cfg Config) (*Client, error) {
 	}, nil
 }
 
-// Functions exposes the raw service for catalog calls.
+var _ transform.FunctionService = (*Client)(nil)
+
+// Functions exposes the raw service for catalog calls, scoped with WithTenant.
 func (c *Client) Functions() functionsv1connect.FunctionsServiceClient { return c.fns }
 
-// Resolved is the outcome of resolving a set of refs, keeping why each unusable one cannot run.
-type Resolved struct {
-	refs      []transform.FunctionRef
+// resolved is the outcome of resolving a set of refs, keeping why each unusable one cannot run.
+type resolved struct {
 	contracts transform.ContractMap
 	errs      map[transform.FunctionRef]error
 }
 
-var _ transform.Contracts = (*Resolved)(nil)
-
 // Contract returns ref's contract or the reason it cannot run.
-func (r *Resolved) Contract(ref transform.FunctionRef) (transform.Contract, error) {
+func (r *resolved) Contract(ref transform.FunctionRef) (transform.Contract, error) {
 	if err, ok := r.errs[ref]; ok {
 		return transform.Contract{}, fmt.Errorf("function %s: %w", ref, err)
 	}
 	return r.contracts.Contract(ref)
 }
 
-// Err is the first ref, in request order, that cannot run.
-func (r *Resolved) Err() error {
-	for _, ref := range r.refs {
-		if _, ok := r.errs[ref]; ok {
-			_, err := r.Contract(ref)
-			return err
-		}
-	}
-	return nil
-}
-
-// Resolve fetches each ref's contract, recording per ref why one is missing, not ready, or not Arrow.
-func (c *Client) Resolve(ctx context.Context, refs []transform.FunctionRef) *Resolved {
-	r := &Resolved{refs: refs, contracts: make(transform.ContractMap, len(refs)), errs: map[transform.FunctionRef]error{}}
+// Resolve fetches each ref's contract as tenant, recording per ref why one is missing, not ready, or not Arrow.
+func (c *Client) Resolve(ctx context.Context, tenant filament.TenantID, refs []transform.FunctionRef) transform.Contracts {
+	ctx = WithTenant(ctx, tenant)
+	r := &resolved{contracts: make(transform.ContractMap, len(refs)), errs: map[transform.FunctionRef]error{}}
 	var (
 		mu sync.Mutex
 		wg sync.WaitGroup
@@ -171,69 +164,119 @@ func (c *Client) contract(ctx context.Context, ref transform.FunctionRef) (trans
 	return transform.Contract{Input: in, Output: outSchema}, nil
 }
 
-// Request is one invocation; Scope namespaces its idempotency key, which also covers the input bytes.
-type Request struct {
-	Function transform.FunctionRef
-	Scope    string
+// Invoke runs call.Function over in as tenant, splitting an input over the payload cap across calls.
+func (c *Client) Invoke(ctx context.Context, tenant filament.TenantID, call transform.Call, in arrow.RecordBatch) (transform.Result, error) {
+	ctx, cancel := context.WithTimeout(WithTenant(ctx, tenant), c.timeout)
+	defer cancel()
+	var res transform.Result
+	rec, err := c.invokeSized(ctx, call.Function, in, &res.Invocations)
+	if err != nil {
+		return transform.Result{}, err
+	}
+	res.Record = rec
+	return res, nil
 }
 
-// Result is a function's output and alchemy's record of the call; the caller releases Record.
-type Result struct {
-	Record       arrow.RecordBatch
-	InvocationID string
-	Attempts     int32
-	Replayed     bool
-}
-
-// FunctionError is a function that ran and failed.
-type FunctionError struct {
-	InvocationID string
-	Kind         functionsv1.FunctionErrorKind
-	Message      string
-}
-
-func (e *FunctionError) Error() string {
-	return fmt.Sprintf("function failed (%s, invocation %s): %s", e.Kind, e.InvocationID, e.Message)
-}
-
-// Invoke runs req.Function over in. A retried call with the same scope and input replays the first result.
-func (c *Client) Invoke(ctx context.Context, req Request, in arrow.RecordBatch) (Result, error) {
+// invokeSized sends in whole when it fits the cap, or halves it by rows until each part does.
+func (c *Client) invokeSized(ctx context.Context, ref transform.FunctionRef, in arrow.RecordBatch, invs *[]transform.Invocation) (arrow.RecordBatch, error) {
 	input, err := encodeBatch(in)
 	if err != nil {
-		return Result{}, fmt.Errorf("encode input: %w", err)
+		return nil, fmt.Errorf("encode input: %w", err)
 	}
-	if len(input) > c.maxPayload {
-		return Result{}, fmt.Errorf("input is %d bytes, over the %d byte limit", len(input), c.maxPayload)
+	if len(input) <= c.maxPayload {
+		inv, rec, err := c.invokeOnce(ctx, ref, input, in.NumRows())
+		if err != nil {
+			return nil, err
+		}
+		*invs = append(*invs, inv)
+		return rec, nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	resp, err := c.fns.Invoke(ctx, connect.NewRequest(&functionsv1.InvokeRequest{
-		FunctionId:     req.Function.ID,
-		Version:        req.Function.Version,
-		Input:          input,
-		IdempotencyKey: idempotencyKey(req, input),
-	}))
-	if err != nil {
-		return Result{}, err
+	n := in.NumRows()
+	if n <= 1 {
+		return nil, fmt.Errorf("one row is %d bytes, over the %d byte limit", len(input), c.maxPayload)
+	}
+	var parts []arrow.RecordBatch
+	defer func() {
+		for _, part := range parts {
+			part.Release()
+		}
+	}()
+	for _, bounds := range [][2]int64{{0, n / 2}, {n / 2, n}} {
+		half := in.NewSlice(bounds[0], bounds[1])
+		out, err := c.invokeSized(ctx, ref, half, invs)
+		half.Release()
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, out)
+	}
+	return concatBatches(c.mem, parts)
+}
+
+// invokeOnce sends one input, retrying transient failures under one idempotency key so a retry replays, never reruns.
+func (c *Client) invokeOnce(ctx context.Context, ref transform.FunctionRef, input []byte, rows int64) (transform.Invocation, arrow.RecordBatch, error) {
+	started := time.Now()
+	key := rand.Text()
+	var resp *connect.Response[functionsv1.InvokeResponse]
+	for attempt := 1; ; attempt++ {
+		var err error
+		resp, err = c.fns.Invoke(ctx, connect.NewRequest(&functionsv1.InvokeRequest{
+			FunctionId:     ref.ID,
+			Version:        ref.Version,
+			Input:          input,
+			IdempotencyKey: key,
+		}))
+		if err == nil {
+			break
+		}
+		if attempt == maxAttempts || !retryable(err) {
+			return transform.Invocation{}, nil, err
+		}
+		if waitErr := backoff(ctx, attempt); waitErr != nil {
+			return transform.Invocation{}, nil, err
+		}
 	}
 	msg := resp.Msg
 	if fe := msg.GetError(); fe != nil {
-		return Result{}, &FunctionError{InvocationID: msg.GetInvocationId(), Kind: fe.GetKind(), Message: fe.GetMessage()}
+		return transform.Invocation{}, nil, &transform.FunctionError{InvocationID: msg.GetInvocationId(), Kind: fe.GetKind().String(), Message: fe.GetMessage()}
 	}
-	if msg.GetVersion() != req.Function.Version {
-		return Result{}, fmt.Errorf("alchemy ran version %d, want %d", msg.GetVersion(), req.Function.Version)
+	if msg.GetVersion() != ref.Version {
+		return transform.Invocation{}, nil, fmt.Errorf("alchemy ran version %d, want %d", msg.GetVersion(), ref.Version)
 	}
 	rec, err := decodeBatch(msg.GetOutput(), c.mem)
 	if err != nil {
-		return Result{}, fmt.Errorf("decode output of invocation %s: %w", msg.GetInvocationId(), err)
+		return transform.Invocation{}, nil, fmt.Errorf("decode output of invocation %s: %w", msg.GetInvocationId(), err)
 	}
-	return Result{Record: rec, InvocationID: msg.GetInvocationId(), Attempts: msg.GetAttempts(), Replayed: msg.GetReplayed()}, nil
+	if rec.NumRows() != rows {
+		rec.Release()
+		return transform.Invocation{}, nil, fmt.Errorf("invocation %s returned %d rows, want %d", msg.GetInvocationId(), rec.NumRows(), rows)
+	}
+	return transform.Invocation{
+		ID:       msg.GetInvocationId(),
+		Records:  rows,
+		Attempts: msg.GetAttempts(),
+		Replayed: msg.GetReplayed(),
+		Duration: time.Since(started),
+	}, rec, nil
 }
 
-// idempotencyKey hashes the scope, function and input so only an identical retry replays.
-func idempotencyKey(req Request, input []byte) string {
-	h := sha256.New()
-	_, _ = fmt.Fprintf(h, "%s\x00%s\x00%d\x00", req.Scope, req.Function.ID, req.Function.Version)
-	h.Write(input)
-	return hex.EncodeToString(h.Sum(nil))
+// retryable reports a failure that never reached the function or that alchemy asks to retry.
+func retryable(err error) bool {
+	switch connect.CodeOf(err) {
+	case connect.CodeUnavailable, connect.CodeResourceExhausted, connect.CodeAborted:
+		return true
+	}
+	return false
+}
+
+// backoff waits a jittered, doubling delay before the next attempt.
+func backoff(ctx context.Context, attempt int) error {
+	t := time.NewTimer(mrand.N(retryBase << attempt)) //nolint:gosec // jitter, not a secret
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }

@@ -5,11 +5,13 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
-	"github.com/apache/arrow-go/v18/arrow/memory"
+	"github.com/apache/arrow-go/v18/arrow/compute"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/rowmodel"
 )
@@ -54,6 +56,40 @@ type Call struct {
 // Invoker runs a function over a batch and returns a row-aligned batch the caller owns.
 type Invoker interface {
 	Invoke(ctx context.Context, call Call, in arrow.RecordBatch) (arrow.RecordBatch, error)
+}
+
+// FunctionService is the service alchemy steps resolve and run on, acting as one tenant.
+type FunctionService interface {
+	// Resolve fetches refs' contracts; Contract reports why a ref cannot run.
+	Resolve(ctx context.Context, tenant filament.TenantID, refs []FunctionRef) Contracts
+	// Invoke runs call over in; the caller releases Result.Record.
+	Invoke(ctx context.Context, tenant filament.TenantID, call Call, in arrow.RecordBatch) (Result, error)
+}
+
+// Result is a function's row-aligned output and every remote call that produced it.
+type Result struct {
+	Record      arrow.RecordBatch
+	Invocations []Invocation
+}
+
+// Invocation is one remote call; an input over the payload cap is split across several.
+type Invocation struct {
+	ID       string
+	Records  int64
+	Attempts int32
+	Replayed bool
+	Duration time.Duration
+}
+
+// FunctionError is a function that ran and failed.
+type FunctionError struct {
+	InvocationID string
+	Kind         string
+	Message      string
+}
+
+func (e *FunctionError) Error() string {
+	return fmt.Sprintf("function failed (%s, invocation %s): %s", e.Kind, e.InvocationID, e.Message)
 }
 
 // Option configures Compile and Analyze.
@@ -186,7 +222,13 @@ func (c *compiler) alchemyOutput(path string, schema *arrow.Schema) (*arrow.Sche
 			}
 			rf = c.layout.Fields[i]
 		case found:
-			if prev := c.layout.Fields[i]; rf.Native == "" && rf.Logical == prev.Logical {
+			prev := c.layout.Fields[i]
+			switch {
+			case arrowbatch.LogicalOf(f) == rowmodel.LogicalUnknown && arrow.TypeEqual(arrowbatch.Type(prev), f.Type):
+				// An untagged column stored like its input keeps the input's json, uuid or decimal type.
+				rf = prev
+				rf.Nullable = f.Nullable
+			case rf.Native == "" && rf.Logical == prev.Logical:
 				rf.Native = prev.Native
 			}
 		}
@@ -220,7 +262,7 @@ type alchemyOp struct {
 
 func (o alchemyOp) apply(ctx context.Context, f *frame) error {
 	if f.rows == 0 {
-		o.empty(f)
+		o.empty(ctx, f)
 		return nil
 	}
 	if o.invoker == nil {
@@ -261,7 +303,7 @@ func (o alchemyOp) apply(ctx context.Context, f *frame) error {
 }
 
 // empty gives a zero-row frame the function's output columns without calling it.
-func (o alchemyOp) empty(f *frame) {
+func (o alchemyOp) empty(ctx context.Context, f *frame) {
 	next := make([]arrow.Array, len(o.outIdx))
 	for i, idx := range o.outIdx {
 		if o.outKeys[i] {
@@ -269,7 +311,7 @@ func (o alchemyOp) empty(f *frame) {
 			next[i].Retain()
 			continue
 		}
-		next[i] = array.MakeArrayOfNull(memory.DefaultAllocator, o.out.Field(i).Type, 0)
+		next[i] = array.MakeArrayOfNull(compute.GetAllocator(ctx), o.out.Field(i).Type, 0)
 	}
 	f.release()
 	f.cols = next
