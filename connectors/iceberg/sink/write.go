@@ -170,13 +170,18 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 
 // mergeOnRead reports whether the table asks for merge-on-read: write.merge.mode
 // governs upsert and merge, write.delete.mode pure deletes. Iceberg defaults
-// both to copy-on-write.
+// both to copy-on-write. Format v1 tables cannot hold delete files, and a
+// partitioned delete must land in the partition of the row it shadows, which an
+// update may have moved, so both fall back to copy-on-write.
 func mergeOnRead(tbl *table.Table, mode writeMode) bool {
 	key := writeMergeModeKey
 	if mode == writeModeDelete {
 		key = table.WriteDeleteModeKey
 	}
-	return tbl.Properties().Get(key, table.WriteModeCopyOnWrite) == table.WriteModeMergeOnRead
+	if tbl.Properties().Get(key, table.WriteModeCopyOnWrite) != table.WriteModeMergeOnRead {
+		return false
+	}
+	return tbl.Metadata().Version() >= 2 && tbl.Spec().IsUnpartitioned()
 }
 
 // equalityDeleteSchema resolves the key columns to field IDs and the Arrow

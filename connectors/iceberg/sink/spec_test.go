@@ -29,6 +29,13 @@ func TestEpochBoundaryFollowsCommitInterval(t *testing.T) {
 			t.Fatalf("%v: boundary = %+v", tc.cfg, got)
 		}
 	}
+	got, err := s.EpochBoundary(filament.NewConfig(map[string]any{"stage_buffer_limit_mb": 64}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MaxBytes != 64<<20 {
+		t.Fatalf("MaxBytes = %d, want stage_buffer_limit_mb", got.MaxBytes)
+	}
 	for _, bad := range []any{"0s", "-1m", "soon"} {
 		if _, err := s.EpochBoundary(filament.NewConfig(map[string]any{"commit_interval": bad})); err == nil {
 			t.Fatalf("commit_interval %q accepted", bad)

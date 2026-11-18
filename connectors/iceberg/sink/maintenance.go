@@ -2,6 +2,7 @@ package iceberg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -40,25 +41,20 @@ const (
 	minSnapshotsToKeepDefault = 1
 )
 
-// maintainCommitted runs due maintenance on each table committed by the stage.
-// Failures are logged and never fail the commit, which is already durable.
-func (s *Sink) maintainCommitted(ctx context.Context, st *stage) {
-	if !s.maintenance {
-		return
+// maintainIfDue runs due maintenance as the sink opens a table, so a previous
+// epoch is already certified and acknowledged before any rewrite starts.
+// Failures are logged and leave the table usable.
+func (s *Sink) maintainIfDue(ctx context.Context, resource string, tbl *table.Table) *table.Table {
+	if !s.maintenance || !maintenanceDue(tbl, time.Now()) {
+		return tbl
 	}
-	for resource := range st.committed {
-		s.mu.Lock()
-		it := s.tables[resource]
-		s.mu.Unlock()
-		if it == nil || !maintenanceDue(it.tbl, time.Now()) {
-			continue
-		}
-		if err := maintain(ctx, it); err != nil {
-			slog.WarnContext(ctx, "Iceberg table maintenance failed", "component", "iceberg", "event.name", "iceberg.maintenance.failed", "run_id", s.run, "resource", resource, "error", err)
-			continue
-		}
-		slog.InfoContext(ctx, "Iceberg table maintenance completed", "component", "iceberg", "event.name", "iceberg.maintenance.completed", "run_id", s.run, "resource", resource)
+	tbl, err := maintain(ctx, tbl)
+	if err != nil {
+		slog.WarnContext(ctx, "Iceberg table maintenance failed", "component", "iceberg", "event.name", "iceberg.maintenance.failed", "run_id", s.run, "resource", resource, "error", err)
+		return tbl
 	}
+	slog.InfoContext(ctx, "Iceberg table maintenance completed", "component", "iceberg", "event.name", "iceberg.maintenance.completed", "run_id", s.run, "resource", resource)
+	return tbl
 }
 
 // maintenanceDue reports whether the sink created the table and enough commits
@@ -83,8 +79,10 @@ func maintenanceDue(tbl *table.Table, now time.Time) bool {
 }
 
 // maintain compacts, then merges manifests, then expires snapshots, each as its
-// own commit. The table handle follows every step that lands.
-func maintain(ctx context.Context, it *iceTable) error {
+// own commit. A failed step does not skip the rest. The run is stamped either
+// way, so a step that keeps failing retries on the maintenance cadence instead
+// of on every open. The returned handle follows every step that lands.
+func maintain(ctx context.Context, tbl *table.Table) (*table.Table, error) {
 	steps := []struct {
 		name string
 		run  func(context.Context, *table.Table) (*table.Table, error)
@@ -92,16 +90,18 @@ func maintain(ctx context.Context, it *iceTable) error {
 		{"compact data files", compactDataFiles},
 		{"rewrite manifests", rewriteManifests},
 		{"expire snapshots", expireSnapshots},
+		{"stamp maintenance", stampMaintained},
 	}
+	var errs []error
 	for _, step := range steps {
-		tbl, err := step.run(ctx, it.tbl)
+		next, err := step.run(ctx, tbl)
 		if err != nil {
-			return fmt.Errorf("%s: %w", step.name, err)
+			errs = append(errs, fmt.Errorf("%s: %w", step.name, err))
+			continue
 		}
-		it.tbl = tbl
-		it.schema = tbl.Schema()
+		tbl = next
 	}
-	return nil
+	return tbl, errors.Join(errs...)
 }
 
 // compactDataFiles bin-packs small data files toward the table's target file
@@ -152,8 +152,6 @@ func rewriteManifests(ctx context.Context, tbl *table.Table) (*table.Table, erro
 	return txn.Commit(ctx)
 }
 
-// expireSnapshots also stamps the run on the table, so the next sink finds
-// maintenance not due even when nothing was rewritten.
 func expireSnapshots(ctx context.Context, tbl *table.Table) (*table.Table, error) {
 	props := tbl.Properties()
 	maxAge := time.Duration(props.GetInt64(maxSnapshotAgeKey, maxSnapshotAgeDefault.Milliseconds())) * time.Millisecond
@@ -164,6 +162,13 @@ func expireSnapshots(ctx context.Context, tbl *table.Table) (*table.Table, error
 	); err != nil {
 		return tbl, err
 	}
+	return txn.Commit(ctx)
+}
+
+// stampMaintained records the run on the table, so the next sink finds
+// maintenance not due even when nothing was rewritten.
+func stampMaintained(ctx context.Context, tbl *table.Table) (*table.Table, error) {
+	txn := tbl.NewTransaction()
 	if err := txn.SetProperties(iceberg.Properties{maintainedAtKey: strconv.FormatInt(time.Now().UnixMilli(), 10)}); err != nil {
 		return tbl, err
 	}

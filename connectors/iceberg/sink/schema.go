@@ -134,6 +134,7 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	} else if err != nil {
 		return fmt.Errorf("iceberg sink: create table %s: %w", resource, err)
 	}
+	tbl = s.maintainIfDue(ctx, resource, tbl)
 
 	s.mu.Lock()
 	s.tables[resource] = &iceTable{

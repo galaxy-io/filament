@@ -65,9 +65,7 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err := s.lifecycle.MarkCommitted(); err != nil {
 		return err
 	}
-	st := s.active
 	s.active = nil
-	s.maintainCommitted(ctx, st)
 	return nil
 }
 
