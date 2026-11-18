@@ -215,3 +215,33 @@ func TestParseDatetime(t *testing.T) {
 		})
 	}
 }
+
+func TestBinlogSet(t *testing.T) {
+	cases := []struct {
+		members []string
+		bitmap  int64
+		want    string
+	}{
+		{[]string{"a", "b"}, 3, "a,b"},
+		{[]string{"a", "b"}, 0, ""},
+		{[]string{"", "a", "b"}, 3, ",a"},
+		{[]string{"", "a", "b"}, 7, ",a,b"},
+		{[]string{"", "a", "b"}, 1, ""},
+		{[]string{"", "a", "b"}, 2, "a"},
+		{[]string{"a", "", "b"}, 7, "a,,b"},
+		{[]string{"a", ""}, 3, "a,"},
+		{[]string{""}, 1, ""},
+	}
+	for _, c := range cases {
+		got, err := binlogSet(c.members)(c.bitmap)
+		if err != nil {
+			t.Fatalf("members %q bitmap %d: %v", c.members, c.bitmap, err)
+		}
+		if string(got) != c.want {
+			t.Errorf("members %q bitmap %d: got %q, want %q", c.members, c.bitmap, got, c.want)
+		}
+	}
+	if _, err := binlogSet([]string{"a"})(int64(2)); err == nil {
+		t.Error("bitmap past the member count: expected an error, got nil")
+	}
+}

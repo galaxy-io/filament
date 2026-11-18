@@ -178,15 +178,18 @@ func binlogSet(members []string) func(any) ([]byte, error) {
 			return nil, fmt.Errorf("set bitmap %#x has bits past %d members", bits, len(members))
 		}
 		out := []byte{}
+		first := true
 		for m, member := range members {
 			if bits&(1<<m) == 0 {
 				continue
 			}
-			// MySQL adds the comma only after nonempty text, so an empty
-			// first member leaves no leading comma.
-			if len(out) > 0 {
+			// The comma separates members, so it is owed even when an
+			// earlier member is the empty string: SET('', 'a') reads
+			// back as ",a" on the query path, not "a".
+			if !first {
 				out = append(out, ',')
 			}
+			first = false
 			out = append(out, member...)
 		}
 		return out, nil

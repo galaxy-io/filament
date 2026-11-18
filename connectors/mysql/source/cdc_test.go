@@ -27,7 +27,7 @@ func TestAppendBinlogRowEnumSet(t *testing.T) {
 		row              []any
 		size, tags, opts string
 	}{
-		{[]any{int64(2), int64(5), int64(3)}, "Medium", "a,c", "x"}, // no comma after the empty member
+		{[]any{int64(2), int64(5), int64(3)}, "Medium", "a,c", ",x"}, // the empty member keeps its comma
 		{[]any{int64(3), int64(0), int64(1)}, "it's", "", ""},
 		{[]any{int64(0), int64(2), int64(2)}, "", "b", "x"}, // 0 is enum's '' error value
 	}
