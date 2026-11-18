@@ -2,6 +2,7 @@ package tracker
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -92,6 +93,58 @@ func TestTrackerDedupsRedeliveredFacts(t *testing.T) {
 	}
 	if state.Records != 5 {
 		t.Fatalf("records after redelivery = %d, want 5 (folded once)", state.Records)
+	}
+}
+
+// failSaveRunOnce fails the first SaveRun, simulating a transient datastore error
+// during a fold.
+type failSaveRunOnce struct {
+	*sqlite.Store
+	failed bool
+}
+
+func (s *failSaveRunOnce) SaveRun(ctx context.Context, r filament.RunState) error {
+	if !s.failed {
+		s.failed = true
+		return errors.New("injected save failure")
+	}
+	return s.Store.SaveRun(ctx, r)
+}
+
+func TestTrackerRedeliversFactWhenApplyFails(t *testing.T) {
+	m := New()
+	ds := &failSaveRunOnce{Store: sqlite.NewMemory()}
+	if err := m.Mount(context.Background(), module.Deps{DataStore: ds}); err != nil {
+		t.Fatalf("mount: %v", err)
+	}
+	ctx := context.Background()
+	res := events.Envelope{Tenant: "t1", Run: "r1", Resource: "users", At: time.Now()}
+	batch := events.NewFact(events.BatchWritten, res, events.BatchWrittenEvent{Records: 5, Bytes: 100})
+
+	if err := m.onFact(ctx, fakeMsg{fact: batch, seq: 7}); err == nil {
+		t.Fatal("first delivery: want the injected apply error")
+	}
+	hw, ok, err := ds.DedupHighWater(ctx, "t1", "r1")
+	if err != nil {
+		t.Fatalf("DedupHighWater after failed apply: %v", err)
+	}
+	if ok {
+		t.Fatalf("high-water mark advanced to %d after a failed apply, want no mark", hw)
+	}
+
+	if err := m.onFact(ctx, fakeMsg{fact: batch, seq: 7}); err != nil {
+		t.Fatalf("redelivery: %v", err)
+	}
+	state, err := ds.LoadRun(ctx, "t1", "r1")
+	if err != nil {
+		t.Fatalf("load run after redelivery: %v", err)
+	}
+	if state.Records != 5 {
+		t.Fatalf("records after failed apply and redelivery = %d, want 5 (folded once)", state.Records)
+	}
+	hw, ok, err = ds.DedupHighWater(ctx, "t1", "r1")
+	if err != nil || !ok || hw != 7 {
+		t.Fatalf("DedupHighWater after redelivery = (%d, %t, %v), want (7, true, nil)", hw, ok, err)
 	}
 }
 

@@ -128,7 +128,13 @@ const SettingsServiceAccountsCreateDialog: FC<SettingsServiceAccountsCreateDialo
             onClick={onClose}
             isDisabled={isCreating}
           />
-          <Button label="Create service account" onClick={handleCreate} isLoading={isCreating} />
+          <Button
+            label="Create service account"
+            hotKeys={["mod", "enter"]}
+            shouldBindHotKey
+            onClick={handleCreate}
+            isLoading={isCreating}
+          />
         </>
       }
     >
