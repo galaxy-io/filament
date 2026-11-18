@@ -29,7 +29,9 @@ import { useGalaxyProductUrl } from "@/module/GalaxyProductsProvider";
 import { GalaxyProduct } from "@/module/types";
 
 import {
+  createGetAlchemyFunctionInput,
   createListAlchemyFunctionsInput,
+  useGetAlchemyFunctionQuery,
   useListAlchemyFunctionsInfiniteQuery,
 } from "@/api/queries/alchemy";
 
@@ -69,22 +71,24 @@ const PipelineTransformFieldsStepAlchemy: FC<PipelineTransformFieldsStepAlchemyP
   });
   const { data, isLoading, isError, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useListAlchemyFunctionsInfiniteQuery({ input: createListAlchemyFunctionsInput(search) });
+  const { data: pinnedData } = useGetAlchemyFunctionQuery({
+    input: createGetAlchemyFunctionInput(step.function, step.version),
+    options: { enabled: step.function !== "" && step.version > 0 },
+  });
   const functions = data?.pages.flatMap((page) => page.functions) ?? [];
-  const selected = functions.find((fn) => fn.id === step.function);
+  const selected = pinnedData?.function;
   const latest = selected ? Number(selected.currentVersion) : 0;
   const hasUpdate = step.version > 0 && latest > step.version;
+  const pinnedOption: SelectOption = {
+    ...(selected ? createFunctionOption(selected) : { id: step.function, icon: CubeIcon }),
+    label: `${selected?.name || step.function}@v${step.version}`,
+  };
 
   const functionOptions = functions.map((fn) =>
-    fn.id === step.function
-      ? { ...createFunctionOption(fn), label: `${fn.name || fn.id}@v${step.version}` }
-      : createFunctionOption(fn),
+    fn.id === step.function ? pinnedOption : createFunctionOption(fn),
   );
-  if (step.function !== "" && !selected) {
-    functionOptions.push({
-      id: step.function,
-      label: `${step.function}@v${step.version}`,
-      icon: CubeIcon,
-    });
+  if (step.function !== "" && !functions.some((fn) => fn.id === step.function)) {
+    functionOptions.push(pinnedOption);
   }
   const pinned: SelectOption[] = [
     ...(hasUpdate
