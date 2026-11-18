@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -901,9 +902,20 @@ func newHTTPRecord(resource string, keyJSON, dataJSON []byte, projected bool) re
 	return out
 }
 
-func recordData(keyJSON, dataJSON []byte) []byte {
+// decodeKey decodes a record key with numbers kept as json.Number, so a
+// primary key above 2^53 keeps its exact digits instead of rounding
+// through float64 the way the paginators' decodeBody already avoids.
+func decodeKey(keyJSON []byte) (map[string]any, error) {
+	dec := json.NewDecoder(bytes.NewReader(keyJSON))
+	dec.UseNumber()
 	var key map[string]any
-	if err := json.Unmarshal(keyJSON, &key); err != nil {
+	err := dec.Decode(&key)
+	return key, err
+}
+
+func recordData(keyJSON, dataJSON []byte) []byte {
+	key, err := decodeKey(keyJSON)
+	if err != nil {
 		return dataJSON
 	}
 	var payload json.RawMessage
@@ -926,14 +938,16 @@ func recordID(keyJSON []byte) string {
 	if len(keyJSON) == 0 {
 		return ""
 	}
-	var key map[string]any
-	if err := json.Unmarshal(keyJSON, &key); err != nil || len(key) != 1 {
+	key, err := decodeKey(keyJSON)
+	if err != nil || len(key) != 1 {
 		return string(keyJSON)
 	}
 	for _, v := range key {
 		switch value := v.(type) {
 		case string:
 			return value
+		case json.Number:
+			return value.String()
 		case float64:
 			return strconv.FormatFloat(value, 'f', -1, 64)
 		case bool:
