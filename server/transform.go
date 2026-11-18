@@ -117,7 +117,7 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 		// Nothing compiled, but the builder still needs the source columns.
 		return transformResult(err, nil, schema)
 	}
-	_, analysis, err := transform.Analyze(def, schema, transform.WithContracts(a.contracts(ctx, def)))
+	_, analysis, err := transform.Analyze(def, schema, transform.WithContracts(a.contracts(ctx, tenant, def)))
 	// The steps that did compile still leave a schema; a builder needs it for the steps after a broken one.
 	return transformResult(err, analysis.Types, analysis.Layout)
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -11,7 +13,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
-	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/transform"
 )
@@ -21,14 +22,23 @@ func WithAlchemy(client *alchemy.Client) Option {
 	return func(s *Server) { s.alchemy = client }
 }
 
-// contracts resolves def's functions, or nil so compile reports alchemy as unconfigured.
-func (a *Server) contracts(ctx context.Context, def *transform.Definition) transform.Contracts {
+// alchemyRuntimesTTL is how long the runtime list, static per alchemy deploy, is reused.
+const alchemyRuntimesTTL = time.Minute
+
+// runtimeCache holds the last runtime list alchemy returned.
+type runtimeCache struct {
+	mu      sync.Mutex
+	byImage map[string]*functionsv1.Runtime
+	at      time.Time
+}
+
+// contracts resolves def's functions as tenant, or nil so compile reports alchemy as unconfigured.
+func (a *Server) contracts(ctx context.Context, tenant filament.TenantID, def *transform.Definition) transform.Contracts {
 	refs := def.Functions()
-	tenant, ok := identity.TenantFrom(ctx)
-	if a.alchemy == nil || len(refs) == 0 || !ok {
+	if a.alchemy == nil || len(refs) == 0 {
 		return nil
 	}
-	return a.alchemy.Resolve(alchemy.WithTenant(ctx, tenant), refs)
+	return a.alchemy.Resolve(ctx, tenant, refs)
 }
 
 // ListAlchemyFunctions pages the caller's alchemy functions for the step picker.
@@ -132,6 +142,11 @@ func contractKind(c *functionsv1.Contract) ingestionv1.AlchemyContractKind {
 
 // alchemyRuntimes indexes runtimes by image; they only decorate the list, so a failure is logged, not returned.
 func (a *Server) alchemyRuntimes(ctx context.Context) map[string]*functionsv1.Runtime {
+	a.runtimes.mu.Lock()
+	defer a.runtimes.mu.Unlock()
+	if a.runtimes.byImage != nil && time.Since(a.runtimes.at) < alchemyRuntimesTTL {
+		return a.runtimes.byImage
+	}
 	out, err := a.alchemy.Functions().ListRuntimes(ctx, connect.NewRequest(&functionsv1.ListRuntimesRequest{}))
 	if err != nil {
 		if a.log != nil {
@@ -145,6 +160,7 @@ func (a *Server) alchemyRuntimes(ctx context.Context) map[string]*functionsv1.Ru
 	for _, rt := range out.Msg.GetRuntimes() {
 		byImage[rt.GetImage()] = rt
 	}
+	a.runtimes.byImage, a.runtimes.at = byImage, time.Now()
 	return byImage
 }
 

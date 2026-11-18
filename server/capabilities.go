@@ -261,7 +261,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
 	validateEdgeSelections(ctx, edge, from, *srcConn, srcSpec, chosen, probes, ev)
-	a.validateEdgeTransform(ctx, edge, from, *srcConn, filament.IsCDCIngestion(chosen), probes, ev)
+	a.validateEdgeTransform(ctx, filament.TenantID(tenant), edge, from, *srcConn, filament.IsCDCIngestion(chosen), probes, ev)
 	return nil
 }
 
@@ -396,7 +396,7 @@ func edgeColumns(edge *ingestionv1.PipelineEdge, resource string) []string {
 // every resource it names, so a definition the source no longer satisfies
 // fails validation rather than the run. Issues carry the definition path the
 // builder uses to place them.
-func (a *Server) validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, cdc bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+func (a *Server) validateEdgeTransform(ctx context.Context, tenant filament.TenantID, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, cdc bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
 	if !compile.HasTransform(edge) {
 		return
 	}
@@ -418,7 +418,7 @@ func (a *Server) validateEdgeTransform(ctx context.Context, edge *ingestionv1.Pi
 			}
 		}
 	}
-	contracts := a.contracts(ctx, def)
+	contracts := a.contracts(ctx, tenant, def)
 	for _, resource := range slices.Sorted(maps.Keys(def.Resources)) {
 		inspection, err := probes.resource(ctx, from, srcConn, resource)
 		if err != nil {

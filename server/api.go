@@ -36,6 +36,7 @@ type Server struct {
 	metrics   filament.MetricsStore
 	identity  identity.Authenticator
 	alchemy   *alchemy.Client
+	runtimes  runtimeCache
 	// defaultTenant scopes every request when identity is disabled.
 	defaultTenant filament.TenantID
 	log           filament.Logger
