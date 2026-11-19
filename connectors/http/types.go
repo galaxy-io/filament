@@ -6,7 +6,6 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -117,10 +116,6 @@ func parseFloat(bits int, set func(arrowbatch.RowWriter, float64)) valueParser {
 // 1e100000000 would expand to about 100,000,001 characters.
 const maxExpandedDecimalDigits = 10000
 
-// errExponentTooLarge reports an exponent whose magnitude alone already
-// exceeds maxExpandedDecimalDigits.
-var errExponentTooLarge = errors.New("exponent exceeds the expansion bound")
-
 // parseNumberText keeps an unbounded decimal as its digits. A JSON number in
 // exponent form (1e5) is spelled out exactly, since the sinks' numeric parsers
 // take plain digits. The expansion works on the digits directly, so no
@@ -146,7 +141,9 @@ func parseNumberText(w arrowbatch.RowWriter, raw json.RawMessage) error {
 // preserving every significand digit exactly. The exponent only moves the
 // decimal point; no binary float is involved. A value whose expansion
 // would exceed maxExpandedDecimalDigits is an error, so a huge exponent
-// cannot allocate an unbounded string.
+// cannot allocate an unbounded string. The bound is measured on the
+// mantissa-adjusted expansion length, so a value that fits it is
+// accepted even when its exponent alone is large.
 func expandDecimal(s string) (string, error) {
 	orig := s
 	neg := false
@@ -164,19 +161,21 @@ func expandDecimal(s string) (string, error) {
 	if !ok {
 		return "", fmt.Errorf("%q is not a number", orig)
 	}
+	// Validate the exponent before the zero shortcut below: "0e" and
+	// "0efoo" are not numbers, even though the mantissa is zero. The
+	// exponent is parsed exactly up to len(fracPart) plus the bound,
+	// which is enough to decide the expansion size; a larger magnitude
+	// saturates, and the bound check below rejects it.
+	exp, err := parseExponent(s[e+1:], len(fracPart)+maxExpandedDecimalDigits+1)
+	if err != nil {
+		return "", fmt.Errorf("%q is not a number", orig)
+	}
 	digits := strings.TrimLeft(intPart+fracPart, "0")
 	if digits == "" {
 		if neg {
 			return "-0", nil
 		}
 		return "0", nil
-	}
-	exp, err := parseExponent(s[e+1:])
-	if err != nil {
-		if errors.Is(err, errExponentTooLarge) {
-			return "", fmt.Errorf("%q expands to more than %d digits", orig, maxExpandedDecimalDigits)
-		}
-		return "", fmt.Errorf("%q is not a number", orig)
 	}
 	// The value is digits * 10^(exp - len(fracPart)): the exponent moves
 	// the decimal point by shift places to the right.
@@ -186,7 +185,9 @@ func expandDecimal(s string) (string, error) {
 	case shift >= 0:
 		expandedLen += shift
 	case len(digits) <= -shift:
-		expandedLen += -shift + 2 // "0." plus the leading zeros
+		// "0." plus the leading zeros: the digit count cancels against
+		// the leading-zero count, so the length is 2-shift.
+		expandedLen = 2 - shift
 	default:
 		expandedLen++ // the decimal point
 	}
@@ -248,10 +249,12 @@ func splitMantissa(s string) (intPart, fracPart string, ok bool) {
 	return intPart, fracPart, true
 }
 
-// parseExponent reads the exponent of an exponent-form decimal. Its
-// magnitude is capped at maxExpandedDecimalDigits: anything larger
-// already exceeds the expansion bound, whatever the mantissa is.
-func parseExponent(s string) (int, error) {
+// parseExponent reads the exponent of an exponent-form decimal. It
+// validates the syntax, an optional sign followed by digits, and parses
+// the magnitude exactly up to limit. A larger magnitude saturates at
+// limit+1, which is enough for the expansion bound check to reject the
+// value, while a zero mantissa still returns zero for any exponent.
+func parseExponent(s string, limit int) (int, error) {
 	neg := false
 	if strings.HasPrefix(s, "-") {
 		neg = true
@@ -267,9 +270,11 @@ func parseExponent(s string) (int, error) {
 		if s[i] < '0' || s[i] > '9' {
 			return 0, fmt.Errorf("bad exponent")
 		}
-		n = n*10 + int(s[i]-'0')
-		if n > maxExpandedDecimalDigits {
-			return 0, errExponentTooLarge
+		if n <= limit {
+			n = n*10 + int(s[i]-'0')
+			if n > limit {
+				n = limit + 1
+			}
 		}
 	}
 	if neg {
