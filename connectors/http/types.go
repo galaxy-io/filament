@@ -6,6 +6,7 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -110,25 +111,171 @@ func parseFloat(bits int, set func(arrowbatch.RowWriter, float64)) valueParser {
 	}
 }
 
+// maxExpandedDecimalDigits bounds the plain digit expansion of an
+// exponent-form decimal. A decimal with more digits than this is not a
+// real API value, and expanding it would allocate an unbounded string:
+// 1e100000000 would expand to about 100,000,001 characters.
+const maxExpandedDecimalDigits = 10000
+
+// errExponentTooLarge reports an exponent whose magnitude alone already
+// exceeds maxExpandedDecimalDigits.
+var errExponentTooLarge = errors.New("exponent exceeds the expansion bound")
+
 // parseNumberText keeps an unbounded decimal as its digits. A JSON number in
 // exponent form (1e5) is spelled out exactly, since the sinks' numeric parsers
-// take plain digits. A float64 round-trip would lose digits beyond about 15
-// to 17 significant figures, so the exponent is expanded with math/big
-// instead. 256 bits of precision covers about 77 significant digits.
+// take plain digits. The expansion works on the digits directly, so no
+// significant digit is lost however long the value is; a binary float
+// round-trip would discard digits beyond its mantissa.
 func parseNumberText(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
 	}
 	if strings.ContainsAny(s, "eE") {
-		f, _, err := big.ParseFloat(s, 10, 256, big.ToNearestEven)
+		expanded, err := expandDecimal(s)
 		if err != nil {
-			return fmt.Errorf("%q is not a number", s)
+			return err
 		}
-		s = f.Text('f', -1)
+		s = expanded
 	}
 	w.String(s)
 	return nil
+}
+
+// expandDecimal spells an exponent-form decimal out as plain digits,
+// preserving every significand digit exactly. The exponent only moves the
+// decimal point; no binary float is involved. A value whose expansion
+// would exceed maxExpandedDecimalDigits is an error, so a huge exponent
+// cannot allocate an unbounded string.
+func expandDecimal(s string) (string, error) {
+	orig := s
+	neg := false
+	if strings.HasPrefix(s, "-") {
+		neg = true
+		s = s[1:]
+	} else if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	}
+	e := strings.IndexAny(s, "eE")
+	if e < 0 {
+		return "", fmt.Errorf("%q is not a number", orig)
+	}
+	intPart, fracPart, ok := splitMantissa(s[:e])
+	if !ok {
+		return "", fmt.Errorf("%q is not a number", orig)
+	}
+	digits := strings.TrimLeft(intPart+fracPart, "0")
+	if digits == "" {
+		if neg {
+			return "-0", nil
+		}
+		return "0", nil
+	}
+	exp, err := parseExponent(s[e+1:])
+	if err != nil {
+		if errors.Is(err, errExponentTooLarge) {
+			return "", fmt.Errorf("%q expands to more than %d digits", orig, maxExpandedDecimalDigits)
+		}
+		return "", fmt.Errorf("%q is not a number", orig)
+	}
+	// The value is digits * 10^(exp - len(fracPart)): the exponent moves
+	// the decimal point by shift places to the right.
+	shift := exp - len(fracPart)
+	expandedLen := len(digits)
+	switch {
+	case shift >= 0:
+		expandedLen += shift
+	case len(digits) <= -shift:
+		expandedLen += -shift + 2 // "0." plus the leading zeros
+	default:
+		expandedLen++ // the decimal point
+	}
+	if neg {
+		expandedLen++
+	}
+	if expandedLen > maxExpandedDecimalDigits {
+		return "", fmt.Errorf("%q expands to more than %d digits", orig, maxExpandedDecimalDigits)
+	}
+	var b strings.Builder
+	b.Grow(expandedLen)
+	if neg {
+		b.WriteByte('-')
+	}
+	switch {
+	case shift >= 0:
+		b.WriteString(digits)
+		b.WriteString(strings.Repeat("0", shift))
+	case len(digits) > -shift:
+		b.WriteString(digits[:len(digits)+shift])
+		b.WriteByte('.')
+		b.WriteString(digits[len(digits)+shift:])
+	default:
+		b.WriteString("0.")
+		b.WriteString(strings.Repeat("0", -shift-len(digits)))
+		b.WriteString(digits)
+	}
+	out := b.String()
+	// Drop trailing zeros after the decimal point: 1.50e0 spells as 1.5.
+	if strings.IndexByte(out, '.') >= 0 {
+		out = strings.TrimRight(out, "0")
+		out = strings.TrimSuffix(out, ".")
+	}
+	return out, nil
+}
+
+// splitMantissa splits a decimal mantissa into its integer and fraction
+// digit strings. Either side may be empty (".5", "1."), but at least one
+// digit must be present and every character must be a digit.
+func splitMantissa(s string) (intPart, fracPart string, ok bool) {
+	parts := strings.Split(s, ".")
+	if len(parts) > 2 {
+		return "", "", false
+	}
+	intPart = parts[0]
+	if len(parts) == 2 {
+		fracPart = parts[1]
+	}
+	for _, p := range parts {
+		for i := 0; i < len(p); i++ {
+			if p[i] < '0' || p[i] > '9' {
+				return "", "", false
+			}
+		}
+	}
+	if intPart == "" && fracPart == "" {
+		return "", "", false
+	}
+	return intPart, fracPart, true
+}
+
+// parseExponent reads the exponent of an exponent-form decimal. Its
+// magnitude is capped at maxExpandedDecimalDigits: anything larger
+// already exceeds the expansion bound, whatever the mantissa is.
+func parseExponent(s string) (int, error) {
+	neg := false
+	if strings.HasPrefix(s, "-") {
+		neg = true
+		s = s[1:]
+	} else if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	}
+	if s == "" {
+		return 0, fmt.Errorf("empty exponent")
+	}
+	n := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, fmt.Errorf("bad exponent")
+		}
+		n = n*10 + int(s[i]-'0')
+		if n > maxExpandedDecimalDigits {
+			return 0, errExponentTooLarge
+		}
+	}
+	if neg {
+		return -n, nil
+	}
+	return n, nil
 }
 
 func parseString(w arrowbatch.RowWriter, raw json.RawMessage) error {

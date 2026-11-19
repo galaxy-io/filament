@@ -104,6 +104,41 @@ func TestExtractUnboundedDecimalExponent(t *testing.T) {
 	}
 }
 
+func TestExtractUnboundedDecimalExponentExact(t *testing.T) {
+	// The expansion works on the digits directly, never through a binary
+	// float, so even a value with more significant digits than any float
+	// mantissa holds keeps them all. See issue #740 and the CodeRabbit
+	// review on PR #744.
+	longDigits := "1." + strings.Repeat("0", 80) + "1e0"
+	for _, tc := range []struct{ value, want string }{
+		{longDigits, "1." + strings.Repeat("0", 80) + "1"},
+		{"1.5e3", "1500"},
+		{"1.50e0", "1.5"},
+		{"-0.25e-2", "-0.0025"},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", tc.value)
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("got rows %q, err %v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
+func TestExtractUnboundedDecimalExponentBound(t *testing.T) {
+	// A value whose plain digit expansion would exceed the bound is an
+	// error, not a huge allocation. See the CodeRabbit review on PR #744.
+	for _, value := range []string{"1e100000000", "1e10001", "1e-100000"} {
+		t.Run(value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", value)
+			if err == nil || !strings.Contains(err.Error(), `field "n"`) {
+				t.Fatalf("rows=%q, err=%v, want decimal field error", rows, err)
+			}
+		})
+	}
+}
+
 func TestExtractTimestampAcceptsNumericOffset(t *testing.T) {
 	// Jira Cloud emits created and updated with a numeric zone offset and no
 	// colon, for example 2026-11-13T01:09:44.630+0500. RFC 3339 parsing
