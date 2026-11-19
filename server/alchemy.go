@@ -143,9 +143,10 @@ func contractKind(c *functionsv1.Contract) ingestionv1.AlchemyContractKind {
 // alchemyRuntimes indexes runtimes by image; they only decorate the list, so a failure is logged, not returned.
 func (a *Server) alchemyRuntimes(ctx context.Context) map[string]*functionsv1.Runtime {
 	a.runtimes.mu.Lock()
-	defer a.runtimes.mu.Unlock()
-	if a.runtimes.byImage != nil && time.Since(a.runtimes.at) < alchemyRuntimesTTL {
-		return a.runtimes.byImage
+	cached, at := a.runtimes.byImage, a.runtimes.at
+	a.runtimes.mu.Unlock()
+	if cached != nil && time.Since(at) < alchemyRuntimesTTL {
+		return cached
 	}
 	out, err := a.alchemy.Functions().ListRuntimes(ctx, connect.NewRequest(&functionsv1.ListRuntimesRequest{}))
 	if err != nil {
@@ -160,7 +161,9 @@ func (a *Server) alchemyRuntimes(ctx context.Context) map[string]*functionsv1.Ru
 	for _, rt := range out.Msg.GetRuntimes() {
 		byImage[rt.GetImage()] = rt
 	}
+	a.runtimes.mu.Lock()
 	a.runtimes.byImage, a.runtimes.at = byImage, time.Now()
+	a.runtimes.mu.Unlock()
 	return byImage
 }
 
