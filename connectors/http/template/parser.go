@@ -1,6 +1,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"path"
@@ -69,7 +70,12 @@ func (r refChunk) render(scope Scope) (string, error) {
 			}
 		case "basename":
 			if ok {
-				v = applyBasename(v)
+				base, err := applyBasename(v)
+				if err != nil {
+					return "", fmt.Errorf("%w: %s (in %q)",
+						errs.ErrTemplateSyntax, err.Error(), r.raw)
+				}
+				v = base
 			}
 		}
 	}
@@ -80,32 +86,56 @@ func (r refChunk) render(scope Scope) (string, error) {
 	return v, nil
 }
 
-func applyBasename(v string) string {
+func applyBasename(v string) (string, error) {
 	if v == "" {
-		return ""
+		return "", errors.New("basename empty input")
 	}
+
+	var rawSegment string
 	if strings.Contains(v, "://") {
-		if u, err := url.Parse(v); err == nil && u.Path != "" {
-			b := path.Base(strings.TrimRight(u.Path, "/"))
-			if b == "/" || b == "." {
-				return ""
-			}
-			return b
+		u, err := url.Parse(v)
+		if err != nil {
+			return "", fmt.Errorf("basename invalid URL: %w", err)
 		}
+		escaped := u.EscapedPath()
+		trimmed := strings.TrimRight(escaped, "/")
+		if trimmed == "" {
+			return "", errors.New("basename empty URL path")
+		}
+		rawSegment = path.Base(trimmed)
+	} else {
+		clean := v
+		if idx := strings.IndexAny(clean, "?#"); idx >= 0 {
+			clean = clean[:idx]
+		}
+		trimmed := strings.TrimRight(clean, "/")
+		if trimmed == "" {
+			return "", errors.New("basename empty path")
+		}
+		rawSegment = path.Base(trimmed)
 	}
-	clean := v
-	if idx := strings.IndexAny(clean, "?#"); idx >= 0 {
-		clean = clean[:idx]
+
+	if rawSegment == "" || rawSegment == "/" {
+		return "", errors.New("basename empty segment")
 	}
-	clean = strings.TrimRight(clean, "/")
-	if clean == "" {
-		return ""
+
+	if rawSegment == "." || rawSegment == ".." {
+		return "", fmt.Errorf("basename rejected segment %q", rawSegment)
 	}
-	b := path.Base(clean)
-	if b == "/" || b == "." {
-		return ""
+
+	unescaped, err := url.PathUnescape(rawSegment)
+	if err != nil {
+		unescaped = rawSegment
 	}
-	return b
+	if unescaped == "." || unescaped == ".." {
+		return "", fmt.Errorf("basename rejected segment %q", rawSegment)
+	}
+
+	escaped := url.PathEscape(unescaped)
+	if escaped == "" || escaped == "." || escaped == ".." {
+		return "", fmt.Errorf("basename invalid segment %q", rawSegment)
+	}
+	return escaped, nil
 }
 
 // Parse tokenizes s into a reusable Parsed. Returns the first syntax error;

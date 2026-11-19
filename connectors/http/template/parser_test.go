@@ -104,15 +104,27 @@ func TestDefaultFilter(t *testing.T) {
 func TestBasenameFilter(t *testing.T) {
 	scope := Scope{
 		Parent: map[string]string{
-			"event_uri":       "https://api.calendly.com/scheduled_events/4e62-89cd",
-			"trailing_slash":  "https://api.calendly.com/scheduled_events/4e62-89cd/",
-			"with_query":      "https://api.calendly.com/scheduled_events/4e62-89cd?status=active",
-			"with_fragment":   "https://api.calendly.com/scheduled_events/4e62-89cd#invitees",
-			"relative_path":   "/scheduled_events/4e62-89cd",
-			"relative_simple": "scheduled_events/4e62-89cd",
-			"single_id":       "4e62-89cd",
-			"root_only":       "/",
-			"empty_val":       "",
+			"event_uri":            "https://api.calendly.com/scheduled_events/4e62-89cd",
+			"trailing_slash":       "https://api.calendly.com/scheduled_events/4e62-89cd/",
+			"with_query":           "https://api.calendly.com/scheduled_events/4e62-89cd?status=active",
+			"with_fragment":        "https://api.calendly.com/scheduled_events/4e62-89cd#invitees",
+			"relative_path":        "/scheduled_events/4e62-89cd",
+			"relative_simple":      "scheduled_events/4e62-89cd",
+			"single_id":            "4e62-89cd",
+			"encoded_slash_url":    "https://api.example.com/events/team%2Fmember",
+			"encoded_slash_rel":    "/events/team%2Fmember",
+			"path_with_spaces_url": "https://api.example.com/events/team member",
+			"path_with_spaces_rel": "/events/team member",
+			"plain_spaces":         "team member",
+			"url_empty_path_query": "https://api.example.com?status=active",
+			"url_empty_path":       "https://api.example.com",
+			"url_slash_only":       "https://api.example.com/",
+			"root_only":            "/",
+			"empty_val":            "",
+			"dot":                  ".",
+			"dotdot":               "..",
+			"dot_path":             "/a/.",
+			"dotdot_path":          "/a/..",
 		},
 	}
 
@@ -158,14 +170,74 @@ func TestBasenameFilter(t *testing.T) {
 			want: "4e62-89cd",
 		},
 		{
-			name: "root path resolves empty",
-			tmpl: "{{ parent.root_only | basename }}",
-			want: "",
+			name: "preserves encoded slash %2F in URL",
+			tmpl: "{{ parent.encoded_slash_url | basename }}",
+			want: "team%2Fmember",
 		},
 		{
-			name: "empty string resolves empty",
-			tmpl: "{{ parent.empty_val | basename }}",
-			want: "",
+			name: "preserves encoded slash %2F in relative path",
+			tmpl: "{{ parent.encoded_slash_rel | basename }}",
+			want: "team%2Fmember",
+		},
+		{
+			name: "path-escapes spaces in URL segment",
+			tmpl: "{{ parent.path_with_spaces_url | basename }}",
+			want: "team%20member",
+		},
+		{
+			name: "path-escapes spaces in relative segment",
+			tmpl: "{{ parent.path_with_spaces_rel | basename }}",
+			want: "team%20member",
+		},
+		{
+			name: "path-escapes spaces in plain ID",
+			tmpl: "{{ parent.plain_spaces | basename }}",
+			want: "team%20member",
+		},
+		{
+			name:    "url with query and empty path errors",
+			tmpl:    "{{ parent.url_empty_path_query | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "url with empty path errors",
+			tmpl:    "{{ parent.url_empty_path | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "url with root slash only errors",
+			tmpl:    "{{ parent.url_slash_only | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "root path / errors",
+			tmpl:    "{{ parent.root_only | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "empty string errors",
+			tmpl:    "{{ parent.empty_val | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "rejects dot segment",
+			tmpl:    "{{ parent.dot | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "rejects dotdot segment",
+			tmpl:    "{{ parent.dotdot | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "rejects path ending in dot",
+			tmpl:    "{{ parent.dot_path | basename }}",
+			wantErr: true,
+		},
+		{
+			name:    "rejects path ending in dotdot",
+			tmpl:    "{{ parent.dotdot_path | basename }}",
+			wantErr: true,
 		},
 		{
 			name:    "missing parent key errors",
@@ -245,6 +317,10 @@ func TestFilterSyntaxErrors(t *testing.T) {
 		{
 			name: "default with unquoted argument",
 			tmpl: `{{ config.key | default raw_val }}`,
+		},
+		{
+			name: "basename with arguments rejected",
+			tmpl: `{{ config.key | basename "arg" }}`,
 		},
 	}
 
