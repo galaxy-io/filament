@@ -10,6 +10,7 @@ import {
   WebhookEndpointConfigSchema,
 } from "@/gen/ingestion/v1/webhooks_pb";
 
+import { ConnectorTileBadge } from "@/components/connections/types";
 import {
   WEBHOOK_CONTINUOUS_ROUTE_SUFFIX,
   WEBHOOK_RECEIVING_INGESTIONS,
@@ -177,3 +178,6 @@ export const hasFixedWebhookResources = (webhook: WebhookSpec | undefined) =>
 
 export const isWebhookProviderIssued = (webhook: WebhookSpec) =>
   webhook.secretIssuer === WebhookSecretIssuer.PROVIDER;
+
+export const getWebhookConnectorTileBadge = (webhook: WebhookSpec | undefined) =>
+  webhook?.ingestionField ? ConnectorTileBadge.WEBHOOKS : undefined;
