@@ -100,6 +100,8 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
           onChange={handleSearchChange}
           placeholder="Search resources..."
           ariaLabel="Search resources"
+          hotKeys={["/"]}
+          shouldBindHotKey
           fillWidth
         />
         {isContinuous && (

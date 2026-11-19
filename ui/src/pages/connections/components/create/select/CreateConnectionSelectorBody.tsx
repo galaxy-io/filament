@@ -62,6 +62,8 @@ const CreateConnectionSelectorBody: FC<CreateConnectionSelectorBodyProps> = ({
           defaultValue={connectorSearch}
           debounceMs={LIST_SEARCH_DEBOUNCE_MS}
           onSearch={onSearch}
+          hotKeys={["/"]}
+          shouldBindHotKey
           fillWidth
           autoFocus
         />
