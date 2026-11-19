@@ -59,6 +59,21 @@ func TestParseDate(t *testing.T) {
 			wantNull: true,
 		},
 		{
+			name:     "text partial zero date with zero day",
+			input:    "2024-05-00",
+			wantNull: true,
+		},
+		{
+			name:     "text partial zero date with zero month",
+			input:    "2024-00-15",
+			wantNull: true,
+		},
+		{
+			name:     "binary-protocol rfc3339 partial zero date",
+			input:    "2024-05-00T00:00:00Z",
+			wantNull: true,
+		},
+		{
 			name:     "valid text date",
 			input:    "2024-05-01",
 			wantDate: int32(arrowtext.DateToDays(2024, 5, 1)),
@@ -76,6 +91,16 @@ func TestParseDate(t *testing.T) {
 		{
 			name:    "malformed prefix zero date",
 			input:   "0000-00-00garbage",
+			wantErr: true,
+		},
+		{
+			name:    "day past the end of the month",
+			input:   "2024-02-31",
+			wantErr: true,
+		},
+		{
+			name:    "month out of range",
+			input:   "2024-13-01",
 			wantErr: true,
 		},
 	}
@@ -130,6 +155,16 @@ func TestParseDatetime(t *testing.T) {
 			wantNull: true,
 		},
 		{
+			name:     "text partial zero datetime with zero day",
+			input:    "2024-05-00 12:00:00",
+			wantNull: true,
+		},
+		{
+			name:     "text partial zero datetime with zero month",
+			input:    "2024-00-15 12:00:00",
+			wantNull: true,
+		},
+		{
 			name:     "valid text datetime",
 			input:    "2024-05-01 12:00:00",
 			wantNull: false,
@@ -144,6 +179,11 @@ func TestParseDatetime(t *testing.T) {
 		{
 			name:    "invalid datetime",
 			input:   "invalid-datetime",
+			wantErr: true,
+		},
+		{
+			name:    "minute out of range",
+			input:   "2024-05-01 12:60:00",
 			wantErr: true,
 		},
 	}

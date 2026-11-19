@@ -38,6 +38,8 @@ import {
 import { usePipelineCanvasRoutesSinks } from "@/pages/pipelines/canvas/routes/hooks/usePipelineCanvasRoutesSinks";
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
 
+import { useFilamentLayoutSearch } from "@/module/hooks";
+
 import { LIST_SEARCH_DEBOUNCE_MS } from "@/constants";
 
 interface PipelineCanvasRoutesToolbarProps {
@@ -53,6 +55,7 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
 }) => {
   const { sinkIds, setSinkIds } = usePipelineCanvasSelection();
   const sinks = usePipelineCanvasRoutesSinks();
+  const { flow } = useFilamentLayoutSearch();
   const toolbarRef = useRef<HTMLElement>(null);
   const toolbarWidth = useElementWidth(toolbarRef);
   const isCompact =
@@ -110,6 +113,8 @@ const PipelineCanvasRoutesToolbar: FC<PipelineCanvasRoutesToolbarProps> = ({
           debounceMs={LIST_SEARCH_DEBOUNCE_MS}
           onSearch={onSearch}
           placeholder="Search resources..."
+          hotKeys={["/"]}
+          shouldBindHotKey={!flow}
           fillWidth
         />
       </FlexItem>

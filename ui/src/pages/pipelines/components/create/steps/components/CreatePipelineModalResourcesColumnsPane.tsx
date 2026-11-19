@@ -75,6 +75,8 @@ const CreatePipelineModalResourcesColumnsPane: FC<CreatePipelineModalResourcesCo
                     onChange={setSearch}
                     placeholder="Search columns..."
                     ariaLabel="Search columns"
+                    hotKeys={["/"]}
+                    shouldBindHotKey
                     fillWidth
                   />
                 </Box>

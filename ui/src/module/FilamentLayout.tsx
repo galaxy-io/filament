@@ -10,16 +10,22 @@ import EditConnectionModal from "@/pages/connections/components/edit/EditConnect
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal";
 
+import { GALAXY_DEFAULT_PRODUCT_URLS } from "@/module/constants";
+import { GalaxyProductsProvider } from "@/module/GalaxyProductsProvider";
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
-import { Flow } from "@/module/types";
+import { Flow, type GalaxyProductUrls } from "@/module/types";
 import { createFilamentFlowCloseSearch } from "@/module/utils";
 
 export interface FilamentLayoutProps {
   sidebarFooter?: ReactNode;
+  productUrls?: GalaxyProductUrls;
 }
 
-const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
+const FilamentLayout: FC<FilamentLayoutProps> = ({
+  sidebarFooter,
+  productUrls = GALAXY_DEFAULT_PRODUCT_URLS,
+}) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
   const {
     connectionId,
@@ -57,7 +63,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   }, [updateSearch]);
 
   return (
-    <>
+    <GalaxyProductsProvider productUrls={productUrls}>
       <MainLayout sidebarFooter={sidebarFooter}>
         <Outlet />
       </MainLayout>
@@ -91,7 +97,7 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         resyncResources={resyncResources}
         onClose={handleCloseFlow}
       />
-    </>
+    </GalaxyProductsProvider>
   );
 };
 

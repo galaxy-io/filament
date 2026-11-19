@@ -218,6 +218,7 @@ A deep link into a flow is a seed. `createFilamentFlowSearch(flow, seed)` in `mo
 - **A seed is read once per open.** The overlay captures it when its session starts and keeps every later edit in memory. The URL never mirrors a draft.
 - **Seeds are ids and names another screen already knows.** Never connection config, secrets, worker configuration or free text.
 - **A stale seed is dropped, never an error.** A missing, deleted or wrong-kind id opens the flow clean, a resource the pipeline no longer has is ignored.
+- **Links into another Galaxy product use that product's format, never a copy.** Import its component-free `./links` export, such as `createAlchemyFunctionHref` and `parseAlchemyReturnSearch` from `@galaxy-io/alchemy-ui/links`. The product's URL comes from `useGalaxyProductUrl(GalaxyProduct.ALCHEMY)` (`module/GalaxyProductsProvider.tsx`), which is undefined when the host gave `FilamentLayout` no URL for it, so the entry point hides. The standalone host fills `productUrls` from the `filament-runtime-config` JSON script the server writes from `GALAXY_<PRODUCT>_URL`. Results come back as search keys prefixed with the callee's name.
 - **A seed by id resolves before the flow mounts.** The create-pipeline modal shows `PendingLayout` while `useGetConnectionQueries` loads, the same swap the run modal does for its pipeline.
 
 ```tsx
