@@ -105,6 +105,10 @@ func AppendTimestamp(dst []byte, us int64, sep byte) []byte {
 // AppendTimeOfDay appends "HH:MM:SS" for microseconds since midnight, with the
 // fraction, when non-zero, trimmed of trailing zeros.
 func AppendTimeOfDay(dst []byte, us int64) []byte {
+	if us < 0 {
+		dst = append(dst, '-')
+		us = -us
+	}
 	dst = AppendPadded(dst, us/MicrosPerHour, 2)
 	dst = append(dst, ':')
 	dst = AppendPadded(dst, us%MicrosPerHour/MicrosPerMinute, 2)

@@ -374,12 +374,59 @@ func parseDatetime(w arrowbatch.RowWriter, text []byte) error {
 	return nil
 }
 
-// parseTime reads "[-]HH:MM:SS[.ffffff]" as microseconds; a negative value
-// has no time-of-day form and is rejected, as is a value past a day.
+// maxMySQLTimeMicros is the magnitude limit of MySQL's TIME type (838:59:59.999999).
+const maxMySQLTimeMicros = 838*arrowtext.MicrosPerHour + 59*arrowtext.MicrosPerMinute + 59*arrowtext.MicrosPerSecond + 999_999
+
+// parseTime reads MySQL's "[-]HH[H]:MM:SS[.ffffff]" duration-capable TIME range
+// (-838:59:59.999999 to 838:59:59.999999) as signed microseconds.
 func parseTime(w arrowbatch.RowWriter, text []byte) error {
-	us, rest, err := arrowtext.ReadTimeOfDay(text)
-	if err != nil || len(rest) != 0 || us >= arrowtext.MicrosPerDay {
+	body := text
+	neg := false
+	if len(body) > 0 && body[0] == '-' {
+		neg = true
+		body = body[1:]
+	}
+	n := 0
+	for n < len(body) && n < 3 && body[n] >= '0' && body[n] <= '9' {
+		n++
+	}
+	h, rest, ok := arrowtext.Digits(body, n)
+	if n < 2 || !ok || len(rest) == 0 || rest[0] != ':' {
 		return fmt.Errorf("time %q is not a time of day", text)
+	}
+	m, rest, ok := arrowtext.Digits(rest[1:], 2)
+	if !ok || len(rest) == 0 || rest[0] != ':' {
+		return fmt.Errorf("time %q is not a time of day", text)
+	}
+	s, rest, ok := arrowtext.Digits(rest[1:], 2)
+	if !ok || h > 838 || m > 59 || s > 59 {
+		return fmt.Errorf("time %q is not a time of day", text)
+	}
+	us := h*arrowtext.MicrosPerHour + m*arrowtext.MicrosPerMinute + s*arrowtext.MicrosPerSecond
+	if len(rest) > 0 && rest[0] == '.' {
+		rest = rest[1:]
+		var frac int64
+		k := 0
+		for k < len(rest) && rest[k] >= '0' && rest[k] <= '9' {
+			if k < 6 {
+				frac = frac*10 + int64(rest[k]-'0')
+			}
+			k++
+		}
+		if k == 0 {
+			return fmt.Errorf("time %q is not a time of day", text)
+		}
+		for i := k; i < 6; i++ {
+			frac *= 10
+		}
+		us += frac
+		rest = rest[k:]
+	}
+	if len(rest) != 0 || us > maxMySQLTimeMicros {
+		return fmt.Errorf("time %q is not a time of day", text)
+	}
+	if neg {
+		us = -us
 	}
 	w.Time(us)
 	return nil

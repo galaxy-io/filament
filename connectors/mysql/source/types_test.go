@@ -16,6 +16,7 @@ type stubRowWriter struct {
 	nullCalled bool
 	dateVal    int32
 	tsVal      int64
+	timeVal    int64
 }
 
 func (s *stubRowWriter) Null()                      { s.nullCalled = true }
@@ -30,7 +31,7 @@ func (s *stubRowWriter) String(string)              {}
 func (s *stubRowWriter) StringBytes([]byte)         {}
 func (s *stubRowWriter) Bytes([]byte)               {}
 func (s *stubRowWriter) Date(v int32)               { s.dateVal = v }
-func (s *stubRowWriter) Time(int64)                 {}
+func (s *stubRowWriter) Time(v int64)               { s.timeVal = v }
 func (s *stubRowWriter) Timestamp(v int64)          { s.tsVal = v }
 func (s *stubRowWriter) EndRow(rowmodel.Meta) error { return nil }
 func (s *stubRowWriter) Flush() error               { return nil }
@@ -211,6 +212,97 @@ func TestParseDatetime(t *testing.T) {
 				if w.tsVal != tt.wantTs {
 					t.Fatalf("got ts %d, want %d", w.tsVal, tt.wantTs)
 				}
+			}
+		})
+	}
+}
+
+
+func TestParseTime(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantTime int64
+		wantText string
+		wantErr  bool
+	}{
+		{
+			name:     "standard time of day",
+			input:    "13:00:00",
+			wantTime: 13 * arrowtext.MicrosPerHour,
+			wantText: "13:00:00",
+		},
+		{
+			name:     "exact 24 hours",
+			input:    "24:00:00",
+			wantTime: 24 * arrowtext.MicrosPerHour,
+			wantText: "24:00:00",
+		},
+		{
+			name:     "three-digit hours",
+			input:    "100:00:00",
+			wantTime: 100 * arrowtext.MicrosPerHour,
+			wantText: "100:00:00",
+		},
+		{
+			name:     "upper bound 838:59:59",
+			input:    "838:59:59",
+			wantTime: 838*arrowtext.MicrosPerHour + 59*arrowtext.MicrosPerMinute + 59*arrowtext.MicrosPerSecond,
+			wantText: "838:59:59",
+		},
+		{
+			name:     "negative duration",
+			input:    "-01:00:00",
+			wantTime: -1 * arrowtext.MicrosPerHour,
+			wantText: "-01:00:00",
+		},
+		{
+			name:     "negative lower bound -838:59:59",
+			input:    "-838:59:59",
+			wantTime: -(838*arrowtext.MicrosPerHour + 59*arrowtext.MicrosPerMinute + 59*arrowtext.MicrosPerSecond),
+			wantText: "-838:59:59",
+		},
+		{
+			name:     "negative fractional duration",
+			input:    "-00:00:00.5",
+			wantTime: -500_000,
+			wantText: "-00:00:00.5",
+		},
+		{
+			name:    "past 838 hours",
+			input:   "839:00:00",
+			wantErr: true,
+		},
+		{
+			name:    "invalid minutes",
+			input:   "10:60:00",
+			wantErr: true,
+		},
+		{
+			name:    "invalid seconds",
+			input:   "10:00:60",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w stubRowWriter
+			err := parseTime(&w, []byte(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("parseTime(%q) succeeded, want error", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseTime(%q) error: %v", tt.input, err)
+			}
+			if w.timeVal != tt.wantTime {
+				t.Fatalf("parseTime(%q) = %d, want %d", tt.input, w.timeVal, tt.wantTime)
+			}
+			if gotText := string(arrowtext.AppendTimeOfDay(nil, w.timeVal)); gotText != tt.wantText {
+				t.Fatalf("AppendTimeOfDay(%d) = %q, want %q", w.timeVal, gotText, tt.wantText)
 			}
 		})
 	}
