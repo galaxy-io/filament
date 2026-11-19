@@ -606,6 +606,14 @@ func textTime(dst, src []byte) ([]byte, error) {
 }
 
 func parseTime(w arrowbatch.RowWriter, text []byte) error {
+	// Postgres accepts 24:00:00 as a time, and the binary path (decTime)
+	// passes its value, a full day in microseconds, straight through.
+	// Special-case it here so the text path agrees; ReadTimeOfDay itself
+	// stays strict for every other caller.
+	if string(text) == "24:00:00" {
+		w.Time(arrowtext.MicrosPerDay)
+		return nil
+	}
 	us, rest, err := arrowtext.ReadTimeOfDay(text)
 	if err != nil || len(rest) != 0 {
 		return fmt.Errorf("invalid time %q", text)

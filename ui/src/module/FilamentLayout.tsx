@@ -10,18 +10,35 @@ import EditConnectionModal from "@/pages/connections/components/edit/EditConnect
 import CreatePipelineModal from "@/pages/pipelines/components/create/CreatePipelineModal";
 import PipelineRunModal from "@/pages/pipelines/components/run/PipelineRunModal";
 
+import { GALAXY_DEFAULT_PRODUCT_URLS } from "@/module/constants";
+import { GalaxyProductsProvider } from "@/module/GalaxyProductsProvider";
 import { useFilamentLayoutSearch, useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
-import { Flow } from "@/module/types";
+import { Flow, type GalaxyProductUrls } from "@/module/types";
+import { createFilamentFlowCloseSearch } from "@/module/utils";
 
 export interface FilamentLayoutProps {
   sidebarFooter?: ReactNode;
+  productUrls?: GalaxyProductUrls;
 }
 
-const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
+const FilamentLayout: FC<FilamentLayoutProps> = ({
+  sidebarFooter,
+  productUrls = GALAXY_DEFAULT_PRODUCT_URLS,
+}) => {
   const updateSearch = useFilamentSearchUpdate<FilamentLayoutSearch>();
-  const { connectionId, pipelineId, flow, connector, connectorKind, connectorSearch } =
-    useFilamentLayoutSearch();
+  const {
+    connectionId,
+    pipelineId,
+    flow,
+    connector,
+    connectorKind,
+    connectorSearch,
+    sourceId,
+    sinkIds,
+    resources,
+    resyncResources,
+  } = useFilamentLayoutSearch();
 
   const handleCloseDrawer = useCallback(() => {
     void updateSearch(
@@ -40,24 +57,13 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
   }, [updateSearch]);
 
   const handleCloseFlow = useCallback(() => {
-    void updateSearch(
-      (prev) => {
-        const {
-          flow: _,
-          connector: __,
-          connectorKind: ___,
-          connectorSearch: ____,
-          pipelineId: _____,
-          ...rest
-        } = prev;
-        return rest;
-      },
-      { replace: true },
-    );
+    void updateSearch((prev) => ({ ...prev, ...createFilamentFlowCloseSearch(prev) }), {
+      replace: true,
+    });
   }, [updateSearch]);
 
   return (
-    <>
+    <GalaxyProductsProvider productUrls={productUrls}>
       <MainLayout sidebarFooter={sidebarFooter}>
         <Outlet />
       </MainLayout>
@@ -78,13 +84,20 @@ const FilamentLayout: FC<FilamentLayoutProps> = ({ sidebarFooter }) => {
         connectionId={connectionId}
         onClose={handleCloseFlow}
       />
-      <CreatePipelineModal isOpen={flow === Flow.CREATE_PIPELINE} onClose={handleCloseFlow} />
+      <CreatePipelineModal
+        isOpen={flow === Flow.CREATE_PIPELINE}
+        sourceId={sourceId}
+        sinkIds={sinkIds}
+        onClose={handleCloseFlow}
+      />
       <PipelineRunModal
         isOpen={flow === Flow.RUN_PIPELINE && !!pipelineId}
         pipelineId={pipelineId}
+        resources={resources}
+        resyncResources={resyncResources}
         onClose={handleCloseFlow}
       />
-    </>
+    </GalaxyProductsProvider>
   );
 };
 

@@ -130,6 +130,8 @@ const PipelineRunModalResourcesPane: FC<PipelineRunModalResourcesPaneProps> = ({
             onChange={setSearch}
             placeholder="Search resources..."
             ariaLabel="Search resources"
+            hotKeys={["/"]}
+            shouldBindHotKey
             fillWidth
           />
         </Box>

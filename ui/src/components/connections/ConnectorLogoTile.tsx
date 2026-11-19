@@ -1,15 +1,13 @@
-import { type FC, type MouseEvent, useState } from "react";
+import type { FC, MouseEvent } from "react";
 
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
-import { match } from "ts-pattern";
 
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextVariant } from "@galaxy-io/dls/text/Text";
-import { FontFamily, GalaxyTheme } from "@galaxy-io/dls/theme/enums";
+import { FontFamily } from "@galaxy-io/dls/theme/enums";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-import { useGalaxyTheme } from "@galaxy-io/dls/theme/useGalaxyTheme";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
@@ -18,6 +16,7 @@ import {
   CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP,
   CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP,
 } from "@/components/connections/constants";
+import { useConnectorLogoURL } from "@/components/connections/hooks/useConnectorLogoURL";
 import { ConnectorTileSize } from "@/components/connections/types";
 
 const ConnectorLogo = styled.img<{ $height: number }>`
@@ -46,12 +45,6 @@ interface ConnectorLogoTileProps {
   isLoading?: boolean;
 }
 
-interface ConnectorLogoTileState {
-  failedLogoURL?: string;
-}
-
-const DEFAULT_STATE: ConnectorLogoTileState = {};
-
 const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
   name,
   darkLogoUrl,
@@ -62,17 +55,7 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
   isDeleted = false,
   isLoading = false,
 }) => {
-  const { activeTheme } = useGalaxyTheme();
-  const logoURL = match(activeTheme)
-    .with(GalaxyTheme.DARK, () => darkLogoUrl)
-    .with(GalaxyTheme.LIGHT, () => lightLogoUrl)
-    .exhaustive();
-  const [state, setState] = useState<ConnectorLogoTileState>(DEFAULT_STATE);
-  const showLogo = !!logoURL && state.failedLogoURL !== logoURL;
-
-  const handleLogoError = () => {
-    setState((prev) => ({ ...prev, failedLogoURL: logoURL }));
-  };
+  const { logoURL, handleLogoError } = useConnectorLogoURL(darkLogoUrl, lightLogoUrl);
 
   const renderFallback = () => {
     if (isLoading) {
@@ -100,7 +83,7 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
 
   const tile = (
     <ConnectorTileFrame $size={size} $isClickable={!!onClick} $isDeleted={isDeleted}>
-      {showLogo ? (
+      {logoURL ? (
         <ConnectorLogo
           src={logoURL}
           alt={`${name} logo`}

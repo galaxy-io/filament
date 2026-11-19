@@ -120,17 +120,23 @@ const createGetConnectionQueryKey = (input?: GetConnectionRequest, transport?: T
 export const createGetConnectionInput = (id: Connection["id"]) =>
   create(GetConnectionRequestSchema, { id });
 
-const selectConnections = (results: UseQueryResult<GetConnectionResponse>[]) =>
-  results.flatMap((result) => result.data?.connection ?? []);
+const selectConnections = (results: UseQueryResult<GetConnectionResponse>[]) => ({
+  connections: results.flatMap((result) => result.data?.connection ?? []),
+  isLoading: results.some((result) => result.isLoading),
+});
 
-export const useGetConnectionQueries = (ids: Connection["id"][]) => {
+export const useGetConnectionQueries = (
+  ids: Connection["id"][],
+  options: Pick<UseQueryOptions<typeof IngestionService.method.getConnection.output>, "retry"> = {},
+) => {
   const transport = useTransport();
   return useQueries({
-    queries: ids.map((id) =>
-      createQueryOptions(IngestionService.method.getConnection, createGetConnectionInput(id), {
+    queries: ids.map((id) => ({
+      ...createQueryOptions(IngestionService.method.getConnection, createGetConnectionInput(id), {
         transport,
       }),
-    ),
+      ...options,
+    })),
     combine: selectConnections,
   });
 };

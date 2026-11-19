@@ -11,6 +11,7 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import { isWebhookConnector } from "@/components/webhooks/utils";
 
+import { createConnectionCreatedSearch } from "@/pages/connections/components/create/utils";
 import ConnectionForm from "@/pages/connections/components/form/ConnectionForm";
 import ConnectionFormProvider, {
   useConnectionFormActions,
@@ -56,16 +57,9 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   const { mutate: createConnection } = useCreateConnectionMutation();
   const { mintKey } = useConnectionWebhookKeyMint();
 
-  const openConnection = useCallback(
-    (connectionId: Connection["id"]) => {
-      void updateSearch((prev) => ({
-        ...prev,
-        flow: undefined,
-        connector: undefined,
-        connectorKind: undefined,
-        connectorSearch: undefined,
-        connectionId,
-      }));
+  const completeCreate = useCallback(
+    (connection: Connection) => {
+      void updateSearch((prev) => createConnectionCreatedSearch(prev, connection));
     },
     [updateSearch],
   );
@@ -80,11 +74,11 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
             header: "Connection created without a signing key",
             description: getErrorMessage(error, "Failed to generate a signing key"),
           });
-          openConnection(connection.id);
+          completeCreate(connection);
         },
       });
     },
-    [mintKey, toast, openConnection],
+    [mintKey, toast, completeCreate],
   );
 
   const handleCreateConnection = useCallback(
@@ -115,7 +109,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
               mintSigningKey(connection);
               return;
             }
-            openConnection(connection.id);
+            completeCreate(connection);
           },
           onError: (error) => {
             setPhase(ConnectionFormPhase.ERROR);
@@ -136,7 +130,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
       toast,
       setPhase,
       mintSigningKey,
-      openConnection,
+      completeCreate,
     ],
   );
 
@@ -152,7 +146,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
       <ConnectionFormSigningKeyModal
         isOpen={isOpen}
         reveal={reveal}
-        onDone={() => openConnection(reveal.connection.id)}
+        onDone={() => completeCreate(reveal.connection)}
       />
     );
   }

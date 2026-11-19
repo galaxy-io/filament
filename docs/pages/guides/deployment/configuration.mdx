@@ -148,6 +148,15 @@ Filament does not export logs through OTLP.
 | `DEFAULT_TENANT_ID` | `00000000-0000-0000-0000-000000000000` | Tenant used when a request does not provide one |
 | `METRICSSTORE_PROVIDER` | unset | Unset reads dashboard metrics from the configured datastore. No explicit values are currently supported |
 
+### Galaxy products
+
+Galaxy products link to each other, such as Filament opening Alchemy to write a function. Set the same variables on every product. A product links only to the products that are set, and it sends people back only to their origins. Each value is an absolute http or https URL without query or fragment, and an invalid one stops the server at start.
+
+| Variable | Default | Description |
+|---|---|---|
+| `GALAXY_ALCHEMY_URL` | unset | Where Alchemy's web application is served, such as `https://alchemy.example.com`. Chart value `galaxy.productUrls.alchemy` |
+| `GALAXY_FILAMENT_URL` | unset | Where Filament's web application is served, such as `https://filament.example.com`. Chart value `galaxy.productUrls.filament` |
+
 ### Webhooks
 
 In a split deployment, webhooks require the shared PostgreSQL datastore and NATS JetStream.
@@ -306,7 +315,7 @@ NATS server, SQLite datastore, and read-only environment secret provider.
 | `NATS_STORE_DIR` | `<temporary directory>/filament-standalone` | Embedded JetStream storage directory |
 | `STORE_PATH` | `<NATS_STORE_DIR>/filament.db` | SQLite database path |
 
-Standalone also reads `LOG_LEVEL` and `NATS_TTL_SECONDS`. Its secret provider
+Standalone also reads `LOG_LEVEL`, `NATS_TTL_SECONDS` and the `GALAXY_<PRODUCT>_URL` variables. Its secret provider
 maps a reference such as `postgres-creds/dsn` to `POSTGRES_CREDS_DSN`. It
 cannot create, update, or delete secrets.
 
