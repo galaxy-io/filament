@@ -85,6 +85,12 @@ encryption to protect resolved connection credentials in transit.
 | existingSecret | string | `""` | Existing runtime Secret with `PERSISTENCE_DSN`, `NATS_URL`, and `ENCRYPTION_KEY`. Shared by the server, control plane, and workers. Provider credentials live in a separate Secret so workers never receive them. |
 | podLabels | object | `{}` | Labels added to the server, control plane, persistent worker and migration pods. |
 
+## Galaxy product parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| galaxy.productUrls | object | `{"alchemy":"","filament":""}` | Where each Galaxy product's UI is served, e.g. `alchemy: https://alchemy.example.com` (`GALAXY_<PRODUCT>_URL`). Products link to each other through these and send people back only to them. Set the same block on every product. |
+
 ## Server parameters
 
 | Key | Type | Default | Description |
@@ -181,7 +187,7 @@ encryption to protect resolved connection credentials in transit.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| persistence.migrate | bool | `true` | Run database migrations as a post-install/post-upgrade hook Job. |
+| persistence.migrate | bool | `true` | Run database migrations as a hook Job: pre-install/pre-upgrade when `existingSecret` is set and the vendored PostgreSQL is off, otherwise post-install/post-upgrade. |
 | persistence.migrateResources | object | `{}` | Migration Job resource requests and limits. |
 | persistence.postgresql.dsn | string | required | PostgreSQL connection string stored in the chart-created Secret as `PERSISTENCE_DSN`. Required unless `existingSecret` is set. |
 | persistence.type | string | `"postgres"` | Persistence provider. |

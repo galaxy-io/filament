@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -127,6 +127,8 @@ const CreatePipelineModalFooter: FC = () => {
         <Button
           label={isSubmitting ? "Creating..." : "Create pipeline"}
           icon={PlusIcon}
+          hotKeys={["mod", "enter"]}
+          shouldBindHotKey
           isLoading={isSubmitting}
           isDisabled={isSubmitting || isNextDisabled}
           onClick={handleCreate}
@@ -137,10 +139,10 @@ const CreatePipelineModalFooter: FC = () => {
     return (
       <Button
         label="Next"
-        icon={ArrowRightIcon}
+        hotKeys={["mod", "enter"]}
+        shouldBindHotKey
         onClick={() => goNext()}
         isDisabled={isNextDisabled}
-        isIconTrailing
       />
     );
   };

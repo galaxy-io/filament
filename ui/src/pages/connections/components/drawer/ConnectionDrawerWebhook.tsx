@@ -84,7 +84,7 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
                   <Button
                     label="Create pipeline"
                     size={ButtonSize.SMALL}
-                    onClick={() => openFlow(Flow.CREATE_PIPELINE)}
+                    onClick={() => openFlow(Flow.CREATE_PIPELINE, { sourceId: connection.id })}
                   />
                 )}
                 <DocsLink label="Setup guide" path={WEBHOOK_DOCS_PATH} size={TextSize.BODY_SM} />

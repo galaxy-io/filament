@@ -12,9 +12,9 @@ import (
 	"fmt"
 	"strconv"
 	"sync/atomic"
-	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/connectors/http/internal/timestamps"
 )
 
 // Comparator orders watermark candidates. Less reports a < b; the returned
@@ -127,19 +127,20 @@ func (Numeric) Less(a, b string) (bool, error) {
 // Name returns "numeric".
 func (Numeric) Name() string { return "numeric" }
 
-// Time parses both sides as RFC3339 and compares chronologically. Errors on
-// parse failure (no silent lex fallback).
+// Time parses both sides with the timestamp layouts APIs commonly emit,
+// including colon-less numeric offsets, and compares chronologically.
+// Errors on parse failure (no silent lex fallback).
 type Time struct{}
 
 // Less reports whether a is chronologically before b.
 func (Time) Less(a, b string) (bool, error) {
-	at, err := time.Parse(time.RFC3339, a)
+	at, err := timestamps.Parse(a)
 	if err != nil {
-		return false, fmt.Errorf("%w: time watermark: %q not RFC3339", errs.ErrPathType, a)
+		return false, fmt.Errorf("%w: time watermark: %q is not a timestamp", errs.ErrPathType, a)
 	}
-	bt, err := time.Parse(time.RFC3339, b)
+	bt, err := timestamps.Parse(b)
 	if err != nil {
-		return false, fmt.Errorf("%w: time watermark: %q not RFC3339", errs.ErrPathType, b)
+		return false, fmt.Errorf("%w: time watermark: %q is not a timestamp", errs.ErrPathType, b)
 	}
 	return at.Before(bt), nil
 }

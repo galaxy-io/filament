@@ -104,23 +104,29 @@ Rules.
 Some hooks own more than one call. Copy these shapes rather than rebuilding them at a call site.
 
 ```ts
-const selectConnections = (results: UseQueryResult<GetConnectionResponse>[]) =>
-  results.flatMap((result) => result.data?.connection ?? []);
+const selectConnections = (results: UseQueryResult<GetConnectionResponse>[]) => ({
+  connections: results.flatMap((result) => result.data?.connection ?? []),
+  isLoading: results.some((result) => result.isLoading),
+});
 
-export const useGetConnectionQueries = (ids: Connection["id"][]) => {
+export const useGetConnectionQueries = (
+  ids: Connection["id"][],
+  options: Pick<UseQueryOptions<typeof IngestionService.method.getConnection.output>, "retry"> = {},
+) => {
   const transport = useTransport();
   return useQueries({
-    queries: ids.map((id) =>
-      createQueryOptions(IngestionService.method.getConnection, createGetConnectionInput(id), {
+    queries: ids.map((id) => ({
+      ...createQueryOptions(IngestionService.method.getConnection, createGetConnectionInput(id), {
         transport,
       }),
-    ),
+      ...options,
+    })),
     combine: selectConnections,
   });
 };
 ```
 
-- `useGetConnectionQueries(ids)` resolves several connections by id. The `combine` is module level so its identity is stable. Each id shares the cache entry `useGetConnectionQuery` uses.
+- `useGetConnectionQueries(ids, options)` resolves several connections by id and returns `{ connections, isLoading }`. The `combine` is module level so its identity is stable. Each id shares the cache entry `useGetConnectionQuery` uses. Pass `{ retry: false }` where a stale id must fail fast, as the create-pipeline seed does. Options are spread, never set to `undefined`, so the client's retry policy holds otherwise.
 - `useListRunsInfiniteQuery` and its suspense twin pass `select: selectUniqueRunPages`, which drops a run already seen on an earlier page when polling shifts the cursor.
 - `useListActivePipelineRunsQuery(pipelineId)` and `useSuspenseListActivePipelineRunsQuery(pipelineId)` build their input privately (`status: [...ACTIVE_RUN_STATUSES]`, `ACTIVE_PIPELINE_RUNS_PAGE_SIZE`) and poll on the pipeline schedule's `nextFireAt`.
 - `useCanManageTeam({ enabled })` in `api/queries/auth.ts` is a `select` on `ListMembers` that returns `canManage` as `boolean | undefined`. Compare with `=== true` or `=== false`, because `undefined` means not known yet.
