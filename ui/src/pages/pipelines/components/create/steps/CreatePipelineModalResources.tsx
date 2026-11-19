@@ -13,7 +13,8 @@ import { WidgetVariant } from "@galaxy-io/dls/widget/Widget";
 
 import { ExecutionMode } from "@/gen/ingestion/v1/common_pb";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { hasFixedWebhookResources } from "@/components/webhooks/utils";
 
 import {
   useCreatePipelineModalActions,
@@ -54,7 +55,8 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
     useState<CreatePipelineModalResourcesState>(DEFAULT_RESOURCES_STATE);
 
   const isContinuous = executionMode === ExecutionMode.CONTINUOUS;
-  const isWebhook = isWebhookConnector(sourceConnection?.connector);
+  const { webhook } = useConnectionWebhookSpec(sourceConnection);
+  const canCreateResources = isContinuous && !hasFixedWebhookResources(webhook);
   const rows = rowsBySink[activeSinkId] ?? [];
   const filteredRows = useMemo(
     () => rows.filter((row) => isSearchMatch(localState.search, row.displayName)),
@@ -104,7 +106,7 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
           shouldBindHotKey
           fillWidth
         />
-        {isContinuous && (
+        {canCreateResources && (
           <FlexItem shrink={0}>
             <Button
               label="Add resource"
@@ -125,7 +127,7 @@ const CreatePipelineModalResources: FC<CreatePipelineModalResourcesProps> = ({
             onSave={handleCreate}
             onCancel={() => setCreating(false)}
             variant={WidgetVariant.PRIMARY}
-            isWebhook={isWebhook}
+            isWebhook={!!webhook}
           />
           <Divider />
         </>

@@ -12,6 +12,7 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorPreviewChip from "@/components/connections/ConnectorPreviewChip";
 import ConnectorTile from "@/components/connections/ConnectorTile";
+import ConnectorWebhooksChip from "@/components/connections/ConnectorWebhooksChip";
 import { ConnectorTileSize } from "@/components/connections/types";
 import { formatConnectorName } from "@/components/connections/utils";
 
@@ -71,6 +72,7 @@ const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
             {connector.description || CONNECTOR_KIND_TO_DESCRIPTION_MAP[connector.kind]}
           </Text>
         </FlexItem>
+        <ConnectorWebhooksChip hasWebhooks={!!connector.webhook} />
         <Button label="Connect" variant={ButtonVariant.BASE} onClick={handleClick} fillWidth />
       </Flex>
     </Widget>

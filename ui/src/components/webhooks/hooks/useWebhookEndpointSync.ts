@@ -12,9 +12,10 @@ import {
   getWebhookRouteResources,
   getWebhookSourceRouteKeys,
   isSameWebhookResources,
-  isWebhookConnector,
+  isWebhookReceiving,
 } from "@/components/webhooks/utils";
 
+import { createGetConnectorInput, createGetConnectorQueryOptions } from "@/api/queries/connectors";
 import { createGetPipelineInput, createGetPipelineQueryOptions } from "@/api/queries/pipelines";
 import {
   createGetWebhookEndpointInput,
@@ -38,11 +39,21 @@ export const useWebhookEndpointSync = () => {
   const { mutateAsync: putEndpoint } = usePutWebhookEndpointMutation();
 
   const sync = async ({ sourceConnection, pipelineId }: WebhookEndpointSyncInput) => {
-    if (!sourceConnection || !isWebhookConnector(sourceConnection.connector)) return;
+    if (!sourceConnection) return;
 
     const sourceConnectionId = sourceConnection.id;
 
     try {
+      const webhook = await queryClient
+        .fetchQuery(
+          createGetConnectorQueryOptions({
+            input: createGetConnectorInput(sourceConnection.connector, sourceConnection.kind),
+            transport,
+          }),
+        )
+        .then((response) => response.connector?.webhook, ignoreNotFoundError);
+      if (!isWebhookReceiving(webhook, sourceConnection.config)) return;
+
       const pipeline = await queryClient
         .fetchQuery({
           ...createGetPipelineQueryOptions({
@@ -57,7 +68,7 @@ export const useWebhookEndpointSync = () => {
       if (!currentVersion?.graph) return;
       const graph = currentVersion.graph;
       const expectedPipelineVersionId = currentVersion.id;
-      const routeKeys = getWebhookSourceRouteKeys(graph, sourceConnectionId);
+      const routeKeys = getWebhookSourceRouteKeys(graph, sourceConnectionId, webhook);
 
       const endpoint = await queryClient
         .fetchQuery({
@@ -87,8 +98,8 @@ export const useWebhookEndpointSync = () => {
       if (!endpoint?.hasSigningSecret) {
         toast({
           variant: ToastVariant.WARNING,
-          header: "Webhook endpoint not set up",
-          description: "Generate a signing key under Secrets on the source.",
+          header: "Webhook endpoint not enabled",
+          description: "Create a signing key on the source to receive deliveries.",
         });
         return;
       }
@@ -107,7 +118,7 @@ export const useWebhookEndpointSync = () => {
           toast({
             variant: ToastVariant.WARNING,
             header: "Webhook endpoint unchanged",
-            description: `It stays bound to ${boundPipeline.name}.`,
+            description: `${boundPipeline.name} still receives this source's deliveries.`,
           });
           return;
         }
@@ -117,7 +128,7 @@ export const useWebhookEndpointSync = () => {
         isBoundHere && routeKeys.includes(endpoint.routeKey)
           ? endpoint.routeKey
           : (routeKeys[0] ?? "");
-      const resources = getWebhookRouteResources(graph, routeKey);
+      const resources = getWebhookRouteResources(graph, routeKey, webhook);
       if (
         isBoundHere &&
         endpoint.routeKey === routeKey &&
@@ -139,7 +150,7 @@ export const useWebhookEndpointSync = () => {
       toast({
         variant: ToastVariant.ERROR,
         header: "Webhook endpoint not updated",
-        description: getErrorMessage(error, "Failed to update the webhook endpoint"),
+        description: getErrorMessage(error, "Could not update the webhook endpoint"),
       });
     }
   };

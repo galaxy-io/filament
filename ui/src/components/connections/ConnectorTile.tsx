@@ -1,15 +1,13 @@
 import type { FC, MouseEvent } from "react";
 
-import { create } from "@bufbuild/protobuf";
-
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import ConnectorLogoTile from "@/components/connections/ConnectorLogoTile";
 import type { ConnectorTileSize } from "@/components/connections/types";
 import { formatConnectorName } from "@/components/connections/utils";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
+import { createGetConnectorInput, useGetConnectorQuery } from "@/api/queries/connectors";
 
 interface ConnectorTileProps {
   connector: ConnectorSpec["name"];
@@ -21,7 +19,7 @@ interface ConnectorTileProps {
 
 const ConnectorTile: FC<ConnectorTileProps> = ({ connector, kind, size, onClick, isDeleted }) => {
   const { data, isLoading } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, { connector, kind }),
+    input: createGetConnectorInput(connector, kind),
     options: { enabled: !!connector && !!kind },
   });
   const catalogSpec = data?.connector;

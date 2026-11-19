@@ -79,7 +79,7 @@ webhook:
   setup: |
     In Metronome, open **Developer** > **Notifications** > **Webhooks**, choose **Add** and set the URL to {{delivery_url}}.
 
-    Metronome creates a signing secret for each webhook. Copy it into this connection's signing secret. Each Metronome webhook has its own secret, so point one webhook at each connection, and use a separate connection for each Metronome environment.
+    Metronome creates a signing secret for each webhook. Copy it into this connection's signing key. Each Metronome webhook has its own secret, so point one webhook at each connection, and use a separate connection for each Metronome environment.
 
     Every notification type the destination receives is routed by its type. System and offset notifications for contracts, commits, credits, subscriptions and voided invoices go to `system_notifications_webhook`. Threshold alerts, finalized invoices, billing provider and integration errors, marketplace and payment gating notifications go to `notifications_webhook`.
 

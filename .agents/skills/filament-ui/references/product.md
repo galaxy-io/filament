@@ -60,6 +60,8 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **The path.** Sources (or Sinks) → **New source** → pick a connector from the searchable catalog → name it and fill the fields the connector's schema asks for → **Validate** → a green "Connected" beacon and the save button → the toast "Connection created" → the connection's drawer opens.
 
+**Webhooks.** A connector whose spec has `webhook` shows a Webhooks chip on its catalog card. When the spec names an `ingestion_field`, the form opens with a **Read from** toggle, API or Webhooks. It writes that field, hides the API fields under Webhooks and locks once the connection exists. The UI never offers `both`, so every pipeline keeps one execution mode. After create, a Webhooks connection gets its signing key at once. Filament mints it and shows it once, or the provider issues it and the user pastes it, or picks **Set up later**. Either way the delivery URLs and the spec's setup steps sit beside it. The connection's drawer always lists the delivery URLs, before any key or pipeline exists. The API version select shows only when a connector has more than one version.
+
 **How it should feel.** Certain. The user knows it works before it exists. Every field is labelled, examples in placeholders show the expected shape (`Enter host...`), and a failed validation shows the server's reason under the form, stacked as a plain line over the raw message.
 
 **What breaks it.** Saving an untested connection. A generic "Invalid configuration" with no server detail. Losing what was typed when validation fails. Asking for a field the connector does not need.
