@@ -152,7 +152,13 @@ const SettingsTeamInviteModal: FC<SettingsTeamInviteModalProps> = ({
             onClick={onClose}
             isDisabled={isInviting}
           />
-          <Button label="Create invite" onClick={handleSubmit} isLoading={isInviting} />
+          <Button
+            label="Create invite"
+            hotKeys={["mod", "enter"]}
+            shouldBindHotKey
+            onClick={handleSubmit}
+            isLoading={isInviting}
+          />
         </>
       ),
       body: (

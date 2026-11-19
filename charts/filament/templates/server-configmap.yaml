@@ -31,6 +31,13 @@ data:
   WEBHOOK_INBOX_REPLICAS: {{ .Values.server.webhooks.replicas | int64 | quote }}
   {{- end }}
 
+  # Galaxy products
+  {{- range $product, $url := .Values.galaxy.productUrls }}
+  {{- with $url }}
+  GALAXY_{{ upper $product }}_URL: {{ . | quote }}
+  {{- end }}
+  {{- end }}
+
   # Worker
   WORKER_URL: "http://{{ include "filament.worker.fullname" . }}:{{ .Values.worker.service.port }}"
 

@@ -1,0 +1,62 @@
+---
+title: "Typeform source connector"
+sidebarTitle: "Typeform"
+description: "Read account details, workspaces, forms, form details, responses, themes, images, and webhooks from Typeform"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-typeform-dark.svg"
+---
+
+Connector ID `typeform`
+
+The Typeform source reads account details, workspaces, form definitions, and submissions from Typeform. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). It has been verified against Typeform's official REST API documentation and validated against a live Typeform account. It targets the unversioned REST API.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `token` | Connection | | Required. Secret. Typeform personal access token or OAuth access token. |
+| `base_url` | Connection | `https://api.typeform.com` | API host URL. Select the European data center host if your account stores responses in the EU. |
+
+Create a personal access token in **Account → Personal tokens** inside your Typeform settings. OAuth 2.0 access tokens with appropriate scopes (`forms:read`, `responses:read`, `workspaces:read`, `themes:read`, `webhooks:read`) are also accepted.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `account` | `GET /me` | |
+| `workspaces` | `GET /workspaces` | |
+| `forms` | `GET /forms` | |
+| `form_details` | `GET /forms/{form_id}` | `forms` |
+| `responses` | `GET /forms/{form_id}/responses` | `forms` |
+| `themes` | `GET /themes` | |
+| `images` | `GET /images` | |
+| `webhooks` | `GET /forms/{form_id}/webhooks` | `forms` |
+
+`account`, `workspaces`, `forms`, `form_details`, and `responses` are selected by default. `themes`, `images`, and `webhooks` are optional.
+
+`account` queries `/me` to fetch the user ID, alias, email, and language.
+
+`workspaces` returns workspace metadata, sharing status, and form counts.
+
+`forms` lists form titles, update timestamps, and public access settings.
+
+`form_details` retrieves the complete form definition for each form, including fields, logic jumps, welcome screens, and thank you screens.
+
+`responses` extracts individual form submissions, submitted timestamps, browser metadata, and answer payloads.
+
+`themes` lists custom themes, fonts, colors, and background designs.
+
+`images` lists image assets uploaded to your account.
+
+`webhooks` retrieves webhook configurations and delivery URLs for each form.
+
+## Modes
+
+All resources use full reads. Typeform list endpoints do not provide filter watermarks for incremental synchronization across multiple parent forms. Use **full replace** write mode to capture updated form structures, newly submitted responses, and workspace changes.
+
+## Behavior
+
+- **Auth**: requests send the token as an HTTP Bearer credential in the `Authorization` header to the configured API host.
+- **Pagination**: `workspaces`, `forms`, and `themes` use page pagination requesting up to 200 items per page until `page_count` is reached. `responses` uses cursor pagination passing the last item's `response_id` into the `before` parameter with a page size of 100 until no further items return.
+- **Rate limiting**: throttled at 2 requests per second with a burst allowance of 5 requests to stay within Typeform fair use guidelines.
+- **Dependencies**: `form_details`, `responses`, and `webhooks` depend on `forms` to provide parent form IDs.
+- The `raw` column preserves unmapped response fields as JSON.
