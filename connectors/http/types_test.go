@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,8 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 )
 
 func TestExtractRejectsIntegerOutsideDeclaredWidth(t *testing.T) {
@@ -77,6 +80,36 @@ func TestExtractFixedDecimalRounding(t *testing.T) {
 			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
 			if err != nil || !slices.Equal(rows, want) {
 				t.Fatalf("rows=%q, err=%v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
+type stubTimestampWriter struct {
+	arrowbatch.RowWriter
+	us int64
+}
+
+func (w *stubTimestampWriter) Timestamp(v int64) { w.us = v }
+
+func TestParseTimestampEpochMillisecondsBefore2001(t *testing.T) {
+	for _, tc := range []struct {
+		raw  string
+		want string
+	}{
+		{"946684800000", "2000-01-01T00:00:00Z"},
+		{"1000000000000", "2001-09-09T01:46:40Z"},
+		{"1735689600", "2025-01-01T00:00:00Z"},
+		{"1735689600000", "2025-01-01T00:00:00Z"},
+	} {
+		t.Run(tc.raw, func(t *testing.T) {
+			var w stubTimestampWriter
+			if err := parseTimestamp(&w, json.RawMessage(tc.raw)); err != nil {
+				t.Fatalf("parseTimestamp(%s) err = %v", tc.raw, err)
+			}
+			got := time.UnixMicro(w.us).UTC().Format(time.RFC3339)
+			if got != tc.want {
+				t.Fatalf("parseTimestamp(%s) = %s, want %s", tc.raw, got, tc.want)
 			}
 		})
 	}
