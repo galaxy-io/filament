@@ -293,6 +293,28 @@ whose value sorts before the child's effective lower bound under the child's
 comparator are skipped too, so the child only calls the API for parents that
 changed since the last run. The child must declare an `incremental` block.
 
+### Order top-level reads
+
+Top-level resources read at the same time. When one resource's rows point at
+another's, such as invoice lines and their invoices, a header created between
+the two reads lands its lines in this sync and itself only in the next one.
+List the line resources in the header's `after` to close that gap.
+
+```yaml
+- name: invoices
+  path: /export/invoices
+  after: [invoice_items]
+```
+
+The header starts once every listed resource in the run has finished, so every
+line it reads already has its header in the source. Listed resources that are
+not selected for a run are ignored. Both ends must be top-level, a stream cannot
+be listed because it never finishes, and the order cannot form a cycle.
+
+Each wait moves the header to the end of its lines' read. Keep chains one level
+deep. A long chain turns parallel reads into a sequence and stretches the first
+sync of a large account.
+
 ### Incremental
 
 An `incremental` block turns a resource into an incremental read:
@@ -306,6 +328,11 @@ An `incremental` block turns a resource into an incremental read:
 - `comparator: lex (default) | numeric | time`.
 - `overlap_seconds` rewinds the lower bound for a lookback window and is
   valid for `time` **or** `numeric` comparators.
+- `value_date_format` reformats a `time` watermark on the wire only, as a
+  Go time layout or `epoch_millis` / `epoch_seconds`, for APIs that reject
+  RFC3339. The checkpoint keeps the normalized RFC3339 value. Filament rejects a
+  layout that renders the same value for every watermark, and a bad initial
+  watermark fails at setup.
 
 The lower bound remains fixed during one extraction. Filament saves the largest
 cursor value it sees. A missing or invalid cursor fails the run because skipping
@@ -683,8 +710,8 @@ Declare this rule on individual resources, not in `defaults`. Verify the API's
 actual response before adding a rule so an unrelated error cannot look like an
 empty collection.
 
-Responses are capped at 100 MB. Top-level resources extract concurrently,
-children after their parents.
+Responses are capped at 100 MB. Top-level resources extract concurrently
+except where `after` orders them, and children run after their parents.
 
 **Connection testing.** When a caller explicitly invokes the connector's
 `TestConnection` capability, it sends one request to the first top-level,
@@ -697,8 +724,8 @@ together. It checks:
 - required objects, field types, and allowed enum values
 - strict YAML decoding that rejects unknown fields
 - defaults and shorthand expansion
-- semantic checks for cross-field rules such as parent cycles and unprojected
-  cursor fields
+- semantic checks for cross-field rules such as parent and `after` cycles and
+  unprojected cursor fields
 
 ## API version
 

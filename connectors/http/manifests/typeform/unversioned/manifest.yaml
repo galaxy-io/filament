@@ -1,0 +1,212 @@
+version: 1
+name: typeform
+display_name: Typeform
+description: Online form builder and survey platform that creates dynamic, interactive conversational forms and collects user responses.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-typeform-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-typeform-light.svg
+config:
+  token:
+    type: secret
+    required: true
+    help: Typeform personal access token from Account > Personal tokens, or OAuth access token.
+  base_url:
+    type: enum
+    enum:
+      - https://api.typeform.com
+      - https://api.eu.typeform.com
+    default: https://api.typeform.com
+    help: Typeform API host. Select the EU host if your account stores responses in the European data center.
+defaults:
+  method: GET
+connection:
+  base_url: "{{ config.base_url }}"
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/json
+    User-Agent: filament/1.0
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 2
+    burst: 5
+resources:
+  - name: account
+    path: /me
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [user_id]
+    fields:
+      user_id: string
+      email: string?
+      alias: string?
+      language: string?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: workspaces
+    path: /workspaces
+    query:
+      page_size: "200"
+    pagination:
+      page:
+        number: query.page
+        size: query.page_size
+        page_size: 200
+        total_pages: page_count
+    records: $.items
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      account_id: string?
+      shared: bool?
+      forms: json?
+      self: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: forms
+    path: /forms
+    query:
+      page_size: "200"
+    pagination:
+      page:
+        number: query.page
+        size: query.page_size
+        page_size: 200
+        total_pages: page_count
+    records: $.items
+    primary_key: [id]
+    fields:
+      id: string
+      title: string?
+      last_updated_at: timestamptz?
+      created_at: timestamptz?
+      settings: json?
+      theme: json?
+      _links: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      form_id: id
+
+  - name: form_details
+    path: /forms/{form_id}
+    params:
+      form_id: parent.form_id
+    for_each: forms
+    response:
+      records: $
+      cardinality: one
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      title: string?
+      language: string?
+      fields: json?
+      logic: json?
+      welcome_screens: json?
+      thankyou_screens: json?
+      settings: json?
+      theme: json?
+      workspace: json?
+      hidden: json?
+      created_at: timestamptz?
+      last_updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: responses
+    path: /forms/{form_id}/responses
+    params:
+      form_id: parent.form_id
+    for_each: forms
+    query:
+      page_size: "100"
+    pagination:
+      cursor:
+        response: items.-1.response_id
+        request: query.before
+        null_terminates: true
+    records: $.items
+    primary_key: [response_id]
+    fields:
+      form_id: {path: parent.form_id, type: string}
+      response_id: string
+      token: string?
+      landing_id: string?
+      landed_at: timestamptz?
+      submitted_at: timestamptz?
+      metadata: json?
+      answers: json?
+      hidden: json?
+      calculated: json?
+      variables: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: themes
+    path: /themes
+    query:
+      page_size: "200"
+    pagination:
+      page:
+        number: query.page
+        size: query.page_size
+        page_size: 200
+        total_pages: page_count
+    records: $.items
+    primary_key: [id]
+    fields:
+      id: string
+      name: string?
+      font: string?
+      colors: json?
+      background: json?
+      has_transparent_button: bool?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: images
+    path: /images
+    response:
+      records: $
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      src: string?
+      file_name: string?
+      width: int32?
+      height: int32?
+      media_type: string?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: webhooks
+    path: /forms/{form_id}/webhooks
+    params:
+      form_id: parent.form_id
+    for_each: forms
+    response:
+      records: $.items
+      pagination: none
+    primary_key: [id]
+    fields:
+      form_id: {path: parent.form_id, type: string}
+      id: string
+      tag: string?
+      url: string?
+      enabled: bool?
+      verify_ssl: bool?
+      event_types: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+discovery:
+  mode: static
+  default_resources:
+    - account
+    - workspaces
+    - forms
+    - form_details
+    - responses
