@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/connectors/http/internal/timestamps"
 	"github.com/galaxy-io/filament/connectors/http/template"
 )
 
@@ -404,6 +404,12 @@ func (m *Manifest) validateSemantics() error {
 			if r.Incremental.OverlapSeconds > 0 && r.Incremental.Comparator != "time" && r.Incremental.Comparator != "numeric" {
 				_ = agg.Addf(path+".incremental.overlap_seconds", "requires comparator time or numeric")
 			}
+			if r.Incremental.ValueDateFormat != "" && r.Incremental.Comparator != "time" {
+				_ = agg.Addf(path+".incremental.value_date_format", "requires comparator time")
+			}
+			if err := ValidateValueDateFormat(r.Incremental.ValueDateFormat); err != nil {
+				_ = agg.Addf(path+".incremental.value_date_format", "%v", err)
+			}
 			if err := validateIncrementalInitial(*r.Incremental); err != nil {
 				_ = agg.Addf(path+".incremental.initial", "%v", err)
 			}
@@ -624,8 +630,8 @@ func validateIncrementalInitial(spec IncrementalSpec) error {
 			return fmt.Errorf("must be numeric")
 		}
 	case "time":
-		if _, err := time.Parse(time.RFC3339, spec.Initial); err != nil {
-			return fmt.Errorf("must be RFC3339")
+		if _, err := timestamps.Parse(spec.Initial); err != nil {
+			return fmt.Errorf("must be a timestamp")
 		}
 	}
 	return nil

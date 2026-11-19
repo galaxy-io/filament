@@ -133,9 +133,28 @@ func AppendPadded(dst []byte, v int64, width int) []byte {
 // ErrBadDate reports text that is not a date or time of day.
 var ErrBadDate = errors.New("invalid date")
 
+// daysInMonth returns the number of days in month m (1-12) of year y, with
+// February's length set by the same proleptic Gregorian leap rule DateToDays
+// and DaysToDate use.
+func daysInMonth(y, m int64) int64 {
+	switch m {
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		if y%4 == 0 && (y%100 != 0 || y%400 == 0) {
+			return 29
+		}
+		return 28
+	default:
+		return 31
+	}
+}
+
 // ReadDate reads "YYYY-MM-DD" and returns days since the Unix epoch and the
 // unread tail. The year may run past four digits, as PostgreSQL prints years
-// after 9999 (its dates reach 5874897).
+// after 9999 (its dates reach 5874897). The month must be 1-12 and the day
+// must exist in it, so an impossible date is an error, never a rollover into
+// the next month.
 func ReadDate(text []byte) (days int64, rest []byte, err error) {
 	n := 0
 	for n < len(text) && n < 7 && text[n] >= '0' && text[n] <= '9' {
@@ -156,11 +175,16 @@ func ReadDate(text []byte) (days int64, rest []byte, err error) {
 	if !ok {
 		return 0, nil, ErrBadDate
 	}
+	if m < 1 || m > 12 || d < 1 || d > daysInMonth(y, m) {
+		return 0, nil, ErrBadDate
+	}
 	return DateToDays(y, int(m), int(d)), rest, nil
 }
 
 // ReadTimeOfDay reads "HH:MM:SS[.ffffff]" (two or three hour digits) as
-// microseconds and returns the unread tail.
+// microseconds and returns the unread tail. The hour must be 0-23 and the
+// minute and second 0-59, so an impossible time is an error, never a
+// rollover into the next hour.
 func ReadTimeOfDay(text []byte) (us int64, rest []byte, err error) {
 	n := 0
 	for n < len(text) && n < 3 && text[n] >= '0' && text[n] <= '9' {
@@ -176,6 +200,9 @@ func ReadTimeOfDay(text []byte) (us int64, rest []byte, err error) {
 	}
 	s, rest, ok := digits(rest[1:], 2)
 	if !ok {
+		return 0, nil, ErrBadDate
+	}
+	if h > 23 || m > 59 || s > 59 {
 		return 0, nil, ErrBadDate
 	}
 	us = h*MicrosPerHour + m*MicrosPerMinute + s*MicrosPerSecond
