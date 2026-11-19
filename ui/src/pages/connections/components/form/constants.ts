@@ -11,13 +11,3 @@ export const CONNECTION_FORM_INGESTION_TO_LABEL_MAP: Record<ConnectionFormIngest
   [WebhookIngestion.API]: "API",
   [WebhookIngestion.WEBHOOKS]: "Webhooks",
 };
-
-export const CONNECTION_FORM_INGESTION_TO_TOOLTIP_MAP: Record<
-  ConnectionFormIngestion,
-  (connectorName: string) => string
-> = {
-  [WebhookIngestion.API]: (connectorName) =>
-    `Pipelines read the ${connectorName} API on a schedule or on demand`,
-  [WebhookIngestion.WEBHOOKS]: (connectorName) =>
-    `${connectorName} sends events to Filament and a stream reads them as they arrive`,
-};

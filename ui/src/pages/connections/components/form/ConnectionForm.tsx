@@ -231,9 +231,8 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   const renderBody = () => {
     return (
       <>
-        {connector && ingestionField && (
+        {ingestionField && (
           <ConnectionFormIngestionToggle
-            connector={connector}
             value={getConnectionFormIngestion(getFieldValue(ingestionField))}
             isLocked={!!connectionId}
             isDisabled={isDisabled}
