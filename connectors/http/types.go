@@ -179,7 +179,7 @@ func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 		if err != nil {
 			return fmt.Errorf("%s is not a timestamp", raw)
 		}
-		if math.Abs(f) >= 1e11 { // milliseconds (|f| >= 1e11 exceeds year 5138 in seconds)
+		if math.Abs(f) >= 1e10 { // milliseconds (|f| >= 1e10 exceeds year 2286 in seconds, covering 1970+ epoch ms)
 			f *= 1000
 		} else {
 			f *= 1_000_000
