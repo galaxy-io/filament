@@ -82,6 +82,28 @@ func TestExtractFixedDecimalRounding(t *testing.T) {
 	}
 }
 
+func TestExtractUnboundedDecimalExponent(t *testing.T) {
+	// An unbounded decimal in exponent form must keep its exact digits.
+	// A float64 round-trip only holds about 15 to 17 significant digits,
+	// so longer values lost digits silently. See issue #740.
+	for _, tc := range []struct{ value, want string }{
+		{"1.234567890123456789e10", "12345678901.23456789"},
+		{"1.234567890123456789e20", "123456789012345678900"},
+		{"-1.234567890123456789e10", "-12345678901.23456789"},
+		{"1.5e-3", "0.0015"},
+		{"1e5", "100000"},
+		{"1.234567890123456789", "1.234567890123456789"},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", tc.value)
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("got rows %q, err %v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
 func TestExtractTimestampAcceptsNumericOffset(t *testing.T) {
 	// Jira Cloud emits created and updated with a numeric zone offset and no
 	// colon, for example 2026-11-13T01:09:44.630+0500. RFC 3339 parsing

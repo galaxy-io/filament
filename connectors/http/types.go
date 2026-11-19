@@ -111,19 +111,21 @@ func parseFloat(bits int, set func(arrowbatch.RowWriter, float64)) valueParser {
 }
 
 // parseNumberText keeps an unbounded decimal as its digits. A JSON number in
-// exponent form (1e5) is spelled out, since the sinks' numeric parsers take
-// plain digits; at that point it is a float anyway.
+// exponent form (1e5) is spelled out exactly, since the sinks' numeric parsers
+// take plain digits. A float64 round-trip would lose digits beyond about 15
+// to 17 significant figures, so the exponent is expanded with math/big
+// instead. 256 bits of precision covers about 77 significant digits.
 func parseNumberText(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	s, err := unquoted(raw)
 	if err != nil {
 		return err
 	}
 	if strings.ContainsAny(s, "eE") {
-		f, err := strconv.ParseFloat(s, 64)
+		f, _, err := big.ParseFloat(s, 10, 256, big.ToNearestEven)
 		if err != nil {
 			return fmt.Errorf("%q is not a number", s)
 		}
-		s = strconv.FormatFloat(f, 'f', -1, 64)
+		s = f.Text('f', -1)
 	}
 	w.String(s)
 	return nil
