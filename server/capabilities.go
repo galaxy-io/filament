@@ -261,7 +261,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
 	validateEdgeSelections(ctx, edge, from, *srcConn, srcSpec, chosen, probes, ev)
-	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
+	validateEdgeTransform(ctx, edge, from, *srcConn, filament.IsCDCIngestion(chosen), probes, ev)
 	return nil
 }
 
@@ -381,30 +381,21 @@ func validateEdgePartitions(ctx context.Context, edge *ingestionv1.PipelineEdge,
 	}
 }
 
-// selectedSchema narrows a resource schema to an edge's column selection, so
-// transforms are checked against the columns the run will read.
-func selectedSchema(edge *ingestionv1.PipelineEdge, resource string, schema filament.RecordSchema) filament.RecordSchema {
+// edgeColumns is the edge's column selection for resource, empty when it reads every column.
+func edgeColumns(edge *ingestionv1.PipelineEdge, resource string) []string {
 	for _, selection := range edge.GetColumns() {
-		if selection.GetResource() != resource {
-			continue
+		if selection.GetResource() == resource {
+			return selection.GetColumns()
 		}
-		out := schema.Clone()
-		out.Fields = out.Fields[:0]
-		for _, field := range schema.Fields {
-			if slices.Contains(selection.GetColumns(), field.Name) {
-				out.Fields = append(out.Fields, field)
-			}
-		}
-		return out
 	}
-	return schema
+	return nil
 }
 
 // validateEdgeTransform compiles the edge's transform against the schema of
 // every resource it names, so a definition the source no longer satisfies
 // fails validation rather than the run. Issues carry the definition path the
 // builder uses to place them.
-func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, cdc bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
 	if !compile.HasTransform(edge) {
 		return
 	}
@@ -440,7 +431,7 @@ func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, 
 			edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
 			return
 		}
-		if _, _, err := transform.Analyze(def, selectedSchema(edge, resource, *inspection.Schema)); err != nil {
+		if _, _, err := transform.Analyze(def, rowmodel.InputFor(*inspection.Schema, edgeColumns(edge, resource), cdc)); err != nil {
 			transformErrors(ev, err)
 		}
 	}
