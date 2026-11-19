@@ -1,0 +1,296 @@
+version: 1
+name: zendesk
+display_name: Zendesk
+description: Customer service and engagement platform for tracking, prioritizing, and resolving customer support tickets, users, and organizations.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-zendesk-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-zendesk-light.svg
+api_version: "v2"
+config:
+  subdomain:
+    type: string
+    required: true
+    help: Your Zendesk subdomain (e.g. 'mycompany' for mycompany.zendesk.com).
+  auth_method:
+    type: enum
+    enum: [api_token, oauth_access_token]
+    enum_labels:
+      api_token: API Token (Basic Auth)
+      oauth_access_token: OAuth Access Token
+    default: api_token
+    help: Choose between an API token with email (Basic Auth) or an OAuth access token.
+  email:
+    type: string
+    required: true
+    visible_when: {field: auth_method, values: [api_token]}
+    help: The email address of your Zendesk admin or agent account.
+  api_token:
+    type: secret
+    required: true
+    visible_when: {field: auth_method, values: [api_token]}
+    help: API token generated in Zendesk Admin Center under Apps and integrations > Zendesk API.
+  access_token:
+    type: secret
+    required: true
+    visible_when: {field: auth_method, values: [oauth_access_token]}
+    help: OAuth Bearer access token generated via a Zendesk OAuth client.
+defaults:
+  method: GET
+  query:
+    page[size]: "100"
+  response:
+    pagination:
+      cursor:
+        response: meta.after_cursor
+        request: query.page[after]
+        more: meta.has_more
+        null_terminates: true
+connection:
+  base_url: "https://{{ config.subdomain }}.zendesk.com"
+  auth:
+    select:
+      field: auth_method
+      cases:
+        api_token:
+          required: [email, api_token]
+          auth:
+            basic:
+              username: "{{ config.email }}/token"
+              password: config.api_token
+        oauth_access_token:
+          required: [access_token]
+          auth:
+            bearer: config.access_token
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    # Paced at 3 req/s (180 req/min) to stay safely within Zendesk lower-tier
+    # plan limits (Team plan allows 200 req/min; Growth/Enterprise allow 400-700+ req/min).
+    requests_per_second: 3
+    burst: 5
+resources:
+  - name: users
+    path: /api/v2/users.json
+    response:
+      records: $.users
+    primary_key: [id]
+    fields:
+      id: int64
+      url: string?
+      name: string
+      email: string?
+      role: string?
+      verified: bool?
+      active: bool?
+      alias: string?
+      time_zone: string?
+      phone: string?
+      shared_phone_number: string?
+      locale: string?
+      locale_id: int64?
+      organization_id: int64?
+      custom_role_id: int64?
+      restricted_agent: bool?
+      suspended: bool?
+      photo: json?
+      tags: json?
+      user_fields: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: tickets
+    path: /api/v2/tickets.json
+    response:
+      records: $.tickets
+    primary_key: [id]
+    capture:
+      ticket_id: id
+    fields:
+      id: int64
+      url: string?
+      external_id: string?
+      type: string?
+      subject: string?
+      raw_subject: string?
+      description: string?
+      priority: string?
+      status: string?
+      recipient: string?
+      requester_id: int64?
+      submitter_id: int64?
+      assignee_id: int64?
+      organization_id: int64?
+      group_id: int64?
+      collaborator_ids: json?
+      follower_ids: json?
+      problem_id: int64?
+      has_incidents: bool?
+      due_at: timestamptz?
+      tags: json?
+      custom_fields: json?
+      satisfaction_rating: json?
+      sharing_agreement_ids: json?
+      fields: json?
+      brand_id: int64?
+      allow_channelback: bool?
+      allow_attachments: bool?
+      is_public: bool?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: organizations
+    path: /api/v2/organizations.json
+    response:
+      records: $.organizations
+    primary_key: [id]
+    fields:
+      id: int64
+      url: string?
+      name: string
+      details: string?
+      notes: string?
+      group_id: int64?
+      shared_tickets: bool?
+      shared_comments: bool?
+      domain_names: json?
+      tags: json?
+      organization_fields: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: groups
+    path: /api/v2/groups.json
+    response:
+      records: $.groups
+    primary_key: [id]
+    fields:
+      id: int64
+      url: string?
+      name: string
+      description: string?
+      default: bool?
+      deleted: bool?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: ticket_fields
+    path: /api/v2/ticket_fields.json
+    response:
+      records: $.ticket_fields
+    primary_key: [id]
+    fields:
+      id: int64
+      url: string?
+      type: string
+      title: string
+      description: string?
+      position: int64?
+      active: bool?
+      required: bool?
+      collapsed_for_agents: bool?
+      regexp_for_validation: string?
+      title_in_portal: string?
+      visible_in_portal: bool?
+      editable_in_portal: bool?
+      required_in_portal: bool?
+      custom_field_options: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: brands
+    path: /api/v2/brands.json
+    response:
+      records: $.brands
+    primary_key: [id]
+    fields:
+      id: int64
+      url: string?
+      name: string
+      brand_url: string?
+      has_help_center: bool?
+      help_center_state: string?
+      active: bool?
+      default: bool?
+      is_ssl: bool?
+      subdomain: string?
+      host_mapping: string?
+      logo: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: custom_roles
+    path: /api/v2/custom_roles.json
+    response:
+      records: $.custom_roles
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      description: string?
+      role_type: int64?
+      configuration: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: satisfaction_ratings
+    path: /api/v2/satisfaction_ratings.json
+    response:
+      records: $.satisfaction_ratings
+    primary_key: [id]
+    fields:
+      id: int64
+      url: string?
+      assignee_id: int64?
+      group_id: int64?
+      requester_id: int64?
+      ticket_id: int64?
+      score: string?
+      comment: string?
+      reason: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: tags
+    path: /api/v2/tags.json
+    response:
+      records: $.tags
+    primary_key: [name]
+    fields:
+      name: string
+      count: int64?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: ticket_comments
+    path: /api/v2/tickets/{ticket_id}/comments.json
+    params:
+      ticket_id: parent.ticket_id
+    for_each: tickets
+    response:
+      records: $.comments
+    primary_key: [ticket_id, id]
+    fields:
+      ticket_id: {path: parent.ticket_id, type: int64}
+      id: int64
+      type: string?
+      body: string?
+      html_body: string?
+      plain_body: string?
+      public: bool?
+      author_id: int64?
+      attachments: json?
+      metadata: json?
+      created_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+discovery:
+  mode: static
+  default_resources: [users, tickets, organizations, groups, ticket_fields, brands, tags]

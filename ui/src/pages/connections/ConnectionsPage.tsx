@@ -15,6 +15,7 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import {
+  CONNECTOR_KIND_TO_CREATE_TITLE_MAP,
   CONNECTOR_KIND_TO_PLURAL_LABEL_MAP,
   CONNECTOR_KIND_TO_PLURAL_NOUN_MAP,
 } from "@/components/connections/constants";
@@ -26,7 +27,6 @@ import ConnectionsPageSourcesEmptyGraphic from "@/pages/connections/components/C
 import ConnectionCard from "@/pages/connections/components/card/ConnectionCard";
 import {
   CONNECTOR_GRID_MIN_COLUMN_WIDTH,
-  CONNECTOR_KIND_TO_CREATE_TITLE_MAP,
   CONNECTOR_KIND_TO_DOCS_PATH_MAP,
   CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP,
 } from "@/pages/connections/constants";

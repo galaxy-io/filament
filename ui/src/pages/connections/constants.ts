@@ -1,6 +1,9 @@
 import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
+import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import { CreateConnectionSelectorShelf } from "@/pages/connections/components/create/types";
+
+import type { FilamentFlowSeed } from "@/module/schemas";
 
 export const CONNECTOR_GRID_MIN_COLUMN_WIDTH = 320;
 export const CONNECTION_PIPELINES_PAGE_SIZE = 1000;
@@ -27,12 +30,6 @@ export const CONNECTOR_KIND_TO_DESCRIPTION_MAP: Record<ConnectorKind, string> = 
   [ConnectorKind.SINK]: "Send data to external destinations",
 };
 
-export const CONNECTOR_KIND_TO_CREATE_TITLE_MAP: Record<ConnectorKind, string> = {
-  [ConnectorKind.UNSPECIFIED]: "New connection",
-  [ConnectorKind.SOURCE]: "New source",
-  [ConnectorKind.SINK]: "New sink",
-};
-
 export const CONNECTOR_KIND_TO_DOCS_PATH_MAP: Record<ConnectorKind, string> = {
   [ConnectorKind.UNSPECIFIED]: "/pages/connectors/overview/introduction",
   [ConnectorKind.SOURCE]: "/pages/connectors/overview/introduction#sources",
@@ -45,4 +42,13 @@ export const CONNECTOR_KIND_TO_EMPTY_MESSAGE_MAP: Record<
 > = {
   [ConnectorKind.SOURCE]: "Connect data sources to move data in.",
   [ConnectorKind.SINK]: "Connect data sinks to move data out.",
+};
+
+export const CONNECTOR_KIND_TO_PIPELINE_SEED_MAP: Record<
+  ConnectorKind,
+  (connectionId: Connection["id"]) => FilamentFlowSeed
+> = {
+  [ConnectorKind.UNSPECIFIED]: () => ({}),
+  [ConnectorKind.SOURCE]: (sourceId) => ({ sourceId }),
+  [ConnectorKind.SINK]: (sinkId) => ({ sinkIds: [sinkId] }),
 };

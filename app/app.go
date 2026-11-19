@@ -106,7 +106,7 @@ func WithWebhookInbox(i *inbox.Inbox, publicBaseURL string, maxInFlight int, ret
 }
 
 // WithUI mounts a handler for the web UI at "/" (default: none). The ui
-// package provides one: app.WithUI(ui.Handler()). ConnectRPC routes take
+// package provides one: app.WithUI(ui.Handler(ui.Config{})). ConnectRPC routes take
 // precedence; everything else falls through to the UI handler.
 func WithUI(h http.Handler) Option { return func(c *Config) { c.UI = h } }
 
