@@ -62,7 +62,7 @@ type Invoker interface {
 type FunctionService interface {
 	// Resolve fetches refs' contracts; Contract reports why a ref cannot run.
 	Resolve(ctx context.Context, tenant filament.TenantID, refs []FunctionRef) Contracts
-	// Invoke runs call over in; the caller releases Result.Record.
+	// Invoke runs call over in; the caller releases Result.Record. On error, Result.Invocations still lists the calls that succeeded.
 	Invoke(ctx context.Context, tenant filament.TenantID, call Call, in arrow.RecordBatch) (Result, error)
 }
 
@@ -132,9 +132,11 @@ func (c *compiler) alchemy(path string, st *AlchemyStep) {
 		c.errs.addf(path+".function", "%v", err)
 		return
 	}
+	prev := c.layout.Fields
 	in, inIdx, inOK := c.alchemyInput(path, contract.Input)
 	out, outIdx, outKeys, outOK := c.alchemyOutput(path, contract.Output)
 	if !inOK || !outOK {
+		c.layout.Fields = prev
 		return
 	}
 	c.ops = append(c.ops, alchemyOp{

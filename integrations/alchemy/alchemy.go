@@ -171,7 +171,7 @@ func (c *Client) Invoke(ctx context.Context, tenant filament.TenantID, call tran
 	var res transform.Result
 	rec, err := c.invokeSized(ctx, call.Function, in, &res.Invocations)
 	if err != nil {
-		return transform.Result{}, err
+		return res, err
 	}
 	res.Record = rec
 	return res, nil
