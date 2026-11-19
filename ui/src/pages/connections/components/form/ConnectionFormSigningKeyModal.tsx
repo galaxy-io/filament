@@ -7,6 +7,8 @@ import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
+
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
 import ConnectionFormWebhookDeliveryTargets from "@/pages/connections/components/form/ConnectionFormWebhookDeliveryTargets";
 import ConnectionFormWebhookSetupGuide from "@/pages/connections/components/form/ConnectionFormWebhookSetupGuide";
@@ -35,6 +37,7 @@ const ConnectionFormSigningKeyModal: FC<ConnectionFormSigningKeyModalProps> = ({
           connectorName={connection.connector}
           connectorKind={connection.kind}
           title={`${connection.name} signing key`}
+          badge={getWebhookConnectorTileBadge(webhook)}
         />
       }
       footer={

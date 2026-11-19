@@ -15,6 +15,7 @@ import type { WebhookEndpointConfig } from "@/gen/ingestion/v1/webhooks_pb";
 
 import {
   createPutWebhookEndpointRequest,
+  getWebhookConnectorTileBadge,
   getWebhookSecretError,
 } from "@/components/webhooks/utils";
 
@@ -121,6 +122,7 @@ const ConnectionFormWebhookSecretModal: FC<ConnectionFormWebhookSecretModalProps
           connectorName={connection.connector}
           connectorKind={connection.kind}
           title={`${connection.name} signing key`}
+          badge={getWebhookConnectorTileBadge(webhook)}
         />
       }
       footer={

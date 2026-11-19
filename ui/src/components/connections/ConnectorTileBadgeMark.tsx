@@ -5,7 +5,6 @@ import { styled } from "@linaria/react";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
-import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import {
   CONNECTOR_TILE_BADGE_TO_ICON_MAP,
@@ -35,19 +34,17 @@ interface ConnectorTileBadgeMarkProps {
 }
 
 const ConnectorTileBadgeMark: FC<ConnectorTileBadgeMarkProps> = ({ badge, size }) => (
-  <Tooltip body={CONNECTOR_TILE_BADGE_TO_LABEL_MAP[badge]}>
-    <ConnectorTileBadgeCircle
-      $size={size}
-      role="img"
-      aria-label={CONNECTOR_TILE_BADGE_TO_LABEL_MAP[badge]}
-    >
-      <Icon
-        component={CONNECTOR_TILE_BADGE_TO_ICON_MAP[badge]}
-        size={CONNECTOR_TILE_SIZE_TO_BADGE_GEOMETRY_MAP[size].iconSize}
-        variant={IconVariant.SECONDARY}
-      />
-    </ConnectorTileBadgeCircle>
-  </Tooltip>
+  <ConnectorTileBadgeCircle
+    $size={size}
+    role="img"
+    aria-label={CONNECTOR_TILE_BADGE_TO_LABEL_MAP[badge]}
+  >
+    <Icon
+      component={CONNECTOR_TILE_BADGE_TO_ICON_MAP[badge]}
+      size={CONNECTOR_TILE_SIZE_TO_BADGE_GEOMETRY_MAP[size].iconSize}
+      variant={IconVariant.SECONDARY}
+    />
+  </ConnectorTileBadgeCircle>
 );
 
 export default ConnectorTileBadgeMark;

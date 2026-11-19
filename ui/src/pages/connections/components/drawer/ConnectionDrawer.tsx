@@ -18,6 +18,7 @@ import ConnectorNameChips from "@/components/connections/ConnectorNameChips";
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
 import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
 
 import ConnectionDrawerActions from "@/pages/connections/components/drawer/ConnectionDrawerActions";
 import ConnectionDrawerHeader from "@/pages/connections/components/drawer/ConnectionDrawerHeader";
@@ -145,7 +146,16 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
-      header={connection ? <ConnectionDrawerHeader connection={connection} /> : "Connection"}
+      header={
+        connection ? (
+          <ConnectionDrawerHeader
+            connection={connection}
+            badge={getWebhookConnectorTileBadge(webhook)}
+          />
+        ) : (
+          "Connection"
+        )
+      }
       actions={
         connection && (
           <ConnectionDrawerActions
