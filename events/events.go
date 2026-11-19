@@ -5,6 +5,8 @@
 package events
 
 import (
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/galaxy-io/filament"
@@ -59,4 +61,24 @@ func (t EventType[T]) IsValid() bool {
 // emit callback when publishing happens elsewhere (see Publish).
 func NewFact[T any](t EventType[T], env Envelope, data T) Fact {
 	return Fact{Envelope: env, Name: t.Name(), Data: data}
+}
+
+var _ eventbus.Identified = Fact{}
+
+// MessageID identifies this fact for broker-side deduplication of publish
+// retries. Name, envelope identity, sequence and emit time together separate
+// every distinct fact, including a resumed attempt that restarts its sequence.
+// A fact without an emit time has no stable identity and opts out.
+func (f Fact) MessageID() string {
+	if f.At.IsZero() {
+		return ""
+	}
+	return strings.Join([]string{
+		f.Name,
+		string(f.Tenant),
+		string(f.Run),
+		f.Resource,
+		strconv.FormatUint(f.Seq, 10),
+		strconv.FormatInt(f.At.UnixNano(), 10),
+	}, "|")
 }
