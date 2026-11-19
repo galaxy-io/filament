@@ -45,7 +45,7 @@ data:
   AUTH_PROVIDER: {{ $.Values.auth.type | quote }}
   {{- end }}
   {{- with $.Values.alchemy.batchMaxBytes }}
-  ALCHEMY_BATCH_MAX_BYTES: {{ . | quote }}
+  ALCHEMY_BATCH_MAX_BYTES: {{ . | int64 | quote }}
   {{- end }}
   {{- with $.Values.alchemy.maxInFlight }}
   ALCHEMY_MAX_IN_FLIGHT: {{ . | quote }}

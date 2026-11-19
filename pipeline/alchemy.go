@@ -34,6 +34,18 @@ func (i functionInvoker) Invoke(ctx context.Context, call transform.Call, in arr
 	started := time.Now()
 	res, err := i.p.functions.Invoke(ctx, i.p.tenant, call, in)
 	env := events.Envelope{Resource: i.resource}
+	for _, inv := range res.Invocations {
+		i.p.publish(events.NewFact(events.FunctionInvoked, env, events.FunctionInvokedEvent{
+			Function:     call.Function.ID,
+			Version:      call.Function.Version,
+			Step:         call.Step,
+			InvocationID: inv.ID,
+			Records:      inv.Records,
+			Attempts:     inv.Attempts,
+			Replayed:     inv.Replayed,
+			Duration:     inv.Duration,
+		}))
+	}
 	if err != nil {
 		failed := events.FunctionFailedEvent{
 			Function: call.Function.ID,
@@ -50,18 +62,6 @@ func (i functionInvoker) Invoke(ctx context.Context, call transform.Call, in arr
 		}
 		i.p.publish(events.NewFact(events.FunctionFailed, env, failed))
 		return nil, err
-	}
-	for _, inv := range res.Invocations {
-		i.p.publish(events.NewFact(events.FunctionInvoked, env, events.FunctionInvokedEvent{
-			Function:     call.Function.ID,
-			Version:      call.Function.Version,
-			Step:         call.Step,
-			InvocationID: inv.ID,
-			Records:      inv.Records,
-			Attempts:     inv.Attempts,
-			Replayed:     inv.Replayed,
-			Duration:     inv.Duration,
-		}))
 	}
 	return res.Record, nil
 }
