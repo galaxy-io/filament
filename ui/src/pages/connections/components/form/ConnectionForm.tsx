@@ -1,7 +1,7 @@
 import { type FC, useCallback, useMemo } from "react";
 
 import { create, type JsonValue } from "@bufbuild/protobuf";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, CheckIcon } from "@phosphor-icons/react";
 import { keepPreviousData } from "@tanstack/react-query";
 import { match } from "ts-pattern";
 
@@ -269,20 +269,30 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
       .with(ConnectionFormPhase.IDLE, ConnectionFormPhase.ERROR, () => (
         <Button
           label="Validate"
-          icon={ArrowRightIcon}
+          hotKeys={["mod", "enter"]}
+          shouldBindHotKey
           onClick={handleTestConnection}
           isDisabled={isDisabled}
-          isIconTrailing
         />
       ))
-      .with(ConnectionFormPhase.VALIDATING, () => <Button label="Validate" isLoading />)
+      .with(ConnectionFormPhase.VALIDATING, () => (
+        <Button label="Validate" hotKeys={["mod", "enter"]} isLoading />
+      ))
       .with(ConnectionFormPhase.VALIDATED, () => (
         <Flex alignItems={AlignItems.CENTER} gap={16}>
           <Beacon variant={BeaconVariant.SUCCESS} label="Connected" />
-          <Button label={submitLabel} icon={CheckIcon} onClick={handleSubmit} />
+          <Button
+            label={submitLabel}
+            icon={CheckIcon}
+            hotKeys={["mod", "enter"]}
+            shouldBindHotKey
+            onClick={handleSubmit}
+          />
         </Flex>
       ))
-      .with(ConnectionFormPhase.SUBMITTING, () => <Button label={submitLabel} isLoading />)
+      .with(ConnectionFormPhase.SUBMITTING, () => (
+        <Button label={submitLabel} hotKeys={["mod", "enter"]} isLoading />
+      ))
       .exhaustive();
   };
 
