@@ -62,7 +62,7 @@ func run(ctx context.Context) error {
 		return err
 	}
 	defer closeDeps()
-	if deps.Sources, err = connectors.SourcesFromEnv(); err != nil {
+	if deps.Sources, err = connectors.SourcesFromEnv(deps.Metrics); err != nil {
 		return err
 	}
 	if deps.Sinks, err = connectors.SinksFromEnv(); err != nil {

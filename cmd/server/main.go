@@ -132,7 +132,7 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 	defer func() { logHostClose(h.Close(), serverLog) }()
 
-	mountRoutes(mux, api, webhooks, uiConfig)
+	mountRoutes(ctx, mux, api, webhooks, uiConfig)
 	healthState.MarkStarted()
 	started = true
 	serverLog.Info("server started",
@@ -155,10 +155,10 @@ func run(ctx context.Context, migrateOnly bool) error {
 
 // mountRoutes serves the API, the webhook receiver when it is enabled, and
 // the UI rendered with uiConfig.
-func mountRoutes(mux *http.ServeMux, api *server.Server, webhooks *webhookReceiver, uiConfig ui.Config) {
+func mountRoutes(ctx context.Context, mux *http.ServeMux, api *server.Server, webhooks *webhookReceiver, uiConfig ui.Config) {
 	api.Mount(mux)
 	if webhooks != nil {
-		webhooks.receiver.Mount(mux)
+		webhooks.serve(ctx, mux, api)
 	}
 	mux.Handle("/", ui.Handler(uiConfig))
 }

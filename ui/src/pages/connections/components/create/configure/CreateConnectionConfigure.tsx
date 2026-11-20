@@ -1,15 +1,16 @@
 import { type FC, useCallback, useState } from "react";
 
 import { create } from "@bufbuild/protobuf";
+import { match } from "ts-pattern";
 
 import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import { type Connection, CreateConnectionRequestSchema } from "@/gen/ingestion/v1/connections_pb";
-import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec, WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { isWebhookProviderIssued, isWebhookReceiving } from "@/components/webhooks/utils";
 
 import { createConnectionCreatedSearch } from "@/pages/connections/components/create/utils";
 import ConnectionForm from "@/pages/connections/components/form/ConnectionForm";
@@ -18,10 +19,12 @@ import ConnectionFormProvider, {
   useConnectionFormState,
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormSigningKeyModal from "@/pages/connections/components/form/ConnectionFormSigningKeyModal";
+import ConnectionFormWebhookSecretModal from "@/pages/connections/components/form/ConnectionFormWebhookSecretModal";
 import {
   ConnectionFormPhase,
-  type ConnectionFormSigningKeyReveal,
   type ConnectionFormState,
+  type ConnectionFormWebhookSetup,
+  ConnectionFormWebhookStep,
 } from "@/pages/connections/components/form/types";
 import { useConnectionWebhookKeyMint } from "@/pages/connections/hooks/useConnectionWebhookKeyMint";
 
@@ -29,6 +32,7 @@ import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
 
 import { useCreateConnectionMutation } from "@/api/queries/connections";
+import { createGetConnectorInput, useGetConnectorQuery } from "@/api/queries/connectors";
 
 import { getErrorMessage } from "@/utils/errors";
 
@@ -52,7 +56,11 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   const { setPhase } = useConnectionFormActions();
   const { toast } = useToast();
 
-  const [reveal, setReveal] = useState<ConnectionFormSigningKeyReveal | undefined>();
+  const [webhookSetup, setWebhookSetup] = useState<ConnectionFormWebhookSetup | undefined>();
+
+  const { data: connectorData } = useGetConnectorQuery({
+    input: createGetConnectorInput(connector, kind),
+  });
 
   const { mutate: createConnection } = useCreateConnectionMutation();
   const { mintKey } = useConnectionWebhookKeyMint();
@@ -65,14 +73,14 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
   );
 
   const mintSigningKey = useCallback(
-    (connection: Connection) => {
-      mintKey(connection, undefined, {
-        onSuccess: setReveal,
+    (connection: Connection, webhook: WebhookSpec) => {
+      mintKey(connection, webhook, undefined, {
+        onSuccess: (reveal) => setWebhookSetup({ step: ConnectionFormWebhookStep.REVEAL, reveal }),
         onError: (error) => {
           toast({
             variant: ToastVariant.ERROR,
             header: "Connection created without a signing key",
-            description: getErrorMessage(error, "Failed to generate a signing key"),
+            description: getErrorMessage(error, "Could not generate a signing key"),
           });
           completeCreate(connection);
         },
@@ -105,8 +113,13 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
               header: "Connection created",
             });
 
-            if (isWebhookConnector(connection.connector)) {
-              mintSigningKey(connection);
+            const webhook = connectorData?.connector?.webhook;
+            if (isWebhookReceiving(webhook, connection.config)) {
+              if (isWebhookProviderIssued(webhook)) {
+                setWebhookSetup({ step: ConnectionFormWebhookStep.SECRET, connection, webhook });
+              } else {
+                mintSigningKey(connection, webhook);
+              }
               return;
             }
             completeCreate(connection);
@@ -131,6 +144,7 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
       setPhase,
       mintSigningKey,
       completeCreate,
+      connectorData,
     ],
   );
 
@@ -141,14 +155,26 @@ const CreateConnectionConfigureContent: FC<CreateConnectionConfigureProps> = ({
     [updateSearch],
   );
 
-  if (reveal) {
-    return (
-      <ConnectionFormSigningKeyModal
-        isOpen={isOpen}
-        reveal={reveal}
-        onDone={() => completeCreate(reveal.connection)}
-      />
-    );
+  if (webhookSetup) {
+    return match(webhookSetup)
+      .with({ step: ConnectionFormWebhookStep.REVEAL }, ({ reveal }) => (
+        <ConnectionFormSigningKeyModal
+          isOpen={isOpen}
+          reveal={reveal}
+          onDone={() => completeCreate(reveal.connection)}
+        />
+      ))
+      .with({ step: ConnectionFormWebhookStep.SECRET }, ({ connection, webhook }) => (
+        <ConnectionFormWebhookSecretModal
+          isOpen={isOpen}
+          connection={connection}
+          webhook={webhook}
+          endpoint={undefined}
+          isNewConnection
+          onDone={() => completeCreate(connection)}
+        />
+      ))
+      .exhaustive();
   }
 
   return (

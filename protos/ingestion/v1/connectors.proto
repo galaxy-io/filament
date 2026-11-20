@@ -25,8 +25,51 @@ message ConnectorSpec {
   // Concrete registration selected by a source catalog alias; empty otherwise.
   string alias_target = 13;
   bool is_preview = 14;
-  // Ingress verifier for sources that receive webhooks. Empty otherwise.
-  string webhook_verifier = 15;
+  // Deprecated: read webhook.verifier.
+  string webhook_verifier = 15 [deprecated = true];
+  // Set for sources that receive provider webhooks.
+  WebhookSpec webhook = 16;
+}
+
+// WebhookSpec describes how a source receives provider webhooks.
+message WebhookSpec {
+  // Verifier profile that authenticates deliveries, and its parameters.
+  string verifier = 1;
+  google.protobuf.Struct verifier_params = 2;
+  // The endpoint configuration names the resources, rather than the source.
+  bool dynamic_resources = 3;
+  // Enum connection config field that chooses how a connection reads the
+  // source: "api" (the default), "webhooks" or "both". Empty means every
+  // connection of the source receives webhooks.
+  string ingestion_field = 4;
+  // Markdown instructions for configuring the sender.
+  string setup = 5;
+  // Resources the source reads from deliveries. Empty when
+  // dynamic_resources is set and the endpoint names them.
+  repeated string resources = 6;
+  // How the receiver routes deliveries sent to the endpoint's single URL.
+  // Saving an endpoint copies it.
+  google.protobuf.Struct ingress = 7;
+  // Webhook resources run continuously while the source's other resources
+  // run bounded, so one pipeline holds both. The webhook route key then ends
+  // in "/continuous".
+  bool splits_execution = 8;
+  // Deliveries may be sent to the endpoint's single URL and are routed to a
+  // resource by their event type. Each resource keeps its own URL as well.
+  bool routed = 9;
+  // Who creates the signing secret. With PROVIDER the connection must be
+  // given the provider's secret and Filament never mints one.
+  WebhookSecretIssuer secret_issuer = 10;
+}
+
+// WebhookSecretIssuer says who creates a webhook's signing secret.
+enum WebhookSecretIssuer {
+  // Filament mints the secret.
+  WEBHOOK_SECRET_ISSUER_UNSPECIFIED = 0;
+  // Filament mints the secret and the user copies it into the sender.
+  WEBHOOK_SECRET_ISSUER_FILAMENT = 1;
+  // The provider creates the secret and the user copies it into Filament.
+  WEBHOOK_SECRET_ISSUER_PROVIDER = 2;
 }
 
 message ListConnectorsRequest {

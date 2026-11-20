@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/galaxy-io/filament"
 
@@ -50,6 +51,26 @@ func (a *Server) sourceExecutionModes(spec filament.ConnectorSpec) []ingestionv1
 		modes = append(modes, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS)
 	}
 	return modes
+}
+
+// connectionExecutionModes narrows a source's modes to how a connection with
+// cfg reads it. A connection that reads only the API never streams, and one
+// that reads only webhooks never runs bounded.
+func (a *Server) connectionExecutionModes(spec filament.ConnectorSpec, cfg filament.Config) []ingestionv1.ExecutionMode {
+	modes := a.sourceExecutionModes(spec)
+	if spec.Webhook == nil || spec.Webhook.IngestionField == "" {
+		return modes
+	}
+	var excluded ingestionv1.ExecutionMode
+	switch spec.Webhook.Ingestion(cfg) {
+	case filament.IngestionAPI:
+		excluded = ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS
+	case filament.IngestionWebhooks:
+		excluded = ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED
+	default:
+		return modes
+	}
+	return slices.DeleteFunc(modes, func(mode ingestionv1.ExecutionMode) bool { return mode == excluded })
 }
 
 // sinkExecutionModes lists the modes a sink can receive on this server. Write

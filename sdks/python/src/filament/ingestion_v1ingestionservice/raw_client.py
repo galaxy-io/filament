@@ -14,6 +14,7 @@ from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
 from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
 from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
+from ..types.ingestion_v1get_webhook_delivery_url_response import IngestionV1GetWebhookDeliveryUrlResponse
 from ..types.ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
 from ..types.ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
@@ -71,6 +72,61 @@ class RawIngestionV1IngestionserviceClient:
                     IngestionV1GetVersionResponse,
                     parse_obj_as(
                         type_=IngestionV1GetVersionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def getwebhookdeliveryurl(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[IngestionV1GetWebhookDeliveryUrlResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[IngestionV1GetWebhookDeliveryUrlResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetWebhookDeliveryURL",
+            method="POST",
+            json={
+                "sourceConnectionId": source_connection_id,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetWebhookDeliveryUrlResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetWebhookDeliveryUrlResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )
@@ -393,6 +449,61 @@ class AsyncRawIngestionV1IngestionserviceClient:
                     IngestionV1GetVersionResponse,
                     parse_obj_as(
                         type_=IngestionV1GetVersionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def getwebhookdeliveryurl(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[IngestionV1GetWebhookDeliveryUrlResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[IngestionV1GetWebhookDeliveryUrlResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetWebhookDeliveryURL",
+            method="POST",
+            json={
+                "sourceConnectionId": source_connection_id,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetWebhookDeliveryUrlResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetWebhookDeliveryUrlResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )

@@ -404,6 +404,99 @@ func (x *GetWebhookEndpointResponse) GetEndpoint() *WebhookEndpointConfig {
 	return nil
 }
 
+// The delivery URL belongs to the source connection, so it is known before the
+// endpoint exists. A provider that creates the signing secret needs the URL
+// first, and the endpoint needs that secret.
+type GetWebhookDeliveryURLRequest struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	SourceConnectionId string                 `protobuf:"bytes,1,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *GetWebhookDeliveryURLRequest) Reset() {
+	*x = GetWebhookDeliveryURLRequest{}
+	mi := &file_ingestion_v1_webhooks_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWebhookDeliveryURLRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWebhookDeliveryURLRequest) ProtoMessage() {}
+
+func (x *GetWebhookDeliveryURLRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_webhooks_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWebhookDeliveryURLRequest.ProtoReflect.Descriptor instead.
+func (*GetWebhookDeliveryURLRequest) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_webhooks_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetWebhookDeliveryURLRequest) GetSourceConnectionId() string {
+	if x != nil {
+		return x.SourceConnectionId
+	}
+	return ""
+}
+
+type GetWebhookDeliveryURLResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// <public base URL>/hooks/<source_connection_id>, without the resource.
+	// Empty when the server has no public base URL configured.
+	DeliveryUrl   string `protobuf:"bytes,1,opt,name=delivery_url,json=deliveryUrl,proto3" json:"delivery_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetWebhookDeliveryURLResponse) Reset() {
+	*x = GetWebhookDeliveryURLResponse{}
+	mi := &file_ingestion_v1_webhooks_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetWebhookDeliveryURLResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetWebhookDeliveryURLResponse) ProtoMessage() {}
+
+func (x *GetWebhookDeliveryURLResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ingestion_v1_webhooks_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetWebhookDeliveryURLResponse.ProtoReflect.Descriptor instead.
+func (*GetWebhookDeliveryURLResponse) Descriptor() ([]byte, []int) {
+	return file_ingestion_v1_webhooks_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetWebhookDeliveryURLResponse) GetDeliveryUrl() string {
+	if x != nil {
+		return x.DeliveryUrl
+	}
+	return ""
+}
+
 var File_ingestion_v1_webhooks_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_webhooks_proto_rawDesc = "" +
@@ -440,7 +533,11 @@ const file_ingestion_v1_webhooks_proto_rawDesc = "" +
 	"\x19GetWebhookEndpointRequest\x120\n" +
 	"\x14source_connection_id\x18\x01 \x01(\tR\x12sourceConnectionId\"]\n" +
 	"\x1aGetWebhookEndpointResponse\x12?\n" +
-	"\bendpoint\x18\x01 \x01(\v2#.ingestion.v1.WebhookEndpointConfigR\bendpointB\xae\x01\n" +
+	"\bendpoint\x18\x01 \x01(\v2#.ingestion.v1.WebhookEndpointConfigR\bendpoint\"P\n" +
+	"\x1cGetWebhookDeliveryURLRequest\x120\n" +
+	"\x14source_connection_id\x18\x01 \x01(\tR\x12sourceConnectionId\"B\n" +
+	"\x1dGetWebhookDeliveryURLResponse\x12!\n" +
+	"\fdelivery_url\x18\x01 \x01(\tR\vdeliveryUrlB\xae\x01\n" +
 	"\x10com.ingestion.v1B\rWebhooksProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (
@@ -455,13 +552,15 @@ func file_ingestion_v1_webhooks_proto_rawDescGZIP() []byte {
 	return file_ingestion_v1_webhooks_proto_rawDescData
 }
 
-var file_ingestion_v1_webhooks_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_ingestion_v1_webhooks_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_ingestion_v1_webhooks_proto_goTypes = []any{
-	(*WebhookEndpointConfig)(nil),      // 0: ingestion.v1.WebhookEndpointConfig
-	(*PutWebhookEndpointRequest)(nil),  // 1: ingestion.v1.PutWebhookEndpointRequest
-	(*PutWebhookEndpointResponse)(nil), // 2: ingestion.v1.PutWebhookEndpointResponse
-	(*GetWebhookEndpointRequest)(nil),  // 3: ingestion.v1.GetWebhookEndpointRequest
-	(*GetWebhookEndpointResponse)(nil), // 4: ingestion.v1.GetWebhookEndpointResponse
+	(*WebhookEndpointConfig)(nil),         // 0: ingestion.v1.WebhookEndpointConfig
+	(*PutWebhookEndpointRequest)(nil),     // 1: ingestion.v1.PutWebhookEndpointRequest
+	(*PutWebhookEndpointResponse)(nil),    // 2: ingestion.v1.PutWebhookEndpointResponse
+	(*GetWebhookEndpointRequest)(nil),     // 3: ingestion.v1.GetWebhookEndpointRequest
+	(*GetWebhookEndpointResponse)(nil),    // 4: ingestion.v1.GetWebhookEndpointResponse
+	(*GetWebhookDeliveryURLRequest)(nil),  // 5: ingestion.v1.GetWebhookDeliveryURLRequest
+	(*GetWebhookDeliveryURLResponse)(nil), // 6: ingestion.v1.GetWebhookDeliveryURLResponse
 }
 var file_ingestion_v1_webhooks_proto_depIdxs = []int32{
 	0, // 0: ingestion.v1.PutWebhookEndpointRequest.endpoint:type_name -> ingestion.v1.WebhookEndpointConfig
@@ -485,7 +584,7 @@ func file_ingestion_v1_webhooks_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_webhooks_proto_rawDesc), len(file_ingestion_v1_webhooks_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

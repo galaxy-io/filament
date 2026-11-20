@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
+
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
@@ -24,6 +26,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/pagination"
 	"github.com/galaxy-io/filament/oauth"
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/webhooks/stream"
 )
 
 const providerName = "httpapi"
@@ -39,6 +42,9 @@ type selectorToken struct {
 
 // Source adapts the manifest-driven HTTP connector to ingestion's source API.
 type Source struct {
+	// Link attaches webhook resources to the inbox. It is unused when the
+	// manifest declares no webhooks.
+	stream.Link
 	oauthStore           oauth.Store
 	connector            *Connector
 	name                 string
@@ -57,6 +63,8 @@ type Source struct {
 	// ordinary within-run pagination resume.
 	incrementalResources map[string]manifest.IncrementalSpec
 	incrementalLookbacks map[string]int
+	// ingestionMode is how the configured connection reads the source.
+	ingestionMode string
 }
 
 var (
@@ -121,6 +129,8 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		SourcePolicies: filament.SourcePolicies(policies...),
 		Config:         s.config,
 		Resources:      filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
+		Webhook:        webhookSpec(s.webhookManifest()),
+		Stream:         webhookStreamCapabilities(s.webhookManifest()),
 	}
 }
 
@@ -198,7 +208,7 @@ func (s *Source) Validate(cfg filament.Config) error {
 			return fmt.Errorf("%s source: %s is required", s.name, field.Name)
 		}
 	}
-	if s.embeddedManifest != nil {
+	if s.embeddedManifest != nil && s.ingestion(cfg) != filament.IngestionWebhooks {
 		creds := credentialsFromConfig(cfg, s.embeddedManifest.Config)
 		if err := s.validateConfigConstraints(creds); err != nil {
 			return err
@@ -318,13 +328,25 @@ func configSchemaFromManifest(m *manifest.Manifest) filament.ConfigSchema {
 			options[i] = filament.EnumOption{Value: value, Label: label}
 		}
 		var visibleWhen *filament.FieldCondition
-		if spec.VisibleWhen != nil {
+		switch {
+		case spec.VisibleWhen != nil:
 			visibleWhen = &filament.FieldCondition{Field: spec.VisibleWhen.Field, Values: append([]string(nil), spec.VisibleWhen.Values...)}
+		case m.Webhook != nil && scope == filament.ScopeConnection:
+			// A pipeline-scoped field cannot see the connection's ingestion
+			// choice. It configures API resources, which a webhook-only
+			// connection does not offer.
+			condition := apiVisibleWhen
+			condition.Values = slices.Clone(condition.Values)
+			visibleWhen = &condition
 		}
 		fields = append(fields, filament.ConfigField{
 			Name: name, Type: fieldType, Required: spec.Required, Default: spec.Default,
 			Enum: options, Help: spec.Help, Scope: scope, Secret: spec.Type == "secret", VisibleWhen: visibleWhen,
 		})
+	}
+	if m.Webhook != nil {
+		// The ingestion field controls every other field, so it comes first.
+		fields = append([]filament.ConfigField{ingestionField(m)}, fields...)
 	}
 	return filament.ConfigSchema{Fields: fields}
 }
@@ -341,8 +363,13 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := c.Validate(); err != nil {
 		return fmt.Errorf("httpapi source: validate connector: %w", err)
 	}
-	if err := c.Configure(ctx); err != nil {
-		return fmt.Errorf("httpapi source: configure connector: %w", err)
+	s.ingestionMode = s.ingestion(cfg)
+	// A webhook-only connection makes no requests and has no API
+	// credentials to build a client from. Deliveries need only the manifest.
+	if s.ingestionMode != filament.IngestionWebhooks {
+		if err := c.Configure(ctx); err != nil {
+			return fmt.Errorf("httpapi source: configure connector: %w", err)
+		}
 	}
 	s.connector = c
 	return nil
@@ -353,6 +380,10 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
+	}
+	// Deliveries are authenticated by their signatures, not by a request.
+	if s.ingestion(cfg) == filament.IngestionWebhooks {
+		return nil
 	}
 	c, err := s.connectorForConfig(cfg)
 	if err != nil {
@@ -393,7 +424,22 @@ func (s *Source) connectorForConfig(cfg filament.Config) (*Connector, error) {
 
 // Discover enumerates selectable resources, falling back to the manifest's
 // static resource list when the manifest declares no discovery spec.
-func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filament.DiscoverResult, error) {
+func (s *Source) Discover(ctx context.Context, opts filament.DiscoverOpts) (filament.DiscoverResult, error) {
+	switch s.ingestionMode {
+	case filament.IngestionWebhooks:
+		return filament.DiscoverResult{Resources: s.webhookResources(ctx, s.webhookManifest())}, nil
+	case filament.IngestionBoth:
+		res, err := s.discover(ctx, opts)
+		if err != nil {
+			return res, err
+		}
+		res.Resources = append(res.Resources, s.webhookResources(ctx, s.webhookManifest())...)
+		return res, nil
+	}
+	return s.discover(ctx, opts)
+}
+
+func (s *Source) discover(ctx context.Context, _ filament.DiscoverOpts) (filament.DiscoverResult, error) {
 	if s.connector == nil || s.connector.manifest == nil {
 		return filament.DiscoverResult{}, fmt.Errorf("httpapi source: discover before configure")
 	}
@@ -410,7 +456,9 @@ func (s *Source) Discover(ctx context.Context, _ filament.DiscoverOpts) (filamen
 			}
 			staticResources = make([]manifest.Resource, 0, len(include))
 			for _, name := range include {
-				staticResources = append(staticResources, byName[name])
+				if resource, ok := byName[name]; ok {
+					staticResources = append(staticResources, resource)
+				}
 			}
 		}
 		out := make([]filament.Resource, 0, len(staticResources))
@@ -623,11 +671,12 @@ func (s *Source) Schema(_ context.Context, resource string) (rowmodel.Schema, er
 }
 
 // listableResources drops capture-only resources, which exist to drive
-// children and are never discovered, selected, or emitted.
+// children and are never discovered, selected, or emitted, and webhook
+// resources, which only a continuous run reads.
 func listableResources(resources []manifest.Resource) []manifest.Resource {
 	out := make([]manifest.Resource, 0, len(resources))
 	for _, res := range resources {
-		if !res.CaptureOnly {
+		if !res.CaptureOnly && !res.IsWebhook() {
 			out = append(out, res)
 		}
 	}
@@ -637,6 +686,9 @@ func listableResources(resources []manifest.Resource) []manifest.Resource {
 func (s *Source) extract(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, resumeStates map[string]pagination.State, resumeWatermarks map[string]map[string]string, resumeExports map[string]string) error {
 	if s.connector == nil || s.connector.manifest == nil {
 		return fmt.Errorf("httpapi source: extract before configure")
+	}
+	if s.ingestionMode == filament.IngestionWebhooks {
+		return fmt.Errorf("%s source: this connection reads only webhooks; set %s to %q or %q to read the API", s.name, manifest.IngestionField, filament.IngestionAPI, filament.IngestionBoth)
 	}
 
 	if s.connector.manifest.Discovery.Mode == "static" {
@@ -812,6 +864,7 @@ func dynamicNamePrefix(tmpl string) string {
 
 // Teardown releases the underlying connector's resources.
 func (s *Source) Teardown(ctx context.Context) error {
+	s.Close()
 	if s.connector == nil {
 		return nil
 	}
@@ -956,6 +1009,8 @@ type rowSink struct {
 	source  *Source
 	sink    arrowbatch.Inlet
 	writers map[string]*resourceWriter
+	// checkers parse records into a discard writer, to test them unwritten.
+	checkers map[string]*resourceWriter
 }
 
 // resourceWriter is one resource's writer with its schema-ordered field parsers.
@@ -966,7 +1021,7 @@ type resourceWriter struct {
 }
 
 func newRowSink(ctx context.Context, source *Source, sink arrowbatch.Inlet) *rowSink {
-	return &rowSink{ctx: ctx, source: source, sink: sink, writers: map[string]*resourceWriter{}}
+	return &rowSink{ctx: ctx, source: source, sink: sink, writers: map[string]*resourceWriter{}, checkers: map[string]*resourceWriter{}}
 }
 
 func (r *rowSink) writer(resource string) (*resourceWriter, error) {
@@ -981,6 +1036,25 @@ func (r *rowSink) writer(resource string) (*resourceWriter, error) {
 	if err != nil {
 		return nil, err
 	}
+	rw := r.resourceWriter(resource, w, schema)
+	r.writers[resource] = rw
+	return rw, nil
+}
+
+func (r *rowSink) checker(resource string) (*resourceWriter, error) {
+	if rw := r.checkers[resource]; rw != nil {
+		return rw, nil
+	}
+	schema, err := r.source.Schema(r.ctx, resource)
+	if err != nil {
+		return nil, err
+	}
+	rw := r.resourceWriter(resource, discardRow{}, schema)
+	r.checkers[resource] = rw
+	return rw, nil
+}
+
+func (r *rowSink) resourceWriter(resource string, w arrowbatch.RowWriter, schema rowmodel.Schema) *resourceWriter {
 	rw := &resourceWriter{w: w, fields: schema.Fields, parsers: make([]valueParser, len(schema.Fields))}
 	roundings := make(map[string]string)
 	if res, ok := r.source.manifestResource(r.source.baseResourceName(resource)); ok {
@@ -993,8 +1067,17 @@ func (r *rowSink) writer(resource string) (*resourceWriter, error) {
 	for i, f := range schema.Fields {
 		rw.parsers[i] = typeFor(f, roundings[f.Name])
 	}
-	r.writers[resource] = rw
-	return rw, nil
+	return rw
+}
+
+// Check parses one record according to its resource schema without writing
+// it, so a caller can reject a record before any of its batch is written.
+func (r *rowSink) Check(rec record) error {
+	rw, err := r.checker(rec.Resource)
+	if err != nil {
+		return err
+	}
+	return rw.fill(rec)
 }
 
 // Push parses one connector record according to its resource schema.
@@ -1003,6 +1086,14 @@ func (r *rowSink) Push(rec record) error {
 	if err != nil {
 		return err
 	}
+	if err := rw.fill(rec); err != nil {
+		return err
+	}
+	return rw.w.EndRow(rowmodel.Meta{Op: rec.Op, Key: rec.Key, Stream: rec.Stream})
+}
+
+// fill writes a record's fields, in schema order, to the current row.
+func (rw *resourceWriter) fill(rec record) error {
 	var obj map[string]json.RawMessage
 	if err := json.Unmarshal(rec.Data, &obj); err != nil {
 		return resourceScoped(fmt.Errorf("httpapi %q: record is not a JSON object: %w", rec.Resource, err))
@@ -1017,8 +1108,30 @@ func (r *rowSink) Push(rec record) error {
 			return resourceScoped(fmt.Errorf("httpapi %q field %q: %w", rec.Resource, f.Name, err))
 		}
 	}
-	return rw.w.EndRow(rowmodel.Meta{Op: rec.Op, Key: rec.Key})
+	return nil
 }
+
+// discardRow accepts values and writes nothing, for Check.
+type discardRow struct{}
+
+func (discardRow) Null()                      {}
+func (discardRow) Bool(bool)                  {}
+func (discardRow) Int16(int16)                {}
+func (discardRow) Int32(int32)                {}
+func (discardRow) Int64(int64)                {}
+func (discardRow) Float32(float32)            {}
+func (discardRow) Float64(float64)            {}
+func (discardRow) Decimal(decimal128.Num)     {}
+func (discardRow) String(string)              {}
+func (discardRow) StringBytes([]byte)         {}
+func (discardRow) Bytes([]byte)               {}
+func (discardRow) Date(int32)                 {}
+func (discardRow) Time(int64)                 {}
+func (discardRow) Timestamp(int64)            {}
+func (discardRow) EndRow(rowmodel.Meta) error { return nil }
+func (discardRow) Flush() error               { return nil }
+func (discardRow) Drain(rowmodel.Meta) error  { return nil }
+func (discardRow) Close() error               { return nil }
 
 func (r *rowSink) PushBatch(records []record) error {
 	for _, rec := range records {

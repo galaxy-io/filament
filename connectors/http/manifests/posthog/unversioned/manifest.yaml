@@ -50,6 +50,21 @@ connection:
   rate_limit:
     requests_per_second: 0.3
 
+# PostHog's HTTP Webhook destination signs each request with the Standard
+# Webhooks scheme when it is given a signing secret. webhook-id stays constant
+# across PostHog's retries, so it deduplicates redeliveries.
+# https://posthog.com/docs/cdp/destinations/webhook
+webhook:
+  verifier: {profile: standard_webhooks}
+  setup: |
+    In PostHog, open **Data pipelines**, add an **HTTP Webhook** destination and set:
+
+    - **Webhook URL** to {{delivery_url:events_webhook}}.
+    - **Signing secret** to this connection's signing key.
+    - **JSON Body** to the default `{"event": "{event}", "person": "{person}"}`.
+
+    Use the destination's filters to choose which events are sent.
+
 defaults:
   method: GET
   query:
@@ -1293,6 +1308,24 @@ resources:
       submitted_at: timestamptz?
       answers: json?
       extra: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  # Events PostHog pushes through an HTTP Webhook destination, read by a
+  # continuous pipeline. The body is the destination's default template,
+  # {"event": {event}, "person": {person}}. One delivery is one event.
+  - name: events_webhook
+    mode: webhook
+    primary_key: [uuid]
+    fields:
+      uuid: {path: event.uuid, type: string}
+      event: {path: event.event, type: string}
+      distinct_id: {path: event.distinct_id, type: string, nullable: true}
+      timestamp: {path: event.timestamp, type: timestamptz, nullable: true}
+      captured_at: {path: event.captured_at, type: timestamptz, nullable: true}
+      properties: {path: event.properties, type: json, nullable: true}
+      elements_chain: {path: event.elements_chain, type: string, nullable: true}
+      person_id: {path: person.id, type: string, nullable: true}
+      person_properties: {path: person.properties, type: json, nullable: true}
       raw: {path: $, type: json, mode: remainder}
 
 discovery:
