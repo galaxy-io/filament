@@ -117,6 +117,27 @@ type (
 		Bytes    int64         `json:"bytes"`
 		Duration time.Duration `json:"duration"`
 	}
+	// FunctionInvokedEvent records one batch through an alchemy function.
+	FunctionInvokedEvent struct {
+		Function     string        `json:"function"`
+		Version      int64         `json:"version"`
+		Step         string        `json:"step"`
+		InvocationID string        `json:"invocationId"`
+		Records      int64         `json:"records"`
+		Attempts     int32         `json:"attempts"`
+		Replayed     bool          `json:"replayed,omitempty"`
+		Duration     time.Duration `json:"duration"`
+	}
+	// FunctionFailedEvent records a failed alchemy call; InvocationID is empty if nothing ran.
+	FunctionFailedEvent struct {
+		Function     string        `json:"function"`
+		Version      int64         `json:"version"`
+		Step         string        `json:"step"`
+		InvocationID string        `json:"invocationId,omitempty"`
+		Code         string        `json:"code"`
+		Error        string        `json:"error"`
+		Duration     time.Duration `json:"duration"`
+	}
 	// BatchWrittenEvent marks one batch durably applied to the sink.
 	BatchWrittenEvent struct {
 		Records          int64                     `json:"records"`
@@ -211,6 +232,8 @@ var (
 
 	BatchBuffered            = define[BatchBufferedEvent]("batch.buffered")
 	BatchTransformed         = define[BatchTransformedEvent]("batch.transformed")
+	FunctionInvoked          = define[FunctionInvokedEvent]("batch.function_invoked")
+	FunctionFailed           = define[FunctionFailedEvent]("batch.function_failed")
 	BatchWritten             = define[BatchWrittenEvent]("batch.written")
 	IntegrityVerified        = define[IntegrityVerifiedEvent]("batch.integrity_verified")
 	EncodedIntegrityVerified = define[EncodedIntegrityVerifiedEvent]("batch.encoded_integrity_verified")

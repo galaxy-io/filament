@@ -64,6 +64,7 @@ export const isTransformDraftComplete = (
         getTransformColumnType(columns, root.name) === "bool"
       );
     })
+    .with({ kind: TransformStepKind.ALCHEMY }, (step) => step.function !== "" && step.version > 0)
     .exhaustive();
 
 const isGrammarValue = (value: JsonValue): boolean =>
@@ -141,5 +142,6 @@ export const getTransformDraftError = (
       }
       return null;
     })
+    .with({ kind: TransformStepKind.ALCHEMY }, () => null)
     .exhaustive();
 };

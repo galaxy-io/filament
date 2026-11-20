@@ -707,6 +707,19 @@ func TestStore_ResolveTenantIdempotent(t *testing.T) {
 	if _, err := store.ResolveTenant(ctx, "", "Nameless"); err == nil {
 		t.Fatal("ResolveTenant accepted an empty external id")
 	}
+	if ext, err := store.TenantExternalID(ctx, first); err != nil || ext != "zitadel-org-1" {
+		t.Fatalf("TenantExternalID = %q, %v", ext, err)
+	}
+	local := filament.TenantID("11111111-1111-1111-1111-111111111111")
+	if err := store.EnsureTenant(ctx, local, "Local"); err != nil {
+		t.Fatalf("EnsureTenant: %v", err)
+	}
+	if ext, err := store.TenantExternalID(ctx, local); err != nil || ext != "" {
+		t.Fatalf("provider-less tenant external id = %q, %v", ext, err)
+	}
+	if _, err := store.TenantExternalID(ctx, "22222222-2222-2222-2222-222222222222"); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("missing tenant: %v", err)
+	}
 }
 
 // TestStore_ListRunsDefaultSortEffectiveTime pins the default ordering to

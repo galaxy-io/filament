@@ -246,6 +246,14 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 | observability.otel.endpoint | string | `""` | OTLP endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
 | observability.otel.protocol | string | `""` | OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`. Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318). Empty defaults to `grpc`. |
 
+## Alchemy parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| alchemy.batchMaxBytes | int | `0` | Arrow bytes batched into one alchemy call, stored as `ALCHEMY_BATCH_MAX_BYTES`. Zero takes the 16 MiB default; at most 64 MiB. |
+| alchemy.maxInFlight | int | `0` | Alchemy calls a run keeps in flight, stored as `ALCHEMY_MAX_IN_FLIGHT`. Zero takes the default of 4. |
+| alchemy.serverUrl | string | `""` | Alchemy API that filament's server, control plane and workers call, stored in the ConfigMaps as `GALAXY_ALCHEMY_SERVER_URL`. Empty uses `galaxy.productUrls.alchemy`; both empty disables alchemy steps. |
+
 ## Vendored PostgreSQL parameters
 
 | Key | Type | Default | Description |

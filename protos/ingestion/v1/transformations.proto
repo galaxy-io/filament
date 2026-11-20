@@ -86,4 +86,6 @@ message ValidateTransformResponse {
   repeated ValidationError issues = 2;
   repeated ResourceColumn output_columns = 3;
   repeated TransformExpressionType expression_types = 4;
+  // output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract.
+  bytes output_arrow_schema = 5;
 }

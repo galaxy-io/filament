@@ -498,8 +498,10 @@ type ValidateTransformResponse struct {
 	Issues          []*ValidationError         `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
 	OutputColumns   []*ResourceColumn          `protobuf:"bytes,3,rep,name=output_columns,json=outputColumns,proto3" json:"output_columns,omitempty"`
 	ExpressionTypes []*TransformExpressionType `protobuf:"bytes,4,rep,name=expression_types,json=expressionTypes,proto3" json:"expression_types,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract.
+	OutputArrowSchema []byte `protobuf:"bytes,5,opt,name=output_arrow_schema,json=outputArrowSchema,proto3" json:"output_arrow_schema,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ValidateTransformResponse) Reset() {
@@ -560,6 +562,13 @@ func (x *ValidateTransformResponse) GetExpressionTypes() []*TransformExpressionT
 	return nil
 }
 
+func (x *ValidateTransformResponse) GetOutputArrowSchema() []byte {
+	if x != nil {
+		return x.OutputArrowSchema
+	}
+	return nil
+}
+
 var File_ingestion_v1_transformations_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_transformations_proto_rawDesc = "" +
@@ -602,12 +611,13 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\acolumns\x18\x04 \x03(\tR\acolumns\"P\n" +
 	"\x17TransformExpressionType\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
-	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\"\xff\x01\n" +
+	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\"\xaf\x02\n" +
 	"\x19ValidateTransformResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x125\n" +
 	"\x06issues\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06issues\x12C\n" +
 	"\x0eoutput_columns\x18\x03 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\routputColumns\x12P\n" +
-	"\x10expression_types\x18\x04 \x03(\v2%.ingestion.v1.TransformExpressionTypeR\x0fexpressionTypesB\xb5\x01\n" +
+	"\x10expression_types\x18\x04 \x03(\v2%.ingestion.v1.TransformExpressionTypeR\x0fexpressionTypes\x12.\n" +
+	"\x13output_arrow_schema\x18\x05 \x01(\fR\x11outputArrowSchemaB\xb5\x01\n" +
 	"\x10com.ingestion.v1B\x14TransformationsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (

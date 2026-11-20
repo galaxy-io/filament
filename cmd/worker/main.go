@@ -92,7 +92,7 @@ func run(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: deps.Sources, Sinks: deps.Sinks, Log: deps.Log}, spec)
+		return runner.ExecuteContinuousAttempt(ctx, runner.Deps{Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets, Sources: deps.Sources, Sinks: deps.Sinks, Log: deps.Log, Functions: deps.Alchemy.Functions, FunctionBatch: deps.Alchemy.FunctionBatch}, spec)
 	}
 	if !runner.ShouldRun(state) {
 		workerLog.Info("worker run skipped",
@@ -123,13 +123,15 @@ func run(ctx context.Context) error {
 	stopHeartbeat := hb.start(ctx, heartbeatInterval())
 
 	err = runner.RunOne(ctx, runner.Deps{
-		Bus:       bus,
-		DataStore: deps.Store,
-		Log:       deps.Log,
-		Secrets:   deps.Secrets,
-		Sources:   deps.Sources,
-		Sinks:     deps.Sinks,
-		Tracer:    deps.Tracer,
+		Bus:           bus,
+		DataStore:     deps.Store,
+		Log:           deps.Log,
+		Secrets:       deps.Secrets,
+		Sources:       deps.Sources,
+		Sinks:         deps.Sinks,
+		Tracer:        deps.Tracer,
+		Functions:     deps.Alchemy.Functions,
+		FunctionBatch: deps.Alchemy.FunctionBatch,
 	}, runner.SpecFromState(state))
 	stopHeartbeat()
 	return err

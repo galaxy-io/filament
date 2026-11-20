@@ -70,6 +70,9 @@ export const serializeTransformStep = (step: TransformStep): JsonValue =>
       rename: Object.fromEntries(pairs.map((pair) => [pair.from, pair.to.trim()])),
     }))
     .with({ kind: TransformStepKind.DROP }, ({ names }) => ({ drop: [...names] }))
+    .with({ kind: TransformStepKind.ALCHEMY }, ({ function: fn, version }) => ({
+      alchemy: { function: fn, version },
+    }))
     .with({ kind: TransformStepKind.COMPUTE }, ({ outputs, where }): JsonValue => {
       const compute = Object.fromEntries(
         outputs.map((output) => [

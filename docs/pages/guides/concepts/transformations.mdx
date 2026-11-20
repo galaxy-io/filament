@@ -52,7 +52,7 @@ lists its steps. A resource the definition does not name passes through
 unchanged. JSON with the same shape is accepted anywhere YAML is, and the API
 carries it that way.
 
-A step is exactly one of `rename`, `drop`, or `compute`. `where` belongs to
+A step is exactly one of `rename`, `drop`, `compute`, or `alchemy`. `where` belongs to
 `compute` alone. Steps run in order, and each step sees the columns as the
 previous step left them.
 
@@ -61,6 +61,7 @@ previous step left them.
 | `rename` | Map of current name to new name | Changes names, keeps values and types |
 | `drop` | List of names | Removes the columns |
 | `compute` | Map of column name to expression | Sets each named column to its expression, adding the column when it does not exist |
+| `alchemy` | `function` and `version` | Runs a pinned alchemy function over the batch and takes its output as the row |
 
 ### Rename
 
@@ -92,6 +93,36 @@ must produce a `bool`. A row where it is null is not matched. On an unmatched
 row an existing column keeps its value and a new column is null. Because
 unmatched rows keep their old values, a compute under `where` on an existing
 column must keep its type.
+
+### Alchemy
+
+```yaml
+- alchemy:
+    function: fn_enrich_company
+    version: 3
+```
+
+An alchemy step sends the batch to a function running on
+[alchemy](https://github.com/galaxy-io/alchemy) and takes what it returns as the
+row. The version is required, so every run of a pipeline runs the same code.
+Publishing a new version changes nothing until the step is pinned to it.
+
+The function must have an Arrow contract. Its input names the columns it reads.
+Each one must exist with the same Arrow type, and a nullable column needs a
+nullable input field. Only those columns are sent.
+
+Its output becomes the row. After the step the columns are exactly the output
+fields, in contract order, and a column the output does not name is dropped.
+An output field may reuse an input name and change its type. Every primary key
+column must be in the output with its type unchanged, and every call must
+return its values unchanged, so a function can read and echo the key but never
+rewrite it. Names starting with `_filament_` cannot be written. A `filament.logical` field
+metadata entry names the logical type, so a `utf8` field can come back as
+`json` or `uuid`. Without it the Arrow type decides. An Arrow type with no
+logical equivalent fails validation.
+
+The function returns exactly one row per input row, in order. It cannot filter
+rows.
 
 ## Expressions
 
@@ -243,7 +274,7 @@ on the edge or from `ValidateTransform`.
 The checks run in this order.
 
 1. The document matches the grammar. `version` is 1, every step has exactly
-   one of its three keys, `where` sits only on a compute step, and every
+   one of its four keys, `where` sits only on a compute step, and every
    function name is in the catalog. The grammar is a JSON schema that
    `ListTransformFunctions` returns, so a client can check shape before
    sending.
@@ -255,6 +286,10 @@ The checks run in this order.
    `substring` start run here too.
 4. A `where` condition is a `bool`, and a compute under it keeps an existing
    column's type.
+5. Every alchemy step names a version that is ready and has an Arrow contract,
+   and the contract fits the layout under the rules above. An issue on
+   `resources["users"].steps[1].alchemy.function` gives alchemy's reason, such
+   as a version that is still building.
 
 Steps that compile still shape the output when another step fails, so
 `ValidateTransform` reports the resulting columns and the type of every
@@ -276,12 +311,33 @@ transform and are never visible to it. Each transformed batch publishes
 A batch the plan cannot transform fails the run. That covers a `to_date` value
 that does not parse, division by zero, and integer overflow.
 
+A resource with an alchemy step joins consecutive batches into one function
+call, up to `ALCHEMY_BATCH_MAX_BYTES`, and keeps up to `ALCHEMY_MAX_IN_FLIGHT`
+calls in flight. A call also goes out when the resource completes, at a
+barrier, and once its first batch is older than the flush interval. The output is split
+back into the original batches, so checkpoints advance batch by batch. Each
+call publishes `batch.function_invoked` with the function, version, invocation
+id, records, attempts and duration.
+
+Alchemy retries a failed function as its configuration says. When it gives up,
+the call publishes `batch.function_failed` and the run fails. Nothing of that
+resource at or after the failed batch is written, so its checkpoint never moves
+past it and a resumed run sends the same batch again. Other resources keep
+their own checkpoints.
+
+`ALCHEMY_BATCH_MAX_BYTES` caps how many batches join one call. A single source
+batch over it still goes out whole, and only a call over alchemy's 64 MiB
+payload limit is split by rows. A function's timeout must leave room for a
+call of `ALCHEMY_BATCH_MAX_BYTES` or of the largest source batch, whichever is
+bigger.
+
 ## Limits
 
 - Steps never remove rows. A `where` condition picks rows to rewrite, not rows
   to keep.
 - A transformation sees one resource at a time. There are no joins, lookups, or
   aggregations.
-- The catalog is closed. `to_date` is the only type conversion.
+- The expression catalog is closed. `to_date` is the only type conversion.
+  Anything else belongs in an alchemy step.
 - Entries in one compute step cannot see each other.
 - Literals are strings, integers, floats, and booleans only.

@@ -176,6 +176,10 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Error = d.Error
 	case events.RetryExhaustedEvent:
 		fields.Error = d.Error
+	case events.FunctionInvokedEvent:
+		fields.Records = d.Records
+	case events.FunctionFailedEvent:
+		fields.Error = d.Error
 	}
 	return fields
 }

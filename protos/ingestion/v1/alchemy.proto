@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package ingestion.v1;
+
+import "ingestion/v1/pagination.proto";
+
+// AlchemyContractKind is how a function types its boundary; only ARROW can back a transform step.
+enum AlchemyContractKind {
+  ALCHEMY_CONTRACT_KIND_UNSPECIFIED = 0;
+  ALCHEMY_CONTRACT_KIND_ARROW = 1;
+  ALCHEMY_CONTRACT_KIND_JSON_SCHEMA = 2;
+}
+
+// ListAlchemyFunctionsRequest pages the caller's alchemy functions, optionally narrowed by name.
+message ListAlchemyFunctionsRequest {
+  string search = 1;
+  PaginationRequest pagination = 2;
+}
+
+// AlchemyFunction is one function a transform step can pin; runtime fields are empty for image-based functions.
+message AlchemyFunction {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  // current_version is the latest ready version, zero until one is ready.
+  int64 current_version = 4;
+  AlchemyContractKind contract_kind = 5;
+  string runtime = 6;
+  string runtime_dark_icon_url = 7;
+  string runtime_light_icon_url = 8;
+  string runtime_handler_path = 9;
+}
+
+// ListAlchemyFunctionsResponse is empty with enabled false when the server has no alchemy configured.
+message ListAlchemyFunctionsResponse {
+  bool enabled = 1;
+  reserved 2;
+  reserved "ui_url";
+  repeated AlchemyFunction functions = 3;
+  PaginationResponse pagination = 4;
+}
+
+// GetAlchemyFunctionRequest names one function to describe, and optionally a version whose build to report.
+message GetAlchemyFunctionRequest {
+  string id = 1;
+  int64 version = 2;
+}
+
+// AlchemyVersionStatus is where a function version's build stands.
+enum AlchemyVersionStatus {
+  ALCHEMY_VERSION_STATUS_UNSPECIFIED = 0;
+  ALCHEMY_VERSION_STATUS_BUILDING = 1;
+  ALCHEMY_VERSION_STATUS_READY = 2;
+  ALCHEMY_VERSION_STATUS_FAILED = 3;
+}
+
+message GetAlchemyFunctionResponse {
+  AlchemyFunction function = 1;
+  // version_status is the requested version's build, unspecified when no version was requested.
+  AlchemyVersionStatus version_status = 2;
+  string version_status_message = 3;
+}
