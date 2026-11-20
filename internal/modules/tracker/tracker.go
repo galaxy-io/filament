@@ -232,6 +232,11 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 			// The terminal fact carries the engine's authoritative totals.
 			r.Records = d.Records
 			r.Bytes = d.Bytes
+			// resource.failed is best effort, so mark the failed resources
+			// here too or a lost one leaves the run looking complete.
+			for _, name := range d.FailedResources {
+				resourceRef(r, name).Status = filament.RunFailed
+			}
 		})
 
 	case events.RunFailedEvent:

@@ -119,10 +119,29 @@ func (c *Connector) extractIsolated(ctx context.Context, sink recordSink, failur
 	var mu sync.Mutex
 	outcomes := make([]error, len(topLevel))
 	var wg sync.WaitGroup
+	// after holds as in extractConcurrent: a resource starts once every listed
+	// resource in this run has finished, whatever its outcome.
+	done := make(map[string]chan struct{}, len(topLevel))
+	for _, res := range topLevel {
+		done[res.Name] = make(chan struct{})
+	}
 	for i, res := range topLevel {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer close(done[res.Name])
+			for _, name := range res.After {
+				ch, ok := done[name]
+				if !ok {
+					continue
+				}
+				select {
+				case <-ch:
+				case <-ctx.Done():
+					outcomes[i] = ctx.Err()
+					return
+				}
+			}
 			err := c.extractResource(ctx, res, sink, nil)
 			halted, fatal := contain(ctx, failures, res.Name, !res.CaptureOnly, err)
 			outcomes[i] = fatal
@@ -258,6 +277,12 @@ func (c *Connector) extractChildIsolated(ctx context.Context, res manifest.Resou
 				// The child already failed as a whole and this read was cut
 				// short with it. Its outcome is decided.
 				if ctx.Err() != nil {
+					return err
+				}
+				// A response that came back fatal before the cut still
+				// fails the run.
+				var status *statusError
+				if errors.As(err, &status) && !scopedStatus[status.status] {
 					return err
 				}
 				return nil

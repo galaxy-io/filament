@@ -67,6 +67,15 @@ func discardedOnAbort(spec filament.RunSpec, resource string) bool {
 	return !ok || policy.Checkpoint == filament.CheckpointAfterCommit || policy.Capability.Mode == filament.WriteReplace
 }
 
+// replaces reports whether the resource's write policy replaces its destination.
+func replaces(spec filament.RunSpec, resource string) bool {
+	policy, ok := spec.WritePolicies[resource]
+	if !ok {
+		policy = spec.WritePolicies[""]
+	}
+	return policy.Capability.Mode == filament.WriteReplace
+}
+
 // settleQuarantine resolves quarantined resources before the sink commits the
 // rest: it aborts each one's sink writes, then publishes its resource.failed.
 // An isolating sink is told about every failed resource, written or not, so
@@ -98,8 +107,15 @@ func settleQuarantine(
 				resource, destinationOf(spec, resource), healthy, quarantined[resource].Err)
 		}
 	}
+	_, schematized := sink.(filament.Schematized)
 	for _, resource := range names {
 		if !quarantined[resource].Applied && !sinkIsolates {
+			// ensureSchemas registered the destination before extraction, and
+			// a sink that cannot abort it may publish the replacement empty.
+			if schematized && replaces(spec, resource) {
+				return fmt.Errorf("resource %q failed but sink %q cannot keep its replacement from being published empty: %w",
+					resource, spec.Sink.Connector, quarantined[resource].Err)
+			}
 			continue
 		}
 		aborter, ok := sink.(filament.ResourceIsolatingSink)
