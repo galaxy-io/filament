@@ -2,6 +2,7 @@ import type { FC } from "react";
 
 import { CopyIcon, PencilSimpleIcon, TrashSimpleIcon } from "@phosphor-icons/react";
 
+import GalaxyAlchemyWordmark from "@galaxy-io/dls/brand/GalaxyAlchemyWordmark";
 import SelectInput, {
   SelectInputSize,
   SelectInputVariant,
@@ -9,6 +10,7 @@ import SelectInput, {
 } from "@galaxy-io/dls/inputs/SelectInput";
 
 import {
+  TRANSFORM_ALCHEMY_LOGO_HEIGHT,
   TRANSFORM_LITERAL_KIND_TO_ICON_MAP,
   TRANSFORM_LITERAL_KIND_TO_LABEL_MAP,
   TRANSFORM_LITERAL_KINDS,
@@ -31,6 +33,8 @@ import {
   getTransformActionId,
 } from "@/pages/pipelines/components/transform/utils";
 
+import { useListAlchemyFunctionsInfiniteQuery } from "@/api/queries/alchemy";
+
 const COPY_ACTION: TransformAction = { kind: TransformActionKind.COPY };
 
 const createActionEntry = (
@@ -42,6 +46,15 @@ const createActionEntry = (
   payload: action,
 });
 
+const ALCHEMY_ACTION: TransformAction = { kind: TransformActionKind.ALCHEMY };
+const ALCHEMY_ENTRY: TransformSelectEntry<TransformAction> = {
+  option: {
+    id: getTransformActionId(ALCHEMY_ACTION),
+    label: "function",
+    leading: <GalaxyAlchemyWordmark size={TRANSFORM_ALCHEMY_LOGO_HEIGHT} />,
+  },
+  payload: ALCHEMY_ACTION,
+};
 const KIND_ENTRIES = [
   createActionEntry({ kind: TransformActionKind.RENAME }, "Rename", PencilSimpleIcon),
   createActionEntry({ kind: TransformActionKind.DROP }, "Drop", TrashSimpleIcon),
@@ -74,8 +87,13 @@ const PipelineTransformFieldsActionPicker: FC<PipelineTransformFieldsActionPicke
 }) => {
   const { isDisabled } = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
+  const { data: alchemy } = useListAlchemyFunctionsInfiniteQuery();
+  const offersAlchemy =
+    offersKinds &&
+    (alchemy?.pages[0]?.enabled === true || action.kind === TransformActionKind.ALCHEMY);
   const currentFn = action.kind === TransformActionKind.FUNCTION ? action.fn : "";
   const { options, payloadById } = createTransformSelectModel([
+    ...(offersAlchemy ? [ALCHEMY_ENTRY] : []),
     ...(offersKinds ? KIND_ENTRIES : []),
     COPY_ENTRY,
     ...LITERAL_ENTRIES,
@@ -96,6 +114,7 @@ const PipelineTransformFieldsActionPicker: FC<PipelineTransformFieldsActionPicke
       onChange={(id) => onChange((id === null ? undefined : payloadById.get(id)) ?? COPY_ACTION)}
       isClearable
       isSearchable={!isDisabled && options.length > TRANSFORM_SELECT_SEARCH_THRESHOLD}
+      pinnedIds={offersAlchemy ? [ALCHEMY_ENTRY.option.id] : undefined}
       placeholder="Choose an action..."
       variant={SelectInputVariant.TERTIARY}
       size={SelectInputSize.MEDIUM}

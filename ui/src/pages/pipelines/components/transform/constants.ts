@@ -67,6 +67,17 @@ export const TRANSFORM_SELECT_SEARCH_THRESHOLD = 8;
 export const TRANSFORM_DRAG_DISTANCE = 4;
 export const TRANSFORM_NEW_COLUMN_SUFFIX = "_v2";
 export const TRANSFORM_RAW_STEP_LABEL = "Defined outside the builder";
+export const TRANSFORM_ALCHEMY_FUNCTIONS_PATH = "functions";
+export const TRANSFORM_ALCHEMY_WORKBENCH_PATH = "workbench";
+export const TRANSFORM_ALCHEMY_WORKBENCH_FILE_PARAM = "file";
+export const TRANSFORM_ALCHEMY_WORKBENCH_SOURCE_PREFIX = "source:";
+export const TRANSFORM_ALCHEMY_RETURN_CHANNEL = "filament:alchemy-return";
+export const TRANSFORM_ALCHEMY_RETURN_LABEL = "Filament";
+export const TRANSFORM_ALCHEMY_REQUEST_PARAM = "alchemyRequest";
+export const TRANSFORM_ALCHEMY_NEW_FUNCTION_OPTION_ID = "alchemy:new-function";
+export const TRANSFORM_ALCHEMY_UPDATE_VERSION_OPTION_ID = "alchemy:update-version";
+export const TRANSFORM_ALCHEMY_RUNTIME_ICON_SIZE = 14;
+export const TRANSFORM_ALCHEMY_LOGO_HEIGHT = 12;
 
 export const TRANSFORM_LITERAL_KINDS = Object.values(TransformLiteralKind);
 
@@ -87,11 +98,12 @@ export const TRANSFORM_LITERAL_KIND_TO_ICON_MAP: Record<TransformLiteralKind, Ph
 };
 
 export const TRANSFORM_STEP_KIND_TO_ACTION_MAP: Record<
-  TransformStepKind.RENAME | TransformStepKind.DROP,
+  TransformStepKind.RENAME | TransformStepKind.DROP | TransformStepKind.ALCHEMY,
   TransformAction
 > = {
   [TransformStepKind.RENAME]: { kind: TransformActionKind.RENAME },
   [TransformStepKind.DROP]: { kind: TransformActionKind.DROP },
+  [TransformStepKind.ALCHEMY]: { kind: TransformActionKind.ALCHEMY },
 };
 
 export const TRANSFORM_CONDITION_JOIN_TO_OPPOSITE_MAP: Record<

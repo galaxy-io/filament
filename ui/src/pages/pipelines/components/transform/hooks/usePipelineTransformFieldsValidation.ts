@@ -15,14 +15,16 @@ import {
   mapTransformExpressionTypes,
 } from "@/pages/pipelines/components/transform/grammar/paths";
 import { serializeTransformDefinition } from "@/pages/pipelines/components/transform/grammar/serialize";
+import { usePipelineTransformFieldsAlchemyBuild } from "@/pages/pipelines/components/transform/hooks/usePipelineTransformFieldsAlchemyBuild";
 import { usePipelineTransformFieldsIssues } from "@/pages/pipelines/components/transform/hooks/usePipelineTransformFieldsIssues";
 import {
   usePipelineTransformFieldsEnvironment,
   usePipelineTransformFieldsState,
 } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
-import type {
-  PipelineTransformFieldsDraft,
-  PipelineTransformFieldsEditor,
+import {
+  type PipelineTransformFieldsDraft,
+  type PipelineTransformFieldsEditor,
+  TransformStepKind,
 } from "@/pages/pipelines/components/transform/types";
 import {
   getTransformTypeSummary,
@@ -54,6 +56,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
     isReadOnly,
   } = usePipelineTransformFieldsEnvironment();
   const savedIssues = usePipelineTransformFieldsIssues();
+  const pending = usePipelineTransformFieldsAlchemyBuild(draft.step);
   const requiresValidation = sourceConnectionId !== "";
 
   const prefixDefinition = useMemo(() => {
@@ -64,7 +67,8 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
       grammarVersion,
     );
   }, [draft, grammarVersion, resource, steps]);
-  const hasPrefix = requiresValidation && prefixDefinition !== undefined;
+  const isAlchemyDraft = draft.step.kind === TransformStepKind.ALCHEMY;
+  const hasPrefix = requiresValidation && (prefixDefinition !== undefined || isAlchemyDraft);
   const prefix = useValidateTransformQuery({
     input: create(ValidateTransformRequestSchema, {
       sourceConnectionId,
@@ -75,6 +79,9 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
     options: { enabled: hasPrefix },
   });
   const columns = hasPrefix ? (prefix.data?.outputColumns ?? NO_COLUMNS) : resourceColumns;
+  const arrowSchema = prefix.data?.outputArrowSchema.length
+    ? prefix.data.outputArrowSchema
+    : undefined;
   const prefixError =
     prefix.error !== null ? "Unable to load the columns available before this step." : null;
   const isPrefixPending = hasPrefix && prefix.data === undefined && prefixError === null;
@@ -137,22 +144,25 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
 
   const isDisabled = isReadOnly || isPrefixPending || prefixError !== null;
   const editor = useMemo<PipelineTransformFieldsEditor>(
-    () => ({ columns, types, errors, isDisabled }),
-    [columns, types, errors, isDisabled],
+    () => ({ columns, arrowSchema, types, errors, isDisabled }),
+    [columns, arrowSchema, types, errors, isDisabled],
   );
   const { typeSummary, warning } = getTransformTypeSummary(draft, editor, functionsByName);
 
   const ownMessages = [...errors.values()].flat();
-  const issues = [prefixError, clientError, validationError, ...ownMessages].filter(
-    (message) => message !== null,
-  );
+  const issues = [
+    prefixError,
+    clientError,
+    ...(pending === null ? [validationError, ...ownMessages] : []),
+  ].filter((message) => message !== null);
   const warnings = [warning, ...downstream].filter((message) => message !== null);
   const isSaveDisabled =
     isReadOnly ||
     !isComplete ||
     issues.length > 0 ||
     isPrefixPending ||
+    pending !== null ||
     (requiresValidation && !isFresh);
 
-  return { editor, issues, warnings, typeSummary, isSaveDisabled };
+  return { editor, issues, warnings, pending, typeSummary, isSaveDisabled };
 };

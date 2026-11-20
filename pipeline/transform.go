@@ -25,7 +25,8 @@ func (p *Pipeline) planFor(resource string, supplied rowmodel.Schema) (*transfor
 	// The source has already narrowed supplied to the selection.
 	schema := rowmodel.InputFor(supplied, nil, p.audit != nil && p.audit.CDC)
 	schema.Resource = resource
-	plan, err := transform.Compile(p.transform, schema)
+	plan, err := transform.Compile(p.transform, schema,
+		transform.WithContracts(p.contracts), transform.WithInvoker(p.invoker(resource)))
 	if err != nil {
 		return nil, fmt.Errorf("pipeline: %w", err)
 	}

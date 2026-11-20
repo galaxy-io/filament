@@ -1,11 +1,20 @@
+import { DataType, DateUnit, Precision, type Schema, TimeUnit, tableFromIPC } from "apache-arrow";
 import { match } from "ts-pattern";
 
+import { type AlchemyFlowContract, createAlchemyFunctionHref } from "@galaxy-io/alchemy-ui/links";
 import type { SelectOption } from "@galaxy-io/dls/inputs/SelectInput";
 
+import { AlchemyContractKind, type AlchemyFunction } from "@/gen/ingestion/v1/alchemy_pb";
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import type { TransformFunction } from "@/gen/ingestion/v1/transformations_pb";
 
 import {
+  TRANSFORM_ALCHEMY_FUNCTIONS_PATH,
+  TRANSFORM_ALCHEMY_REQUEST_PARAM,
+  TRANSFORM_ALCHEMY_RETURN_LABEL,
+  TRANSFORM_ALCHEMY_WORKBENCH_FILE_PARAM,
+  TRANSFORM_ALCHEMY_WORKBENCH_PATH,
+  TRANSFORM_ALCHEMY_WORKBENCH_SOURCE_PREFIX,
   TRANSFORM_FUNCTION_TO_ICON_MAP,
   TRANSFORM_LITERAL_KIND_TO_ICON_MAP,
 } from "@/pages/pipelines/components/transform/constants";
@@ -34,6 +43,7 @@ import {
   type PipelineTransformFieldsEditor,
   type TransformAction,
   TransformActionKind,
+  type TransformAlchemyReturnMessage,
   type TransformChain,
   type TransformChainCall,
   type TransformComputeStep,
@@ -68,6 +78,7 @@ export const createTransformStep = (
     .with(TransformStepKind.RENAME, (kind) => ({ id, kind, pairs: [{ from: column, to: "" }] }))
     .with(TransformStepKind.DROP, (kind) => ({ id, kind, names: [column] }))
     .with(TransformStepKind.COMPUTE, () => createTransformComputeStep(column, id))
+    .with(TransformStepKind.ALCHEMY, (kind) => ({ id, kind, function: "", version: 0 }))
     .exhaustive();
 
 export const getTransformStepColumn = (step: TransformEditableStep): string =>
@@ -78,6 +89,7 @@ export const getTransformStepColumn = (step: TransformEditableStep): string =>
       { kind: TransformStepKind.COMPUTE },
       (compute) => getTransformRootColumn(compute.outputs[0]?.expr ?? TRANSFORM_EMPTY_EXPR) ?? "",
     )
+    .with({ kind: TransformStepKind.ALCHEMY }, () => "")
     .exhaustive();
 
 const convertTransformStep = (
@@ -200,6 +212,9 @@ export const applyTransformAction = (
   if (action.kind === TransformActionKind.DROP) {
     return convertTransformStep(step, TransformStepKind.DROP);
   }
+  if (action.kind === TransformActionKind.ALCHEMY) {
+    return convertTransformStep(step, TransformStepKind.ALCHEMY);
+  }
   const compute = toTransformComputeStep(step);
   const output = compute.outputs[outputIndex];
   if (!output) return compute;
@@ -321,6 +336,120 @@ export const createTransformBooleanOptions = (): SelectOption[] =>
     label: value,
     icon: TRANSFORM_LITERAL_KIND_TO_ICON_MAP[TransformLiteralKind.BOOLEAN],
   }));
+
+export const getAlchemyFunctionDisabledReason = (fn: AlchemyFunction): string | undefined => {
+  if (fn.contractKind !== AlchemyContractKind.ARROW) return "Needs an Arrow contract";
+  if (fn.currentVersion === 0n) return "No version is ready yet";
+  return undefined;
+};
+
+export const hasAlchemyRuntimeIcon = (fn: {
+  runtimeDarkIconUrl: string;
+  runtimeLightIconUrl: string;
+}): boolean => fn.runtimeDarkIconUrl !== "" && fn.runtimeLightIconUrl !== "";
+
+const createAlchemyUrl = (alchemyUrl: string, path: string): URL =>
+  new URL(path, alchemyUrl.endsWith("/") ? alchemyUrl : `${alchemyUrl}/`);
+
+export const getAlchemyWorkbenchUrl = (
+  alchemyUrl: string,
+  functionId: string,
+  handlerPath: string | undefined,
+): string => {
+  const url = createAlchemyUrl(
+    alchemyUrl,
+    `${TRANSFORM_ALCHEMY_FUNCTIONS_PATH}/${encodeURIComponent(functionId)}/${TRANSFORM_ALCHEMY_WORKBENCH_PATH}`,
+  );
+  if (handlerPath) {
+    url.searchParams.set(
+      TRANSFORM_ALCHEMY_WORKBENCH_FILE_PARAM,
+      `${TRANSFORM_ALCHEMY_WORKBENCH_SOURCE_PREFIX}${handlerPath}`,
+    );
+  }
+  return url.toString();
+};
+
+const ALCHEMY_TIME_UNIT_TO_TOKEN_MAP: Record<TimeUnit, string> = {
+  [TimeUnit.SECOND]: "s",
+  [TimeUnit.MILLISECOND]: "ms",
+  [TimeUnit.MICROSECOND]: "us",
+  [TimeUnit.NANOSECOND]: "ns",
+};
+
+const ALCHEMY_PRECISION_TO_BIT_WIDTH_MAP: Record<Precision, number> = {
+  [Precision.HALF]: 16,
+  [Precision.SINGLE]: 32,
+  [Precision.DOUBLE]: 64,
+};
+
+const formatAlchemyArrowType = (type: DataType): string => {
+  if (DataType.isUtf8(type)) return "utf8";
+  if (DataType.isLargeUtf8(type)) return "large_utf8";
+  if (DataType.isBinary(type)) return "binary";
+  if (DataType.isLargeBinary(type)) return "large_binary";
+  if (DataType.isBool(type)) return "bool";
+  if (DataType.isInt(type)) return `${type.isSigned ? "int" : "uint"}${type.bitWidth}`;
+  if (DataType.isFloat(type)) return `float${ALCHEMY_PRECISION_TO_BIT_WIDTH_MAP[type.precision]}`;
+  if (DataType.isDate(type)) return type.unit === DateUnit.DAY ? "date32" : "date64";
+  if (DataType.isTimestamp(type)) {
+    const unit = ALCHEMY_TIME_UNIT_TO_TOKEN_MAP[type.unit];
+    return type.timezone ? `timestamp[${unit}, tz=${type.timezone}]` : `timestamp[${unit}]`;
+  }
+  if (DataType.isTime(type)) {
+    return `time${type.bitWidth}[${ALCHEMY_TIME_UNIT_TO_TOKEN_MAP[type.unit]}]`;
+  }
+  if (DataType.isDecimal(type)) return `decimal${type.bitWidth}(${type.precision}, ${type.scale})`;
+  if (DataType.isList(type)) return `list<${formatAlchemyArrowType(type.valueType)}>`;
+  if (DataType.isFixedSizeList(type)) {
+    return `fixed_size_list<${formatAlchemyArrowType(type.valueType)}>[${type.listSize}]`;
+  }
+  return String(type).toLowerCase();
+};
+
+const getAlchemyArrowFields = (schema: Schema) =>
+  schema.fields.map((field) => ({
+    name: field.name,
+    type: formatAlchemyArrowType(field.type),
+    nullable: field.nullable,
+  }));
+
+export const getAlchemyArrowContract = (
+  arrowSchema: Uint8Array | undefined,
+): AlchemyFlowContract | undefined => {
+  if (!arrowSchema?.length) return undefined;
+  try {
+    const fields = getAlchemyArrowFields(tableFromIPC(arrowSchema).schema);
+    return { kind: "arrow", input: fields, output: fields };
+  } catch {
+    return undefined;
+  }
+};
+
+export const getAlchemyCreateFunctionHref = (
+  alchemyUrl: string,
+  returnTo: string,
+  request: string,
+  contract: AlchemyFlowContract | undefined,
+): string => {
+  const url = new URL(returnTo);
+  url.searchParams.set(TRANSFORM_ALCHEMY_REQUEST_PARAM, request);
+  return createAlchemyFunctionHref(alchemyUrl, url.toString(), {
+    contract,
+    returnLabel: TRANSFORM_ALCHEMY_RETURN_LABEL,
+  });
+};
+
+export const parseAlchemyReturnMessage = (
+  data: unknown,
+): TransformAlchemyReturnMessage | undefined => {
+  if (typeof data !== "object" || data === null) return undefined;
+  const { request, functionId, version } = data as Record<string, unknown>;
+  return typeof request === "string" &&
+    typeof functionId === "string" &&
+    typeof version === "number"
+    ? { request, functionId, version }
+    : undefined;
+};
 
 export const createTransformSelectModel = <T>(
   entries: TransformSelectEntry<T>[],

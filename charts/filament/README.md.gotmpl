@@ -198,6 +198,16 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
   {{- end }}
 {{- end }}
 
+## Alchemy parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+{{- range .Values }}
+  {{- if hasPrefix "alchemy." .Key }}
+| {{ .Key }} | {{ .Type }} | {{ if .Default }}{{ .Default }}{{ else }}{{ .AutoDefault }}{{ end }} | {{ if .Description }}{{ .Description }}{{ else }}{{ .AutoDescription }}{{ end }} |
+  {{- end }}
+{{- end }}
+
 ## Vendored PostgreSQL parameters
 
 | Key | Type | Default | Description |

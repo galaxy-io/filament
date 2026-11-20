@@ -23,11 +23,13 @@ export enum TransformSummaryPartKind {
   OUTPUT = "output",
   REMOVED = "removed",
   VALUE = "value",
+  FUNCTION = "function",
 }
 
 interface TransformSummaryPart {
   kind: TransformSummaryPartKind;
   text: string;
+  version?: number;
 }
 
 const TRANSFORM_EXPR_KIND_TO_VERB_MAP: Record<TransformExprKind, string | undefined> = {
@@ -60,6 +62,11 @@ const removed = (name: string): TransformSummaryPart => ({
 const value = (literal: string): TransformSummaryPart => ({
   kind: TransformSummaryPartKind.VALUE,
   text: literal,
+});
+const alchemyFunction = (id: string, version: number): TransformSummaryPart => ({
+  kind: TransformSummaryPartKind.FUNCTION,
+  text: id,
+  version,
 });
 const ELLIPSIS = text("…");
 
@@ -179,6 +186,13 @@ export const formatTransformStep = (
           " and ",
         ),
       ]),
+    )
+    .with({ kind: TransformStepKind.ALCHEMY }, ({ function: fn, version }) =>
+      joinParts(
+        fn
+          ? [verb("Run"), text(" "), alchemyFunction(fn, version)]
+          : [verb("Run"), text(" "), ELLIPSIS],
+      ),
     )
     .with({ kind: TransformStepKind.COMPUTE }, (compute) => {
       const isMatchingRows = compute.where !== null;
