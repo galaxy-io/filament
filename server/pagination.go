@@ -53,8 +53,9 @@ func listOptionsOf(
 			field = mapped
 		}
 		switch sorting.GetSortOrder() {
-		case ingestionv1.SortOrder_SORT_ORDER_UNSPECIFIED,
-			ingestionv1.SortOrder_SORT_ORDER_DESC:
+		case ingestionv1.SortOrder_SORT_ORDER_UNSPECIFIED:
+			// An omitted direction keeps the endpoint's default.
+		case ingestionv1.SortOrder_SORT_ORDER_DESC:
 			descending = true
 		case ingestionv1.SortOrder_SORT_ORDER_ASC:
 			descending = false
