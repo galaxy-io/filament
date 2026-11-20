@@ -200,12 +200,13 @@ func validateContinuous(cfg ContinuousConfig) error {
 		cfg.Codecs == nil,
 		cfg.MaxEpochs < 0,
 		cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour,
-		cfg.DrainTimeout <= 0,
-		cfg.Boundary.MaxWait <= 0,
+		cfg.DrainTimeout <= 0:
+		return errors.New("continuous runner: store, codecs, lease and drain limits required")
+	case cfg.Boundary.MaxWait <= 0,
 		cfg.Boundary.MaxRecords <= 0,
 		cfg.Boundary.MaxBytes < 0,
 		cfg.Boundary.MaxAge < 0:
-		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
+		return fmt.Errorf("continuous runner: epoch boundary needs positive MaxWait and MaxRecords and non-negative MaxBytes and MaxAge, got %+v", cfg.Boundary)
 	}
 	for _, r := range spec.Resources {
 		if _, ok := cfg.Schemas[r]; cfg.Schemas != nil && !ok {

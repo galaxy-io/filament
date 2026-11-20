@@ -7,6 +7,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
+	iceberg "github.com/apache/iceberg-go"
 	"github.com/apache/iceberg-go/table"
 
 	"github.com/galaxy-io/filament"
@@ -122,29 +123,42 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 }
 
 func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mode writeMode, arrowSchema *arrow.Schema) error {
-	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema)
+	var (
+		deleteIDs    []int
+		deleteSchema *arrow.Schema
+	)
+	if mergeOnRead(it.tbl, mode, rb.policy.Keys) {
+		var err error
+		if deleteIDs, deleteSchema, err = equalityDeleteSchema(it, rb.policy.Keys); err != nil {
+			return err
+		}
+	} else if has, err := hasDeleteFiles(ctx, it.tbl); err != nil {
+		return fmt.Errorf("%s: read manifests: %w", mode, err)
+	} else if has {
+		return fmt.Errorf("%s: table has delete files that a copy-on-write rewrite would drop; compact them or set the table back to merge-on-read", mode)
+	}
+	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema, deleteSchema)
 	if err != nil {
 		return err
 	}
 	defer m.release()
-	if m.filter == nil {
+	if m.touched == 0 {
 		return nil
 	}
+	if deleteSchema != nil {
+		return commitRowDelta(ctx, it, m, deleteIDs, arrowSchema)
+	}
 
+	// Overwrite always rewrites files, where Delete follows write.delete.mode and
+	// could leave position deletes a later rewrite would drop.
 	txn := it.tbl.NewTransaction()
-	if len(m.live) == 0 {
-		if err := txn.Delete(ctx, m.filter, nil); err != nil {
-			return fmt.Errorf("delete: %w", err)
-		}
-	} else {
-		rdr, err := array.NewRecordReader(arrowSchema, m.live)
-		if err != nil {
-			return fmt.Errorf("mutation reader: %w", err)
-		}
-		defer rdr.Release()
-		if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(m.filter)); err != nil {
-			return fmt.Errorf("%s: %w", mode, err)
-		}
+	rdr, err := array.NewRecordReader(arrowSchema, m.live)
+	if err != nil {
+		return fmt.Errorf("mutation reader: %w", err)
+	}
+	defer rdr.Release()
+	if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(m.filter)); err != nil {
+		return fmt.Errorf("%s: %w", mode, err)
 	}
 	updated, err := txn.Commit(ctx)
 	if err != nil {
@@ -153,6 +167,143 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 	it.tbl = updated
 	it.schema = updated.Schema()
 	return nil
+}
+
+// mergeOnRead reports whether the table asks for merge-on-read: write.merge.mode
+// governs upsert and merge, write.delete.mode pure deletes. Iceberg defaults
+// both to copy-on-write. Format v1 tables cannot hold delete files, and a
+// partitioned delete must land in the partition of the row it shadows, which an
+// update may have moved, so both fall back to copy-on-write. Floating-point
+// columns cannot be equality-delete keys, so a float key falls back too.
+func mergeOnRead(tbl *table.Table, mode writeMode, keys []string) bool {
+	key := writeMergeModeKey
+	if mode == writeModeDelete {
+		key = table.WriteDeleteModeKey
+	}
+	if tbl.Properties().Get(key, table.WriteModeCopyOnWrite) != table.WriteModeMergeOnRead {
+		return false
+	}
+	if tbl.Metadata().Version() < 2 || !tbl.Spec().IsUnpartitioned() {
+		return false
+	}
+	for _, k := range keys {
+		if field, ok := tbl.Schema().FindFieldByName(k); ok {
+			switch field.Type.(type) {
+			case iceberg.Float32Type, iceberg.Float64Type:
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// hasDeleteFiles reports whether the current snapshot tracks any live delete
+// files. iceberg-go's copy-on-write rewrite reads data files without their
+// delete files, so rewriting such a table would resurrect deleted rows. The
+// manifest list is read because the snapshot summary totals are optional.
+func hasDeleteFiles(ctx context.Context, tbl *table.Table) (bool, error) {
+	snap := tbl.CurrentSnapshot()
+	if snap == nil {
+		return false, nil
+	}
+	fs, err := tbl.FS(ctx)
+	if err != nil {
+		return false, err
+	}
+	manifests, err := snap.Manifests(fs)
+	if err != nil {
+		return false, err
+	}
+	for _, m := range manifests {
+		if m.ManifestContent() == iceberg.ManifestContentDeletes && m.AddedDataFiles()+m.ExistingDataFiles() > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// equalityDeleteSchema resolves the key columns to field IDs and the Arrow
+// schema the equality-delete writer expects for them.
+func equalityDeleteSchema(it *iceTable, keys []string) ([]int, *arrow.Schema, error) {
+	ids := make([]int, len(keys))
+	for i, key := range keys {
+		field, ok := it.schema.FindFieldByName(key)
+		if !ok {
+			return nil, nil, fmt.Errorf("primary key %q is not in iceberg schema", key)
+		}
+		ids[i] = field.ID
+	}
+	keySchema, err := it.schema.Select(true, keys...)
+	if err != nil {
+		return nil, nil, err
+	}
+	sc, err := table.SchemaToArrowSchemaWithOptions(keySchema, table.ArrowSchemaOptions{IncludeFieldIDs: true, TableProperties: it.tbl.Properties()})
+	if err != nil {
+		return nil, nil, err
+	}
+	return ids, sc, nil
+}
+
+// commitRowDelta writes the surviving rows as data files and the remaining
+// touched keys as equality deletes, committed as one snapshot. The deletes only
+// shadow rows from earlier snapshots, so the rows added beside them survive.
+func commitRowDelta(ctx context.Context, it *iceTable, m *mutation, deleteIDs []int, arrowSchema *arrow.Schema) error {
+	if len(m.live) == 0 && len(m.deletes) == 0 {
+		return nil
+	}
+	txn := it.tbl.NewTransaction()
+	rd := txn.NewRowDelta(nil)
+	if len(m.deletes) > 0 {
+		deletes, err := txn.WriteEqualityDeletes(ctx, deleteIDs, borrowed(m.deletes))
+		if err != nil {
+			return fmt.Errorf("write equality deletes: %w", err)
+		}
+		rd.AddDeletes(deletes...)
+	}
+	if len(m.live) > 0 {
+		for df, err := range table.WriteRecords(ctx, it.tbl, arrowSchema, retained(m.live)) {
+			if err != nil {
+				return fmt.Errorf("write data files: %w", err)
+			}
+			rd.AddRows(df)
+		}
+	}
+	if err := rd.Commit(ctx); err != nil {
+		return fmt.Errorf("row delta: %w", err)
+	}
+	updated, err := txn.Commit(ctx)
+	if err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	it.tbl = updated
+	it.schema = updated.Schema()
+	return nil
+}
+
+// retained yields each batch with an extra reference for WriteRecords, which
+// releases every batch it is handed, including the one it stops on. The
+// mutation still releases its own.
+func retained(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
+	return func(yield func(arrow.RecordBatch, error) bool) {
+		for _, b := range batches {
+			b.Retain()
+			if !yield(b, nil) {
+				return
+			}
+		}
+	}
+}
+
+// borrowed yields batches without a reference for WriteEqualityDeletes, whose
+// writers retain what they keep and release nothing they are handed.
+func borrowed(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
+	return func(yield func(arrow.RecordBatch, error) bool) {
+		for _, b := range batches {
+			if !yield(b, nil) {
+				return
+			}
+		}
+	}
 }
 
 // conformedBatches returns an iterator yielding each buffered batch in the

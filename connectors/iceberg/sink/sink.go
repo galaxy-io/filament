@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"sync"
+	"time"
 
 	iceberg "github.com/apache/iceberg-go"
 	icecatalog "github.com/apache/iceberg-go/catalog"
@@ -20,7 +21,9 @@ import (
 
 const (
 	defaultStageBufLimitBytes = 256 << 20 // 256 MiB
+	defaultCommitInterval     = time.Minute
 	defaultNamespace          = "default"
+	writeMergeModeKey         = "write.merge.mode"
 )
 
 type writeMode string
@@ -41,6 +44,7 @@ type Sink struct {
 	active    *stage
 
 	tableLocationRoot  string
+	tableUpdateMode    string
 	namespace          string
 	stageBufLimitBytes int64
 	ingestionTypes     map[string]filament.IngestionType
@@ -130,6 +134,7 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	s.cat = cat
 	s.tableLocationRoot = setup.TableLocationRoot
+	s.tableUpdateMode = setup.TableUpdateMode
 	s.ingestionTypes = maps.Clone(run.IngestionTypes)
 	s.policies = maps.Clone(run.WritePolicies)
 	s.writeModes = map[string]writeMode{}
