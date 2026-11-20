@@ -113,6 +113,7 @@ func TestPostgresContinuousTransactionsAndResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	waitSlotReleased(t, ctx, pg, plan.ConsumerName)
 	if _, err := pg.Pool().Exec(ctx, `SELECT pg_drop_replication_slot($1)`, plan.ConsumerName); err != nil {
 		t.Fatal(err)
 	}

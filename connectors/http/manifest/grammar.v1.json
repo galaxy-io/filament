@@ -409,6 +409,7 @@
             "commit_on_complete": { "type": "boolean" }
           }
         },
+        "after": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "parent": {
           "type": "object",
           "additionalProperties": false,
