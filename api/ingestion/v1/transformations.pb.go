@@ -360,12 +360,14 @@ func (x *ListTransformFunctionsResponse) GetGrammarSchema() string {
 
 // ValidateTransformRequest compiles a transform against one resource's
 // schema, read from the source connection, exactly as a run would. The
-// transform is the same JSON object an edge carries.
+// transform is the same JSON object an edge carries, and columns is the
+// edge's column selection for the resource, empty when it reads every column.
 type ValidateTransformRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	SourceConnectionId string                 `protobuf:"bytes,1,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
 	Resource           string                 `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
 	Transform          *structpb.Struct       `protobuf:"bytes,3,opt,name=transform,proto3" json:"transform,omitempty"`
+	Columns            []string               `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -417,6 +419,13 @@ func (x *ValidateTransformRequest) GetResource() string {
 func (x *ValidateTransformRequest) GetTransform() *structpb.Struct {
 	if x != nil {
 		return x.Transform
+	}
+	return nil
+}
+
+func (x *ValidateTransformRequest) GetColumns() []string {
+	if x != nil {
+		return x.Columns
 	}
 	return nil
 }
@@ -585,11 +594,12 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\x1eListTransformFunctionsResponse\x12=\n" +
 	"\tfunctions\x18\x01 \x03(\v2\x1f.ingestion.v1.TransformFunctionR\tfunctions\x12'\n" +
 	"\x0fgrammar_version\x18\x02 \x01(\x05R\x0egrammarVersion\x12%\n" +
-	"\x0egrammar_schema\x18\x03 \x01(\tR\rgrammarSchema\"\x9f\x01\n" +
+	"\x0egrammar_schema\x18\x03 \x01(\tR\rgrammarSchema\"\xb9\x01\n" +
 	"\x18ValidateTransformRequest\x120\n" +
 	"\x14source_connection_id\x18\x01 \x01(\tR\x12sourceConnectionId\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x125\n" +
-	"\ttransform\x18\x03 \x01(\v2\x17.google.protobuf.StructR\ttransform\"P\n" +
+	"\ttransform\x18\x03 \x01(\v2\x17.google.protobuf.StructR\ttransform\x12\x18\n" +
+	"\acolumns\x18\x04 \x03(\tR\acolumns\"P\n" +
 	"\x17TransformExpressionType\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
 	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\"\xff\x01\n" +

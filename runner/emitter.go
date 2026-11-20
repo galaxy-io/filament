@@ -80,8 +80,11 @@ func (e *emitter) seedProgress(state filament.RunState) {
 func (e *emitter) next() uint64 { return e.seq.Add(1) }
 
 // terminalPublishWait bounds how long ending facts may publish after the run
-// context is cancelled, so shutdown cannot hang on a dead bus.
-const terminalPublishWait = 5 * time.Second
+// context is cancelled, so shutdown cannot hang on a dead bus. It is longer
+// than a transport's publish retry window (a minute on NATS) so the run's
+// obituary outlasts a broker restart instead of stranding the row until the
+// reaper fails it.
+const terminalPublishWait = 90 * time.Second
 
 // finish detaches the emitter from run cancellation so ending facts — resource
 // terminals and the run obituary — publish even while the host is shutting

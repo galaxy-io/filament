@@ -202,6 +202,14 @@ Where supported, list requests include inactive records with `active=Any` or
 `continueFrom`. Requests share a 45-per-second limiter within each run and
 retry throttling and server errors.
 
+Header resources read after their line resources finish, so a sync never lands
+a line whose header arrives only in the next one. `invoices` waits on
+`invoice_items`, `credit_memos` on `credit_memo_items`, `jobs` on
+`appointments`, `job_canceled_logs`, `job_history` and `job_notes`, `projects`
+on `project_notes`, `customers` on `customer_contacts`, and `locations` on
+`location_contacts`. Links across entities, such as an invoice's job or an
+appointment's customer, are not ordered and can lead their target by one sync.
+
 Nested arrays and objects remain JSON. Dates and times remain strings. Integer
 IDs use 64-bit integers. Many accounting amounts are projected as strings to
 preserve their decimal representation. The `raw` column retains unprojected properties.
