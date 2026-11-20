@@ -36,3 +36,15 @@ Optional resources: **sales_reports** (requires `vendor_number`).
 is a full-refresh catalog resource. Changing `app_ids` automatically resets the
 saved watermark for `customer_reviews` and `analytics_reports` so newly added
 apps are backfilled from the beginning.
+
+For deterministic upserts across re-reads, `analytics_reports` builds its
+primary key `id` from `<app_id>:<report_name>:<processing_date>:<row_hash>`
+(where `<row_hash>` is the hex-encoded 128-bit SHA-256 prefix of the canonical
+row metrics JSON), and `sales_reports` builds `id` from
+`<Provider>:<SKU>:<Begin Date>:<Country Code>:<Product Type Identifier>`.
+
+<Note>
+  Reviews, analytics, and sales report extraction are currently validated
+  against wire fixtures and have not been validated against a live App Store
+  Connect account yet.
+</Note>

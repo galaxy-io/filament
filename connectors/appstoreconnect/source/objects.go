@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -348,10 +350,12 @@ func (s *Source) walkAnalyticsInstanceSegments(ctx context.Context, resName, app
 			if err != nil {
 				return false, err
 			}
-			for idx, metricsMap := range rows {
+			procDateStr := procDate.UTC().Format("2006-01-02")
+			for _, metricsMap := range rows {
 				rawMetrics, _ := json.Marshal(metricsMap)
+				sum := sha256.Sum256(rawMetrics)
 				row := recordRow{
-					id:         fmt.Sprintf("%s:%s:%d", instanceID, segObj.ID, idx),
+					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, procDateStr, hex.EncodeToString(sum[:16])),
 					appID:      appID,
 					category:   category,
 					name:       name,

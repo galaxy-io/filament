@@ -220,6 +220,19 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 		if len(sink.rows) == 0 {
 			t.Fatalf("%s emitted 0 rows", resName)
 		}
+		if resName == "analytics_reports" {
+			if len(sink.rows) != 2 {
+				t.Fatalf("analytics_reports rows = %d, want 2", len(sink.rows))
+			}
+			if sink.rows[0].id == sink.rows[1].id {
+				t.Fatalf("expected distinct analytics_reports row IDs, got identical %q", sink.rows[0].id)
+			}
+			for _, r := range sink.rows {
+				if !strings.HasPrefix(r.id, "app-1:App Sessions:2026-11-16:") {
+					t.Fatalf("unexpected analytics_reports composite id format: %q", r.id)
+				}
+			}
+		}
 	}
 	for _, u := range observedURIs {
 		if strings.Contains(u, "X-Amz-Signature") || strings.Contains(u, "?") {
