@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"hash/crc32"
 	"sync"
 
 	"github.com/galaxy-io/filament"
@@ -139,7 +140,8 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("s3 sink: encode success manifest: %w", err)
 	}
-	if err := session.PutObject(ctx, layout.Success(), objectMetadata{contentType: object.ManifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
+	manifestCRC := crc32.Checksum(body, crc32cTable)
+	if err := session.PutObject(ctx, layout.Success(), objectMetadata{contentType: object.ManifestContentType}, bytes.NewReader(body), int64(len(body)), manifestCRC); err != nil {
 		return fmt.Errorf("s3 sink: publish success marker: %w", err)
 	}
 

@@ -345,8 +345,8 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *objectWr
 	upload.inflight.Go(func() {
 		defer stopUpload()
 		defer func() { <-s.slots }()
-		size := int64(part.body.Len())
-		token, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body, size)
+		size, crc := int64(part.body.Len()), part.body.CRC32C()
+		token, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body, size, crc)
 		part.body.Release()
 		upload.mu.Lock()
 		defer upload.mu.Unlock()
@@ -356,7 +356,7 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *objectWr
 			}
 			return
 		}
-		upload.parts = append(upload.parts, completedPart{number: part.number, token: token})
+		upload.parts = append(upload.parts, completedPart{number: part.number, token: token, crc32c: crc})
 	})
 	return nil
 }
