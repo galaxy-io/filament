@@ -3212,6 +3212,74 @@ client.ingestion_v1ingestionservice.getversion(
 </dl>
 </details>
 
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getwebhookdeliveryurl</a>(...) -> IngestionV1GetWebhookDeliveryUrlResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.getwebhookdeliveryurl(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**source_connection_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getwebhookendpoint</a>(...) -> IngestionV1GetWebhookEndpointResponse</code></summary>
 <dl>
 <dd>

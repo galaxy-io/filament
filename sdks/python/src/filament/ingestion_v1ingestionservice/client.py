@@ -8,6 +8,7 @@ from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
 from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
 from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
+from ..types.ingestion_v1get_webhook_delivery_url_response import IngestionV1GetWebhookDeliveryUrlResponse
 from ..types.ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
 from ..types.ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
@@ -74,6 +75,48 @@ class IngestionV1IngestionserviceClient:
         """
         _response = self._raw_client.getversion(
             request=request, connect_timeout_ms=connect_timeout_ms, request_options=request_options
+        )
+        return _response.data
+
+    def getwebhookdeliveryurl(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetWebhookDeliveryUrlResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetWebhookDeliveryUrlResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.ingestion_v1ingestionservice.getwebhookdeliveryurl(
+            connect_timeout_ms=1000.0,
+        )
+        """
+        _response = self._raw_client.getwebhookdeliveryurl(
+            connect_timeout_ms=connect_timeout_ms,
+            source_connection_id=source_connection_id,
+            request_options=request_options,
         )
         return _response.data
 
@@ -345,6 +388,56 @@ class AsyncIngestionV1IngestionserviceClient:
         """
         _response = await self._raw_client.getversion(
             request=request, connect_timeout_ms=connect_timeout_ms, request_options=request_options
+        )
+        return _response.data
+
+    async def getwebhookdeliveryurl(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetWebhookDeliveryUrlResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetWebhookDeliveryUrlResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.ingestion_v1ingestionservice.getwebhookdeliveryurl(
+                connect_timeout_ms=1000.0,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.getwebhookdeliveryurl(
+            connect_timeout_ms=connect_timeout_ms,
+            source_connection_id=source_connection_id,
+            request_options=request_options,
         )
         return _response.data
 
