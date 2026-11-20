@@ -7,6 +7,7 @@ import (
 	kafka "github.com/galaxy-io/filament/connectors/kafka/sink"
 	nats "github.com/galaxy-io/filament/connectors/nats/sink"
 	postgres "github.com/galaxy-io/filament/connectors/postgres/sink"
+	rabbitmq "github.com/galaxy-io/filament/connectors/rabbitmq/sink"
 )
 
 type auditPolicySource struct {
@@ -27,7 +28,7 @@ func TestSavedContinuousSinkPoliciesRemainAdmissible(t *testing.T) {
 		source filament.ConnectorSpec
 		policy filament.WritePolicyCapability
 	}{
-		{"kafka", kafka.New(), changes, oldMessage}, {"nats", nats.New(), changes, oldMessage}, {"postgres", postgres.New(), rows, oldPostgres},
+		{"kafka", kafka.New(), changes, oldMessage}, {"nats", nats.New(), changes, oldMessage}, {"rabbitmq", rabbitmq.New(), changes, oldMessage}, {"postgres", postgres.New(), rows, oldPostgres},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			spec := filament.RunSpec{Resources: []string{"items"}, WritePolicies: map[string]filament.WritePolicy{"items": {Capability: tc.policy}}}

@@ -76,6 +76,7 @@ documented in
 | [PostgreSQL](/pages/connectors/sinks/postgres) | `postgres` | No | Typed tables. Replace, append, upsert, and CDC merge |
 | [MySQL](/pages/connectors/sinks/mysql) | `mysql` | No | Typed tables. Same write policies as the PostgreSQL sink |
 | [NATS JetStream](/pages/connectors/sinks/nats) | `nats` | No | Acknowledged JSON messages; bounded and continuous append |
+| [RabbitMQ Streams](/pages/connectors/sinks/rabbitmq) | `rabbitmq` | Yes | Acknowledged JSON messages on an existing stream. Bounded and continuous append |
 | [Kafka](/pages/connectors/sinks/kafka) | `kafka` | No | Acknowledged JSON or raw messages. Bounded and continuous append |
 | [ClickHouse](/pages/connectors/sinks/clickhouse) | `clickhouse` | No | MergeTree tables. Atomic replace via staging, no CDC |
 | [Databricks Zerobus](/pages/connectors/sinks/databricks-zerobus) | `databrickszerobus` | Yes | Delta tables through the Zerobus Ingest API. Append only, CDC as history rows. Worker `-libc` image only |

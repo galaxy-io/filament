@@ -1,0 +1,84 @@
+---
+title: "RabbitMQ Streams sink connector"
+sidebarTitle: "RabbitMQ Streams"
+description: "Publish acknowledged JSON messages to an existing RabbitMQ stream"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-rabbitmq-dark.svg"
+---
+
+Connector ID `rabbitmq`
+
+`connectors/rabbitmq` registers the `rabbitmq` sink. It is in preview. It publishes one JSON message per input row to an existing RabbitMQ stream. Bounded runs and continuous execution use the same publisher. Each record remains an individual stream message. Classic AMQP exchanges are not supported.
+
+## Configuration
+
+| Field | Scope | Required | Description |
+|---|---|---|---|
+| `uri` | Connection | Yes | RabbitMQ Stream URI. Use `rabbitmq-stream+tls://` for TLS. The URI is a secret |
+| `stream` | Pipeline | Yes | Existing stream name. `{resource}` expands to the destination resource name |
+| `publish_timeout` | Pipeline | No | Maximum wait for each publish confirmation. At least 1s. Default `30s` |
+| `max_in_flight` | Pipeline | No | Maximum outstanding messages, from 1 through 65,536. Default `1024` |
+| `max_in_flight_bytes` | Pipeline | No | Maximum outstanding message bytes. Default `16777216` (16 MiB) |
+| `max_record_bytes` | Pipeline | No | Maximum JSON body size, from 512 bytes to 100 MiB. Default `1048576` |
+
+The connection URI matches the RabbitMQ Streams source. A typical value is `rabbitmq-stream://user:password@host:5552/%2f`. The path is the virtual host. `%2f` is the default virtual host.
+
+`stream` is a template. `{resource}`, or `{{resource}}`, is replaced with the destination resource name.
+
+| `stream` | Resource `orders` publishes to |
+|---|---|
+| `warehouse` | `warehouse` |
+| `events.{resource}` | `events.orders` |
+| `{resource}` | `orders` |
+
+The stream must already exist. The sink does not create it and does not change retention, replicas, or other stream settings. Resource names are not sanitized. Use destination resource mapping when a source name is not a valid stream name.
+
+```json
+{
+  "uri": "rabbitmq-stream://user:password@localhost:5552/%2f",
+  "stream": "warehouse.{resource}",
+  "publish_timeout": "30s",
+  "max_in_flight": 1024,
+  "max_in_flight_bytes": 16777216,
+  "max_record_bytes": 1048576
+}
+```
+
+Workers need permission to open a stream connection, check that the stream exists, declare a named producer, and publish.
+
+## Write modes and message format
+
+Supported bounded ingestion types are `full_append`, `incremental_append`, and `cdc_append`. Continuous execution supports append for rows, messages, and change events. Replace, upsert, merge, and destination deletion are unsupported.
+
+Each message body is a JSON object containing the Arrow row's columns, without a trailing newline. The shared JSON encoder renders bytes as base64 and temporal values as text. Every message has content type `application/json` and application properties
+
+- `Filament-Operation` set to `insert`, `update`, or `delete`
+- `Filament-Event-Id` when `_filament_event_id` is set
+
+Updates and deletes append change-history messages. They do not modify previous messages. `_filament_event_id` is metadata for consumers. It is not the publishing id.
+
+The sink validates and serializes the complete batch before publishing. Messages that exceed `max_record_bytes` fail the batch. They are not split.
+
+## Publishing IDs and deduplication
+
+RabbitMQ deduplicates only for a named producer, and only when the publishing id is strictly greater than the last id stored for that name. An id that is not greater is discarded with no error.
+
+The producer name is stable for a tenant, pipeline, sink connection, and destination stream. It does not include the run, attempt, or epoch, so a retry uses the same sequence. On startup the sink calls `GetLastPublishingId` and keeps that watermark. This client returns `0` when the named producer has never published, and the protocol also uses `0` when the last stored id was `0`. The sink treats that `0` as a stored id, so the next new publishing id is `1`.
+
+Publishing ids come from Filament order.
+
+- When every row has a non-null, strictly increasing `_filament_sequence`, those values are the publishing ids. If they are all above the watermark, they are new messages. If they are all at or below the watermark, the sink resends the same ids and the broker drops the duplicates. A batch that mixes both fails before any publish.
+- When the column is absent, the sink assigns `watermark+1`, `watermark+2`, and so on. That path is at least once. A later replay of the same rows can store another copy, because the new ids are greater than the watermark.
+
+Do not expect a hash of `_filament_event_id` to deduplicate. Those hashes are not increasing, so RabbitMQ would drop the messages.
+
+`_filament_sequence` must keep increasing for the life of a producer name. A later run that restarts the sequence back through the watermark is treated as a replay and deduplicated. Full-refresh batches usually omit the column, so they continue past the watermark and append.
+
+## Durability, replay, and failures
+
+`Apply` succeeds only after the broker confirms every message. Durability follows successful `Apply` and the stream's storage and retention settings. `Commit` confirms acknowledged writes. Continuous writes reuse the open session. `Close` releases it.
+
+Messages become visible individually. Neither batches nor epochs are atomic. An abort does not delete acknowledged messages.
+
+A lost confirmation leaves the write outcome uncertain. The sink stops publishing, rejects the commit, and reports unproven destination quiescence on close. Local failures before publication can close cleanly. The sink does not provide owner fencing.
+
+Write receipts report payload bytes and an encoded CRC32C over concatenated JSON message bodies. The checksum excludes application properties and protocol framing.
