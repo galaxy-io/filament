@@ -183,7 +183,7 @@ func (p *Pipeline) runPack(ctx context.Context, j *packJob) {
 	in = nil
 	if err != nil {
 		releaseItems(owned)
-		p.setErr(fmt.Errorf("transform %s seq %d-%d: %w", first.Resource, first.Seq, j.items[len(j.items)-1].batch.Seq, err))
+		p.report(Failure{Resource: first.Resource, Scope: ScopeResource, Err: fmt.Errorf("transform %s seq %d-%d: %w", first.Resource, first.Seq, j.items[len(j.items)-1].batch.Seq, err)})
 		return
 	}
 	elapsed := time.Since(started)
