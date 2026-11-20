@@ -37,17 +37,18 @@ func ensureSchemas(ctx context.Context, snk filament.Sink, spec filament.RunSpec
 }
 
 func ensureSchema(ctx context.Context, sch filament.Schematized, spec filament.RunSpec, schema rowmodel.Schema, def *transform.Definition, res string) error {
+	ingestionType := filament.TypeFor(spec.IngestionTypes, res)
 	if def != nil {
 		if schema.Resource == "" {
 			schema.Resource = res
 		}
-		plan, err := transform.Compile(def, schema)
+		// The source has already narrowed schema to the selection.
+		plan, err := transform.Compile(def, rowmodel.InputFor(schema, nil, filament.IsCDCIngestion(ingestionType)))
 		if err != nil {
 			return fmt.Errorf("transform for %q: %w", res, err)
 		}
 		schema = plan.Schema()
 	}
-	ingestionType := filament.TypeFor(spec.IngestionTypes, res)
 	schema, err := auditSchema(schema, filament.IsCDCIngestion(ingestionType), ingestionType == filament.IngestionCDCAppend)
 	if err != nil {
 		return fmt.Errorf("schema for %q: %w", res, err)
