@@ -1502,6 +1502,68 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetAlchemyFunction": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetAlchemyFunction",
+        "operationId": "ingestion.v1.IngestionService.GetAlchemyFunction",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetAlchemyFunctionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetAlchemyFunctionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/GetConnection": {
       "post": {
         "tags": [
@@ -1993,6 +2055,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ingestion.v1.GetWebhookEndpointResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingestion.v1.IngestionService/ListAlchemyFunctions": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "ListAlchemyFunctions",
+        "operationId": "ingestion.v1.IngestionService.ListAlchemyFunctions",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.ListAlchemyFunctionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.ListAlchemyFunctionsResponse"
                 }
               }
             }
@@ -3791,6 +3915,77 @@
         ],
         "description": "Any JSON value: `null`, number, string, boolean, array, or object."
       },
+      "ingestion.v1.AlchemyContractKind": {
+        "type": "string",
+        "title": "AlchemyContractKind",
+        "enum": [
+          "ALCHEMY_CONTRACT_KIND_UNSPECIFIED",
+          "ALCHEMY_CONTRACT_KIND_ARROW",
+          "ALCHEMY_CONTRACT_KIND_JSON_SCHEMA"
+        ],
+        "description": "AlchemyContractKind is how a function types its boundary; only ARROW can back a transform step."
+      },
+      "ingestion.v1.AlchemyFunction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "description": {
+            "type": "string",
+            "title": "description"
+          },
+          "currentVersion": {
+            "type": "string",
+            "title": "current_version",
+            "format": "int64",
+            "description": "current_version is the latest ready version, zero until one is ready."
+          },
+          "contractKind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.AlchemyContractKind"
+              }
+            ],
+            "title": "contract_kind"
+          },
+          "runtime": {
+            "type": "string",
+            "title": "runtime"
+          },
+          "runtimeDarkIconUrl": {
+            "type": "string",
+            "title": "runtime_dark_icon_url"
+          },
+          "runtimeLightIconUrl": {
+            "type": "string",
+            "title": "runtime_light_icon_url"
+          },
+          "runtimeHandlerPath": {
+            "type": "string",
+            "title": "runtime_handler_path"
+          }
+        },
+        "title": "AlchemyFunction",
+        "additionalProperties": false,
+        "description": "AlchemyFunction is one function a transform step can pin; runtime fields are empty for image-based functions."
+      },
+      "ingestion.v1.AlchemyVersionStatus": {
+        "type": "string",
+        "title": "AlchemyVersionStatus",
+        "enum": [
+          "ALCHEMY_VERSION_STATUS_UNSPECIFIED",
+          "ALCHEMY_VERSION_STATUS_BUILDING",
+          "ALCHEMY_VERSION_STATUS_READY",
+          "ALCHEMY_VERSION_STATUS_FAILED"
+        ],
+        "description": "AlchemyVersionStatus is where a function version's build stands."
+      },
       "ingestion.v1.CandidateStatus": {
         "type": "string",
         "title": "CandidateStatus",
@@ -4638,6 +4833,51 @@
         ],
         "description": "FieldType drives UI form controls for connector configuration fields."
       },
+      "ingestion.v1.GetAlchemyFunctionRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "version": {
+            "type": "string",
+            "title": "version",
+            "format": "int64"
+          }
+        },
+        "title": "GetAlchemyFunctionRequest",
+        "additionalProperties": false,
+        "description": "GetAlchemyFunctionRequest names one function to describe, and optionally a version whose build to report."
+      },
+      "ingestion.v1.GetAlchemyFunctionResponse": {
+        "type": "object",
+        "properties": {
+          "function": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.AlchemyFunction"
+              }
+            ],
+            "title": "function"
+          },
+          "versionStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.AlchemyVersionStatus"
+              }
+            ],
+            "title": "version_status",
+            "description": "version_status is the requested version's build, unspecified when no version was requested."
+          },
+          "versionStatusMessage": {
+            "type": "string",
+            "title": "version_status_message"
+          }
+        },
+        "title": "GetAlchemyFunctionResponse",
+        "additionalProperties": false
+      },
       "ingestion.v1.GetConnectionRequest": {
         "type": "object",
         "properties": {
@@ -4886,6 +5126,53 @@
         },
         "title": "GetWebhookEndpointResponse",
         "additionalProperties": false
+      },
+      "ingestion.v1.ListAlchemyFunctionsRequest": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string",
+            "title": "search"
+          },
+          "pagination": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.PaginationRequest"
+              }
+            ],
+            "title": "pagination"
+          }
+        },
+        "title": "ListAlchemyFunctionsRequest",
+        "additionalProperties": false,
+        "description": "ListAlchemyFunctionsRequest pages the caller's alchemy functions, optionally narrowed by name."
+      },
+      "ingestion.v1.ListAlchemyFunctionsResponse": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled"
+          },
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.AlchemyFunction"
+            },
+            "title": "functions"
+          },
+          "pagination": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.PaginationResponse"
+              }
+            ],
+            "title": "pagination"
+          }
+        },
+        "title": "ListAlchemyFunctionsResponse",
+        "additionalProperties": false,
+        "description": "ListAlchemyFunctionsResponse is empty with enabled false when the server has no alchemy configured."
       },
       "ingestion.v1.ListConnectionsRequest": {
         "type": "object",
@@ -7176,6 +7463,12 @@
               "$ref": "#/components/schemas/ingestion.v1.TransformExpressionType"
             },
             "title": "expression_types"
+          },
+          "outputArrowSchema": {
+            "type": "string",
+            "title": "output_arrow_schema",
+            "format": "byte",
+            "description": "output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract."
           }
         },
         "title": "ValidateTransformResponse",

@@ -87,6 +87,9 @@ export const pipelineCanvasSearchSchema = z.object({
   showActivity: z.boolean().optional().catch(undefined),
   view: z.enum(PipelineCanvasView).optional().catch(undefined),
   sinks: z.array(z.string()).optional().catch(undefined),
+  alchemyRequest: z.string().optional().catch(undefined),
+  alchemyFunctionId: z.string().optional().catch(undefined),
+  alchemyFunctionVersion: z.coerce.string().optional().catch(undefined),
 });
 
 export type PipelineCanvasSearch = z.infer<typeof pipelineCanvasSearchSchema>;

@@ -39,6 +39,9 @@ type Deps struct {
 	Sinks       filament.SinkRegistry
 	Log         filament.Logger
 	Tracer      filament.Tracer
+	// Functions backs alchemy steps; nil fails runs that use one.
+	Functions     transform.FunctionService
+	FunctionBatch pipeline.FunctionBatch
 }
 
 // SpecFromState builds the RunSpec to execute from a persisted run state.
@@ -237,8 +240,14 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// twice: against the discovered schema for sink DDL, and again inside the
 	// pipeline when each resource's first builder opens.
 	var transformDef *transform.Definition
+	var contracts transform.Contracts
 	if spec.Transform != "" {
 		if transformDef, err = transform.Parse([]byte(spec.Transform)); err != nil {
+			abortSink(ctx, deps, snk)
+			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
+			return nil
+		}
+		if contracts, err = resolveContracts(extractCtx, spec.Tenant, deps.Functions, transformDef, spec.Resources); err != nil {
 			abortSink(ctx, deps, snk)
 			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
 			return nil
@@ -248,7 +257,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// A schema-aware sink needs typed DDL before any write. When the source can
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
-	if err := ensureSchemas(extractCtx, snk, spec, schemas, transformDef); err != nil {
+	if err := ensureSchemas(extractCtx, snk, spec, schemas, transformDef, contracts); err != nil {
 		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
@@ -286,6 +295,9 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		Options:       spec.Options,
 		Log:           deps.Log,
 		Transform:     transformDef,
+		Contracts:     contracts,
+		Functions:     deps.Functions,
+		FunctionBatch: deps.FunctionBatch,
 		Audit: &pipeline.AuditConfig{
 			RunStartedAt: runStartedAt,
 			CDC:          plan.RequiresCDC,

@@ -87,6 +87,21 @@ const parseTransformStep = (
     if (json.where !== undefined && where === null) return raw;
     return { id, kind: TransformStepKind.COMPUTE, outputs, where };
   }
+
+  if (keys.length === 1 && keys[0] === "alchemy" && isJsonObject(json.alchemy)) {
+    const { function: fn, version, ...rest } = json.alchemy;
+    if (
+      typeof fn === "string" &&
+      fn !== "" &&
+      typeof version === "number" &&
+      Number.isSafeInteger(version) &&
+      version > 0 &&
+      Object.keys(rest).length === 0
+    ) {
+      return { id, kind: TransformStepKind.ALCHEMY, function: fn, version };
+    }
+    return raw;
+  }
   return raw;
 };
 
