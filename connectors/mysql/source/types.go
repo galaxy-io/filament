@@ -374,13 +374,73 @@ func parseDatetime(w arrowbatch.RowWriter, text []byte) error {
 	return nil
 }
 
-// parseTime reads "[-]HH:MM:SS[.ffffff]" as microseconds; a negative value
-// has no time-of-day form and is rejected, as is a value past a day.
+// parseTime reads "[-]HHH:MM:SS[.ffffff]" as a signed microsecond count.
+// MySQL TIME is a duration as much as a time of day, with a documented
+// range of -838:59:59 to 838:59:59, and the column's Time64 storage holds
+// the count directly, so values past a day and negative values land as
+// their count rather than failing the read. ReadTimeOfDay itself stays
+// strict for the callers that need a time of day.
 func parseTime(w arrowbatch.RowWriter, text []byte) error {
-	us, rest, err := arrowtext.ReadTimeOfDay(text)
-	if err != nil || len(rest) != 0 || us >= arrowtext.MicrosPerDay {
-		return fmt.Errorf("time %q is not a time of day", text)
+	us, ok := readMySQLTime(text)
+	if !ok {
+		return fmt.Errorf("time %q is not a valid MySQL time", text)
 	}
 	w.Time(us)
 	return nil
+}
+
+// readMySQLTime reads "[-]HHH:MM:SS[.ffffff]" as signed microseconds. The
+// hour takes one to three digits and may reach 838, MySQL's TIME limit
+// (with minutes and seconds below 60, an hour of 838 already bounds the
+// total to 838:59:59.999999); the fraction is read to microsecond
+// precision, the same way ReadTimeOfDay reads it.
+func readMySQLTime(text []byte) (int64, bool) {
+	neg := false
+	if len(text) > 0 && text[0] == '-' {
+		neg = true
+		text = text[1:]
+	}
+	n := 0
+	for n < len(text) && n < 3 && text[n] >= '0' && text[n] <= '9' {
+		n++
+	}
+	h, rest, ok := arrowtext.Digits(text, n)
+	if n == 0 || !ok || len(rest) == 0 || rest[0] != ':' {
+		return 0, false
+	}
+	m, rest, ok := arrowtext.Digits(rest[1:], 2)
+	if !ok || len(rest) == 0 || rest[0] != ':' {
+		return 0, false
+	}
+	s, rest, ok := arrowtext.Digits(rest[1:], 2)
+	if !ok || h > 838 || m > 59 || s > 59 {
+		return 0, false
+	}
+	us := h*arrowtext.MicrosPerHour + m*arrowtext.MicrosPerMinute + s*arrowtext.MicrosPerSecond
+	if len(rest) > 0 && rest[0] == '.' {
+		rest = rest[1:]
+		var frac int64
+		k := 0
+		for k < len(rest) && rest[k] >= '0' && rest[k] <= '9' {
+			if k < 6 {
+				frac = frac*10 + int64(rest[k]-'0')
+			}
+			k++
+		}
+		if k == 0 {
+			return 0, false
+		}
+		for i := k; i < 6; i++ {
+			frac *= 10
+		}
+		us += frac
+		rest = rest[k:]
+	}
+	if len(rest) != 0 {
+		return 0, false
+	}
+	if neg {
+		us = -us
+	}
+	return us, true
 }
