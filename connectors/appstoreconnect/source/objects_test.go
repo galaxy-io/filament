@@ -222,7 +222,7 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 		WritePolicies: plan.WritePolicies,
 		Options:       filament.RunOptions{BatchMaxRows: 1},
 		Emit: func(f events.Fact) {
-			if ev, ok := f.Detail.(events.BatchWrittenEvent); ok && ev.Checkpoint != nil {
+			if ev, ok := f.Data.(events.BatchWrittenEvent); ok && ev.Checkpoint != nil {
 				drainedCheckpoints = append(drainedCheckpoints, ev.Checkpoint)
 			}
 		},
