@@ -46,6 +46,7 @@ export interface CreatePipelineModalState {
   schedule: PipelineScheduleState;
   notifiers: PipelineNotifier[];
   workerConfiguration: string;
+  failOnError: Pipeline["failOnError"];
   isSubmitting: boolean;
 }
 

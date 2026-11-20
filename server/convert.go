@@ -11,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/internal/compile"
 )
 
 func runStatusToProto(status filament.RunStatus) ingestionv1.RunStatus {
@@ -101,6 +102,7 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		SourceConnectionId: state.Request.SourceConnectionID,
 		SinkConnectionId:   state.Request.SinkConnectionID,
 		Resources:          state.Request.Resources,
+		FailedResources:    failedResources(state.Resources),
 		CpuSeconds:         state.CPUSeconds,
 		MemoryPeakBytes:    state.MemoryPeakBytes,
 		CreatedAt:          epochMillis(state.CreatedAt),
@@ -108,6 +110,18 @@ func runInfoToProto(state filament.RunState) *ingestionv1.RunInfo {
 		RequestedAt:        epochMillis(state.RequestedAt),
 		UpdatedAt:          epochMillis(state.UpdatedAt),
 	}
+}
+
+// failedResources names the resources that ended failed. A completed run with
+// any is one that isolated those failures.
+func failedResources(resources []filament.ResourceState) []string {
+	var out []string
+	for _, r := range resources {
+		if r.Status == filament.RunFailed {
+			out = append(out, r.Resource)
+		}
+	}
+	return out
 }
 
 func eventToProto(f events.Fact, replay bool) *ingestionv1.RunEvent {
@@ -373,11 +387,11 @@ func fieldIsVisible(field filament.ConfigField, cfg filament.Config) bool {
 	return false
 }
 
-// runOptionsFromProto maps the proto override message onto filament.RunOptions.
-// A nil message or any zero field defers to the engine default downstream.
-func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
+// runOptionsFromProto keeps the optional failure policy separate until the
+// compiler resolves it against the pipeline. Other zero fields use defaults.
+func runOptionsFromProto(o *ingestionv1.RunOptions) compile.RunOptionOverrides {
 	if o == nil {
-		return filament.RunOptions{}
+		return compile.RunOptionOverrides{}
 	}
 	opts := filament.RunOptions{
 		FetchSize:           int(o.GetFetchSize()),
@@ -399,5 +413,5 @@ func runOptionsFromProto(o *ingestionv1.RunOptions) filament.RunOptions {
 			Burst:             int(rl.GetBurst()),
 		}
 	}
-	return opts
+	return compile.RunOptionOverrides{Options: opts, FailOnError: o.FailOnError}
 }

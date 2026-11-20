@@ -24,7 +24,7 @@ type readGuard struct {
 func (g *readGuard) Push(rec record) error {
 	if g.seen != nil {
 		if g.seen[rec.ID] {
-			return fmt.Errorf("resource %s repeated a primary key during pagination", rec.Resource)
+			return resourceScoped(fmt.Errorf("resource %s repeated a primary key during pagination", rec.Resource))
 		}
 		g.seen[rec.ID] = true
 	}
@@ -58,7 +58,7 @@ func (g *readGuard) Checkpoint(resource, token string) error {
 func (c *Connector) extractResource(ctx context.Context, res manifest.Resource, sink recordSink, parent Capture) error {
 	for _, field := range res.RequiredConfig {
 		if c.creds[field] == "" {
-			return fmt.Errorf("%s requires %s", res.Name, field)
+			return resourceScoped(fmt.Errorf("%s requires %s", res.Name, field))
 		}
 	}
 	guard := &readGuard{sink: sink, limit: c.limit}

@@ -1,11 +1,12 @@
 -- name: CreatePipeline :exec
-INSERT INTO pipelines (id, tenant_id, name, description, execution_mode, worker_configuration, created_at, updated_at)
-VALUES (@pipeline_id, @tenant_id, @name, @description, coalesce(nullif(@execution_mode, 0), 1), coalesce(nullif(@worker_configuration, ''), '{}'), @created_at, @updated_at);
+INSERT INTO pipelines (id, tenant_id, name, description, execution_mode, worker_configuration, fail_on_error, created_at, updated_at)
+VALUES (@pipeline_id, @tenant_id, @name, @description, coalesce(nullif(@execution_mode, 0), 1), coalesce(nullif(@worker_configuration, ''), '{}'), @fail_on_error, @created_at, @updated_at);
 
 -- name: UpdatePipeline :execrows
 UPDATE pipelines SET name = @name, description = @description,
   execution_mode = coalesce(nullif(@execution_mode, 0), execution_mode),
   worker_configuration = coalesce(nullif(@worker_configuration, ''), worker_configuration),
+  fail_on_error = coalesce(sqlc.narg(fail_on_error), fail_on_error),
   updated_at = @updated_at
 WHERE tenant_id = @tenant_id AND id = @pipeline_id AND is_deleted = 0;
 
@@ -26,7 +27,7 @@ UPDATE pipelines SET current_version_id = @version_id, updated_at = @updated_at
 WHERE tenant_id = @tenant_id AND id = @pipeline_id;
 
 -- name: GetPipeline :one
-SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration,
+SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration, fail_on_error,
        created_at, updated_at, deleted_at,
        coalesce(created_by_user_id, '') AS created_by_user_id,
        coalesce(updated_by_user_id, '') AS updated_by_user_id,
