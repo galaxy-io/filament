@@ -187,8 +187,10 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		}
 		st.committed[resource] = true
 	}
+	// Every resource committed, so close deletes no data files; it only frees
+	// buffers and temp files, and a failure there does not undo the commit.
 	for _, rb := range st.buf {
-		rb.close()
+		_ = rb.close(ctx)
 	}
 	return nil
 }

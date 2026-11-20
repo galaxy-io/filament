@@ -21,7 +21,7 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	return s.applyWrite(ctx, b, opts)
 }
 
-func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *Sink) applyBatch(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
 	if it == nil {
@@ -37,6 +37,7 @@ func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (fila
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
 	}
 	st := s.active
+	cat := s.cat
 	s.mu.Unlock()
 
 	if err := policy.ValidateBatch(b.Resource, b); err != nil {
@@ -50,15 +51,24 @@ func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (fila
 		rb = newRecordBuf(s.stageBufLimitBytes)
 		st.buf[b.Resource] = rb
 	}
-	if err := rb.setPolicy(policy); err != nil {
-		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-	}
-	if err := rb.append(b, nbytes); err != nil {
-		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-	}
 	st.mu.Unlock()
+
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+	if err := rb.setPolicy(policy); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+	}
+	var err error
+	if policy.Capability.Mode == filament.WriteAppend {
+		// Append writes data files now; Commit only attaches them.
+		ident := it.tbl.Identifier()
+		err = rb.appendFile(ctx, b, nbytes, func() *appendFiles { return newAppendFiles(cat, ident) })
+	} else {
+		err = rb.append(b, nbytes)
+	}
+	if err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+	}
 
 	return filament.WriteReceipt{
 		URI:      it.tbl.Location(),
@@ -91,6 +101,18 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 	switch mode {
 	case writeModeUpsert, writeModeDelete, writeModeMerge:
 		return s.writeMutationBuffer(ctx, it, rb, mode, arrowSchema)
+	}
+	if rb.files != nil {
+		if mode != writeModeAppend {
+			return fmt.Errorf("data files were written for %s mode", mode)
+		}
+		updated, err := rb.files.commit(ctx, it.tbl)
+		if err != nil {
+			return fmt.Errorf("append: %w", err)
+		}
+		it.tbl = updated
+		it.schema = updated.Schema()
+		return nil
 	}
 
 	batches, errPtr := conformedBatches(rb, arrowSchema)

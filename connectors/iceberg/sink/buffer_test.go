@@ -1,6 +1,7 @@
 package iceberg
 
 import (
+	"context"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -30,7 +31,7 @@ func TestRecordBufOwnsInMemoryBatchUntilClose(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rb.close()
+	rb.close(context.Background())
 	if b.NumRows() != 0 {
 		t.Fatal("buffer close did not release its batch reference")
 	}
@@ -59,7 +60,7 @@ func TestRecordBufSpillDoesNotDependOnBatchLifetime(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rb.close()
+	rb.close(context.Background())
 	alloc.AssertSize(t, 0)
 }
 

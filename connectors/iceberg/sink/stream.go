@@ -44,7 +44,7 @@ func (s *Sink) applyWrite(ctx context.Context, b *arrowbatch.Batch, opts filamen
 		s.lifecycle.Fail(sinkstate.ErrState)
 		return filament.WriteReceipt{}, sinkstate.ErrState
 	}
-	r, err := s.applyBatch(b, opts)
+	r, err := s.applyBatch(ctx, b, opts)
 	if err != nil {
 		s.lifecycle.Fail(err)
 		return filament.WriteReceipt{}, err
@@ -69,8 +69,9 @@ func (s *Sink) Commit(ctx context.Context) error {
 	return nil
 }
 
-// Abort releases pending buffers. It cannot undo earlier table commits.
-func (s *Sink) Abort(_ context.Context) error {
+// Abort releases pending buffers and deletes data files written for uncommitted
+// appends. It cannot undo earlier table commits.
+func (s *Sink) Abort(ctx context.Context) error {
 	if err := s.lifecycle.CheckAbort(); err != nil {
 		return err
 	}
@@ -79,12 +80,15 @@ func (s *Sink) Abort(_ context.Context) error {
 	}
 	st := s.active
 	st.mu.Lock()
+	var errs []error
 	for _, rb := range st.buf {
-		rb.close()
+		if err := rb.close(ctx); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	st.mu.Unlock()
 	s.active = nil
-	return s.lifecycle.MarkAborted()
+	return errors.Join(append(errs, s.lifecycle.MarkAborted())...)
 }
 
 // Close is called after all Apply calls have joined. Failed sessions
