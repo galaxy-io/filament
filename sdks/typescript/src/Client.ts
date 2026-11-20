@@ -27,8 +27,8 @@ export class FilamentClient {
     protected _connection: ConnectionClient | undefined;
     protected _pipeline: PipelineClient | undefined;
     protected _connector: ConnectorClient | undefined;
-    protected _run: RunClient | undefined;
     protected _ingestionV1Ingestionservice: IngestionV1IngestionserviceClient | undefined;
+    protected _run: RunClient | undefined;
     protected _metrics: MetricsClient | undefined;
 
     constructor(options: FilamentClient.Options) {
@@ -59,12 +59,12 @@ export class FilamentClient {
         return (this._connector ??= new ConnectorClient(this._options));
     }
 
-    public get run(): RunClient {
-        return (this._run ??= new RunClient(this._options));
-    }
-
     public get ingestionV1Ingestionservice(): IngestionV1IngestionserviceClient {
         return (this._ingestionV1Ingestionservice ??= new IngestionV1IngestionserviceClient(this._options));
+    }
+
+    public get run(): RunClient {
+        return (this._run ??= new RunClient(this._options));
     }
 
     public get metrics(): MetricsClient {

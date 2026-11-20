@@ -27,6 +27,82 @@ export class IngestionV1IngestionserviceClient {
     }
 
     /**
+     * @param {Filament.IngestionV1GetAlchemyFunctionRequest} request
+     * @param {IngestionV1IngestionserviceClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link errors.FilamentError}
+     * @throws {@link errors.FilamentTimeoutError}
+     *
+     * @example
+     *     await client.ingestionV1Ingestionservice.getalchemyfunction({
+     *         "Connect-Timeout-Ms": 1000
+     *     })
+     */
+    public getalchemyfunction(
+        request: Filament.IngestionV1GetAlchemyFunctionRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): core.HttpResponsePromise<Filament.IngestionV1GetAlchemyFunctionResponse> {
+        return core.HttpResponsePromise.fromPromise(this.__getalchemyfunction(request, requestOptions));
+    }
+
+    private async __getalchemyfunction(
+        request: Filament.IngestionV1GetAlchemyFunctionRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): Promise<core.WithRawResponse<Filament.IngestionV1GetAlchemyFunctionResponse>> {
+        const { "Connect-Timeout-Ms": connectTimeoutMs, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        const _headers: core.Fetcher.Args["headers"] = mergeHeaders(
+            _authRequest.headers,
+            this._options?.headers,
+            mergeOnlyDefinedHeaders({
+                "Connect-Timeout-Ms": connectTimeoutMs,
+                "Connect-Protocol-Version": requestOptions?.connectProtocolVersion ?? "1",
+            }),
+            requestOptions?.headers,
+        );
+        const _response = await core.fetcher({
+            url: core.url.join(
+                (await core.Supplier.get(this._options.baseUrl)) ??
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
+                "ingestion.v1.IngestionService/GetAlchemyFunction",
+            ),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging,
+        });
+        if (_response.ok) {
+            return {
+                data: _response.body as Filament.IngestionV1GetAlchemyFunctionResponse,
+                rawResponse: _response.rawResponse,
+            };
+        }
+
+        if (_response.error.reason === "status-code") {
+            throw new errors.FilamentError({
+                statusCode: _response.error.statusCode,
+                body: _response.error.body,
+                rawResponse: _response.rawResponse,
+            });
+        }
+
+        return handleNonStatusCodeError(
+            _response.error,
+            _response.rawResponse,
+            "POST",
+            "/ingestion.v1.IngestionService/GetAlchemyFunction",
+        );
+    }
+
+    /**
      * The build version stamped into the server binary.
      *
      * @param {Filament.IngestionV1IngestionServiceGetVersionRequest} request
@@ -258,6 +334,82 @@ export class IngestionV1IngestionserviceClient {
             _response.rawResponse,
             "POST",
             "/ingestion.v1.IngestionService/GetWebhookEndpoint",
+        );
+    }
+
+    /**
+     * @param {Filament.IngestionV1ListAlchemyFunctionsRequest} request
+     * @param {IngestionV1IngestionserviceClient.RequestOptions} requestOptions - Request-specific configuration.
+     *
+     * @throws {@link errors.FilamentError}
+     * @throws {@link errors.FilamentTimeoutError}
+     *
+     * @example
+     *     await client.ingestionV1Ingestionservice.listalchemyfunctions({
+     *         "Connect-Timeout-Ms": 1000
+     *     })
+     */
+    public listalchemyfunctions(
+        request: Filament.IngestionV1ListAlchemyFunctionsRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): core.HttpResponsePromise<Filament.IngestionV1ListAlchemyFunctionsResponse> {
+        return core.HttpResponsePromise.fromPromise(this.__listalchemyfunctions(request, requestOptions));
+    }
+
+    private async __listalchemyfunctions(
+        request: Filament.IngestionV1ListAlchemyFunctionsRequest = {},
+        requestOptions?: IngestionV1IngestionserviceClient.RequestOptions,
+    ): Promise<core.WithRawResponse<Filament.IngestionV1ListAlchemyFunctionsResponse>> {
+        const { "Connect-Timeout-Ms": connectTimeoutMs, ..._body } = request;
+        const _authRequest: core.AuthRequest = await this._options.authProvider.getAuthRequest();
+        const _headers: core.Fetcher.Args["headers"] = mergeHeaders(
+            _authRequest.headers,
+            this._options?.headers,
+            mergeOnlyDefinedHeaders({
+                "Connect-Timeout-Ms": connectTimeoutMs,
+                "Connect-Protocol-Version": requestOptions?.connectProtocolVersion ?? "1",
+            }),
+            requestOptions?.headers,
+        );
+        const _response = await core.fetcher({
+            url: core.url.join(
+                (await core.Supplier.get(this._options.baseUrl)) ??
+                    (await core.Supplier.get(this._options.environment)) ??
+                    environments.FilamentEnvironment.Default,
+                "ingestion.v1.IngestionService/ListAlchemyFunctions",
+            ),
+            method: "POST",
+            headers: _headers,
+            contentType: "application/json",
+            queryString: core.url.queryBuilder().mergeAdditional(requestOptions?.queryParams).build(),
+            requestType: "json",
+            body: mergeAdditionalBodyParameters(_body, requestOptions?.additionalBodyParameters),
+            timeoutMs: (requestOptions?.timeoutInSeconds ?? this._options?.timeoutInSeconds ?? 60) * 1000,
+            maxRetries: requestOptions?.maxRetries ?? this._options?.maxRetries,
+            abortSignal: requestOptions?.abortSignal,
+            fetchFn: this._options?.fetch,
+            logging: this._options.logging,
+        });
+        if (_response.ok) {
+            return {
+                data: _response.body as Filament.IngestionV1ListAlchemyFunctionsResponse,
+                rawResponse: _response.rawResponse,
+            };
+        }
+
+        if (_response.error.reason === "status-code") {
+            throw new errors.FilamentError({
+                statusCode: _response.error.statusCode,
+                body: _response.error.body,
+                rawResponse: _response.rawResponse,
+            });
+        }
+
+        return handleNonStatusCodeError(
+            _response.error,
+            _response.rawResponse,
+            "POST",
+            "/ingestion.v1.IngestionService/ListAlchemyFunctions",
         );
     }
 
