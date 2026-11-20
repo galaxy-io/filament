@@ -25,8 +25,9 @@ type resourceEncoder struct {
 	fileBytes int64
 }
 
-// EnsureSchema prepares a resource encoder before extraction. This is required
-// to produce a valid empty Parquet file when a resource has no batches.
+// EnsureSchema prepares a resource encoder with the declared schema before
+// extraction, so a batch whose schema differs is rejected. A resource that
+// receives no rows still produces no object and no manifest entry.
 func (s *Sink) EnsureSchema(_ context.Context, resource string, schema rowmodel.Schema) error {
 	if resource == "" {
 		return fmt.Errorf("s3 sink: resource is required")

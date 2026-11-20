@@ -143,9 +143,8 @@ JSON formats write source field names and JSON-compatible values:
 {"id":1,"name":"Ada"}
 ```
 
-Parquet writes typed columns from the resource schema, so a selected resource
-with no rows still produces a valid file with the right columns. Parquet is
-the format to choose when the bucket is queried by Athena, Spark, or DuckDB.
+Parquet writes typed columns from the resource schema. Parquet is the format
+to choose when the bucket is queried by Athena, Spark, or DuckDB.
 The `compression` field shows only the options valid for the selected format.
 
 Parquet combines source batches into row groups of up to 65,536 rows instead
@@ -207,11 +206,13 @@ target by up to one encoded batch, and Parquet objects by up to one row group.
 A closed object uploads its last part right away, so its memory is released,
 but its multipart upload stays open until `Commit`. Rolled objects are
 therefore no more visible than any other object before `Commit`, and `Abort`
-removes them. `upload_concurrency` limits S3
-requests across resources; when that limit is reached, source extraction waits.
-At commit, Filament uploads the remaining bytes and completes each object. Small
-resources use `PutObject`, and a selected resource with no rows becomes a
-zero-byte object.
+removes them. `upload_concurrency` limits S3 requests across resources; when
+that limit is reached, source extraction waits. At commit, Filament uploads the
+remaining bytes and completes each object. Small resources use `PutObject`.
+
+A selected resource with no rows produces no object and does not appear in
+`_SUCCESS.json`. This keeps continuous runs from leaving an empty object for
+every quiet resource at every boundary.
 
 The sink does not need temporary disk for the full run. Memory use comes mainly
 from unfinished multipart buffers, in-flight uploads, and the current encoded
