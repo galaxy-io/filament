@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/datastore/sqlite"
 	"github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/worker"
 )
 
@@ -637,14 +638,14 @@ func TestValidateEdgePartitionsChecksLivePartitions(t *testing.T) {
 	}
 }
 
-func TestSelectedSchemaNarrowsTransformAnalysis(t *testing.T) {
+func TestEdgeColumnsNarrowTransformInput(t *testing.T) {
 	schema, _ := leverSource{}.Schema(context.Background(), "orders")
 	edge := &ingestionv1.PipelineEdge{Resource: "orders", Columns: []*ingestionv1.ResourceColumnSelection{{Resource: "orders", Columns: []string{"id"}}}}
-	narrowed := selectedSchema(edge, "orders", schema)
+	narrowed := rowmodel.InputFor(schema, edgeColumns(edge, "orders"), false)
 	if len(narrowed.Fields) != 1 || narrowed.Fields[0].Name != "id" || len(schema.Fields) != 3 {
 		t.Fatalf("narrowed = %v, original = %v", narrowed.Fields, schema.Fields)
 	}
-	if same := selectedSchema(edge, "audit", schema); len(same.Fields) != 3 {
+	if same := rowmodel.InputFor(schema, edgeColumns(edge, "audit"), false); len(same.Fields) != 3 {
 		t.Fatalf("unselected resource must keep its schema: %v", same.Fields)
 	}
 }

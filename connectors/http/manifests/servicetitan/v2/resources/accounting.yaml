@@ -104,6 +104,7 @@ resources:
   - name: invoices
     path: /accounting/v2/tenant/{{ config.tenant_id }}/export/invoices
     primary_key: [id]
+    after: [invoice_items]
     fields:
       id: int64
       modifiedOn: string?
@@ -343,6 +344,7 @@ resources:
   - name: credit_memos
     path: /accounting/v2/tenant/{{ config.tenant_id }}/credit-memos
     primary_key: [id]
+    after: [credit_memo_items]
     fields:
       id: int64
       date: string

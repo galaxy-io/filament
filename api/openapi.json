@@ -7173,11 +7173,18 @@
               }
             ],
             "title": "transform"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "columns"
           }
         },
         "title": "ValidateTransformRequest",
         "additionalProperties": false,
-        "description": "ValidateTransformRequest compiles a transform against one resource's\n schema, read from the source connection, exactly as a run would. The\n transform is the same JSON object an edge carries."
+        "description": "ValidateTransformRequest compiles a transform against one resource's\n schema, read from the source connection, exactly as a run would. The\n transform is the same JSON object an edge carries, and columns is the\n edge's column selection for the resource, empty when it reads every column."
       },
       "ingestion.v1.ValidateTransformResponse": {
         "type": "object",

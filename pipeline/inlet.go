@@ -229,7 +229,7 @@ func (p *Pipeline) send(ch chan queuedBatch, item queuedBatch) error {
 	if item.gate != nil {
 		quarantined = item.gate.done
 		if err := item.gate.failure(); err != nil {
-			return err
+			return p.quarantineErr(err)
 		}
 	}
 	select {
@@ -241,8 +241,19 @@ func (p *Pipeline) send(ch chan queuedBatch, item queuedBatch) error {
 		}
 		return ErrPipelineClosed
 	case <-quarantined:
-		return item.gate.failure()
+		return p.quarantineErr(item.gate.failure())
 	}
+}
+
+// quarantineErr is the error a send to a quarantined resource returns. A run
+// already stopping wins over the quarantine: otherwise a source that does not
+// stop quarantined resources would have every batch dropped as success and
+// keep reading long after the run failed, for example past MaxFailedResources.
+func (p *Pipeline) quarantineErr(quarantined error) error {
+	if fatal := p.Err(); fatal != nil {
+		return fatal
+	}
+	return quarantined
 }
 
 // cursorOf builds the per-shard checkpoint delta from a flushed chunk's last row. A

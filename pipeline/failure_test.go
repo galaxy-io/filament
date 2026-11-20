@@ -309,6 +309,27 @@ func TestMaxFailedResourcesEscalates(t *testing.T) {
 	}
 }
 
+// A source that does not stop quarantined resources must still see the run
+// stop: its writes to a quarantined resource return the fatal error instead
+// of being dropped as success.
+func TestUnawareSourceSeesFatalErrorOnQuarantinedResource(t *testing.T) {
+	sink := &scopedSink{}
+	rows := append(rowsOf("a", 1), rowsOf("b", 1)...)
+	p, _ := newIsolating(t, sink, rows, 1, 1, FailurePolicy{Isolate: true, MaxFailedResources: 1})
+	r := p.Records().(filament.ResourceFailureReporter)
+	r.FailResource("a", errors.New("a failed"))
+	r.FailResource("b", errors.New("b failed"))
+	for _, resource := range []string{"a", "b"} {
+		if err := pushResource(p.Records(), resource, 100); err == nil || !errContains(err, "more than the limit of 1") {
+			t.Fatalf("push %s = %v, want the failure limit", resource, err)
+		}
+	}
+	p.CloseIngest(nil)
+	if werr := p.Wait(); werr == nil || !errContains(werr, "more than the limit of 1") {
+		t.Fatalf("Wait = %v, want the failure limit", werr)
+	}
+}
+
 func TestQuarantineReleasesBuilderBlockedOnBackpressure(t *testing.T) {
 	block := make(chan struct{})
 	sink := &scopedSink{isolation: true, block: block}
