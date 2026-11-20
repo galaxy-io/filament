@@ -59,7 +59,6 @@ import type { TransformDefinition } from "@/pages/pipelines/components/transform
 import { getEnumSelectValue, mapOptionIdToEnum } from "@/utils/select";
 
 const NO_COLUMNS: ResourceColumn[] = [];
-const NO_COLUMN_NAMES: ResourceColumn["name"][] = [];
 
 interface PipelineCanvasPanelResourceDetailProps {
   edge: CanvasEdge;
@@ -344,7 +343,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                       onChange={handleTransformChange}
                       resource={resource}
                       columns={selectedColumns}
-                      columnSelection={selection?.columns ?? NO_COLUMN_NAMES}
+                      columnSelection={selectedColumnNames}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >

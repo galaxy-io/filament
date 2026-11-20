@@ -3,11 +3,11 @@ package rowmodel
 import "slices"
 
 // InputFor returns the layout a resource's rows carry into a pipeline: only the
-// selected columns, every column when selection is empty. A CDC delete carries
+// selected columns, every column when selection is nil. A CDC delete carries
 // only its key, so under cdc every non-key column is nullable.
 func InputFor(source Schema, selection []string, cdc bool) Schema {
 	out := source.Clone()
-	if len(selection) > 0 {
+	if selection != nil {
 		out.Fields = slices.DeleteFunc(out.Fields, func(f Field) bool { return !slices.Contains(selection, f.Name) })
 	}
 	if cdc {

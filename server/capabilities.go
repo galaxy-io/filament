@@ -381,11 +381,12 @@ func validateEdgePartitions(ctx context.Context, edge *ingestionv1.PipelineEdge,
 	}
 }
 
-// edgeColumns is the edge's column selection for resource, empty when it reads every column.
+// edgeColumns is the edge's column selection for resource, nil when it reads every column.
 func edgeColumns(edge *ingestionv1.PipelineEdge, resource string) []string {
 	for _, selection := range edge.GetColumns() {
 		if selection.GetResource() == resource {
-			return selection.GetColumns()
+			// A selection that keeps no column stays empty, never nil.
+			return append([]string{}, selection.GetColumns()...)
 		}
 	}
 	return nil
