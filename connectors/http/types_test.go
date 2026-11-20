@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,7 +14,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
+
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 func TestExtractRejectsIntegerOutsideDeclaredWidth(t *testing.T) {
@@ -150,4 +155,87 @@ resources:
 		rows[i] = string(rec.Data)
 	}
 	return rows, err
+}
+
+// stubRowWriter implements arrowbatch.RowWriter for unit testing the value
+// parsers; it records only the timestamp value.
+type stubRowWriter struct {
+	tsVal int64
+}
+
+func (s *stubRowWriter) Null()                      {}
+func (s *stubRowWriter) Bool(bool)                  {}
+func (s *stubRowWriter) Int16(int16)                {}
+func (s *stubRowWriter) Int32(int32)                {}
+func (s *stubRowWriter) Int64(int64)                {}
+func (s *stubRowWriter) Float32(float32)            {}
+func (s *stubRowWriter) Float64(float64)            {}
+func (s *stubRowWriter) Decimal(decimal128.Num)     {}
+func (s *stubRowWriter) String(string)              {}
+func (s *stubRowWriter) StringBytes([]byte)         {}
+func (s *stubRowWriter) Bytes([]byte)               {}
+func (s *stubRowWriter) Date(int32)                 {}
+func (s *stubRowWriter) Time(int64)                 {}
+func (s *stubRowWriter) Timestamp(v int64)          { s.tsVal = v }
+func (s *stubRowWriter) EndRow(rowmodel.Meta) error { return nil }
+func (s *stubRowWriter) Flush() error               { return nil }
+func (s *stubRowWriter) Drain(rowmodel.Meta) error  { return nil }
+func (s *stubRowWriter) Close() error               { return nil }
+
+var _ arrowbatch.RowWriter = (*stubRowWriter)(nil)
+
+// TestParseTimestampEpochUnits verifies that a numeric epoch value is read
+// in the unit its magnitude implies: seconds, milliseconds or microseconds.
+// Epoch milliseconds for any date before September 2001 are below 1e12, so
+// a single threshold at 1e12 reads them as seconds and lands the instant
+// roughly a thousand times too far in the future.
+func TestParseTimestampEpochUnits(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  int64 // microseconds since the epoch
+	}{
+		// The issue's cases: epoch milliseconds before September 2001.
+		{"millis for 2000-01-01", "946684800000", 946_684_800_000_000},
+		{"millis for 2001-09-09 boundary", "1000000000000", 1_000_000_000_000_000},
+		{"millis just below the boundary", "999999999999", 999_999_999_999_000},
+		{"millis just above the boundary", "1000000000001", 1_000_000_000_001_000},
+		// Controls from the issue.
+		{"seconds for 2025-01-01", "1735689600", 1_735_689_600_000_000},
+		{"millis for 2025-01-01", "1735689600000", 1_735_689_600_000_000},
+		// Band edges: adjacent inputs either side of a boundary take
+		// different units.
+		{"largest seconds value", "9999999999", 9_999_999_999_000_000},
+		{"smallest millis value", "10000000000", 10_000_000_000_000},
+		{"largest millis value", "9999999999999", 9_999_999_999_999_000},
+		{"smallest micros value", "10000000000000", 10_000_000_000_000},
+		// Microseconds.
+		{"micros for 2025-01-01", "1735689600000000", 1_735_689_600_000_000},
+		// Negative values band on magnitude: pre-epoch dates arrive in
+		// the same units as post-epoch ones.
+		{"negative seconds", "-1", -1_000_000},
+		{"negative millis", "-946684800000", -946_684_800_000_000},
+		// Fractional values keep their fraction in every unit.
+		{"fractional seconds", "1735689600.5", 1_735_689_600_500_000},
+		{"fractional millis", "946684800000.25", 946_684_800_000_250},
+		// Zero and exponent spellings.
+		{"zero", "0", 0},
+		{"millis in exponent form", "9.466848e11", 946_684_800_000_000},
+		// A quoted ISO string still takes the string path.
+		{"iso string", `"2025-01-01T00:00:00Z"`, 1_735_689_600_000_000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &stubRowWriter{}
+			if err := parseTimestamp(w, json.RawMessage(tt.input)); err != nil {
+				t.Fatalf("parseTimestamp(%s): unexpected error: %v", tt.input, err)
+			}
+			if w.tsVal != tt.want {
+				t.Fatalf("parseTimestamp(%s) = %d, want %d", tt.input, w.tsVal, tt.want)
+			}
+		})
+	}
+	if err := parseTimestamp(&stubRowWriter{}, json.RawMessage(`not-a-number`)); err == nil {
+		t.Fatalf("parseTimestamp(not-a-number): expected an error, got nil")
+	}
 }
