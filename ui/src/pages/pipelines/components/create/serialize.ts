@@ -127,7 +127,7 @@ const createSinkEdges = ({
         resource: row.name,
         toNode: sink.connection.id,
         readMode,
-        writeMode: isBounded ? row.writeMode : sink.writeMode,
+        writeMode: hasReadLevers ? row.writeMode : sink.writeMode,
         cursors: isBounded ? createCursors([row], readMode) : [],
         columns: createColumns(row),
         partitions: createPartitions(row, readMode),
