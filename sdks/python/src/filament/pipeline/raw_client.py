@@ -44,6 +44,7 @@ class RawPipelineClient:
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1CreatePipelineResponse]:
         """
@@ -67,6 +68,9 @@ class RawPipelineClient:
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified defaults to bounded.
 
+        fail_on_error : typing.Optional[bool]
+            Defaults to false, which isolates resource failures in bounded runs.
+
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
 
@@ -88,6 +92,7 @@ class RawPipelineClient:
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
                 "executionMode": execution_mode,
+                "failOnError": fail_on_error,
             },
             headers={
                 "content-type": "application/json",
@@ -426,6 +431,7 @@ class RawPipelineClient:
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1UpdatePipelineResponse]:
         """
@@ -444,6 +450,9 @@ class RawPipelineClient:
 
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified preserves the saved mode; affects future starts only.
+
+        fail_on_error : typing.Optional[bool]
+            Omit to preserve the saved setting.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -464,6 +473,7 @@ class RawPipelineClient:
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
                 "executionMode": execution_mode,
+                "failOnError": fail_on_error,
             },
             headers={
                 "content-type": "application/json",
@@ -569,6 +579,7 @@ class AsyncRawPipelineClient:
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1CreatePipelineResponse]:
         """
@@ -592,6 +603,9 @@ class AsyncRawPipelineClient:
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified defaults to bounded.
 
+        fail_on_error : typing.Optional[bool]
+            Defaults to false, which isolates resource failures in bounded runs.
+
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
 
@@ -613,6 +627,7 @@ class AsyncRawPipelineClient:
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
                 "executionMode": execution_mode,
+                "failOnError": fail_on_error,
             },
             headers={
                 "content-type": "application/json",
@@ -951,6 +966,7 @@ class AsyncRawPipelineClient:
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1UpdatePipelineResponse]:
         """
@@ -969,6 +985,9 @@ class AsyncRawPipelineClient:
 
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified preserves the saved mode; affects future starts only.
+
+        fail_on_error : typing.Optional[bool]
+            Omit to preserve the saved setting.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -989,6 +1008,7 @@ class AsyncRawPipelineClient:
                     object_=worker_configuration, annotation=IngestionV1WorkerConfiguration, direction="write"
                 ),
                 "executionMode": execution_mode,
+                "failOnError": fail_on_error,
             },
             headers={
                 "content-type": "application/json",

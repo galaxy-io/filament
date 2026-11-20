@@ -78,6 +78,21 @@ class IngestionV1Pipeline(UniversalBaseModel):
     Default execution mode for subsequent starts; existing pipelines are bounded.
     """
 
+    fail_on_error: typing_extensions.Annotated[
+        typing.Optional[bool],
+        FieldMetadata(alias="failOnError"),
+        pydantic.Field(
+            alias="failOnError",
+            description="fail_on_error stops a bounded run at its first resource failure. False\n isolates a failed resource and lets the others finish, so the run can end\n completed with failed resources. Change-stream routes always stop.\n Pipelines created before this setting existed are true.",
+        ),
+    ] = None
+    """
+    fail_on_error stops a bounded run at its first resource failure. False
+     isolates a failed resource and lets the others finish, so the run can end
+     completed with failed resources. Change-stream routes always stop.
+     Pipelines created before this setting existed are true.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:
