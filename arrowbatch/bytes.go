@@ -29,9 +29,24 @@ func arrayBytes(a arrow.Array) int64 {
 	case *array.Binary:
 		size += arrow.Int32SizeBytes*len(v.ValueOffsets()) + len(v.ValueBytes())
 	default:
-		size += n * a.DataType().(arrow.FixedWidthDataType).Bytes()
+		fw, ok := a.DataType().(arrow.FixedWidthDataType)
+		if !ok {
+			// Lists, large strings and other types count their whole buffers.
+			return bufferBytes(data)
+		}
+		size += n * fw.Bytes()
 	}
 	return int64(size)
+}
+
+func bufferBytes(data arrow.ArrayData) int64 {
+	var size int64
+	for _, buf := range data.Buffers() {
+		if buf != nil {
+			size += int64(buf.Len())
+		}
+	}
+	return size
 }
 
 // Bytes returns the size of b's Arrow buffers over its own rows.

@@ -320,10 +320,16 @@ call publishes `batch.function_invoked` with the function, version, invocation
 id, records, attempts and duration.
 
 Alchemy retries a failed function as its configuration says. When it gives up,
-the call publishes `batch.function_failed` and the run fails. Nothing at or
-after the failed batch is written, so no checkpoint moves past it and a resumed
-run sends the same batch again. A function's timeout must leave room for a full
-call of `ALCHEMY_BATCH_MAX_BYTES`.
+the call publishes `batch.function_failed` and the run fails. Nothing of that
+resource at or after the failed batch is written, so its checkpoint never moves
+past it and a resumed run sends the same batch again. Other resources keep
+their own checkpoints.
+
+`ALCHEMY_BATCH_MAX_BYTES` caps how many batches join one call. A single source
+batch over it still goes out whole, and only a call over alchemy's 64 MiB
+payload limit is split by rows. A function's timeout must leave room for a
+call of `ALCHEMY_BATCH_MAX_BYTES` or of the largest source batch, whichever is
+bigger.
 
 ## Limits
 

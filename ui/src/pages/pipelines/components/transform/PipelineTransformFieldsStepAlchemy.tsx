@@ -126,6 +126,7 @@ const PipelineTransformFieldsStepAlchemy: FC<PipelineTransformFieldsStepAlchemyP
           onChange({ ...step, version: latest });
           return;
         }
+        if (id === step.function) return;
         const fn = functions.find((candidate) => candidate.id === id);
         onChange({ ...step, function: fn?.id ?? "", version: fn ? Number(fn.currentVersion) : 0 });
       }}
