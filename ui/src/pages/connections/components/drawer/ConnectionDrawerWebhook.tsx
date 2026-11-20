@@ -7,16 +7,17 @@ import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Text, { TextSize, TextWeight } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import DocsLink from "@/components/DocsLink";
 import { PIPELINE_CARD_HEIGHT } from "@/components/pipelines/constants";
 import { WEBHOOK_DOCS_PATH } from "@/components/webhooks/constants";
 import { WebhookEndpointStatus } from "@/components/webhooks/types";
-import { getWebhookEndpointStatus } from "@/components/webhooks/utils";
+import { getWebhookDeliveryTargets, getWebhookEndpointStatus } from "@/components/webhooks/utils";
 import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryUrlCopyButton";
 import WebhookEndpointErrorLayout from "@/components/webhooks/WebhookEndpointErrorLayout";
 import WebhookEndpointStatusBeacon from "@/components/webhooks/WebhookEndpointStatusBeacon";
@@ -39,16 +40,18 @@ const NEEDS_PIPELINE_STATUSES = new Set([
 
 interface ConnectionDrawerWebhookProps {
   connection: Connection;
+  webhook: WebhookSpec;
 }
 
-const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection }) => {
+const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection, webhook }) => {
   const openFlow = useFilamentFlowOpen();
-  const { data, error, isError, isLoading } = useGetWebhookEndpointQuery({
+  const { data, error, isError, isFetched, isLoading } = useGetWebhookEndpointQuery({
     input: createGetWebhookEndpointInput(connection.id),
     options: { retry: false },
   });
   const endpoint = data?.endpoint;
   const isFailed = isError && !isNotFoundError(error);
+  const isFirstLoad = isLoading && !isFetched;
 
   const { data: pipelineData, error: pipelineError } = useGetPipelineQuery({
     input: createGetPipelineInput(endpoint?.pipelineId ?? ""),
@@ -59,7 +62,7 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
   const status = getWebhookEndpointStatus(endpoint, isPipelineDeleted);
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isFirstLoad) {
       return (
         <Box padding={12}>
           <Skeleton lines={3} />
@@ -71,7 +74,7 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
       return <WebhookEndpointErrorLayout error={error} />;
     }
 
-    const resources = endpoint?.resources ?? [];
+    const targets = getWebhookDeliveryTargets(webhook, endpoint?.resources);
 
     return (
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} fillWidth>
@@ -92,8 +95,8 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
             }
           />
         </Box>
-        {resources.map((resource) => (
-          <Fragment key={resource}>
+        {targets.map((target) => (
+          <Fragment key={target.label}>
             <Divider />
             <Flex
               alignItems={AlignItems.CENTER}
@@ -103,12 +106,17 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
               padding={[0, 12]}
               fillWidth
             >
-              <Text size={TextSize.BODY_SM} family={FontFamily.MONO} lineClamp={1}>
-                {resource}
+              <Text
+                size={TextSize.BODY_SM}
+                family={target.resource ? FontFamily.MONO : undefined}
+                weight={target.resource ? undefined : TextWeight.MEDIUM}
+                lineClamp={1}
+              >
+                {target.label}
               </Text>
               <WebhookDeliveryUrlCopyButton
                 sourceConnectionId={connection.id}
-                resource={resource}
+                resource={target.resource}
               />
             </Flex>
           </Fragment>
@@ -124,7 +132,9 @@ const ConnectionDrawerWebhook: FC<ConnectionDrawerWebhookProps> = ({ connection 
       count={undefined}
       emptyHeader="No endpoint"
       emptyMessage="This source has no webhook endpoint."
-      actions={isLoading || isFailed ? undefined : <WebhookEndpointStatusBeacon status={status} />}
+      actions={
+        isFirstLoad || isFailed ? undefined : <WebhookEndpointStatusBeacon status={status} />
+      }
       isOpenInitial
       isFlush
     >

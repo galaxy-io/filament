@@ -60,7 +60,7 @@ webhook:
     In PostHog, open **Data pipelines**, add an **HTTP Webhook** destination and set:
 
     - **Webhook URL** to {{delivery_url:events_webhook}}.
-    - **Signing secret** to this connection's signing secret.
+    - **Signing secret** to this connection's signing key.
     - **JSON Body** to the default `{"event": "{event}", "person": "{person}"}`.
 
     Use the destination's filters to choose which events are sent.

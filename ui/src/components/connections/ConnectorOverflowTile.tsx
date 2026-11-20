@@ -15,7 +15,7 @@ const ConnectorOverflowTile: FC<ConnectorOverflowTileProps> = ({
   count,
   size = ConnectorTileSize.MEDIUM,
 }) => (
-  <ConnectorTileFrame $size={size} $isClickable={false} $isDeleted={false}>
+  <ConnectorTileFrame $size={size} $isClickable={false} $isDeleted={false} $hasBadge={false}>
     <Text size={TextSize.CAPTION} variant={TextVariant.SECONDARY} family={FontFamily.MONO}>
       +{count}
     </Text>

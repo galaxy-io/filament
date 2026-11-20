@@ -19,11 +19,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { ConfigField, ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import {
-  type ConnectorSpec,
-  GetConnectorRequestSchema,
-  ValidateConfigRequestSchema,
-} from "@/gen/ingestion/v1/connectors_pb";
+import { type ConnectorSpec, ValidateConfigRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_KIND_TO_NOUN_MAP } from "@/components/connections/constants";
 import { formatConnectorName, getConnectorFamily } from "@/components/connections/utils";
@@ -32,6 +28,7 @@ import { getConnectionScopedFields, isFieldVisible } from "@/components/fields/u
 
 import { getConnectorVersions } from "@/pages/connections/components/create/utils";
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
+import ConnectionFormIngestionToggle from "@/pages/connections/components/form/ConnectionFormIngestionToggle";
 import ConnectionFormPreviewAlert from "@/pages/connections/components/form/ConnectionFormPreviewAlert";
 import {
   useConnectionFormActions,
@@ -39,16 +36,19 @@ import {
 } from "@/pages/connections/components/form/ConnectionFormProvider";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import {
+  type ConnectionFormIngestion,
   ConnectionFormPhase,
   type ConnectionFormState,
 } from "@/pages/connections/components/form/types";
 import {
   getConnectionFormConfig,
+  getConnectionFormIngestion,
   getUnplacedValidationErrors,
 } from "@/pages/connections/components/form/utils";
 import { createRequiredFieldsValidationErrorMap } from "@/pages/connections/components/form/validation";
 
 import {
+  createGetConnectorInput,
   useGetConnectorQuery,
   useListConnectorsQuery,
   useValidateConfigMutation,
@@ -94,7 +94,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   const { toast } = useToast();
 
   const { data, error, isError } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, { connector: connectorName, kind: connectorKind }),
+    input: createGetConnectorInput(connectorName, connectorKind),
     options: { retry: false, placeholderData: keepPreviousData },
   });
   const connector = data?.connector;
@@ -219,8 +219,11 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
     return config[fieldName] ?? null;
   };
 
+  const ingestionField = connector?.webhook?.ingestionField || undefined;
   const fieldValues = Object.fromEntries(fields.map((f) => [f.name, getFieldValue(f.name)]));
-  const visibleFields = fields.filter((field) => isFieldVisible(field, fieldValues));
+  const visibleFields = fields.filter(
+    (field) => field.name !== ingestionField && isFieldVisible(field, fieldValues),
+  );
   const unplacedErrors = state.shouldShowErrors
     ? getUnplacedValidationErrors(state.validationErrors, visibleFields)
     : [];
@@ -228,6 +231,16 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
   const renderBody = () => {
     return (
       <>
+        {ingestionField && (
+          <ConnectionFormIngestionToggle
+            value={getConnectionFormIngestion(getFieldValue(ingestionField))}
+            isLocked={!!connectionId}
+            isDisabled={isDisabled}
+            onChange={(ingestion: ConnectionFormIngestion) =>
+              handleFieldChange(ingestionField, ingestion)
+            }
+          />
+        )}
         <TextInput
           value={state.name}
           onChange={handleNameChange}
@@ -239,7 +252,7 @@ const ConnectionForm: FC<ConnectionFormProps> = ({
           fillWidth
           autoFocus
         />
-        {onConnectorChange && versionOptions.length > 0 && (
+        {onConnectorChange && versionOptions.length > 1 && (
           <SelectInput
             label="API version"
             options={versionOptions}
