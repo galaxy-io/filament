@@ -19,6 +19,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 const (
@@ -81,8 +82,8 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 	if err != nil {
 		return err
 	}
-	if pending == nil {
-		return nil
+	if r.name == "sales_reports" && exhausted {
+		completed = upper
 	}
 	if !capTime.IsZero() && completed.After(capTime) {
 		completed = capTime
@@ -93,6 +94,12 @@ func (s *Source) readResource(ctx context.Context, sink arrowbatch.Inlet, r reso
 	var key []string
 	if exhausted {
 		key = []string{completed.UTC().Format(time.RFC3339Nano)}
+	}
+	if pending == nil {
+		if r.name == "sales_reports" && len(key) > 0 && completed.After(previous) {
+			return w.Drain(rowmodel.Meta{Key: key})
+		}
+		return nil
 	}
 	return appendRecord(w, r, *pending, key)
 }
@@ -344,17 +351,18 @@ func (s *Source) walkAnalyticsInstanceSegments(ctx context.Context, resName, app
 			}
 			_ = json.Unmarshal(segObj.Attributes, &segAttrs)
 			if segAttrs.URL == "" {
-				continue
+				return false, fmt.Errorf("analytics segment %s has empty download url", segObj.ID)
 			}
-			rows, err := s.downloadGzipTSV(ctx, resName, segAttrs.URL)
+			rows, err := s.downloadAnalyticsSegmentRows(ctx, resName, instanceID, segPath, segObj.ID, segAttrs.URL)
 			if err != nil {
 				return false, err
 			}
 			procDateStr := procDate.UTC().Format("2006-01-02")
 			for _, metricsMap := range rows {
 				rawMetrics, _ := json.Marshal(metricsMap)
+				eventDate := analyticsEventDate(metricsMap, procDateStr)
 				row := recordRow{
-					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, procDateStr, analyticsDimensionHash(category, name, metricsMap)),
+					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, eventDate, analyticsDimensionHash(category, name, metricsMap)),
 					appID:      appID,
 					category:   category,
 					name:       name,
@@ -377,6 +385,79 @@ func (s *Source) walkAnalyticsInstanceSegments(ctx context.Context, resName, app
 		segPath = nextSeg
 	}
 	return true, nil
+}
+
+func (s *Source) downloadAnalyticsSegmentRows(ctx context.Context, resName, instanceID, segPagePath, segmentID, initialURL string) ([]map[string]string, error) {
+	currentURL := initialURL
+	const maxSegmentExpiryRetries = 2
+	for attempt := 0; ; attempt++ {
+		rows, err := s.downloadGzipTSV(ctx, resName, currentURL)
+		if err == nil {
+			return rows, nil
+		}
+		var api *apiError
+		if attempt >= maxSegmentExpiryRetries || !errors.As(err, &api) || api.Status != http.StatusForbidden {
+			return nil, err
+		}
+		freshURL, refreshErr := s.refreshAnalyticsSegmentURL(ctx, resName, instanceID, segPagePath, segmentID)
+		if refreshErr != nil {
+			return nil, refreshErr
+		}
+		currentURL = freshURL
+	}
+}
+
+func (s *Source) refreshAnalyticsSegmentURL(ctx context.Context, resName, instanceID, segPagePath, segmentID string) (string, error) {
+	var single struct {
+		Data jsonAPIObject `json:"data"`
+	}
+	singlePath := "/v1/analyticsReportSegments/" + url.PathEscape(segmentID)
+	if err := s.client.requestJSON(ctx, resName, singlePath, &single); err == nil && single.Data.ID == segmentID {
+		var attrs struct {
+			URL string `json:"url"`
+		}
+		_ = json.Unmarshal(single.Data.Attributes, &attrs)
+		if attrs.URL != "" {
+			return attrs.URL, nil
+		}
+	}
+	nextPath := segPagePath
+	if nextPath == "" {
+		nextPath = "/v1/analyticsReportInstances/" + url.PathEscape(instanceID) + "/segments?limit=200"
+	}
+	for nextPath != "" {
+		var page jsonAPIPage
+		if err := s.client.requestJSON(ctx, resName, nextPath, &page); err != nil {
+			return "", err
+		}
+		for _, item := range page.Data {
+			if item.ID == segmentID {
+				var attrs struct {
+					URL string `json:"url"`
+				}
+				_ = json.Unmarshal(item.Attributes, &attrs)
+				if attrs.URL == "" {
+					return "", fmt.Errorf("analytics segment %s has empty download url on refresh", segmentID)
+				}
+				return attrs.URL, nil
+			}
+		}
+		next, err := normalizeNextLink(page.Links.Next, nextPath)
+		if err != nil {
+			return "", err
+		}
+		nextPath = next
+	}
+	return "", fmt.Errorf("analytics segment %s not found on refresh", segmentID)
+}
+
+func analyticsEventDate(metricsMap map[string]string, fallback string) string {
+	for _, key := range []string{"Date", "Event Date", "Begin Date", "CohortDate"} {
+		if v := strings.TrimSpace(metricsMap[key]); v != "" {
+			return v
+		}
+	}
+	return fallback
 }
 
 func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lower, upper time.Time, visit func(recordRow) error) (bool, time.Time, error) {
@@ -471,7 +552,7 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 func (s *Source) downloadGzipTSV(ctx context.Context, resourceName, pathOrURL string) ([]map[string]string, error) {
 	data, err := s.client.requestBytes(ctx, resourceName, pathOrURL, "application/a-gzip, application/json")
 	if err != nil {
-		return nil, err
+		return nil, redactURLError(err)
 	}
 	var reader io.Reader = bytes.NewReader(data)
 	if len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b {
@@ -519,6 +600,16 @@ func (s *Source) downloadGzipTSV(ctx context.Context, resourceName, pathOrURL st
 	return out, nil
 }
 
+func redactURLError(err error) error {
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		cloned := *urlErr
+		cloned.URL = redactedURI(cloned.URL)
+		return &cloned
+	}
+	return err
+}
+
 // redactedURI removes the query string, which can carry signed download credentials.
 func redactedURI(raw string) string {
 	u, err := url.Parse(raw)
@@ -564,21 +655,30 @@ var appleAnalyticsDimensionsByCategory = map[string][]string{
 	"APP_USAGE": {
 		"Date", "App Name", "App Apple Identifier", "App Version", "Device", "Platform Version",
 		"Source Type", "Source Info", "Campaign", "Page Type", "Page Title", "Territory",
-		"Event", "Engagement Type", "Install Type",
+		"Event", "Engagement Type", "Install Type", "Purchase Type", "Download Type",
+		"App Referrer", "Web Referrer", "Hour", "Age", "Days Since Download", "CohortDate",
 	},
 	"APP_STORE_ENGAGEMENT": {
 		"Date", "App Name", "App Apple Identifier", "Device", "Platform Version", "Source Type",
 		"Source Info", "Campaign", "Page Type", "Page Title", "Territory", "Engagement Type",
-		"Event", "Search Term",
+		"Event", "Search Term", "App Referrer", "Web Referrer", "Hour", "Age",
 	},
 	"COMMERCE": {
-		"Date", "App Name", "App Apple Identifier", "In-App Purchase", "In-App Purchase Apple Identifier",
-		"In-App Purchase Type", "Purchase Type", "Download Type", "Device", "Platform Version",
-		"Source Type", "Source Info", "Campaign", "Page Type", "Page Title", "Territory",
-		"Subscription", "Subscription Name", "Subscription Apple Identifier", "Subscription Group ID",
-		"Standard Subscription Duration", "Offer Name", "Offer Code", "Offer Type",
-		"Proceeds Reason", "Preserved Pricing", "Pre-Order", "Order Type",
-		"Currency", "Customer Currency", "Proceeds Currency", "Age", "Hour",
+		"Date", "Event Date", "App Name", "App Apple Identifier", "In-App Purchase",
+		"In-App Purchase Apple Identifier", "In-App Purchase Type", "Purchase Type",
+		"Download Type", "Device", "Platform Version", "Source Type", "Source Info",
+		"App Referrer", "Web Referrer", "Campaign", "Page Type", "Page Title", "Territory",
+		"Subscription", "Subscription Name", "Subscription Apple Identifier",
+		"Subscription Group ID", "Standard Subscription Duration", "Subscription Offer Name",
+		"Subscription Offer Type", "Subscription Offer Duration", "Marketing Opt-In",
+		"Marketing Opt-In Duration", "Offer Name", "Offer Code", "Offer Type",
+		"Promotional Offer Name", "Promotional Offer Identifier", "Win-Back Offer Name",
+		"Win-Back Offer Identifier", "Billing Period", "Paid Service Days Recovered",
+		"Consecutive Paid Periods", "Original Start Date", "Start Date",
+		"Previous Subscription Name", "Previous Subscription Apple Identifier",
+		"Proceeds Reason", "Preserved Pricing", "Pre-Order", "Order Type", "Client",
+		"Currency", "Customer Currency", "Proceeds Currency", "Tax Currency",
+		"Age", "Hour", "Days Since Download", "Days Before Canceling", "Cancellation Reason",
 	},
 	"FRAMEWORK_USAGE": {
 		"Date", "App Name", "App Apple Identifier", "App Version", "Device", "Platform Version",
@@ -593,22 +693,29 @@ var appleAnalyticsDimensionsByCategory = map[string][]string{
 // appleAnalyticsCommonDimensionColumns is the union of all documented App Store Connect
 // analytics dimension headers used when a report name or category introduces shared dimensions.
 var appleAnalyticsCommonDimensionColumns = []string{
-	"Date", "Hour", "App Name", "App Apple Identifier", "App Version", "Build",
+	"Date", "Event Date", "Hour", "App Name", "App Apple Identifier", "App Version", "Build",
 	"Device", "Platform", "Platform Version", "Territory", "Country", "Region", "Locale",
 	"Source Type", "Source Info", "App Referrer", "Web Referrer", "Campaign",
 	"Page Type", "Page Title", "Search Term", "Engagement Type", "Event", "Install Type",
 	"Purchase Type", "Download Type", "In-App Purchase", "In-App Purchase Apple Identifier",
 	"In-App Purchase Type", "Subscription", "Subscription Name", "Subscription Apple Identifier",
-	"Subscription Group ID", "Standard Subscription Duration", "Offer Name", "Offer Code",
-	"Offer Type", "Proceeds Reason", "Preserved Pricing", "Pre-Order", "Order Type",
-	"Currency", "Customer Currency", "Proceeds Currency", "Age", "Days Since Download",
+	"Subscription Group ID", "Standard Subscription Duration", "Subscription Offer Name",
+	"Subscription Offer Type", "Subscription Offer Duration", "Marketing Opt-In",
+	"Marketing Opt-In Duration", "Offer Name", "Offer Code", "Offer Type",
+	"Promotional Offer Name", "Promotional Offer Identifier", "Win-Back Offer Name",
+	"Win-Back Offer Identifier", "Billing Period", "Paid Service Days Recovered",
+	"Consecutive Paid Periods", "Original Start Date", "Start Date",
+	"Previous Subscription Name", "Previous Subscription Apple Identifier",
+	"Proceeds Reason", "Preserved Pricing", "Pre-Order", "Order Type", "Client",
+	"Currency", "Customer Currency", "Proceeds Currency", "Tax Currency",
+	"Age", "Days Since Download", "Days Before Canceling", "Cancellation Reason",
 	"CohortDate", "Framework", "Framework Type", "Connection Type", "Disk Space",
 	"Percentile", "Error Type",
 }
 
 // analyticsDimensionHash computes a 128-bit SHA-256 hex digest over the explicit Apple
 // dimension columns for the report category so restated measure values upsert cleanly in place
-// while numeric dimensions (such as Hour or Age buckets) remain part of the key.
+// while numeric dimensions (such as Billing Period, Hour, or Age buckets) remain part of the key.
 func analyticsDimensionHash(category, reportName string, metricsMap map[string]string) string {
 	allowed := make(map[string]struct{}, len(appleAnalyticsCommonDimensionColumns))
 	for _, col := range appleAnalyticsDimensionsByCategory[strings.ToUpper(strings.TrimSpace(category))] {

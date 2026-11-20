@@ -9,7 +9,7 @@ Connector ID `appstoreconnect`
 
 The App Store Connect source reads app catalog metadata, customer reviews,
 analytics report segments, and daily sales reports using Apple's ES256 JWT
-authentication and streaming gzipped TSV parser.
+authentication and in-memory gzipped TSV parser.
 
 ## Configuration
 
@@ -38,7 +38,7 @@ saved watermark for `customer_reviews` and `analytics_reports` so newly added
 apps are backfilled from the beginning.
 
 For deterministic upserts across re-reads, `analytics_reports` builds its
-primary key `id` from `<app_id>:<report_name>:<processing_date>:<dimension_hash>`
+primary key `id` from `<app_id>:<report_name>:<event_date>:<dimension_hash>` (falling back to `<processing_date>` when a report has no date dimension column)
 (where `<dimension_hash>` is the hex-encoded 128-bit SHA-256 prefix of the
 explicit Apple dimension columns for that report category, excluding measure
 columns so restated metrics replace the existing row on upsert), and
