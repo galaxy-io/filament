@@ -13,9 +13,13 @@ import type { RunInfo, RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import {
   PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP,
   PIPELINE_EXECUTION_OBSERVED_STATE_TO_LABEL_MAP,
-  PIPELINE_RUN_STATUS_TO_HUE_MAP,
-  PIPELINE_RUN_STATUS_TO_LABEL_MAP,
 } from "@/components/runs/constants";
+import {
+  formatPipelineRunFailedResources,
+  getPipelineRunStatusHue,
+  getPipelineRunStatusLabel,
+  isPipelineRunCompletedWithFailures,
+} from "@/components/runs/utils";
 
 import { ACTIVE_RUN_STATUSES } from "@/constants";
 
@@ -23,9 +27,15 @@ interface PipelineRunStatusProps {
   status: RunStatus;
   error?: RunInfo["error"];
   executionStatus?: RunInfo["executionStatus"];
+  failedResources?: RunInfo["failedResources"];
 }
 
-const PipelineRunStatus: FC<PipelineRunStatusProps> = ({ status, error, executionStatus }) => {
+const PipelineRunStatus: FC<PipelineRunStatusProps> = ({
+  status,
+  error,
+  executionStatus,
+  failedResources = [],
+}) => {
   const observedState = ACTIVE_RUN_STATUSES.has(status)
     ? executionStatus?.observedState
     : undefined;
@@ -36,10 +46,13 @@ const PipelineRunStatus: FC<PipelineRunStatusProps> = ({ status, error, executio
           hue: PIPELINE_EXECUTION_OBSERVED_STATE_TO_HUE_MAP[observedState],
         }
       : {
-          label: PIPELINE_RUN_STATUS_TO_LABEL_MAP[status],
-          hue: PIPELINE_RUN_STATUS_TO_HUE_MAP[status],
+          label: getPipelineRunStatusLabel(status, failedResources),
+          hue: getPipelineRunStatusHue(status, failedResources),
         };
-  const reason = executionStatus?.reason || error;
+  const failuresReason = isPipelineRunCompletedWithFailures(status, failedResources)
+    ? formatPipelineRunFailedResources(failedResources)
+    : undefined;
+  const reason = executionStatus?.reason || error || failuresReason;
 
   return (
     <Flex alignItems={AlignItems.CENTER} gap={8}>

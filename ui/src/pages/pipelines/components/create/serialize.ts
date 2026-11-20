@@ -199,6 +199,7 @@ export const mapCreatePipelineStateToRequest = (
           }
         : undefined,
     workerConfiguration: parseWorkerConfiguration(state.workerConfiguration).configuration,
+    failOnError: state.failOnError,
   });
 
 export const mapCreatePipelineNotifierToRequest = (

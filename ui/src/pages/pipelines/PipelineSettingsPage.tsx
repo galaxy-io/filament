@@ -9,6 +9,7 @@ import PipelineSettingsPageAdvanced from "@/pages/pipelines/settings/PipelineSet
 import PipelineSettingsPageDanger from "@/pages/pipelines/settings/PipelineSettingsPageDanger";
 import PipelineSettingsPageGeneral from "@/pages/pipelines/settings/PipelineSettingsPageGeneral";
 import PipelineSettingsPageNotifications from "@/pages/pipelines/settings/PipelineSettingsPageNotifications";
+import PipelineSettingsPageResourceFailures from "@/pages/pipelines/settings/PipelineSettingsPageResourceFailures";
 import PipelineSettingsPageSchedule from "@/pages/pipelines/settings/PipelineSettingsPageSchedule";
 
 import { usePipelineParams } from "@/module/hooks";
@@ -39,6 +40,7 @@ const PipelineSettingsPage: FC = () => {
         <PipelineSettingsPageGeneral key={`${data.pipeline.name}:${data.pipeline.description}`} />
         <PipelineSettingsPageSchedule />
         <PipelineSettingsPageNotifications />
+        <PipelineSettingsPageResourceFailures key={String(data.pipeline.failOnError)} />
         <PipelineSettingsPageAdvanced />
         <PipelineSettingsPageDanger />
       </Flex>
