@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -140,7 +141,12 @@ func retryAfter(value string) time.Duration {
 	if value == "" {
 		return 0
 	}
-	if secs, err := strconv.Atoi(value); err == nil && secs > 0 {
+	if secs, err := strconv.ParseInt(value, 10, 64); err == nil && secs > 0 {
+		// Saturate before converting seconds to nanoseconds. The retry policy
+		// applies its own cap, but must never see a wrapped or negative delay.
+		if secs > math.MaxInt64/int64(time.Second) {
+			return time.Duration(math.MaxInt64)
+		}
 		return time.Duration(secs) * time.Second
 	}
 	if at, err := http.ParseTime(value); err == nil {
