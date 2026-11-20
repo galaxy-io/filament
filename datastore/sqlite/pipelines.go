@@ -30,7 +30,7 @@ func (s *Store) createPipeline(ctx context.Context, q *sqlcgen.Queries, p *inges
 	now := nowMillis()
 	err = q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{
 		PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(),
-		ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, CreatedAt: now, UpdatedAt: now,
+		ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, FailOnError: boolToInt64(p.GetFailOnError()), CreatedAt: now, UpdatedAt: now,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: create pipeline: %w", err)
@@ -118,9 +118,13 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if err != nil {
 		return nil, err
 	}
+	setting := sql.NullInt64{}
+	if p.FailOnError != nil {
+		setting = sql.NullInt64{Int64: boolToInt64(p.GetFailOnError()), Valid: true}
+	}
 	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{
 		TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(),
-		ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, UpdatedAt: nowMillis(),
+		ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, FailOnError: setting, UpdatedAt: nowMillis(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/sqlite: update pipeline: %w", err)
@@ -143,17 +147,18 @@ func (s *Store) LoadPipeline(ctx context.Context, tenant filament.TenantID, id s
 		return nil, fmt.Errorf("datastore/sqlite: get pipeline: %w", err)
 	}
 	return s.pipelineFromRow(ctx, tenant, row.ID, row.TenantID, row.Name, row.Description, row.CurrentVersionID,
-		row.ExecutionMode, row.WorkerConfiguration, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
+		row.ExecutionMode, row.WorkerConfiguration, row.FailOnError, row.CreatedAt, row.UpdatedAt, row.DeletedAt, row.CreatedByUserID, row.UpdatedByUserID, row.DeletedByUserID)
 }
 
 func (s *Store) pipelineFromRow(ctx context.Context, tenant filament.TenantID, id, tenantID, name, description string,
-	currentVersionID sql.NullString, execution int64, workerCfg string, createdAt, updatedAt int64, deletedAt sql.NullInt64,
+	currentVersionID sql.NullString, execution int64, workerCfg string, failOnError, createdAt, updatedAt int64, deletedAt sql.NullInt64,
 	createdBy, updatedBy, deletedBy string,
 ) (*ingestionv1.Pipeline, error) {
 	if execution < math.MinInt32 || execution > math.MaxInt32 {
 		return nil, fmt.Errorf("datastore/sqlite: execution mode %d is outside the int32 range", execution)
 	}
-	out := &ingestionv1.Pipeline{Id: id, TenantId: tenantID, Name: name, Description: description, ExecutionMode: ingestionv1.ExecutionMode(execution)}
+	setting := failOnError != 0
+	out := &ingestionv1.Pipeline{Id: id, TenantId: tenantID, Name: name, Description: description, ExecutionMode: ingestionv1.ExecutionMode(execution), FailOnError: &setting}
 	var err error
 	if currentVersionID.Valid && currentVersionID.String != "" {
 		out.CurrentVersion, err = s.loadPipelineVersionByID(ctx, tenant, id, currentVersionID.String)
@@ -286,7 +291,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	}
 	defer func() { _ = rows.Close() }()
 	type pipelineRow struct {
-		execution                                                                   int64
+		execution, failOnError                                                      int64
 		id, tenantID, name, description, workerCfg, createdBy, updatedBy, deletedBy string
 		currentVersionID                                                            sql.NullString
 		createdAt, updatedAt                                                        int64
@@ -295,7 +300,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	var scanned []pipelineRow
 	for rows.Next() {
 		var r pipelineRow
-		if err := rows.Scan(&r.id, &r.tenantID, &r.name, &r.description, &r.currentVersionID, &r.execution, &r.workerCfg,
+		if err := rows.Scan(&r.id, &r.tenantID, &r.name, &r.description, &r.currentVersionID, &r.execution, &r.workerCfg, &r.failOnError,
 			&r.createdAt, &r.updatedAt, &r.deletedAt, &r.createdBy, &r.updatedBy, &r.deletedBy); err != nil {
 			return nil, 0, fmt.Errorf("datastore/sqlite: scan pipeline: %w", err)
 		}
@@ -307,7 +312,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	out := make([]*ingestionv1.Pipeline, len(scanned))
 	for i, r := range scanned {
 		out[i], err = s.pipelineFromRow(ctx, filament.TenantID(r.tenantID), r.id, r.tenantID, r.name, r.description,
-			r.currentVersionID, r.execution, r.workerCfg, r.createdAt, r.updatedAt, r.deletedAt, r.createdBy, r.updatedBy, r.deletedBy)
+			r.currentVersionID, r.execution, r.workerCfg, r.failOnError, r.createdAt, r.updatedAt, r.deletedAt, r.createdBy, r.updatedBy, r.deletedBy)
 		if err != nil {
 			return nil, 0, err
 		}
@@ -379,4 +384,11 @@ func unmarshalWorkerConfiguration(raw string) (*ingestionv1.WorkerConfiguration,
 		return nil, nil
 	}
 	return cfg, nil
+}
+
+func boolToInt64(value bool) int64 {
+	if value {
+		return 1
+	}
+	return 0
 }
