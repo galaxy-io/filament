@@ -197,6 +197,8 @@ const PipelineRunModalContent: FC<PipelineRunModalContentProps> = ({
             icon={PlayIcon}
             iconWeight={IconWeight.FILL}
             variant={ButtonVariant.PRIMARY}
+            hotKeys={["mod", "enter"]}
+            shouldBindHotKey
             isLoading={isRunning}
             isDisabled={!!parsed.error || runResources.length === 0}
             onClick={handleRun}

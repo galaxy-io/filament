@@ -405,9 +405,11 @@
             "overlap_seconds": { "type": "integer", "minimum": 0 },
             "value_prefix": { "type": "string" },
             "value_suffix": { "type": "string" },
+            "value_date_format": { "type": "string", "minLength": 1 },
             "commit_on_complete": { "type": "boolean" }
           }
         },
+        "after": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "parent": {
           "type": "object",
           "additionalProperties": false,

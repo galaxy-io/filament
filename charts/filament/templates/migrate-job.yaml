@@ -8,7 +8,11 @@ metadata:
     {{- include "filament.labels" . | nindent 4 }}
     app.kubernetes.io/component: migrate
   annotations:
+    {{- if and .Values.existingSecret (not .Values.postgresql.enabled) }}
+    helm.sh/hook: pre-install,pre-upgrade
+    {{- else }}
     helm.sh/hook: post-install,post-upgrade
+    {{- end }}
     helm.sh/hook-weight: "0"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:

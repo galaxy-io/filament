@@ -55,6 +55,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -356,8 +357,13 @@ type Resource struct {
 	Pagination  PaginationSpec    `yaml:"pagination"`
 	Incremental *IncrementalSpec  `yaml:"incremental,omitempty"`
 	Parent      *ParentRef        `yaml:"parent,omitempty"`
-	Stream      *StreamSpec       `yaml:"stream,omitempty"`
-	Export      *ExportSpec       `yaml:"export,omitempty"`
+	// After lists top-level resources that must finish before this one starts.
+	// A header read after its line items holds every header its lines name,
+	// so a sync never lands a line whose header arrives only in the next one.
+	// Names not selected for a run are ignored.
+	After  []string    `yaml:"after,omitempty"`
+	Stream *StreamSpec `yaml:"stream,omitempty"`
+	Export *ExportSpec `yaml:"export,omitempty"`
 }
 
 // FieldSpec maps a response path to a typed output field.
@@ -639,7 +645,9 @@ type IncrementalSpec struct {
 	Initial       string `yaml:"initial,omitempty"`
 	CheckpointKey string `yaml:"checkpoint_key,omitempty"`
 	// Comparator selects watermark-advance ordering. lex (default) compares as
-	// strings; numeric parses both sides as float64; time parses RFC3339.
+	// strings; numeric parses both sides as float64; time parses timestamps
+	// with the layouts APIs commonly emit, and cursor values are normalized
+	// to RFC3339 first, so colon-less offsets (Jira) are accepted.
 	Comparator string `yaml:"comparator,omitempty"` // lex | numeric | time
 	// OverlapSeconds re-fetches a sliding window before a time or numeric
 	// timestamp cursor to tolerate retroactive updates behind the max.
@@ -650,6 +658,34 @@ type IncrementalSpec struct {
 	// prefixed. FHIR search needs `_lastUpdated=ge<ts>` — a bare timestamp
 	// carries `eq` semantics and would silently return the wrong result set.
 	ValuePrefix string `yaml:"value_prefix,omitempty"`
+	// ValueDateFormat reformats a time-comparator watermark before it is
+	// injected, so APIs that reject RFC3339 can still be filtered. It is a
+	// Go time layout (for example "2006-01-02 15:04") or the special value
+	// "epoch_millis" / "epoch_seconds", which renders the watermark as
+	// Unix time. The stored checkpoint and all comparisons keep the
+	// normalized RFC3339 value; only the wire representation changes. Jira JQL date
+	// fields accept an unquoted epoch-milliseconds number, which no raw
+	// RFC3339 watermark can express.
+	ValueDateFormat string `yaml:"value_date_format,omitempty"`
+}
+
+// ValidateValueDateFormat reports whether format is a usable wire format
+// for a time watermark. The empty format leaves the RFC3339 value alone,
+// epoch_millis and epoch_seconds render Unix time, and anything else must
+// be a Go time layout that renders at least one time-dependent element.
+// A layout with no reference-time element, such as YYYY-MM-DD, would
+// render the same literal string for every watermark, so it is rejected.
+func ValidateValueDateFormat(format string) error {
+	switch format {
+	case "", "epoch_millis", "epoch_seconds":
+		return nil
+	}
+	first := time.Date(2006, time.January, 2, 15, 4, 5, 0, time.UTC)
+	second := time.Date(2007, time.March, 4, 16, 5, 6, 0, time.UTC)
+	if first.Format(format) == second.Format(format) {
+		return fmt.Errorf("value_date_format %q renders the same value for every watermark, use a Go time layout (for example %q) or epoch_millis/epoch_seconds", format, "2006-01-02")
+	}
+	return nil
 }
 
 // DurableCheckpointKey returns the stable storage key for this watermark.

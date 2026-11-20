@@ -33,6 +33,7 @@ interface PipelineCanvasConnectionSelectorProps {
   onSelect?: (connection: Connection) => void;
   width?: number;
   fillHeight?: boolean;
+  shouldBindHotKey?: boolean;
 }
 
 interface PipelineCanvasConnectionSelectorState {
@@ -48,6 +49,7 @@ const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps
   onSelect,
   width = PIPELINE_CANVAS_CONNECTION_SELECTOR_WIDTH,
   fillHeight = false,
+  shouldBindHotKey = false,
 }) => {
   const [state, setState] = useState<PipelineCanvasConnectionSelectorState>(DEFAULT_STATE);
   const canvasState = usePipelineCanvasState();
@@ -91,6 +93,7 @@ const PipelineCanvasConnectionSelector: FC<PipelineCanvasConnectionSelectorProps
           placeholder="Search connections..."
           debounceMs={LIST_SEARCH_DEBOUNCE_MS}
           onSearch={handleSearch}
+          {...(shouldBindHotKey ? { hotKeys: ["/"], shouldBindHotKey } : {})}
           fillWidth
         />
       </Box>

@@ -187,7 +187,7 @@ encryption to protect resolved connection credentials in transit.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| persistence.migrate | bool | `true` | Run database migrations as a post-install/post-upgrade hook Job. |
+| persistence.migrate | bool | `true` | Run database migrations as a hook Job: pre-install/pre-upgrade when `existingSecret` is set and the vendored PostgreSQL is off, otherwise post-install/post-upgrade. |
 | persistence.migrateResources | object | `{}` | Migration Job resource requests and limits. |
 | persistence.postgresql.dsn | string | required | PostgreSQL connection string stored in the chart-created Secret as `PERSISTENCE_DSN`. Required unless `existingSecret` is set. |
 | persistence.type | string | `"postgres"` | Persistence provider. |
