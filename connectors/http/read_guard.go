@@ -106,6 +106,14 @@ func (g *readGuard) drain(resource string) error {
 	return checkpointResponseCursor(g.sink, resource, g.key[0])
 }
 
+// markLimited records that an ancestor read stopped at the row limit, so
+// drain stays a no-op and the watermark is left for the next run to replay.
+func (g *readGuard) markLimited() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.limited = true
+}
+
 func (g *readGuard) Checkpoint(resource, token string) error {
 	return checkpointResponseCursor(g.sink, resource, token)
 }
@@ -134,6 +142,10 @@ func (c *Connector) extractResourceWithGuard(ctx context.Context, res manifest.R
 	}
 	err := c.readResource(ctx, res, guard, parent)
 	if errors.Is(err, errReadLimit) {
+		// The limit is swallowed as success, but the read is incomplete.
+		// Record it so a fan-out child of this resource does not promote
+		// its watermark from the partial parent set.
+		c.markLimited(res.Name)
 		return nil
 	}
 	if err != nil {

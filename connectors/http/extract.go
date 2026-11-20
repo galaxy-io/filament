@@ -41,6 +41,7 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.resetExportParentPagination()
 	c.mu.Lock()
 	c.parentRecords = make(map[string][]Capture)
+	c.limitedReads = make(map[string]bool)
 	c.mu.Unlock()
 
 	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
@@ -150,6 +151,11 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 		guard, err = newReadGuard(sink, c.limit, res, true)
 		if err != nil {
 			return err
+		}
+		// A truncated ancestor read leaves a partial parent set, so the
+		// watermark must not advance from the captured parents alone.
+		if c.ancestorLimited(res) {
+			guard.markLimited()
 		}
 	}
 
@@ -405,6 +411,36 @@ func (c *Connector) appendCaptures(name string, captured []Capture) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.parentRecords[name] = append(c.parentRecords[name], captured...)
+}
+
+// markLimited records that a resource's read stopped at the row limit.
+// extractResourceWithGuard swallows the limit as success, so without this
+// record a truncated ancestor would look like a complete enumeration.
+func (c *Connector) markLimited(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.limitedReads == nil {
+		c.limitedReads = make(map[string]bool)
+	}
+	c.limitedReads[name] = true
+}
+
+// ancestorLimited reports whether any resource in res's parent chain stopped
+// at the row limit. A limited ancestor leaves a partial capture set, so the
+// child must not promote its watermark from the parents it did see.
+func (c *Connector) ancestorLimited(res manifest.Resource) bool {
+	byName := make(map[string]manifest.Resource, len(c.manifest.Resources))
+	for _, r := range c.manifest.Resources {
+		byName[r.Name] = r
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for parent := res.Parent; parent != nil; parent = byName[parent.Resource].Parent {
+		if c.limitedReads[parent.Resource] {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Connector) buildResourceFilter(resources []string) {
