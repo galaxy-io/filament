@@ -28,7 +28,6 @@ import (
 	natsserver "github.com/nats-io/nats-server/v2/server"
 	natsgo "github.com/nats-io/nats.go"
 
-	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/app"
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
 	"github.com/galaxy-io/filament/cmd/internal/inline"
@@ -69,7 +68,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	sources, err := connectors.SourcesFromEnv()
+	sources, err := connectors.SourcesFromEnv(nil)
 	if err != nil {
 		return err
 	}
@@ -130,9 +129,9 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	var runtimeSources filament.SourceRegistry = sources
+	runtimeSources := sources
 	if webhookInbox != nil {
-		runtimeSources = standaloneSources{SourceRegistry: sources, inbox: webhookInbox}
+		runtimeSources = standaloneSources(sources, webhookInbox)
 	}
 
 	bus, err := natsbus.New("", events.Codec,
@@ -162,7 +161,7 @@ func run(ctx context.Context) error {
 
 // runInline executes one untracked run, with facts on file descriptor 3.
 func runInline(ctx context.Context) error {
-	sources, err := connectors.SourcesFromEnv()
+	sources, err := connectors.SourcesFromEnv(nil)
 	if err != nil {
 		return err
 	}

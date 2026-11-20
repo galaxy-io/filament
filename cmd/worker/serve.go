@@ -29,7 +29,7 @@ const shutdownTimeout = 10 * time.Second
 // from the event bus and executes them, the way a dispatched Job would, for
 // deployments without Kubernetes.
 func serve(ctx context.Context, serveConnectors, execute bool) error {
-	sources, err := connectors.SourcesFromEnv()
+	sources, err := connectors.SourcesFromEnv(nil)
 	if err != nil {
 		return err
 	}

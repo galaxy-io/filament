@@ -141,6 +141,32 @@
       "minItems": 1,
       "items": { "$ref": "#/$defs/resource" }
     },
+    "webhook": {
+      "type": "object",
+      "required": ["verifier"],
+      "additionalProperties": false,
+      "properties": {
+        "verifier": {
+          "type": "object",
+          "required": ["profile"],
+          "additionalProperties": false,
+          "properties": {
+            "profile": { "type": "string", "minLength": 1 },
+            "params": { "type": "object" }
+          }
+        },
+        "route": {
+          "type": "object",
+          "required": ["event"],
+          "additionalProperties": false,
+          "properties": {
+            "event": { "$ref": "#/$defs/webhook_value" }
+          }
+        },
+        "setup": { "type": "string" },
+        "secret": { "enum": ["filament", "provider"] }
+      }
+    },
     "discovery": {
       "type": "object",
       "required": ["mode"],
@@ -341,6 +367,16 @@
         }
       }
     },
+    "webhook_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "header": { "type": "string", "minLength": 1 },
+        "body": { "type": "string", "minLength": 1 }
+      }
+    },
     "resource": {
       "type": "object",
       "required": ["name"],
@@ -350,6 +386,12 @@
           "required": ["export"],
           "properties": {
             "mode": { "const": "export" }
+          }
+        },
+        {
+          "required": ["mode"],
+          "properties": {
+            "mode": { "const": "webhook" }
           }
         }
       ],
@@ -364,7 +406,8 @@
         "emit_as": { "type": "string", "minLength": 1 },
         "path": { "type": "string", "minLength": 1 },
         "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", ""] },
-        "mode": { "type": "string", "enum": ["paginated", "stream", "export", ""] },
+        "mode": { "type": "string", "enum": ["paginated", "stream", "export", "webhook", ""] },
+        "events": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "primary_key": { "type": "array", "items": { "type": "string" } },
         "records": { "type": "string", "minLength": 1 },
         "for_each": { "type": "string", "minLength": 1 },

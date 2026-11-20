@@ -145,6 +145,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		if before != after {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection replication mode is immutable; create a new connection to change from %s to %s", before, after))
 		}
+		if err := a.disableWebhookEndpointWhenOff(ctx, tenantID, stored.ID, spec.Webhook, filament.NewConfig(cfg)); err != nil {
+			return nil, err
+		}
 	}
 	// A newly submitted value gets a versioned ref. The old value remains active
 	// until the optimistic connection update succeeds.
@@ -243,8 +246,9 @@ func (a *Server) connectionForResponse(ctx context.Context, conn filament.Connec
 		if err != nil {
 			return out
 		}
-		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, filament.NewConfig(conn.Config)))
-		out.ExecutionModes = a.sourceExecutionModes(spec)
+		cfg := filament.NewConfig(conn.Config)
+		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, cfg))
+		out.ExecutionModes = a.connectionExecutionModes(spec, cfg)
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {

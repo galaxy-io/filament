@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/galaxy-io/filament"
 	httpapi "github.com/galaxy-io/filament/connectors/http"
 	"github.com/galaxy-io/filament/registry"
 )
@@ -13,7 +14,17 @@ import (
 // only the sources CONNECTOR_SOURCES names when it is set. Private versions
 // may be added and default aliases may change, but concrete bundled
 // registrations cannot be replaced. The process-wide registry is unchanged.
-func SourcesFromEnv() (*registry.Sources, error) {
+// Sources that read the webhook inbox attach through NATS_URL and count
+// rejected deliveries in metrics, which may be nil.
+func SourcesFromEnv(metrics filament.Metrics) (filament.SourceRegistry, error) {
+	sources, err := catalogFromEnv()
+	if err != nil {
+		return nil, err
+	}
+	return withWebhookInbox(sources, metrics), nil
+}
+
+func catalogFromEnv() (*registry.Sources, error) {
 	sources := registry.DefaultSources
 	if directory := os.Getenv("HTTP_MANIFESTS_DIR"); directory != "" {
 		private, err := httpapi.LoadDirectory(directory)

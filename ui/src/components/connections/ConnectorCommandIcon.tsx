@@ -1,6 +1,5 @@
 import type { FC } from "react";
 
-import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import { styled } from "@linaria/react";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
@@ -8,12 +7,12 @@ import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import Icon, { IconVariant } from "@galaxy-io/dls/icons/Icon";
 
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
-import { type ConnectorSpec, GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
+import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import { CONNECTOR_COMMAND_ICON_SIZE } from "@/components/connections/constants";
 import { useConnectorLogoURL } from "@/components/connections/hooks/useConnectorLogoURL";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
+import { createGetConnectorInput, useGetConnectorQuery } from "@/api/queries/connectors";
 
 const ConnectorCommandLogo = styled.img`
   display: block;
@@ -37,7 +36,7 @@ const ConnectorCommandIcon: FC<ConnectorCommandIconProps> = ({
   transport,
 }) => {
   const { data } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, { connector, kind }),
+    input: createGetConnectorInput(connector, kind),
     options: { enabled: !!connector, transport },
   });
   const { logoURL, handleLogoError } = useConnectorLogoURL(
