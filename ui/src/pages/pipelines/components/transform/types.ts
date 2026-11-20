@@ -111,6 +111,7 @@ export interface PipelineTransformFieldsState {
 export interface PipelineTransformFieldsEnvironment {
   resource: Resource["name"];
   columns: ResourceColumn[];
+  columnSelection: ResourceColumn["name"][];
   sourceConnectionId: Connection["id"];
   functionsByName: Map<TransformFunction["name"], TransformFunction>;
   grammarVersion: ListTransformFunctionsResponse["grammarVersion"];

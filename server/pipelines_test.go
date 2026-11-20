@@ -364,7 +364,7 @@ func TestCreatePipelineVersionAcceptsPerResourceWriteModes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mixed write modes on a standard route: %v", err)
 	}
-	runs, err := api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{}, nil, nil)
+	runs, err := api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", compile.RunOptionOverrides{}, "", filament.WorkerConfiguration{}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +410,7 @@ func TestCompileRunsASubsetOfResources(t *testing.T) {
 		}
 	}
 	compileSubset := func(resources, resync []string) ([]compile.CompiledRun, error) {
-		return api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", filament.RunOptions{}, "", filament.WorkerConfiguration{}, resources, resync)
+		return api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "token", runOptionsFromProto(nil), "", filament.WorkerConfiguration{}, resources, resync)
 	}
 
 	version("standard")
@@ -424,13 +424,46 @@ func TestCompileRunsASubsetOfResources(t *testing.T) {
 	if _, err := compileSubset([]string{"orders"}, []string{"customers"}); !errors.Is(err, compile.ErrInvalid) {
 		t.Fatalf("resync outside the subset: got %v, want invalid", err)
 	}
+	runs, err = compileSubset(nil, nil)
+	if err != nil || len(runs) != 1 || !runs[0].Submission.Request.Options.IsolateResourceFailures {
+		t.Fatalf("new pipeline should isolate by default: runs = %+v, error = %v", runs, err)
+	}
+	if _, err := api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{
+		PipelineId: pipelineID, Name: "subset", FailOnError: proto.Bool(true),
+	})); err != nil {
+		t.Fatal(err)
+	}
+	runs, err = compileSubset(nil, nil)
+	if err != nil || len(runs) != 1 || runs[0].Submission.Request.Options.IsolateResourceFailures {
+		t.Fatalf("compiled fail-on-error setting: runs = %+v, error = %v", runs, err)
+	}
+	runs, err = api.compiler.Compile(ctx, filament.DefaultTenantID, pipelineID, "override", runOptionsFromProto(&ingestionv1.RunOptions{
+		FailOnError: proto.Bool(false),
+	}), "", filament.WorkerConfiguration{}, nil, nil)
+	if err != nil || len(runs) != 1 || !runs[0].Submission.Request.Options.IsolateResourceFailures {
+		t.Fatalf("compiled false override: runs = %+v, error = %v", runs, err)
+	}
+	if _, err := api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{
+		PipelineId: pipelineID, Name: "subset", FailOnError: proto.Bool(false),
+	})); err != nil {
+		t.Fatal(err)
+	}
 
 	version("cdc")
 	if _, err := compileSubset([]string{"orders"}, nil); !errors.Is(err, compile.ErrInvalid) {
 		t.Fatalf("part of a change-stream route: got %v, want invalid", err)
 	}
-	if _, err := compileSubset([]string{"customers", "orders"}, nil); err != nil {
+	cdcRuns, err := compileSubset([]string{"customers", "orders"}, nil)
+	if err != nil {
 		t.Fatalf("every resource of a change-stream route: %v", err)
+	}
+	if len(cdcRuns) != 1 || cdcRuns[0].Submission.Request.Options.IsolateResourceFailures {
+		t.Fatalf("change stream route must fail on error: %+v", cdcRuns)
+	}
+	if _, err := api.UpdatePipeline(ctx, connect.NewRequest(&ingestionv1.UpdatePipelineRequest{
+		PipelineId: pipelineID, Name: "subset", FailOnError: proto.Bool(false),
+	})); err != nil {
+		t.Fatalf("change stream failure setting: %v", err)
 	}
 }
 

@@ -11,6 +11,7 @@ import {
   type SetActiveSinkAction,
   type SetDescriptionAction,
   type SetExecutionModeAction,
+  type SetFailOnErrorAction,
   type SetNameAction,
   type SetNodeConfigAction,
   type SetResourceColumnsAction,
@@ -279,6 +280,13 @@ function setWorkerConfiguration(
   return { ...state, workerConfiguration: action.payload };
 }
 
+function setFailOnError(
+  state: CreatePipelineModalState,
+  action: SetFailOnErrorAction,
+): CreatePipelineModalState {
+  return { ...state, failOnError: action.payload };
+}
+
 function goToStep(
   state: CreatePipelineModalState,
   action: GoToStepAction,
@@ -348,6 +356,8 @@ const createPipelineModalReducer = (
       return removeNotifier(state, action);
     case CreatePipelineModalActionType.SET_WORKER_CONFIGURATION:
       return setWorkerConfiguration(state, action);
+    case CreatePipelineModalActionType.SET_FAIL_ON_ERROR:
+      return setFailOnError(state, action);
     case CreatePipelineModalActionType.GO_TO_STEP:
       return goToStep(state, action);
     case CreatePipelineModalActionType.GO_BACK:

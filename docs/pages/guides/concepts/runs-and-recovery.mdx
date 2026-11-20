@@ -21,7 +21,7 @@ stop, retry, and ownership rules are covered in
 | `running` | A worker owns the execution | Complete, fail, become partial, pause, or cancel |
 | `partial` | Extraction failed but all progress is safely resumable | Resume the same run |
 | `paused` | Work stopped intentionally | Resume or cancel |
-| `completed` | Sink committed successfully | Terminal, except CDC catch-up can run again |
+| `completed` | Sink committed successfully, possibly with isolated resource failures | Terminal, except CDC catch-up can run again |
 | `failed` | Work cannot safely continue as the same attempt | Terminal |
 | `canceled` | Work was intentionally aborted | Terminal |
 
@@ -59,6 +59,50 @@ CDC saves its stream position only after a successful commit, so a failed
 attempt is not labeled partial. A later CDC catch-up starts from the last
 committed position. Even a successful cycle with no changes can advance that
 position.
+
+## Resource failure isolation
+
+By default a bounded run isolates a failed resource instead of stopping. Filament
+stops reading that resource, drops its queued batches, and aborts its sink
+writes. The other resources keep flowing and commit as usual. The run ends
+`completed` and lists the failed resources, each with its own error. The UI
+shows this outcome as **Partial** with the failed resources listed. It is not
+the `partial` state, so the run does not resume. The next run retries the failed
+resources.
+
+The run fails instead in these cases.
+
+- Every resource failed, so nothing is left to commit.
+- The sink cannot abort the failed resource's writes cleanly, so the
+  destination would be uncertain.
+- The error is not tied to one resource, such as a lost connection or a failed
+  commit.
+
+A failed resource keeps the progress that was already durable. A resource whose
+checkpoint saves after each batch resumes from its last saved position on the
+next run. A resource that becomes durable only at commit loses this attempt's
+progress and reads again from its previous checkpoint. To retry, start a new
+run with `resources` set to the failed names, or wait for the next schedule.
+
+Isolation needs support from the connector that failed. A sink isolates a
+resource only when it can abort that resource's writes. A source reports a
+resource failure only when it can tell which resource failed. Any other error
+still stops the run.
+
+Change stream routes and continuous runs always stop on the first failure.
+Their shared stream position cannot skip one resource without losing its
+changes.
+
+### fail_on_error
+
+`fail_on_error` is a pipeline setting. False, the default for new pipelines,
+isolates resource failures. True stops the run at the first resource failure,
+which was the only behavior before this setting existed. Pipelines created
+before it are set to true, so they keep stopping until someone changes them. Set
+it in the pipeline creation form or on the pipeline Settings page under
+Resource failures, or through `CreatePipeline` and `UpdatePipeline`. A single
+run can override it with `options.fail_on_error` on `RunPipeline`. Scheduled
+runs use the pipeline setting.
 
 ## Pause, resume, and cancel
 

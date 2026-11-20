@@ -284,6 +284,26 @@ A normal parent need not be capture-only just because a child depends on it.
 The engine fetches required parents even when only the child is selected, and
 emits only selected resources. Account for that behavior and parent-scoped keys.
 
+### after — read a header once its lines are done
+
+Top-level resources read at the same time. When top-level rows reference another
+top-level resource, a parent created between the two reads lands its children in
+this sync and itself only in the next. `after` makes the parent wait for the
+listed resources to finish, so every child row it read already has its parent.
+
+```yaml
+- name: invoices
+  path: /export/invoices
+  after: [invoice_items]                           # invoices start once invoice_items finish
+```
+
+Both ends must be top-level and the listed resource cannot be a stream. Cycles
+are rejected. Listed resources not selected for a run are ignored, not pulled
+in. Keep chains one level deep (each header waits on its own line resources).
+A chain such as lines → invoices → jobs → customers serializes the largest reads
+and stretches backfills. Use it for header/line pairs where an orphan line is a
+data-quality failure, not for every foreign key.
+
 ### pagination — one strategy key (or inherit from defaults)
 
 ```yaml

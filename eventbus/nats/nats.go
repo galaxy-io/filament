@@ -37,6 +37,14 @@ const (
 	// consumers abandoned by a crashed process; live ones stay active by
 	// fetching and clean ones are deleted explicitly on Close.
 	ephemeralInactiveThreshold = 5 * time.Minute
+
+	// defaultPublishRetryWindow is how long Publish keeps retrying a transient
+	// broker failure. It outlasts a JetStream pod rescheduling (about half a
+	// minute) and stays inside the stream's two-minute duplicate window, so a
+	// retried fact the broker already stored is dropped by its message ID.
+	defaultPublishRetryWindow = time.Minute
+	publishBackoffInitial     = 250 * time.Millisecond
+	publishBackoffMax         = 5 * time.Second
 )
 
 // Bus is a NATS JetStream-backed eventbus.Bus.
@@ -48,6 +56,7 @@ type Bus struct {
 	buffer      int
 	batch       int
 	requestWait time.Duration
+	retryWindow time.Duration
 	ownConn     bool
 	logf        func(format string, args ...any)
 
@@ -65,6 +74,7 @@ type config struct {
 	buffer       int
 	batch        int
 	requestWait  time.Duration
+	retryWindow  time.Duration
 	createStream bool
 	logf         func(format string, args ...any)
 }
@@ -102,6 +112,12 @@ func WithRequestWait(d time.Duration) Option {
 	return func(c *config) { c.requestWait = d }
 }
 
+// WithPublishRetryWindow bounds how long Publish retries a transient broker
+// failure such as a JetStream restart. Zero or negative disables retries.
+func WithPublishRetryWindow(d time.Duration) Option {
+	return func(c *config) { c.retryWindow = d }
+}
+
 // WithCreateStream controls whether New creates the stream if it is missing.
 func WithCreateStream(ok bool) Option {
 	return func(c *config) { c.createStream = ok }
@@ -127,6 +143,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		buffer:       defaultBuffer,
 		batch:        defaultBatch,
 		requestWait:  defaultRequestWait,
+		retryWindow:  defaultPublishRetryWindow,
 		createStream: true,
 	}
 	for _, opt := range opts {
@@ -198,6 +215,7 @@ func New(url string, codec eventbus.Codec, opts ...Option) (*Bus, error) {
 		buffer:      cfg.buffer,
 		batch:       cfg.batch,
 		requestWait: cfg.requestWait,
+		retryWindow: cfg.retryWindow,
 		ownConn:     ownConn,
 		logf:        logf,
 		subs:        make(map[*subscription]struct{}),
@@ -309,10 +327,70 @@ func (b *Bus) Publish(ctx context.Context, subject string, payload any) error {
 	if err != nil {
 		return fmt.Errorf("eventbus/nats: encode: %w", err)
 	}
-	if _, err := b.js.Publish(ctx, subject, data); err != nil {
+	var opts []jetstream.PublishOpt
+	if id, ok := payload.(eventbus.Identified); ok {
+		if msgID := id.MessageID(); msgID != "" {
+			opts = append(opts, jetstream.WithMsgID(msgID))
+		}
+	}
+	if err := b.publishWithRetry(ctx, subject, data, opts); err != nil {
 		return fmt.Errorf("eventbus/nats: publish: %w", err)
 	}
 	return nil
+}
+
+// publishWithRetry retries transient broker failures with capped exponential
+// backoff until the retry window, the caller's context or the bus ends. A
+// stream in lame-duck mode or a server mid-restart answers "no response from
+// stream" for tens of seconds, and a single attempt would drop the fact.
+func (b *Bus) publishWithRetry(ctx context.Context, subject string, data []byte, opts []jetstream.PublishOpt) error {
+	deadline := time.Now().Add(b.retryWindow)
+	backoff := publishBackoffInitial
+	for attempt := 1; ; attempt++ {
+		_, err := b.js.Publish(ctx, subject, data, opts...)
+		if err == nil {
+			if attempt > 1 {
+				b.logf("eventbus/nats: publish %q succeeded after %d attempts", subject, attempt)
+			}
+			return nil
+		}
+		if !transientPublishError(ctx, err) {
+			return err
+		}
+		wait := min(backoff, time.Until(deadline))
+		if wait <= 0 || b.closed.Load() {
+			return err
+		}
+		b.logf("eventbus/nats: publish %q attempt %d failed, retrying in %s: %v", subject, attempt, wait, err)
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return err
+		case <-timer.C:
+		}
+		backoff = min(backoff*2, publishBackoffMax)
+	}
+}
+
+// transientPublishError reports whether a failed publish may succeed if
+// retried: the stream or server is briefly unreachable, not the request wrong.
+func transientPublishError(ctx context.Context, err error) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	switch {
+	case errors.Is(err, jetstream.ErrNoStreamResponse),
+		errors.Is(err, jetstream.ErrJetStreamNotEnabled),
+		errors.Is(err, jetstream.ErrJetStreamNotEnabledForAccount),
+		errors.Is(err, natsgo.ErrNoResponders),
+		errors.Is(err, natsgo.ErrTimeout),
+		errors.Is(err, natsgo.ErrConnectionReconnecting),
+		errors.Is(err, context.DeadlineExceeded):
+		return true
+	}
+	var apiErr *jetstream.APIError
+	return errors.As(err, &apiErr) && apiErr.Code == 503
 }
 
 // Subscribe creates a live subscription. If opts.FromSeq is set, it replays from

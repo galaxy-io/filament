@@ -53,8 +53,14 @@ func createTopic(t *testing.T, c *kgo.Client, topic string) {
 			t.Fatalf("create topic: %+v", r)
 		}
 	}
-	// CreateTopics returns once the controller commits; brokers apply the
-	// metadata asynchronously. Wait until the topic is visible.
+	waitPartitions(t, c, topic, 2)
+}
+
+// waitPartitions waits until brokers report n partitions for topic. Topic and
+// partition requests return once the controller commits, and brokers apply
+// the metadata asynchronously.
+func waitPartitions(t *testing.T, c *kgo.Client, topic string, n int) {
+	t.Helper()
 	meta := kmsg.NewPtrMetadataRequest()
 	mt := kmsg.NewMetadataRequestTopic()
 	mt.Topic = kmsg.StringPtr(topic)
@@ -62,7 +68,7 @@ func createTopic(t *testing.T, c *kgo.Client, topic string) {
 	deadline := time.Now().Add(10 * time.Second)
 	for {
 		m, err := meta.RequestWith(t.Context(), c)
-		if err == nil && len(m.Topics) == 1 && m.Topics[0].ErrorCode == 0 && len(m.Topics[0].Partitions) == 2 {
+		if err == nil && len(m.Topics) == 1 && m.Topics[0].ErrorCode == 0 && len(m.Topics[0].Partitions) == n {
 			return
 		}
 		if time.Now().After(deadline) {
@@ -178,6 +184,7 @@ func testSourceGuardrails(t *testing.T, c *kgo.Client, brokers []string, topic s
 			t.Fatalf("grow: %+v", r)
 		}
 	}
+	waitPartitions(t, c, topic, 3)
 	// Metadata validation occurs before any attempt to write a record.
 	if _, err = live.Read(ctx, nil, filament.Boundary{MaxWait: time.Second}); err == nil {
 		t.Fatal("live membership change accepted")
