@@ -91,7 +91,7 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 			_, _ = fmt.Fprintf(w, `{"data":[{"id":"seg-1","type":"analyticsReportSegments","attributes":{"url":"%s/download/seg-1.tsv.gz?X-Amz-Signature=secret123"}}]}`, serverURL)
 		case req.URL.Path == "/download/seg-1.tsv.gz":
 			w.Header().Set("Content-Type", "application/a-gzip")
-			_, _ = w.Write(gzipBytes(t, "Date\tApp Name\tSessions\n2026-11-16\tGalaxy App\t42\n2026-11-16\tGalaxy App\t18\n"))
+			_, _ = w.Write(gzipBytes(t, "Date\tApp Name\tTerritory\tSessions\n2026-11-16\tGalaxy App\tUS\t42\n2026-11-16\tGalaxy App\tGB\t18\n"))
 		case strings.HasPrefix(req.URL.Path, "/v1/salesReports"):
 			reportDate := req.URL.Query().Get("filter[reportDate]")
 			if reportDate == "2026-11-15" {
@@ -231,6 +231,12 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 				if !strings.HasPrefix(r.id, "app-1:App Sessions:2026-11-16:") {
 					t.Fatalf("unexpected analytics_reports composite id format: %q", r.id)
 				}
+			}
+			// Verify that restating a measure (Sessions 42 -> 99) for the same dimensions preserves the row ID.
+			h1 := analyticsDimensionHash(map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Sessions": "42"})
+			h2 := analyticsDimensionHash(map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Sessions": "99"})
+			if h1 != h2 {
+				t.Fatalf("expected restated measure to preserve dimension hash, got %q != %q", h1, h2)
 			}
 		}
 	}

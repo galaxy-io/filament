@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -353,9 +354,8 @@ func (s *Source) walkAnalyticsInstanceSegments(ctx context.Context, resName, app
 			procDateStr := procDate.UTC().Format("2006-01-02")
 			for _, metricsMap := range rows {
 				rawMetrics, _ := json.Marshal(metricsMap)
-				sum := sha256.Sum256(rawMetrics)
 				row := recordRow{
-					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, procDateStr, hex.EncodeToString(sum[:16])),
+					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, procDateStr, analyticsDimensionHash(metricsMap)),
 					appID:      appID,
 					category:   category,
 					name:       name,
@@ -534,4 +534,37 @@ func parseDateOrRFC3339(val string) (time.Time, error) {
 		return t.UTC(), nil
 	}
 	return time.Time{}, fmt.Errorf("unsupported date format %q", val)
+}
+
+// analyticsDimensionHash computes a 128-bit SHA-256 hex digest over only the dimension columns
+// of an analytics report row so restated numeric measure values upsert cleanly in place.
+func analyticsDimensionHash(metricsMap map[string]string) string {
+	dims := make(map[string]string, len(metricsMap))
+	for k, v := range metricsMap {
+		if isAnalyticsMeasureColumn(k, v) {
+			continue
+		}
+		dims[k] = v
+	}
+	if len(dims) == 0 {
+		dims = metricsMap
+	}
+	rawDims, _ := json.Marshal(dims)
+	sum := sha256.Sum256(rawDims)
+	return hex.EncodeToString(sum[:16])
+}
+
+func isAnalyticsMeasureColumn(colName, val string) bool {
+	lower := strings.ToLower(strings.TrimSpace(colName))
+	for _, idSuffix := range []string{"id", "date", "territory", "device", "platform", "version", "type", "source", "referrer", "campaign", "page", "locale", "region", "country", "code", "name", "title", "state", "status", "category"} {
+		if lower == idSuffix || strings.HasSuffix(lower, " "+idSuffix) || strings.HasSuffix(lower, "_"+idSuffix) {
+			return false
+		}
+	}
+	trimmed := strings.TrimSpace(strings.TrimSuffix(val, "%"))
+	if trimmed == "" {
+		return false
+	}
+	_, err := strconv.ParseFloat(trimmed, 64)
+	return err == nil
 }

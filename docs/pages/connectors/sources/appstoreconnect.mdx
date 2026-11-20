@@ -38,9 +38,10 @@ saved watermark for `customer_reviews` and `analytics_reports` so newly added
 apps are backfilled from the beginning.
 
 For deterministic upserts across re-reads, `analytics_reports` builds its
-primary key `id` from `<app_id>:<report_name>:<processing_date>:<row_hash>`
-(where `<row_hash>` is the hex-encoded 128-bit SHA-256 prefix of the canonical
-row metrics JSON), and `sales_reports` builds `id` from
+primary key `id` from `<app_id>:<report_name>:<processing_date>:<dimension_hash>`
+(where `<dimension_hash>` is the hex-encoded 128-bit SHA-256 prefix of the row's
+dimension columns, excluding numeric measures so restated metrics replace the
+existing row on upsert), and `sales_reports` builds `id` from
 `<Provider>:<SKU>:<Begin Date>:<Country Code>:<Product Type Identifier>`.
 
 <Note>
