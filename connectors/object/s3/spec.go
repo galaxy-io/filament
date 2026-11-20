@@ -42,7 +42,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 			{Name: "access_key_id", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, VisibleWhen: iamCredentials, Help: "AWS access key ID."},
 			{Name: "secret_access_key", Type: filament.FieldSecret, Required: true, Scope: filament.ScopeConnection, VisibleWhen: iamCredentials, Help: "AWS secret access key."},
 			{Name: "session_token", Type: filament.FieldSecret, Scope: filament.ScopeConnection, VisibleWhen: iamCredentials, Help: "Optional AWS session token for temporary credentials."},
-			{Name: "part_size_mib", Type: filament.FieldInt, Default: defaultPartSizeMiB, Scope: filament.ScopePipeline, Help: "Multipart request size in MiB; 5 through 5120. Also sets the 10,000-part object-size ceiling; buffers allocate lazily."},
+			{Name: "part_size_mib", Type: filament.FieldInt, Default: defaultPartSizeMiB, Scope: filament.ScopePipeline, Help: "Starting multipart request size in MiB; 5 through 5120. Parts double every 1,000 parts so large objects stay within the 10,000-part limit; buffers allocate lazily."},
 			{Name: "upload_concurrency", Type: filament.FieldInt, Default: defaultUploadWorkers, Scope: filament.ScopePipeline, Help: "Concurrent S3 upload operations across resources; 1 through 32."},
 		}},
 		SchemaField: "prefix",

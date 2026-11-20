@@ -28,7 +28,7 @@ table-level atomic commits. See the Iceberg sink for that.
 | `partition` | Pipeline | `dt={{.Date}}` | Folders between each resource and its files; see [partition template](#partition-template) |
 | `file_format` | Pipeline | `ndjson` | `ndjson`, `jsonl`, `json`, or `parquet`; see [file formats](#file-formats) |
 | `compression` | Pipeline | per format | `none` or `gzip` for JSON formats; `snappy` for Parquet |
-| `part_size_mib` | Pipeline | `16` | Multipart request size in MiB, from 5 through 5120; with the 10,000-part limit, the default supports objects up to about 156 GiB |
+| `part_size_mib` | Pipeline | `16` | Starting multipart request size in MiB, from 5 through 5120. Parts double in size every 1,000 parts, so any value reaches the 5 TiB S3 object limit within 10,000 parts |
 | `upload_concurrency` | Pipeline | `4` | Concurrent S3 upload operations across resources, from 1 through 32 |
 
 A `prefix` left empty is defaulted server-side to the normalized source
@@ -155,16 +155,21 @@ read every object under the table location. See failure behavior below.
 
 ## Write mechanics and atomicity
 
-The sink streams full `part_size_mib` buffers as multipart uploads while the run
-is active. `upload_concurrency` limits S3 requests across resources; when that
-limit is reached, source extraction waits. At commit, Filament uploads the
-remaining bytes and completes each object. Small resources use `PutObject`, and
-a selected resource with no rows becomes a zero-byte object.
+The sink streams full part buffers as multipart uploads while the run is active.
+The first 1,000 parts of an object are `part_size_mib` each, and the part size
+doubles every 1,000 parts after that, up to 5 GiB. Object size is unknown while
+it streams, and growing the parts keeps large objects within the 10,000-part S3
+limit without large buffers for small objects. `upload_concurrency` limits S3
+requests across resources; when that limit is reached, source extraction waits.
+At commit, Filament uploads the remaining bytes and completes each object. Small
+resources use `PutObject`, and a selected resource with no rows becomes a
+zero-byte object.
 
 The sink does not need temporary disk for the full run. Memory use comes mainly
 from unfinished multipart buffers, in-flight uploads, and the current encoded
-batch. Parquet also buffers one row group per active resource. Objects smaller
-than one part remain in memory until commit.
+batch. Each of those buffers is at most one part, so peak memory grows as a
+very large object moves into larger parts. Parquet also buffers one row group
+per active resource. Objects smaller than one part remain in memory until commit.
 
 Each resource object is atomic, but a group of S3 objects cannot be committed
 atomically. Resource objects may be visible while `Commit` is still running.
