@@ -134,13 +134,13 @@ uses current storage credentials, then opens one Iceberg transaction:
   The sink never compacts equality deletes into the data files, so run
   compaction from the catalog or another engine. Partitioned tables, format version 1 tables, and tables
   keyed on a floating-point column always use `copy-on-write`. A `copy-on-write`
-  write fails while the table still has equality deletes, because the rewrite
+  write fails while the table still has delete files, because the rewrite
   would bring the deleted rows back.
 
 Query engines must read equality deletes to see `merge-on-read` tables
 correctly. Trino and Spark read them. Check any other engine before pointing it
 at these tables, or set `table.update_mode` to `copy-on-write` before the sink
-creates them. For a table that already exists, compact its equality deletes,
+creates them. For a table that already exists, compact its delete files,
 then set `write.merge.mode` and `write.delete.mode` to `copy-on-write` on the
 table.
 

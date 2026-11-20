@@ -132,8 +132,10 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 		if deleteIDs, deleteSchema, err = equalityDeleteSchema(it, rb.policy.Keys); err != nil {
 			return err
 		}
-	} else if hasEqualityDeletes(it.tbl) {
-		return fmt.Errorf("%s: table has equality deletes that a copy-on-write rewrite would drop; compact them or set the table back to merge-on-read", mode)
+	} else if has, err := hasDeleteFiles(ctx, it.tbl); err != nil {
+		return fmt.Errorf("%s: read manifests: %w", mode, err)
+	} else if has {
+		return fmt.Errorf("%s: table has delete files that a copy-on-write rewrite would drop; compact them or set the table back to merge-on-read", mode)
 	}
 	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema, deleteSchema)
 	if err != nil {
@@ -147,20 +149,16 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 		return commitRowDelta(ctx, it, m, deleteIDs, arrowSchema)
 	}
 
+	// Overwrite always rewrites files, where Delete follows write.delete.mode and
+	// could leave position deletes a later rewrite would drop.
 	txn := it.tbl.NewTransaction()
-	if len(m.live) == 0 {
-		if err := txn.Delete(ctx, m.filter, nil); err != nil {
-			return fmt.Errorf("delete: %w", err)
-		}
-	} else {
-		rdr, err := array.NewRecordReader(arrowSchema, m.live)
-		if err != nil {
-			return fmt.Errorf("mutation reader: %w", err)
-		}
-		defer rdr.Release()
-		if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(m.filter)); err != nil {
-			return fmt.Errorf("%s: %w", mode, err)
-		}
+	rdr, err := array.NewRecordReader(arrowSchema, m.live)
+	if err != nil {
+		return fmt.Errorf("mutation reader: %w", err)
+	}
+	defer rdr.Release()
+	if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(m.filter)); err != nil {
+		return fmt.Errorf("%s: %w", mode, err)
 	}
 	updated, err := txn.Commit(ctx)
 	if err != nil {
@@ -199,12 +197,29 @@ func mergeOnRead(tbl *table.Table, mode writeMode, keys []string) bool {
 	return true
 }
 
-// hasEqualityDeletes reports whether the current snapshot carries equality
-// deletes. iceberg-go's copy-on-write rewrite reads data files without their
-// delete files, so rewriting such a table would resurrect deleted rows.
-func hasEqualityDeletes(tbl *table.Table) bool {
+// hasDeleteFiles reports whether the current snapshot tracks any live delete
+// files. iceberg-go's copy-on-write rewrite reads data files without their
+// delete files, so rewriting such a table would resurrect deleted rows. The
+// manifest list is read because the snapshot summary totals are optional.
+func hasDeleteFiles(ctx context.Context, tbl *table.Table) (bool, error) {
 	snap := tbl.CurrentSnapshot()
-	return snap != nil && snap.Summary != nil && snap.Summary.Properties.GetInt("total-equality-deletes", 0) > 0
+	if snap == nil {
+		return false, nil
+	}
+	fs, err := tbl.FS(ctx)
+	if err != nil {
+		return false, err
+	}
+	manifests, err := snap.Manifests(fs)
+	if err != nil {
+		return false, err
+	}
+	for _, m := range manifests {
+		if m.ManifestContent() == iceberg.ManifestContentDeletes && m.AddedDataFiles()+m.ExistingDataFiles() > 0 {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // equalityDeleteSchema resolves the key columns to field IDs and the Arrow
