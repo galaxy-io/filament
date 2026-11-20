@@ -1,0 +1,84 @@
+---
+title: "Trello source connector"
+sidebarTitle: "Trello"
+description: "Read records and related data from Trello"
+icon: "https://upload.wikimedia.org/wikipedia/commons/7/7a/Trello-logo-blue.svg"
+---
+
+Connector ID `trello`
+
+The Trello source reads boards, lists, cards, members, labels, checklists, custom fields, attachments, and board actions from Trello. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It was validated against a live Trello
+account on a free plan. A full read returned 16 records across the default
+resources, and an incremental actions pipeline picked up a new card create
+action on its second run. It targets Trello REST API version `1`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_key` | Connection | | Required. Trello API key from the Trello Auth tab of your app at `trello.com/power-ups/admin`. |
+| `api_token` | Connection | | Required. Secret. Trello API token with read scope. The token grants access to the whole account, so keep it secret. |
+
+Create an app in the [Trello apps admin portal](https://trello.com/power-ups/admin), then generate the key on the app Trello Auth tab. Generate the token from the authorize URL with `scope=read` and `expiration=never` so unattended syncs keep working. Use a read-only token because the connector never writes. The token reads what its account can see. See
+[API introduction](https://developer.atlassian.com/cloud/trello/guides/rest-api/api-introduction/) and
+[authorization](https://developer.atlassian.com/cloud/trello/guides/rest-api/authorization/) for the Trello auth flow.
+
+Connection testing calls `GET /members/me`. Every request goes to
+`https://api.trello.com/1`.
+
+## Resources
+
+All resources except `myself`, `custom_field_items`, and `attachments` are selected by default.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `myself` | `GET /members/me` |  |
+| `boards` | `GET /members/me/boards` |  |
+| `organizations` | `GET /members/me/organizations` |  |
+| `lists` | `GET /boards/{board_id}/lists` | boards |
+| `cards` | `GET /lists/{list_id}/cards` | lists |
+| `members` | `GET /boards/{board_id}/members` | boards |
+| `labels` | `GET /boards/{board_id}/labels` | boards |
+| `checklists` | `GET /boards/{board_id}/checklists` | boards |
+| `check_items` | `GET /checklists/{checklist_id}/checkItems` | checklists |
+| `custom_fields` | `GET /boards/{board_id}/customFields` | boards |
+| `custom_field_items` | `GET /cards/{card_id}/customFieldItems` | cards |
+| `attachments` | `GET /cards/{card_id}/attachments` | cards |
+| `actions` | `GET /boards/{board_id}/actions` | boards |
+
+IDs are Trello ID strings. Cards carry their board and list IDs, and the IDs of their members, labels, and checklists. References to other objects remain JSON columns, and every resource includes a `raw` column for unmapped fields. Card custom field values are strings inside the `value` column, so join `custom_field_items` to `custom_fields` on the field ID to interpret them.
+
+`myself` returns one row for the account that owns the API token. It is also the connection test. It is not selected by default.
+
+### Coverage limits
+
+- **Cards over 1000 per list**. Cards fan out over lists, so a board with more than 1000 cards is fully returned. Trello returns at most 1000 cards per request, so a single list holding more than 1000 cards is still capped at 1000 cards per read. Attachments and custom field items read per card, so on such a list they are also skipped for the cards past the cap.
+- **Actions over 1000 per window**. Actions page through the full history with the `before` parameter, using the last action ID as the cursor until a short page, so no cap applies. Very busy boards need more requests, not more frequent runs.
+- **Labels over 1000 per board**. Labels request up to 1000 rows per call and are not paged. Boards rarely reach that many labels, but a board that does is capped at 1000 labels per read.
+- **Excluded action types**. Label changes, check item creates and deletes, comment edits and deletes, and member removals never appear in the actions feed. They still update the card `dateLastActivity`, so a full card refresh catches the changed card but not the event itself.
+- **Custom field items and attachments**. Each needs one request per card, so they are opt-in and not selected by default.
+- **Search and notifications**. Search is a relevance endpoint with no time cursor and stricter limits, so it is not included. Notifications are per-member read state, not board data.
+- **Visibility**. Reads reflect what the token's account can see. Removed records are not available as deletion events.
+
+## Modes
+
+All resources report their read mode in the connector settings. Use **full upsert** to refresh rows, or **full replace** to remove rows no longer returned.
+
+`actions` supports incremental reads on `date`. The first run reads from the start of time, and later runs ask Trello for actions created since the last stored watermark, with a five-minute overlap so actions created while a run is in flight are not missed. The watermark is sent as an RFC3339 timestamp. Incremental reads do not detect deleted actions. Run a periodic full replace of `actions` to remove them. Full reads page through the complete action history, so a full replace drops nothing that still exists in Trello and recovers actions an interrupted incremental run missed.
+
+Board actions share one watermark across boards. A board added after the first sync only gets actions from its first run onward, so its earlier actions are never backfilled. If a run is paused before every board is read, the shared watermark can advance past actions on the unread boards, and the resume does not re-read them.
+
+## Behavior
+
+- **Auth**. Every request sends the API key and token in an `Authorization` header using Trello's OAuth format. Credentials never appear in request URLs, so they cannot leak into logs through error messages. Authentication and permission errors fail the read.
+- **Pagination**. Trello returns list results as one array per request with no next-page token. Actions page with the `before` parameter from the last action ID until a short page. Cards request up to 1000 rows per list, and labels request up to 1000 rows per call. Other lists return their full array in one request.
+- **Fields**. List and card endpoints return full objects. Nested objects stay JSON columns.
+- **Archived items**. Cards and lists pass `filter=all`, so archived cards and closed lists are included.
+- **Comments**. Comments are board actions of type `commentCard`, so they arrive in `actions` with the comment text in the `data` column. There is no separate comments resource.
+- **Rate limiting**. Requests are paced at five per second with a burst of one, below the 100-per-10-second token limit. The HTTP engine retries throttled requests.
+- **Trello API version 1 only**. The API path is unversioned beyond `/1/`, and there is no other version to select.
+
+See [Trello REST API](https://developer.atlassian.com/cloud/trello/rest/) and
+[rate limits](https://developer.atlassian.com/cloud/trello/guides/rest-api/rate-limits/) for service limits.
