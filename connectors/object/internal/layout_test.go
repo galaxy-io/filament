@@ -23,11 +23,11 @@ func TestContinuousLayoutPreservesRunAndRefreshesDate(t *testing.T) {
 		date string
 	}{{first, "2026-01-01"}, {second, "2026-01-02"}} {
 		l := NewLayout("exports", partition, ".json", tc.run)
-		key, err := l.Object("items")
+		key, err := l.Object("items", 0)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(key, "real-run/dt="+tc.date+"/"+string(tc.run.SinkWriteID)) {
+		if !strings.Contains(key, "real-run/dt="+tc.date+"/"+string(tc.run.SinkWriteID)+".0000.json") {
 			t.Fatalf("wrong object identity or partition: %s", key)
 		}
 		if l.Run() != "real-run" || !strings.Contains(l.Success(), "real-run/"+string(tc.run.SinkWriteID)+"/") {

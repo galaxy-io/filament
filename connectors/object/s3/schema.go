@@ -13,12 +13,16 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
-// resourceEncoder serializes the stateful byte stream for one resource.
+// resourceEncoder serializes the stateful byte stream for one resource. The
+// stream is written to numbered objects; file is the object currently open and
+// fileBytes the encoded bytes already appended to it. hasRows is per object.
 type resourceEncoder struct {
-	mu      sync.Mutex
-	schema  *arrow.Schema
-	encoder encoder.Encoder
-	hasRows bool
+	mu        sync.Mutex
+	schema    *arrow.Schema
+	encoder   encoder.Encoder
+	hasRows   bool
+	file      int
+	fileBytes int64
 }
 
 // EnsureSchema prepares a resource encoder before extraction. This is required

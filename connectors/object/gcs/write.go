@@ -58,7 +58,7 @@ func (s *Sink) beginApply(resource string) (*uploadSession, string, string, erro
 	if s.state != stateOpen || s.session == nil {
 		return nil, "", "", fmt.Errorf("gcs sink: write requires an open run")
 	}
-	key, err := s.layout.Object(resource)
+	key, err := s.layout.Object(resource, 0)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("gcs sink: %w", err)
 	}
@@ -107,7 +107,7 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *uploadSession) err
 			resourceEncoder.mu.Unlock()
 			continue
 		}
-		key, err := layout.Object(resource)
+		key, err := layout.Object(resource, 0)
 		if err != nil {
 			session.releaseEncodedBuffer(encoded)
 			resourceEncoder.mu.Unlock()

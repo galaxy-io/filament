@@ -12,7 +12,8 @@ import (
 	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
-// Complete finishes every resource and returns immutable manifest input.
+// Complete finishes every object and returns immutable manifest input, one
+// result per object.
 func (s *multipartSession) Complete(ctx context.Context) ([]object.ResourceResult, error) {
 	resources := s.snapshot()
 	if err := s.completeResources(ctx, resources); err != nil {
@@ -156,8 +157,8 @@ func (s *multipartSession) PutObject(ctx context.Context, key string, metadata o
 
 func (s *multipartSession) snapshot() []*objectWriter {
 	s.mu.Lock()
-	resources := make([]*objectWriter, 0, len(s.resources))
-	for _, upload := range s.resources {
+	resources := make([]*objectWriter, 0, len(s.objects))
+	for _, upload := range s.objects {
 		resources = append(resources, upload)
 	}
 	s.mu.Unlock()

@@ -21,23 +21,23 @@ const (
 // multipartSession owns the bounded buffers and remote state for one sink run.
 // It deliberately knows nothing about Filament batches or write policies.
 type multipartSession struct {
-	mu        sync.Mutex
-	store     multipartStore
-	bucket    string
-	partSize  int
-	perTier   int32
-	workers   int
-	resources map[string]*objectWriter
-	slots     chan struct{}
-	buffers   *bufferPool
-	encoded   sync.Pool
-	metadata  objectMetadata
-	ctx       context.Context
-	cancel    context.CancelFunc
+	mu       sync.Mutex
+	store    multipartStore
+	bucket   string
+	partSize int
+	perTier  int32
+	workers  int
+	objects  map[string]*objectWriter // by object key; a resource may roll into several
+	slots    chan struct{}
+	buffers  *bufferPool
+	encoded  sync.Pool
+	metadata objectMetadata
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 // objectWriter owns the ordered byte stream and remote multipart state for one
-// resource. Different objects proceed independently; appends to one object are
+// object. Different objects proceed independently; appends to one object are
 // serialized so part order and the manifest checksum stay deterministic.
 type objectWriter struct {
 	appendMu  sync.Mutex
@@ -75,12 +75,12 @@ func newMultipartSession(
 	sessionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	session := &multipartSession{
 		store: store, bucket: bucket, partSize: int(partSize), perTier: partsPerTier, workers: workers,
-		resources: make(map[string]*objectWriter),
-		slots:     make(chan struct{}, workers),
-		buffers:   newBufferPool(),
-		metadata:  metadata,
-		ctx:       sessionCtx,
-		cancel:    cancel,
+		objects:  make(map[string]*objectWriter),
+		slots:    make(chan struct{}, workers),
+		buffers:  newBufferPool(),
+		metadata: metadata,
+		ctx:      sessionCtx,
+		cancel:   cancel,
 	}
 	session.encoded.New = func() any {
 		buffer := make([]byte, 0, bufferChunkSize)
@@ -93,9 +93,9 @@ func newObjectWriter(resource, key string) *objectWriter {
 	return &objectWriter{resource: resource, key: key}
 }
 
-// Append adds bytes to one resource and hands every full part to an uploader.
+// Append adds bytes to one object and hands every full part to an uploader.
 func (s *multipartSession) Append(ctx context.Context, resource, key string, data []byte, rows int, encodedCRC uint32) error {
-	upload := s.resource(resource, key)
+	upload := s.object(resource, key)
 	upload.appendMu.Lock()
 	defer upload.appendMu.Unlock()
 
@@ -169,15 +169,68 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 	return nil
 }
 
-func (s *multipartSession) resource(resource, key string) *objectWriter {
+func (s *multipartSession) object(resource, key string) *objectWriter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if upload := s.resources[resource]; upload != nil {
+	if upload := s.objects[key]; upload != nil {
 		return upload
 	}
 	upload := newObjectWriter(resource, key)
-	s.resources[resource] = upload
+	s.objects[key] = upload
 	return upload
+}
+
+// Seal closes one object to further appends and starts uploading its tail now
+// instead of at Commit, so a resource that rolled to a new object stops holding
+// the old one's buffer. The multipart upload stays open, and the object stays
+// invisible, until Complete. A sealed object that never filled a part becomes
+// a one-part multipart upload, which S3 accepts at any size.
+func (s *multipartSession) Seal(ctx context.Context, key string) error {
+	s.mu.Lock()
+	upload := s.objects[key]
+	s.mu.Unlock()
+	if upload == nil {
+		return nil
+	}
+	upload.appendMu.Lock()
+	defer upload.appendMu.Unlock()
+
+	upload.mu.Lock()
+	if upload.err != nil {
+		err := upload.err
+		upload.mu.Unlock()
+		return err
+	}
+	upload.closed = true
+	body := upload.buffer
+	upload.buffer = nil
+	if body == nil || body.Len() == 0 {
+		upload.mu.Unlock()
+		body.Release()
+		return nil
+	}
+	if upload.uploadID == "" {
+		upload.mu.Unlock()
+		uploadID, err := s.createMultipart(ctx, upload.key)
+		upload.mu.Lock()
+		if err != nil {
+			body.Release()
+			upload.err = fmt.Errorf("create multipart upload: %w", err)
+			err = upload.err
+			upload.mu.Unlock()
+			return err
+		}
+		upload.uploadID = uploadID
+	}
+	number, err := upload.nextPartNumber()
+	if err != nil {
+		body.Release()
+		upload.err = err
+		upload.mu.Unlock()
+		return err
+	}
+	upload.mu.Unlock()
+	return s.startPartUpload(ctx, upload, uploadPart{number: number, body: body})
 }
 
 // partLimit returns the size of multipart part number n. The configured part

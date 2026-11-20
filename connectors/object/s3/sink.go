@@ -1,10 +1,12 @@
 // Package s3 implements a resource-partitioned object sink for Amazon S3 and
 // compatible object stores.
 //
-// Resource objects land at <prefix>/<resource>/<partition>/<run>.<ext> so one
-// table per resource can point at <prefix>/<resource>/. The partition
-// directories are templated; the resource root, filename, and manifest are not.
-// Apply streams full multipart parts and Commit publishes
+// Resource objects land at <prefix>/<resource>/<partition>/<run>.<NNNN>.<ext>
+// so one table per resource can point at <prefix>/<resource>/. A resource
+// rolls into the next numbered object once the current one reaches
+// max_file_size_mib. The partition directories are templated; the resource
+// root, filename, and manifest are not. Apply streams full multipart parts and
+// Commit completes every object, then publishes
 // <prefix>/_runs/<run>/_SUCCESS.json last.
 package s3
 
@@ -41,6 +43,7 @@ type Sink struct {
 	applyWG     sync.WaitGroup
 	format      encoder.FileFormat
 	compression encoder.Compression
+	maxFileSize int64
 	enc         map[string]*resourceEncoder
 }
 
@@ -107,6 +110,7 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 	s.layout = object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), run)
 	s.format = cfg.fileFormat
 	s.compression = cfg.compression
+	s.maxFileSize = cfg.maxFileSize
 	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, objectMetadata{
 		contentType: cfg.fileFormat.ContentType(), contentEncoding: cfg.compression.ContentEncoding(),
 	})
