@@ -21,7 +21,8 @@ import (
 // them in memory until their byte count exceeds the configured limit, then spills
 // every batch to an Arrow IPC file (LZ4) and streams the rest straight to disk.
 // Row operations stay in memory (one byte per row) beside the batches. An append
-// buffer instead writes its batches to data files as they arrive (see files).
+// or replace buffer instead writes its batches to data files as they arrive
+// (see files).
 // mu serializes Apply calls for the resource; Commit and Abort run after every
 // Apply has returned.
 type recordBuf struct {
@@ -46,9 +47,9 @@ type recordBuf struct {
 	// entries are all-insert batches.
 	ops [][]rowmodel.Operation
 
-	// files, when set, holds an append buffer's rows as data files written
-	// during the run; mem, file, and ops stay empty.
-	files *appendFiles
+	// files, when set, holds an append or replace buffer's rows as data files
+	// written during the run; mem, file, and ops stay empty.
+	files *streamedFiles
 }
 
 func newRecordBuf(limitBytes int64) *recordBuf {
@@ -119,9 +120,9 @@ func (rb *recordBuf) track(b *arrowbatch.Batch, nbytes int64) ([]rowmodel.Operat
 	return ops, nil
 }
 
-// appendFile writes an append batch to the resource's data files. Append lands
-// rows as they are, so the operations are counted but not kept.
-func (rb *recordBuf) appendFile(ctx context.Context, b *arrowbatch.Batch, nbytes int64, files func() *appendFiles) error {
+// appendFile writes a batch to the resource's data files. Append and replace
+// land rows as they are, so the operations are counted but not kept.
+func (rb *recordBuf) appendFile(ctx context.Context, b *arrowbatch.Batch, nbytes int64, files func() *streamedFiles) error {
 	if _, err := rb.track(b, nbytes); err != nil {
 		return err
 	}

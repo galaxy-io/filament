@@ -27,7 +27,7 @@ catalog. Rows remain staged until their resource commits.
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
 | `table.update_mode` | Connection | `merge-on-read` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
-| `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before replace, upsert, delete, and merge runs spill to temp files |
+| `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before upsert, delete, and merge runs spill to temp files |
 | `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
 
 A `namespace` left empty is defaulted server-side to the normalized source
@@ -102,13 +102,13 @@ recreated; commits fail on the type mismatch rather than rewriting the column.
 
 ## Write mechanics and atomicity
 
-Append writes each resource's batches to Parquet data files in the table's
-location while the run is in progress, and commit adds those files to the table
-in one snapshot. Every 15 minutes the writer finishes its current file and
+Append and replace write each resource's batches to Parquet data files in the
+table's location while the run is in progress, and commit adds those files to
+the table in one snapshot. Every 15 minutes the writer finishes its current file and
 reloads the table, so long runs pick up fresh storage credentials from the
 catalog.
 
-Replace, upsert, delete, and merge buffer each resource's Arrow batches and
+Upsert, delete, and merge buffer each resource's Arrow batches and
 spill them to a compressed temporary file after `stage_buffer_limit_mb`. At
 commit, they write the buffered rows to Parquet and update the Iceberg table.
 
@@ -126,9 +126,12 @@ At commit, the sink reloads each table from the catalog so it uses current
 storage credentials, then opens one Iceberg transaction:
 
 - **append** adds the data files written during the run.
-- **replace** overwrites the table with the run's records. A replace run that
+- **replace** removes every data file of the current snapshot and adds the
+  files written during the run, in one overwrite snapshot. A replace run that
   produced **zero records still overwrites the table to empty**. An empty
-  source empties the destination.
+  source empties the destination. Under the table's default serializable
+  isolation, a data file another writer commits during the replace makes the
+  commit fail rather than survive it.
 - **upsert, delete, and merge** keep the latest operation for each key, then
   update or delete matching rows. The table's write mode decides how.
   `write.merge.mode` governs upsert and merge, and `write.delete.mode` governs
@@ -159,7 +162,7 @@ atomic transaction or exactly-once boundary across the route.
 ## Failure behavior
 
 `Abort` discards in-memory buffers and temporary spill files, and deletes data
-files an append wrote before commit. If a commit was attempted, its files are
+files an append or replace wrote before commit. If a commit was attempted, its files are
 kept, because the catalog may have accepted the commit before reporting an
 error. `Abort` does not undo
 namespace/table creation, schema evolution from `EnsureSchema`, or any resource
