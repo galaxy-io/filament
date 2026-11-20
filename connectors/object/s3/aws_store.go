@@ -2,10 +2,12 @@ package s3
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscfg "github.com/aws/aws-sdk-go-v2/config"
@@ -18,7 +20,58 @@ type awsStore struct{ client *s3.Client }
 
 var _ multipartStore = (*awsStore)(nil)
 
+// maxCachedClients bounds the client cache. Distinct connections are few; the
+// bound only matters when credentials rotate, and a full cache simply starts
+// over.
+const maxCachedClients = 64
+
+// clientKey identifies the settings an S3 client is built from. Secrets enter
+// it only as hashes, and a rotated secret yields a new key and a new client.
+type clientKey struct {
+	region, endpoint, authMethod, accessKeyID string
+	secretHash, sessionHash                   [sha256.Size]byte
+	pathStyle                                 bool
+}
+
+// clients reuses S3 clients across sinks in this process. A continuous run
+// opens a new sink at every boundary; reusing the client keeps its connection
+// pool, so S3 connections and TLS sessions survive the boundary, and keeps its
+// credential cache, so instance-profile and web-identity credentials are not
+// fetched again every boundary. An S3 client is safe for concurrent use.
+var clients = struct {
+	sync.Mutex
+	byKey map[clientKey]*s3.Client
+}{byKey: make(map[clientKey]*s3.Client)}
+
 func newAWSStore(ctx context.Context, cfg sinkConfig) (*awsStore, error) {
+	key := clientKey{
+		region: cfg.region, endpoint: cfg.endpoint, authMethod: cfg.authMethod, accessKeyID: cfg.accessKeyID,
+		secretHash: sha256.Sum256([]byte(cfg.secretAccessKey)), sessionHash: sha256.Sum256([]byte(cfg.sessionToken)),
+		pathStyle: cfg.pathStyle,
+	}
+	clients.Lock()
+	client := clients.byKey[key]
+	clients.Unlock()
+	if client != nil {
+		return &awsStore{client: client}, nil
+	}
+	client, err := buildClient(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	clients.Lock()
+	defer clients.Unlock()
+	if existing := clients.byKey[key]; existing != nil {
+		return &awsStore{client: existing}, nil
+	}
+	if len(clients.byKey) >= maxCachedClients {
+		clear(clients.byKey)
+	}
+	clients.byKey[key] = client
+	return &awsStore{client: client}, nil
+}
+
+func buildClient(ctx context.Context, cfg sinkConfig) (*s3.Client, error) {
 	var loadOpts []func(*awscfg.LoadOptions) error
 	if cfg.region != "" {
 		loadOpts = append(loadOpts, awscfg.WithRegion(cfg.region))
@@ -32,13 +85,12 @@ func newAWSStore(ctx context.Context, cfg sinkConfig) (*awsStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("s3 sink: load aws config: %w", err)
 	}
-	client := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+	return s3.NewFromConfig(awsCfg, func(options *s3.Options) {
 		if cfg.endpoint != "" {
 			options.BaseEndpoint = aws.String(cfg.endpoint)
 		}
 		options.UsePathStyle = cfg.pathStyle
-	})
-	return &awsStore{client: client}, nil
+	}), nil
 }
 
 func (s *awsStore) HeadBucket(ctx context.Context, bucket string) error {
