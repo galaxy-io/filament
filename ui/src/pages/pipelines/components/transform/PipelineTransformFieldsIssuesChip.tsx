@@ -5,18 +5,28 @@ import { WarningIcon } from "@phosphor-icons/react";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
+import Flasher from "@galaxy-io/dls/transform/Flasher";
 
 const NO_WARNINGS: string[] = [];
 
 interface PipelineTransformFieldsIssuesChipProps {
   issues: string[];
   warnings?: string[];
+  pending?: string | null;
 }
 
 const PipelineTransformFieldsIssuesChip: FC<PipelineTransformFieldsIssuesChipProps> = ({
   issues,
   warnings = NO_WARNINGS,
+  pending = null,
 }) => {
+  if (issues.length === 0 && pending !== null) {
+    return (
+      <Flasher isFlashing>
+        <Chip label={pending} color="blue" size={ChipSize.SMALL} hasDot />
+      </Flasher>
+    );
+  }
   const messages = issues.length > 0 ? issues : warnings;
   if (messages.length === 0) return null;
   return (
