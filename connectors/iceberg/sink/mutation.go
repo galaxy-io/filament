@@ -50,9 +50,12 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	}
 
 	// Pass 1: last (batch, row) per key, and one literal tuple per distinct key.
+	// A single-column key collects its values into one set predicate; a
+	// composite key builds an OR of per-row equalities.
 	type pos struct{ batch, row int }
 	last := map[string]pos{}
 	var expr iceberg.BooleanExpression
+	var single []any
 	bi := 0
 	err := rb.stream(func(rows arrow.RecordBatch, _ []rowmodel.Operation) error {
 		for i := range int(rows.NumRows()) {
@@ -65,6 +68,11 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 						return fmt.Errorf("primary key %q: %w", keys[n], err)
 					}
 					lits[n] = lit
+				}
+				if len(keys) == 1 {
+					single = append(single, lits[0])
+					last[k] = pos{bi, i}
+					continue
 				}
 				term, err := keyExpr(it, keys, lits)
 				if err != nil {
@@ -86,6 +94,11 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	}
 	if len(last) == 0 {
 		return &mutation{}, nil
+	}
+	if len(keys) == 1 && deleteTarget == nil {
+		if expr, err = keyInExpr(it, keys[0], single); err != nil {
+			return nil, err
+		}
 	}
 
 	// Pass 2: keep each key's last row unless it is a delete, then conform the
@@ -169,6 +182,37 @@ func keyOf(rows arrow.RecordBatch, keyIdx []int, i int) string {
 		b.WriteString(rows.Column(k).ValueStr(i))
 	}
 	return b.String()
+}
+
+// keyInExpr builds one set-membership predicate over a single key column's
+// distinct values. Engines test it with a hash lookup per row, where an OR of
+// equalities costs one comparison per key per row.
+func keyInExpr(it *iceTable, key string, values []any) (iceberg.BooleanExpression, error) {
+	field, ok := it.schema.FindFieldByName(key)
+	if !ok {
+		return nil, fmt.Errorf("primary key %q is not in iceberg schema", key)
+	}
+	isUUID := field.Type.Equals(iceberg.PrimitiveTypes.UUID)
+	lits := make([]iceberg.Literal, len(values))
+	for i, value := range values {
+		if isUUID {
+			text, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("primary key %q: expected uuid text, got %T", key, value)
+			}
+			u, err := uuid.Parse(text)
+			if err != nil {
+				return nil, fmt.Errorf("primary key %q: %w", key, err)
+			}
+			value = u
+		}
+		lit, err := newKeyLiteral(key, value)
+		if err != nil {
+			return nil, err
+		}
+		lits[i] = lit
+	}
+	return iceberg.SetPredicate(iceberg.OpIn, iceberg.Reference(key), lits), nil
 }
 
 // keyExpr builds the equality over one row's key columns; a uuid key column in
