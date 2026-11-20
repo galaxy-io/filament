@@ -156,11 +156,11 @@ Every screen owes keyboard users the same things.
 | Key | Does | Built with |
 |---|---|---|
 | `C` | The page's primary create action | `Button` `hotKeys={["c"]} shouldBindHotKey` on the `PRIMARY` create button |
-| `/` | Focus the list search | `ListSearch` passes `hotKeys={["/"]} shouldBindHotKey` to DLS `SearchInput` |
-| `⌘↵` | Save the focused settings section, or submit a modal's primary action | `Button` `hotKeys={["mod", "enter"]} shouldBindHotKey`, scoped to the section or modal with `useHotkey`'s `scope` |
+| `/` | Focus the view's search | `SearchInput` `hotKeys={["/"]} shouldBindHotKey` on the one primary search of a page, toolbar, popover or modal step (`ListSearch` does it for lists). A view with two searches side by side (the wizard's sources and sinks), a second search in the same pane and the filters inside canvas nodes stay unbound, since several sit on screen at once |
+| `⌘↵` | Save the focused settings section, or run a modal's primary action | `Button` `hotKeys={["mod", "enter"]} shouldBindHotKey` on the action that commits (Create, Run, Validate, Next). A continuation button that carries the ⌘↵ caps drops its trailing right arrow, since the caps already say it moves forward. Never on Done or Close, so a double press cannot dismiss a one-time secret, and never on a destructive `ConfirmDialog` |
 | `G` then a letter | Go to a top-level destination (`G O` Observability, `G P` Pipelines, `G S` Sources, `G K` Sinks) | needs sequence support, which DLS `useHotkey` does not have yet. Compose it and request it per the rule above |
 | `↑` `↓` `↵` | Move between table rows and open one | `InfiniteTable` `onRowClick`, which brings roving row focus with it |
 | `⌘K` | The command palette | the host. Every new top-level page and create flow adds its item to `useFilamentCommandItems` in `module/commands.ts` |
 | `Esc` | Close the top overlay and return focus | DLS overlays do this. Never break it |
 
-A bound `Button` ignores a shortcut without a modifier while focus is in a text field, so typing `c` in a field never opens a modal, and `⌘↵` still saves from inside one. `hotKeys` also draws the `Kbd` caps on the button or in its tooltip.
+A bound `Button` ignores a shortcut without a modifier while focus is in a text field, so typing `c` in a field never opens a modal, and `⌘↵` still saves from inside one. `hotKeys` also draws the `Kbd` caps on the button or in its tooltip. When two bindings share a key the newest registration wins, so a modal's `/` and `⌘↵` beat the page's without a `scope`. A page search still turns its `/` off while a flow modal is open (`shouldBindHotKey={!flow}` from `useFilamentLayoutSearch`), so `/` never lands on a field behind the modal and the DLS duplicate-binding warning stays quiet. A disabled or loading button drops its binding, so put `hotKeys` on its loading variant too to keep the caps steady.

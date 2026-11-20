@@ -4,6 +4,7 @@ import { styled } from "@linaria/react";
 
 import { HAIRLINE_WIDTH } from "@galaxy-io/dls/styles/mixins";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
+import Widget from "@galaxy-io/dls/widget/Widget";
 
 import { OBSERVABILITY_BAND_WRAP_MAX_WIDTH } from "@/pages/observability/components/band/constants";
 import ObservabilityBandMetricTile from "@/pages/observability/components/band/ObservabilityBandMetricTile";
@@ -34,21 +35,23 @@ const ObservabilityBandGrid = styled.div`
 `;
 
 const ObservabilityBand: FC = () => (
-  <ObservabilityBandGrid>
-    <ObservabilityBandRunsTile />
-    <ObservabilityBandMetricTile
-      label="Throughput"
-      viewKey="throughput"
-      pivotKey="throughputPivot"
-      isStacked
-    />
-    <ObservabilityBandMetricTile
-      label="Usage"
-      viewKey="usage"
-      pivotKey="usagePivot"
-      isStacked={false}
-    />
-  </ObservabilityBandGrid>
+  <Widget isFlush>
+    <ObservabilityBandGrid>
+      <ObservabilityBandRunsTile />
+      <ObservabilityBandMetricTile
+        label="Throughput"
+        viewKey="throughput"
+        pivotKey="throughputPivot"
+        isStacked
+      />
+      <ObservabilityBandMetricTile
+        label="Usage"
+        viewKey="usage"
+        pivotKey="usagePivot"
+        isStacked={false}
+      />
+    </ObservabilityBandGrid>
+  </Widget>
 );
 
 export default ObservabilityBand;

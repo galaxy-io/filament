@@ -51,7 +51,7 @@ const PipelineCanvasEditWidget: FC = () => {
         variant={PopoverVariant.PRIMARY}
         isOpen={isAddNodeOpen}
         onOpenChange={handleAddNodeOpenChange}
-        body={<PipelineCanvasConnectionSelector />}
+        body={<PipelineCanvasConnectionSelector shouldBindHotKey />}
       >
         <Button
           icon={PIPELINE_CANVAS_EDIT_MODE_TO_ICON_MAP[PipelineCanvasEditMode.ADD_NODE]}

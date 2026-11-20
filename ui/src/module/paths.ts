@@ -1,3 +1,10 @@
+import type { FilamentFlowSeed, FilamentLayoutSearch } from "@/module/schemas";
+import { type Flow, GalaxyProduct } from "@/module/types";
+
+export type { GalaxyProductUrls } from "@/module/types";
+
+export { GalaxyProduct };
+
 export enum FilamentPath {
   OBSERVABILITY = "./observability",
   PIPELINES = "./pipelines",
@@ -13,3 +20,24 @@ export enum FilamentPath {
 
 export const createFilamentHref = (path: FilamentPath, params: Record<string, string> = {}) =>
   path.replace(/\$(\w+)/g, (_, key: string) => encodeURIComponent(params[key] ?? ""));
+
+const FILAMENT_FLOW_SEARCH_RESET: { [K in keyof Required<FilamentFlowSeed>]: undefined } = {
+  connector: undefined,
+  connectorKind: undefined,
+  connectorSearch: undefined,
+  pipelineId: undefined,
+  sourceId: undefined,
+  sinkIds: undefined,
+  resources: undefined,
+  resyncResources: undefined,
+  returnFlow: undefined,
+};
+
+export const createFilamentFlowSearch = (
+  flow?: Flow,
+  seed: FilamentFlowSeed = {},
+): Omit<FilamentLayoutSearch, "connectionId"> => ({
+  ...FILAMENT_FLOW_SEARCH_RESET,
+  ...seed,
+  flow,
+});

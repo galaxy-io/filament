@@ -10,5 +10,5 @@
 // `just binaries` does both. Deployable binaries opt in by mounting the
 // handler, e.g.:
 //
-//	mux.Handle("/", ui.Handler())
+//	mux.Handle("/", ui.Handler(ui.Config{}))
 package ui

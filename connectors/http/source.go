@@ -19,6 +19,7 @@ import (
 	"github.com/galaxy-io/filament/connectors/http/internal/atomicwatermark"
 	"github.com/galaxy-io/filament/connectors/http/internal/export"
 	"github.com/galaxy-io/filament/connectors/http/internal/scalar"
+	"github.com/galaxy-io/filament/connectors/http/internal/timestamps"
 	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/pagination"
 	"github.com/galaxy-io/filament/oauth"
@@ -1205,6 +1206,16 @@ func (r *incrementalRecordReducer) record(rec record) (record, error) {
 		if seed == "" {
 			seed = r.seeds[r.source.baseResourceName(rec.Resource)][checkpointKey]
 		}
+		// Normalize a time seed to RFC3339, so a checkpoint written
+		// before cursor normalization (for example Jira's colon-less
+		// offset) still loads instead of failing the comparator.
+		if spec.Comparator == "time" && seed != "" {
+			normalized, err := timestamps.Normalize(seed)
+			if err != nil {
+				return record{}, fmt.Errorf("incremental %q watermark: seed %q is not a timestamp: %w", rec.Resource, seed, err)
+			}
+			seed = normalized
+		}
 		mark, err = atomicwatermark.New(cmp, seed)
 		if err != nil {
 			return record{}, err
@@ -1212,6 +1223,13 @@ func (r *incrementalRecordReducer) record(rec record) (record, error) {
 		r.marks[rec.Resource] = mark
 	}
 	if value := firstKey(rec.Key); value != "" {
+		if spec.Comparator == "time" {
+			normalized, err := timestamps.Normalize(value)
+			if err != nil {
+				return record{}, fmt.Errorf("incremental %q watermark: %q is not a timestamp: %w", rec.Resource, value, err)
+			}
+			value = normalized
+		}
 		if _, err := mark.Observe(value); err != nil {
 			return record{}, fmt.Errorf("incremental %q watermark: %w", rec.Resource, err)
 		}

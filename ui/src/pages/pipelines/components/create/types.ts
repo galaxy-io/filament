@@ -13,6 +13,8 @@ import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/typ
 import type { PipelineResourceStatus } from "@/pages/pipelines/components/resource/types";
 import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
+import type { FilamentFlowSeed } from "@/module/schemas";
+
 export enum CreatePipelineModalStep {
   CONNECTIONS = "CONNECTIONS",
   RESOURCES = "RESOURCES",
@@ -47,6 +49,13 @@ export interface CreatePipelineModalState {
   failOnError: Pipeline["failOnError"];
   isSubmitting: boolean;
 }
+
+export type CreatePipelineModalSeed = Pick<
+  CreatePipelineModalState,
+  "sourceConnection" | "sinkConnections"
+>;
+
+export type CreatePipelineModalSeedSearch = Pick<FilamentFlowSeed, "sourceId" | "sinkIds">;
 
 export interface CreatePipelineModalResourceRow {
   name: Resource["name"];

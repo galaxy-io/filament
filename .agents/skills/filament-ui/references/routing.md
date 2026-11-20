@@ -150,7 +150,7 @@ export const useObservabilitySearch = () =>
 
 | Hook | Reads |
 |---|---|
-| `useFilamentLayoutSearch` | the overlay params (`flow`, `connectionId`, `pipelineId`, `connectorKind`, `connector`, `connectorSearch`) |
+| `useFilamentLayoutSearch` | the overlay params (`flow`, `connectionId`, `pipelineId`, `connectorKind`, `connector`, `connectorSearch`) and the flow seeds (`sourceId`, `sinkIds`, `resources`, `resyncResources`, `returnFlow`) |
 | `useListSearch`, `usePipelinesSearch`, `useConnectionsSearch` | list params |
 | `useObservabilitySearch` | dashboard view state, with defaults applied |
 | `usePipelineSearch`, `usePipelineCanvasSearch`, `usePipelineHistorySearch` | `version`, the canvas selection, expanded runs |
@@ -170,7 +170,7 @@ void navigate({ to: FilamentPath.PIPELINE_HISTORY, params: { id }, search: { run
 ```
 
 - **`useFilamentSearchUpdate`** writes search on the current route. Always the functional form that spreads `prev`, so a write never drops params it does not own.
-- **`useFilamentNavigate`** navigates from the mount base to a `FilamentPath`. `useFilamentFlowOpen(flow, { connectorKind, pipelineId })` opens a `Flow` from anywhere, clearing `connectionId` and replacing the flow's record params.
+- **`useFilamentNavigate`** navigates from the mount base to a `FilamentPath`. `useFilamentFlowOpen(flow, seed)` opens a `Flow` from anywhere, clearing `connectionId` and every flow-owned param before it writes the seed.
 - **`useFilamentMatchRoute`** tells a nav item whether it is active.
 - **Links** use `createFilamentHref(path, params)` with `as={RouterLink}` on DLS components. `RouterLink` (`components/RouterLink.tsx`) adapts `Link` so DLS buttons and tabs take an `href`.
 - **`replace: true` for view state** (search text, sort, expansion, canvas selection) and for closing overlays. Push for navigation the user would want to return to.
@@ -204,8 +204,22 @@ Overlays that open from anywhere are search params on the layout route, rendered
 | `connectionId` | the connection drawer |
 | `flow=CREATE_CONNECTION` (+ `connectorKind`, `connector`, `connectorSearch`) | the create-connection modal |
 | `flow=EDIT_CONNECTION` + `connectionId` | the edit-connection modal over the drawer |
-| `flow=CREATE_PIPELINE` | the create-pipeline modal |
-| `flow=RUN_PIPELINE` + `pipelineId` | the run modal (custom worker configuration, a resource subset and resyncs) |
+| `flow=CREATE_PIPELINE` (+ `sourceId`, `sinkIds`) | the create-pipeline modal, with that source and those sinks selected |
+| `flow=RUN_PIPELINE` + `pipelineId` (+ `resources`, `resyncResources`) | the run modal (custom worker configuration, a resource subset and resyncs) |
+| `returnFlow=CREATE_PIPELINE` | on a create-connection flow, success and cancel go back to the pipeline wizard with `sourceId` and `sinkIds`, the new connection added |
+
+A deep link into a flow is a seed. `createFilamentFlowSearch(flow, seed)` in `module/paths.ts` builds the search for one, and hosts import it from `./paths`.
+
+```
+?flow=CREATE_PIPELINE&sourceId=c_1&sinkIds=["c_9"]
+?flow=RUN_PIPELINE&pipelineId=p_1&resources=["orders"]&resyncResources=["orders"]
+```
+
+- **A seed is read once per open.** The overlay captures it when its session starts and keeps every later edit in memory. The URL never mirrors a draft.
+- **Seeds are ids and names another screen already knows.** Never connection config, secrets, worker configuration or free text.
+- **A stale seed is dropped, never an error.** A missing, deleted or wrong-kind id opens the flow clean, a resource the pipeline no longer has is ignored.
+- **Links into another Galaxy product use that product's format, never a copy.** Import its component-free `./links` export, such as `createAlchemyFunctionHref` and `parseAlchemyReturnSearch` from `@galaxy-io/alchemy-ui/links`. The product's URL comes from `useGalaxyProductUrl(GalaxyProduct.ALCHEMY)` (`module/GalaxyProductsProvider.tsx`), which is undefined when the host gave `FilamentLayout` no URL for it, so the entry point hides. The standalone host fills `productUrls` from the `filament-runtime-config` JSON script the server writes from `GALAXY_<PRODUCT>_URL`. Results come back as search keys prefixed with the callee's name.
+- **A seed by id resolves before the flow mounts.** The create-pipeline modal shows `PendingLayout` while `useGetConnectionQueries` loads, the same swap the run modal does for its pipeline.
 
 ```tsx
 <ConnectionDrawer connectionId={connectionId} isOpen={!!connectionId} onClose={handleCloseDrawer} />
@@ -214,10 +228,10 @@ Overlays that open from anywhere are search params on the layout route, rendered
 
 Rules that keep this working.
 
-- **Add an overlay as a `Flow` member** (`module/types.ts`) plus its params in `filamentLayoutSearchSchema`, render it in `FilamentLayout`, open it with `useFilamentFlowOpen`.
+- **Add an overlay as a `Flow` member** (`module/types.ts`) plus its params in `filamentLayoutSearchSchema`, render it in `FilamentLayout`, open it with `useFilamentFlowOpen`. A new flow param also goes in `FILAMENT_FLOW_SEARCH_RESET` (`module/paths.ts`), which the compiler enforces.
 - **Overlays stay mounted and take their record as props.** Only `FilamentLayout` reads the params. DLS Drawer and Modal keep their last children through the exit animation, so content that never reads the URL never flashes.
 - **Each open is a new session.** `useOverlaySession(isOpen)` returns a key that changes on every open. Key the overlay's provider with it so state resets per open while the exit still animates.
 - **An overlay that picks between two `Modal`s from a URL record** holds the record through the exit with `useOverlayRecord(isOpen, value)`, because closing strips the record in the same navigation.
-- **Closing strips only the keys the overlay owns**, by rest-destructuring, with `replace: true`.
+- **Closing strips only the keys the overlay owns**, with `replace: true`. Flows close through `createFilamentFlowCloseSearch` (`module/utils.ts`), which resets every flow param and nothing else, or goes back to `returnFlow` with its seed. The drawer strips its own keys by rest-destructuring.
 - **One overlay at a time.** Opening a flow writes `connectionId: undefined`.
 - Overlays use plain queries with `isLoading` and `isError` branches, never suspense. See [data.md](./data.md).
