@@ -6,11 +6,14 @@ from ..core.client_wrapper import AsyncClientWrapper, SyncClientWrapper
 from ..core.request_options import RequestOptions
 from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
+from ..types.ingestion_v1get_alchemy_function_response import IngestionV1GetAlchemyFunctionResponse
 from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
 from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
 from ..types.ingestion_v1get_webhook_delivery_url_response import IngestionV1GetWebhookDeliveryUrlResponse
 from ..types.ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
+from ..types.ingestion_v1list_alchemy_functions_response import IngestionV1ListAlchemyFunctionsResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
+from ..types.ingestion_v1pagination_request import IngestionV1PaginationRequest
 from ..types.ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
 from ..types.ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
 from ..types.ingestion_v1webhook_endpoint_config import IngestionV1WebhookEndpointConfig
@@ -34,6 +37,49 @@ class IngestionV1IngestionserviceClient:
         RawIngestionV1IngestionserviceClient
         """
         return self._raw_client
+
+    def getalchemyfunction(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        id: typing.Optional[str] = OMIT,
+        version: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetAlchemyFunctionResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        id : typing.Optional[str]
+
+        version : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetAlchemyFunctionResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.ingestion_v1ingestionservice.getalchemyfunction(
+            connect_timeout_ms=1000.0,
+        )
+        """
+        _response = self._raw_client.getalchemyfunction(
+            connect_timeout_ms=connect_timeout_ms, id=id, version=version, request_options=request_options
+        )
+        return _response.data
 
     def getversion(
         self,
@@ -161,6 +207,49 @@ class IngestionV1IngestionserviceClient:
             connect_timeout_ms=connect_timeout_ms,
             source_connection_id=source_connection_id,
             request_options=request_options,
+        )
+        return _response.data
+
+    def listalchemyfunctions(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        search: typing.Optional[str] = OMIT,
+        pagination: typing.Optional[IngestionV1PaginationRequest] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1ListAlchemyFunctionsResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        search : typing.Optional[str]
+
+        pagination : typing.Optional[IngestionV1PaginationRequest]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1ListAlchemyFunctionsResponse
+            Success
+
+        Examples
+        --------
+        from filament import Filament
+
+        client = Filament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+        client.ingestion_v1ingestionservice.listalchemyfunctions(
+            connect_timeout_ms=1000.0,
+        )
+        """
+        _response = self._raw_client.listalchemyfunctions(
+            connect_timeout_ms=connect_timeout_ms, search=search, pagination=pagination, request_options=request_options
         )
         return _response.data
 
@@ -340,6 +429,57 @@ class AsyncIngestionV1IngestionserviceClient:
         """
         return self._raw_client
 
+    async def getalchemyfunction(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        id: typing.Optional[str] = OMIT,
+        version: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1GetAlchemyFunctionResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        id : typing.Optional[str]
+
+        version : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1GetAlchemyFunctionResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.ingestion_v1ingestionservice.getalchemyfunction(
+                connect_timeout_ms=1000.0,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.getalchemyfunction(
+            connect_timeout_ms=connect_timeout_ms, id=id, version=version, request_options=request_options
+        )
+        return _response.data
+
     async def getversion(
         self,
         *,
@@ -490,6 +630,57 @@ class AsyncIngestionV1IngestionserviceClient:
             connect_timeout_ms=connect_timeout_ms,
             source_connection_id=source_connection_id,
             request_options=request_options,
+        )
+        return _response.data
+
+    async def listalchemyfunctions(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        search: typing.Optional[str] = OMIT,
+        pagination: typing.Optional[IngestionV1PaginationRequest] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> IngestionV1ListAlchemyFunctionsResponse:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        search : typing.Optional[str]
+
+        pagination : typing.Optional[IngestionV1PaginationRequest]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        IngestionV1ListAlchemyFunctionsResponse
+            Success
+
+        Examples
+        --------
+        import asyncio
+
+        from filament import AsyncFilament
+
+        client = AsyncFilament(
+            client_id="YOUR_CLIENT_ID",
+            client_secret="YOUR_CLIENT_SECRET",
+        )
+
+
+        async def main() -> None:
+            await client.ingestion_v1ingestionservice.listalchemyfunctions(
+                connect_timeout_ms=1000.0,
+            )
+
+
+        asyncio.run(main())
+        """
+        _response = await self._raw_client.listalchemyfunctions(
+            connect_timeout_ms=connect_timeout_ms, search=search, pagination=pagination, request_options=request_options
         )
         return _response.data
 

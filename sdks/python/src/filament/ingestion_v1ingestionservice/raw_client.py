@@ -12,11 +12,14 @@ from ..core.request_options import RequestOptions
 from ..core.serialization import convert_and_respect_annotation_metadata
 from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
+from ..types.ingestion_v1get_alchemy_function_response import IngestionV1GetAlchemyFunctionResponse
 from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
 from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
 from ..types.ingestion_v1get_webhook_delivery_url_response import IngestionV1GetWebhookDeliveryUrlResponse
 from ..types.ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
+from ..types.ingestion_v1list_alchemy_functions_response import IngestionV1ListAlchemyFunctionsResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
+from ..types.ingestion_v1pagination_request import IngestionV1PaginationRequest
 from ..types.ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
 from ..types.ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
 from ..types.ingestion_v1webhook_endpoint_config import IngestionV1WebhookEndpointConfig
@@ -29,6 +32,65 @@ OMIT = typing.cast(typing.Any, ...)
 class RawIngestionV1IngestionserviceClient:
     def __init__(self, *, client_wrapper: SyncClientWrapper):
         self._client_wrapper = client_wrapper
+
+    def getalchemyfunction(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        id: typing.Optional[str] = OMIT,
+        version: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[IngestionV1GetAlchemyFunctionResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        id : typing.Optional[str]
+
+        version : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[IngestionV1GetAlchemyFunctionResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetAlchemyFunction",
+            method="POST",
+            json={
+                "id": id,
+                "version": version,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetAlchemyFunctionResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetAlchemyFunctionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
     def getversion(
         self,
@@ -184,6 +246,67 @@ class RawIngestionV1IngestionserviceClient:
                     IngestionV1GetWebhookEndpointResponse,
                     parse_obj_as(
                         type_=IngestionV1GetWebhookEndpointResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def listalchemyfunctions(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        search: typing.Optional[str] = OMIT,
+        pagination: typing.Optional[IngestionV1PaginationRequest] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[IngestionV1ListAlchemyFunctionsResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        search : typing.Optional[str]
+
+        pagination : typing.Optional[IngestionV1PaginationRequest]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[IngestionV1ListAlchemyFunctionsResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/ListAlchemyFunctions",
+            method="POST",
+            json={
+                "search": search,
+                "pagination": convert_and_respect_annotation_metadata(
+                    object_=pagination, annotation=IngestionV1PaginationRequest, direction="write"
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1ListAlchemyFunctionsResponse,
+                    parse_obj_as(
+                        type_=IngestionV1ListAlchemyFunctionsResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )
@@ -407,6 +530,65 @@ class AsyncRawIngestionV1IngestionserviceClient:
     def __init__(self, *, client_wrapper: AsyncClientWrapper):
         self._client_wrapper = client_wrapper
 
+    async def getalchemyfunction(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        id: typing.Optional[str] = OMIT,
+        version: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[IngestionV1GetAlchemyFunctionResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        id : typing.Optional[str]
+
+        version : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[IngestionV1GetAlchemyFunctionResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetAlchemyFunction",
+            method="POST",
+            json={
+                "id": id,
+                "version": version,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetAlchemyFunctionResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetAlchemyFunctionResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
     async def getversion(
         self,
         *,
@@ -561,6 +743,67 @@ class AsyncRawIngestionV1IngestionserviceClient:
                     IngestionV1GetWebhookEndpointResponse,
                     parse_obj_as(
                         type_=IngestionV1GetWebhookEndpointResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def listalchemyfunctions(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        search: typing.Optional[str] = OMIT,
+        pagination: typing.Optional[IngestionV1PaginationRequest] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[IngestionV1ListAlchemyFunctionsResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        search : typing.Optional[str]
+
+        pagination : typing.Optional[IngestionV1PaginationRequest]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[IngestionV1ListAlchemyFunctionsResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/ListAlchemyFunctions",
+            method="POST",
+            json={
+                "search": search,
+                "pagination": convert_and_respect_annotation_metadata(
+                    object_=pagination, annotation=IngestionV1PaginationRequest, direction="write"
+                ),
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1ListAlchemyFunctionsResponse,
+                    parse_obj_as(
+                        type_=IngestionV1ListAlchemyFunctionsResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )
