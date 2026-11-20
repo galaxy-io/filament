@@ -41,6 +41,7 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.resetExportParentPagination()
 	c.mu.Lock()
 	c.parentRecords = make(map[string][]Capture)
+	c.limitedReads = make(map[string]bool)
 	c.mu.Unlock()
 
 	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
@@ -141,6 +142,23 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 		return nil
 	}
 
+	// A fan-out child with commit_on_complete shares one guard across all
+	// parents, so the watermark only advances once every parent finished.
+	// A failed or interrupted fan-out drains nothing and replays.
+	var guard *readGuard
+	if res.Incremental != nil && res.Incremental.CommitOnComplete && c.incrementalEnabled(res.Name, res.Name) {
+		var err error
+		guard, err = newReadGuard(sink, c.limit, res, true)
+		if err != nil {
+			return err
+		}
+		// A truncated ancestor read leaves a partial parent set, so the
+		// watermark must not advance from the captured parents alone.
+		if c.ancestorLimited(res) {
+			guard.markLimited()
+		}
+	}
+
 	concurrency := res.Parent.Concurrency
 	if concurrency <= 0 {
 		concurrency = defaultChildConcurrency
@@ -156,7 +174,7 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 
 	for _, parent := range parents {
 		g.Go(func() error {
-			err := c.extractResource(ctx, res, sink, parent)
+			err := c.extractResourceWithGuard(ctx, res, sink, parent, guard)
 			if err != nil {
 				return fmt.Errorf("parent %v: %w", parent, err)
 			}
@@ -165,6 +183,9 @@ func (c *Connector) extractChildResource(ctx context.Context, res manifest.Resou
 	}
 	if err := g.Wait(); err != nil {
 		return err
+	}
+	if guard != nil {
+		return guard.drain(res.Name)
 	}
 
 	return nil
@@ -390,6 +411,36 @@ func (c *Connector) appendCaptures(name string, captured []Capture) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.parentRecords[name] = append(c.parentRecords[name], captured...)
+}
+
+// markLimited records that a resource's read stopped at the row limit.
+// extractResourceWithGuard swallows the limit as success, so without this
+// record a truncated ancestor would look like a complete enumeration.
+func (c *Connector) markLimited(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.limitedReads == nil {
+		c.limitedReads = make(map[string]bool)
+	}
+	c.limitedReads[name] = true
+}
+
+// ancestorLimited reports whether any resource in res's parent chain stopped
+// at the row limit. A limited ancestor leaves a partial capture set, so the
+// child must not promote its watermark from the parents it did see.
+func (c *Connector) ancestorLimited(res manifest.Resource) bool {
+	byName := make(map[string]manifest.Resource, len(c.manifest.Resources))
+	for _, r := range c.manifest.Resources {
+		byName[r.Name] = r
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for parent := res.Parent; parent != nil; parent = byName[parent.Resource].Parent {
+		if c.limitedReads[parent.Resource] {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Connector) buildResourceFilter(resources []string) {

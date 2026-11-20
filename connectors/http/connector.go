@@ -71,6 +71,12 @@ type Connector struct {
 	mu            sync.Mutex
 	parentRecords map[string][]Capture
 
+	// limitedReads records the resources whose read stopped at the row
+	// limit in this extraction. A truncated ancestor means the capture set
+	// a child fans out over may be partial, so a shared guard must not
+	// promote the child's watermark from that partial set. Guarded by mu.
+	limitedReads map[string]bool
+
 	// enabledByResource, keyed by manifest resource name, holds the set of
 	// connector-side IDs the caller wants extracted. Built per-extract from
 	// ExtractOptions.EnabledResources cross-referenced against
