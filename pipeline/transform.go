@@ -22,7 +22,8 @@ func (p *Pipeline) planFor(resource string, supplied rowmodel.Schema) (*transfor
 	if _, ok := p.transform.Resources[resource]; !ok {
 		return nil, nil
 	}
-	schema := supplied.Clone()
+	// The source has already narrowed supplied to the selection.
+	schema := rowmodel.InputFor(supplied, nil, p.audit != nil && p.audit.CDC)
 	schema.Resource = resource
 	plan, err := transform.Compile(p.transform, schema)
 	if err != nil {
