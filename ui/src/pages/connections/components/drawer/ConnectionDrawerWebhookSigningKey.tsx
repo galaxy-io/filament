@@ -1,5 +1,7 @@
 import { type FC, useState } from "react";
 
+import { match } from "ts-pattern";
+
 import Button, { ButtonSize } from "@galaxy-io/dls/buttons/Button";
 import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
@@ -9,13 +11,18 @@ import { ToastVariant } from "@galaxy-io/dls/toast/Toast";
 import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 import type { WebhookEndpointConfig } from "@/gen/ingestion/v1/webhooks_pb";
 
 import { PIPELINE_CARD_HEIGHT } from "@/components/pipelines/constants";
-import { isWebhookPreviousKeyActive } from "@/components/webhooks/utils";
+import { isWebhookPreviousKeyActive, isWebhookProviderIssued } from "@/components/webhooks/utils";
 
 import ConnectionFormSigningKeyModal from "@/pages/connections/components/form/ConnectionFormSigningKeyModal";
-import type { ConnectionFormSigningKeyReveal } from "@/pages/connections/components/form/types";
+import ConnectionFormWebhookSecretModal from "@/pages/connections/components/form/ConnectionFormWebhookSecretModal";
+import {
+  type ConnectionFormWebhookSetup,
+  ConnectionFormWebhookStep,
+} from "@/pages/connections/components/form/types";
 import { useConnectionWebhookKeyMint } from "@/pages/connections/hooks/useConnectionWebhookKeyMint";
 
 import { type UseConfirmCallbacks, useConfirm } from "@/hooks/useConfirm";
@@ -25,15 +32,18 @@ import { formatTimestamp } from "@/utils/format";
 
 interface ConnectionDrawerWebhookSigningKeyProps {
   connection: Connection;
+  webhook: WebhookSpec;
   endpoint: WebhookEndpointConfig | undefined;
 }
 
 const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyProps> = ({
   connection,
+  webhook,
   endpoint,
 }) => {
   const { toast } = useToast();
-  const [reveal, setReveal] = useState<ConnectionFormSigningKeyReveal | undefined>();
+  const [webhookSetup, setWebhookSetup] = useState<ConnectionFormWebhookSetup | undefined>();
+  const isProviderIssued = isWebhookProviderIssued(webhook);
   const { mintKey, isPending } = useConnectionWebhookKeyMint();
 
   const hasKey = !!endpoint?.hasSigningSecret;
@@ -41,9 +51,9 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
   const previousKeyExpiry = formatTimestamp(endpoint?.previousKeyExpiresAt ?? 0n);
 
   const mintSigningKey = (callbacks: UseConfirmCallbacks) =>
-    mintKey(connection, endpoint, {
+    mintKey(connection, webhook, endpoint, {
       onSuccess: (reveal) => {
-        setReveal(reveal);
+        setWebhookSetup({ step: ConnectionFormWebhookStep.REVEAL, reveal });
         callbacks.onSuccess();
       },
       onError: callbacks.onError,
@@ -70,6 +80,43 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
         }),
     });
 
+  const renderKeyAction = () => {
+    if (isProviderIssued) {
+      return (
+        <Button
+          label={hasKey ? "Replace" : "Add"}
+          size={ButtonSize.SMALL}
+          isDisabled={isPreviousKeyActive}
+          tooltip={isPreviousKeyActive ? `Replace again after ${previousKeyExpiry}` : undefined}
+          onClick={() =>
+            setWebhookSetup({ step: ConnectionFormWebhookStep.SECRET, connection, webhook })
+          }
+        />
+      );
+    }
+
+    if (hasKey) {
+      return (
+        <Button
+          label="Rotate"
+          size={ButtonSize.SMALL}
+          isDisabled={isPreviousKeyActive}
+          tooltip={isPreviousKeyActive ? `Rotate again after ${previousKeyExpiry}` : undefined}
+          onClick={() => rotateConfirm.handleOpen(connection)}
+        />
+      );
+    }
+
+    return (
+      <Button
+        label="Generate"
+        size={ButtonSize.SMALL}
+        isLoading={isPending}
+        onClick={handleGenerate}
+      />
+    );
+  };
+
   return (
     <>
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} fillWidth>
@@ -86,26 +133,9 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
           </Text>
           <Flex alignItems={AlignItems.CENTER} gap={12}>
             <Text size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-              {hasKey ? "HMAC-SHA256" : "Not set"}
+              {hasKey ? "Set" : "Not set"}
             </Text>
-            {hasKey ? (
-              <Button
-                label="Rotate"
-                size={ButtonSize.SMALL}
-                isDisabled={isPreviousKeyActive}
-                tooltip={
-                  isPreviousKeyActive ? `Rotate again after ${previousKeyExpiry}` : undefined
-                }
-                onClick={() => rotateConfirm.handleOpen(connection)}
-              />
-            ) : (
-              <Button
-                label="Generate"
-                size={ButtonSize.SMALL}
-                isLoading={isPending}
-                onClick={handleGenerate}
-              />
-            )}
+            {renderKeyAction()}
           </Flex>
         </Flex>
         {isPreviousKeyActive && (
@@ -136,12 +166,29 @@ const ConnectionDrawerWebhookSigningKey: FC<ConnectionDrawerWebhookSigningKeyPro
         }}
         onConfirm={rotateConfirm.handleConfirm}
         header="Rotate signing key?"
-        description="Filament creates a new key and shows it once. The current key keeps working for 72 hours."
+        description="The new key is shown once and the current key keeps working for 72 hours."
         label="Rotate key"
       />
-      {reveal && (
-        <ConnectionFormSigningKeyModal isOpen reveal={reveal} onDone={() => setReveal(undefined)} />
-      )}
+      {webhookSetup &&
+        match(webhookSetup)
+          .with({ step: ConnectionFormWebhookStep.REVEAL }, ({ reveal }) => (
+            <ConnectionFormSigningKeyModal
+              isOpen
+              reveal={reveal}
+              onDone={() => setWebhookSetup(undefined)}
+            />
+          ))
+          .with({ step: ConnectionFormWebhookStep.SECRET }, () => (
+            <ConnectionFormWebhookSecretModal
+              isOpen
+              connection={connection}
+              webhook={webhook}
+              endpoint={endpoint}
+              isNewConnection={false}
+              onDone={() => setWebhookSetup(undefined)}
+            />
+          ))
+          .exhaustive()}
     </>
   );
 };

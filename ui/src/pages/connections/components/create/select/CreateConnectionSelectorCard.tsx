@@ -14,6 +14,7 @@ import ConnectorPreviewChip from "@/components/connections/ConnectorPreviewChip"
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
 import { formatConnectorName } from "@/components/connections/utils";
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
 
 import {
   CONNECTOR_KIND_TO_DESCRIPTION_MAP,
@@ -53,6 +54,7 @@ const CreateConnectionSelectorCard: FC<CreateConnectionSelectorCardProps> = ({
               connector={connector.name}
               kind={connector.kind}
               size={ConnectorTileSize.LARGE}
+              badge={getWebhookConnectorTileBadge(connector.webhook)}
             />
             <FlexItem minWidth={0} overflow="hidden">
               <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM} lineClamp={1}>

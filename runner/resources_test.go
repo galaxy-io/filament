@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"context"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -30,5 +31,28 @@ func TestSelectColumnsRequiresSourceSupport(t *testing.T) {
 	src := &selectingSource{}
 	if err := SelectColumns(src, map[string][]string{"orders": {"id"}}); err != nil || len(src.columns["orders"]) != 1 {
 		t.Fatalf("selection not handed over: %v %v", err, src.columns)
+	}
+}
+
+// discoveringSource discovers an API resource and a webhook resource, and
+// plans through the runner's discovery fallback.
+type discoveringSource struct{ plainSource }
+
+func (discoveringSource) Discover(context.Context, filament.DiscoverOpts) (filament.DiscoverResult, error) {
+	return filament.DiscoverResult{Resources: []filament.Resource{
+		{Name: "orders", Selectable: true},
+		{Name: "orders_webhook", Selectable: true, Metadata: map[string]string{filament.ResourceMetaIngress: filament.ResourceIngressWebhook}},
+	}}, nil
+}
+
+// An all-resources bounded run plans only API resources. Webhook resources
+// run continuously.
+func TestPlanResourcesLeavesWebhookResourcesOutOfBoundedRuns(t *testing.T) {
+	planned, err := PlanResources(context.Background(), discoveringSource{}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(planned) != 1 || planned[0] != "orders" {
+		t.Fatalf("planned %v, want [orders]", planned)
 	}
 }

@@ -94,7 +94,6 @@ const PipelineTransformFieldsActionPicker: FC<PipelineTransformFieldsActionPicke
       options={options}
       value={getTransformActionId(action)}
       onChange={(id) => onChange((id === null ? undefined : payloadById.get(id)) ?? COPY_ACTION)}
-      isClearable
       isSearchable={!isDisabled && options.length > TRANSFORM_SELECT_SEARCH_THRESHOLD}
       placeholder="Choose an action..."
       variant={SelectInputVariant.TERTIARY}

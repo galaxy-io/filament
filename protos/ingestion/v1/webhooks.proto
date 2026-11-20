@@ -57,3 +57,15 @@ message GetWebhookEndpointRequest {
 message GetWebhookEndpointResponse {
   WebhookEndpointConfig endpoint = 1;
 }
+
+// The delivery URL belongs to the source connection, so it is known before the
+// endpoint exists. A provider that creates the signing secret needs the URL
+// first, and the endpoint needs that secret.
+message GetWebhookDeliveryURLRequest {
+  string source_connection_id = 1;
+}
+message GetWebhookDeliveryURLResponse {
+  // <public base URL>/hooks/<source_connection_id>, without the resource.
+  // Empty when the server has no public base URL configured.
+  string delivery_url = 1;
+}

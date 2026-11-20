@@ -100,7 +100,7 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 		// Standard bounded routes take a write mode per resource. CDC and
 		// continuous routes plan one write for the whole stream.
 		key, message := route, "all resources on a CDC or continuous route must use the same write mode"
-		if mode != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
+		if ev.GetEffectiveExecutionMode() != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
 			key, message = route+"\x00"+edge.GetResource(), "edges for the same resource must use the same write mode"
 		}
 		if previous, ok := routeWriteModes[key]; ok && previous != writeMode {
@@ -159,6 +159,17 @@ func pipelineValidationMessage(resp *ingestionv1.ValidatePipelineResponse) strin
 	return "pipeline graph is invalid"
 }
 
+// resourceExecutionMode is the mode an edge's resource runs in. A source that
+// splits execution runs each resource in its own mode, whatever the pipeline
+// defaults to.
+func resourceExecutionMode(spec filament.ConnectorSpec, resource string, mode ingestionv1.ExecutionMode) ingestionv1.ExecutionMode {
+	pipelineMode, err := convert.ExecutionModeFromProto(mode)
+	if err != nil {
+		return mode
+	}
+	return convert.ExecutionModeToProto(filament.ResourceExecution(spec, resource, pipelineMode))
+}
+
 // validateEdge appends the edge's verdict to resp; a non-nil return is an
 // internal failure that aborts the RPC, not a validation finding.
 func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, tenant string, probes *nodeInspections, resp *ingestionv1.ValidatePipelineResponse, mode ingestionv1.ExecutionMode) error {
@@ -192,6 +203,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		edgeError(ev, "to_node", err.Error())
 		return nil
 	}
+	mode = resourceExecutionMode(srcSpec, edge.GetResource(), mode)
 	runtimeSupported := a.edgeExecutionModes(srcSpec, snkSpec, mode, ev)
 	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
 		a.validateContinuousEdge(ctx, edge, from, srcConn, srcSpec, snkSpec, runtimeSupported, probes, ev)

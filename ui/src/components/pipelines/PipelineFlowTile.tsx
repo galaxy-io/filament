@@ -6,6 +6,8 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import ConnectorTileShimmer from "@/components/connections/ConnectorTileShimmer";
 import type { ConnectorTileSize } from "@/components/connections/types";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
 
 import { useFilamentSearchUpdate } from "@/module/hooks";
 import type { FilamentLayoutSearch } from "@/module/schemas";
@@ -25,6 +27,7 @@ const PipelineFlowTile: FC<PipelineFlowTileProps> = ({ connectionId, kind, size 
     input: createGetConnectionInput(connectionId),
   });
   const connection = data?.connection;
+  const { webhook } = useConnectionWebhookSpec(connection);
 
   const handleClick = (e: MouseEvent) => {
     e.preventDefault();
@@ -43,6 +46,7 @@ const PipelineFlowTile: FC<PipelineFlowTileProps> = ({ connectionId, kind, size 
       size={size}
       onClick={handleClick}
       isDeleted={Boolean(connection?.deletedAt)}
+      badge={getWebhookConnectorTileBadge(webhook)}
     />
   );
 };
