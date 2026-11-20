@@ -13,9 +13,13 @@ import (
 )
 
 // Row and byte targets keep buffering independent of source transaction sizes.
+// dataPageSize replaces arrow's 1 MiB default. Arrow grows each page's value
+// buffer by doubling and does not reuse it, so allocation scales with page
+// size; 128 KiB pages cut allocation about 2.6x with no change in file size.
 const (
 	maxRowGroupRows     int64 = 64 * 1024
 	targetRowGroupBytes int64 = 8 * 1024 * 1024
+	dataPageSize        int64 = 128 * 1024
 )
 
 // Encoder combines batches into bounded row groups. EncodeBatch returns any
@@ -44,6 +48,7 @@ func NewEncoder(schema *arrow.Schema, compression encoder.Compression) (*Encoder
 		arrowparquet.NewWriterProperties(
 			arrowparquet.WithCompression(compress.Codecs.Snappy),
 			arrowparquet.WithMaxRowGroupLength(maxRowGroupRows),
+			arrowparquet.WithDataPageSize(dataPageSize),
 		),
 		pqarrow.NewArrowWriterProperties(pqarrow.WithStoreSchema()),
 	)
