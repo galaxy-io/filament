@@ -44,7 +44,11 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.parentRecords = make(map[string][]Capture)
 	c.mu.Unlock()
 
-	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
+	requests, err := requestResources(c.manifest.Resources, opts.Resources)
+	if err != nil {
+		return err
+	}
+	topLevel, children := manifest.Split(c.filteredResources(requests))
 	if opts.Failures != nil {
 		return c.extractIsolated(ctx, sink, opts.Failures, topLevel, children)
 	}

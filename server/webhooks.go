@@ -269,10 +269,18 @@ func (a *Server) deliveryURL(sourceID string) string {
 
 // disableWebhookEndpointWhenOff disables the connection's enabled endpoint
 // when cfg turns webhook ingestion off, so deliveries stop with the setting.
-// It runs before the connection is saved: if saving then fails, the endpoint
-// is only disabled, and a later save enables it again.
-func (a *Server) disableWebhookEndpointWhenOff(ctx context.Context, tenant filament.TenantID, sourceID string, spec *filament.WebhookSpec, cfg filament.Config) error {
-	if a.webhooks == nil || spec == nil || spec.Enabled(cfg) {
+// It runs after the connection is saved, so a rejected save leaves the
+// endpoint as it was.
+func (a *Server) disableWebhookEndpointWhenOff(ctx context.Context, tenant filament.TenantID, stored filament.Connection, cfg filament.Config) error {
+	if a.webhooks == nil || stored.Kind != filament.ConnectorKindSource {
+		return nil
+	}
+	source, err := a.worker.SourceSpec(ctx, stored.Connector)
+	if err != nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	spec, sourceID := source.Webhook, stored.ID
+	if spec == nil || spec.Enabled(cfg) {
 		return nil
 	}
 	endpoint, err := a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, sourceID)

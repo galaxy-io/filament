@@ -145,9 +145,6 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		if before != after {
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("connection replication mode is immutable; create a new connection to change from %s to %s", before, after))
 		}
-		if err := a.disableWebhookEndpointWhenOff(ctx, tenantID, stored.ID, spec.Webhook, filament.NewConfig(cfg)); err != nil {
-			return nil, err
-		}
 	}
 	// A newly submitted value gets a versioned ref. The old value remains active
 	// until the optimistic connection update succeeds.
@@ -169,6 +166,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
 	a.deleteReplacedSecretRefs(ctx, stored.SecretRefs, next.SecretRefs)
+	if err := a.disableWebhookEndpointWhenOff(ctx, tenantID, stored, filament.NewConfig(cfg)); err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: a.connectionForResponse(ctx, next)}), nil
 }
 

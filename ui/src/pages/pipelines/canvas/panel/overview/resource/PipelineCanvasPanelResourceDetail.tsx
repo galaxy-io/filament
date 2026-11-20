@@ -227,7 +227,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   value={
                     <WebhookDeliveryUrlCopyButton
                       sourceConnectionId={sourceConnection.id}
-                      resource={resource}
+                      resource={webhook.routed ? "" : resource}
                     />
                   }
                 />

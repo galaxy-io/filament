@@ -3,6 +3,7 @@ import type { FC } from "react";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
 import { createWebhookDeliveryUrl } from "@/components/webhooks/utils";
 
 import { useCreatePipelineModalState } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
@@ -22,6 +23,7 @@ const CreatePipelineModalResourcesUrlCell: FC<CreatePipelineModalResourcesUrlCel
 }) => {
   const { sourceConnection } = useCreatePipelineModalState();
   const sourceConnectionId = sourceConnection?.id ?? "";
+  const { webhook } = useConnectionWebhookSpec(sourceConnection);
   const { data } = useGetWebhookDeliveryURLQuery({
     input: createGetWebhookDeliveryURLInput(sourceConnectionId),
     options: { enabled: sourceConnectionId !== "", retry: false },
@@ -34,7 +36,8 @@ const CreatePipelineModalResourcesUrlCell: FC<CreatePipelineModalResourcesUrlCel
       family={FontFamily.MONO}
       lineClamp={1}
     >
-      {createWebhookDeliveryUrl(row.name, data?.deliveryUrl) ?? "URL unavailable"}
+      {createWebhookDeliveryUrl(webhook?.routed ? "" : row.name, data?.deliveryUrl) ??
+        "URL unavailable"}
     </Text>
   );
 };
