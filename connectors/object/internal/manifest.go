@@ -49,8 +49,7 @@ type manifestFile struct {
 }
 
 // EncodeManifest builds the common success-marker body for an object store.
-// Resources are ordered by name and each resource's files by key, which is the
-// order the numbered layout writes them in.
+// Resources are ordered by name and each resource's files in write order.
 func EncodeManifest(run filament.RunID, scheme, bucket string, results []ResourceResult) ([]byte, error) {
 	sorted := make([]ResourceResult, len(results))
 	copy(sorted, results)
@@ -58,7 +57,7 @@ func EncodeManifest(run filament.RunID, scheme, bucket string, results []Resourc
 		if sorted[i].Resource != sorted[j].Resource {
 			return sorted[i].Resource < sorted[j].Resource
 		}
-		return sorted[i].Key < sorted[j].Key
+		return fileOrderLess(sorted[i].Key, sorted[j].Key)
 	})
 	manifest := successManifest{Version: manifestVersion, Run: string(run), Resources: []manifestResource{}}
 	for _, result := range sorted {
@@ -74,4 +73,14 @@ func EncodeManifest(run filament.RunID, scheme, bucket string, results []Resourc
 		})
 	}
 	return json.Marshal(manifest)
+}
+
+// fileOrderLess orders one resource's keys by file number. Within a manifest
+// those keys differ only in a number padded to at least four digits, so a
+// shorter key has the smaller number and equal lengths compare lexically.
+func fileOrderLess(a, b string) bool {
+	if len(a) != len(b) {
+		return len(a) < len(b)
+	}
+	return a < b
 }
