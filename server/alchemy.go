@@ -95,7 +95,7 @@ func (a *Server) GetAlchemyFunction(ctx context.Context, req *connect.Request[in
 	if err != nil {
 		return nil, alchemyError("get alchemy function", err)
 	}
-	resp := &ingestionv1.GetAlchemyFunctionResponse{Function: alchemyFunction(out.Msg.GetFunction(), a.alchemyRuntimes(ctx))}
+	resp := &ingestionv1.GetAlchemyFunctionResponse{}
 	if v := req.Msg.GetVersion(); v > 0 {
 		version, err := a.alchemy.Functions().GetFunctionVersion(ctx, connect.NewRequest(&functionsv1.GetFunctionVersionRequest{FunctionId: req.Msg.GetId(), Version: v}))
 		if err != nil {
@@ -104,6 +104,8 @@ func (a *Server) GetAlchemyFunction(ctx context.Context, req *connect.Request[in
 		resp.VersionStatus = versionStatus(version.Msg.GetVersion().GetStatus())
 		resp.VersionStatusMessage = version.Msg.GetVersion().GetStatusMessage()
 	}
+	// Runtimes only decorate the function, so they go last and cannot spend the version lookup's time.
+	resp.Function = alchemyFunction(out.Msg.GetFunction(), a.alchemyRuntimes(ctx))
 	return connect.NewResponse(resp), nil
 }
 
