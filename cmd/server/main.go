@@ -29,6 +29,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/uiconfig"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus"
+	authn "github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
@@ -108,25 +109,14 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	orch := orchestrator.New()
-	apiOpts := []server.Option{
-		server.WithSecrets(deps.Secrets),
-		server.WithMetricsStore(metricStore),
-		server.WithLogger(deps.Log),
-		server.WithDefaultTenant(filament.TenantID(defaultTenantID())),
-		server.WithAlchemy(deps.Alchemy.Client),
-	}
-	if identityProvider != nil {
-		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
-	}
 	webhooks, closeWebhooks, err := webhooksFromEnv(ctx, deps.Store, deps.Secrets, deps.Metrics)
 	if err != nil {
 		return err
 	}
 	if webhooks != nil {
 		defer closeWebhooks()
-		apiOpts = append(apiOpts, webhooks.apiOption())
 	}
-	api := server.New(deps.Worker, deps.Store, orch, eventBus, apiOpts...)
+	api := server.New(deps.Worker, deps.Store, orch, eventBus, serverOptions(deps, metricStore, identityProvider, webhooks)...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err
@@ -155,6 +145,25 @@ func run(ctx context.Context, migrateOnly bool) error {
 			filament.Field{Key: "event.name", Value: "server.stopping"})
 		return shutdown()
 	}
+}
+
+// serverOptions configures the API. A nil identity provider leaves it
+// unauthenticated and nil webhooks leave endpoint configuration off.
+func serverOptions(deps boot.Deps, metricStore filament.MetricsStore, identityProvider authn.Authenticator, webhooks *webhookReceiver) []server.Option {
+	opts := []server.Option{
+		server.WithSecrets(deps.Secrets),
+		server.WithMetricsStore(metricStore),
+		server.WithLogger(deps.Log),
+		server.WithDefaultTenant(filament.TenantID(defaultTenantID())),
+		server.WithAlchemy(deps.Alchemy.Client),
+	}
+	if identityProvider != nil {
+		opts = append(opts, server.WithIdentity(identityProvider))
+	}
+	if webhooks != nil {
+		opts = append(opts, webhooks.apiOption())
+	}
+	return opts
 }
 
 // mountRoutes serves the API and the UI rendered with uiConfig.
