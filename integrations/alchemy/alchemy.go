@@ -268,8 +268,11 @@ func (c *Client) invokeOnce(ctx context.Context, ref transform.FunctionRef, inpu
 // retryable reports a failure that never reached the function or that alchemy asks to retry.
 func retryable(err error) bool {
 	switch connect.CodeOf(err) {
-	case connect.CodeUnavailable, connect.CodeResourceExhausted, connect.CodeAborted:
+	case connect.CodeUnavailable, connect.CodeAborted:
 		return true
+	case connect.CodeResourceExhausted:
+		// Only alchemy's own limit is worth retrying; the client's read cap fails the same way every time.
+		return connect.IsWireError(err)
 	}
 	return false
 }

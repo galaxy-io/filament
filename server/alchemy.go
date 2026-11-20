@@ -28,6 +28,9 @@ const alchemyRuntimesTTL = time.Minute
 // alchemyRPCTimeout bounds a catalog call, so a stalled alchemy fails the picker instead of hanging it.
 const alchemyRPCTimeout = 30 * time.Second
 
+// alchemyRuntimesTimeout bounds the runtime lookup that only decorates a response.
+const alchemyRuntimesTimeout = 5 * time.Second
+
 // runtimeCache holds the last runtime list alchemy returned.
 type runtimeCache struct {
 	mu      sync.Mutex
@@ -153,6 +156,9 @@ func (a *Server) alchemyRuntimes(ctx context.Context) map[string]*functionsv1.Ru
 	if cached != nil && time.Since(at) < alchemyRuntimesTTL {
 		return cached
 	}
+	// A shorter deadline keeps a stalled lookup from spending the time the caller's real call needs.
+	ctx, cancel := context.WithTimeout(ctx, alchemyRuntimesTimeout)
+	defer cancel()
 	out, err := a.alchemy.Functions().ListRuntimes(ctx, connect.NewRequest(&functionsv1.ListRuntimesRequest{}))
 	if err != nil {
 		if a.log != nil {
