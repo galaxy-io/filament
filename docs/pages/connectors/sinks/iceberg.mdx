@@ -29,6 +29,7 @@ catalog. Rows remain staged until their resource commits.
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before upsert, delete, and merge runs spill to temp files |
 | `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
+| `commit_concurrency` | Pipeline | `8` | Append and replace tables committed at once, from 1 through 64. Upsert, delete, and merge tables commit one at a time |
 
 A `namespace` left empty is defaulted server-side to the normalized source
 connection name.
@@ -153,11 +154,21 @@ then set `write.merge.mode` and `write.delete.mode` to `copy-on-write` on the
 table.
 
 Written files and buffered rows are invisible until their resource transaction
-commits. A run
-with several resources commits them sequentially, so a later resource can fail
-after an earlier one is already visible. Repeating `Commit` on the same open
-sink skips resources it already committed, but the engine does not provide one
-atomic transaction or exactly-once boundary across the route.
+commits. Each table commits in its own transaction. At commit the sink checks
+every resource first, then commits up to `commit_concurrency` append and replace
+tables at once, then upsert, delete, and merge tables one at a time, since those
+rewrite existing data files. Each commit costs several catalog and storage round
+trips, so committing tables in parallel shortens the commit of a run with many
+tables.
+
+If one table fails to commit, the sink starts no further commits, lets those
+already in flight finish, and fails the run. Tables that committed before the
+failure stay visible, so a later table can fail after an earlier one is
+already visible. The engine does not provide one atomic transaction or
+exactly-once boundary across the route.
+
+A catalog that serializes writes, such as the SQL catalog on SQLite, needs a
+busy timeout in its connection string or `commit_concurrency` set to `1`.
 
 ## Failure behavior
 
