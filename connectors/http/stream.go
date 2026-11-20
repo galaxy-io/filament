@@ -50,9 +50,9 @@ func (c *Connector) streamResource(
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
-		return 0, fmt.Errorf("stream %s/%s %s HTTP %d: %s",
+		return 0, &statusError{status: resp.StatusCode, msg: fmt.Sprintf("stream %s/%s %s HTTP %d: %s",
 			c.manifest.Name, res.Name, req.URL.Redacted(),
-			resp.StatusCode, errs.FormatTruncated(string(body)))
+			resp.StatusCode, errs.FormatTruncated(string(body)))}
 	}
 
 	resourceName, err := emittedResourceName(res, parent, c.env)

@@ -22,7 +22,7 @@ func (s *Store) CreatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if err != nil {
 		return nil, err
 	}
-	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(), ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg})
+	createdAt, err := s.q.CreatePipeline(ctx, sqlcgen.CreatePipelineParams{PipelineID: p.GetId(), TenantID: p.GetTenantId(), Name: p.GetName(), Description: p.GetDescription(), ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, FailOnError: p.GetFailOnError()})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
 	}
@@ -54,6 +54,7 @@ func (s *Store) CreatePipelineWithSchedule(ctx context.Context, p *ingestionv1.P
 		Description:         p.GetDescription(),
 		ExecutionMode:       int32(p.GetExecutionMode()),
 		WorkerConfiguration: workerCfg,
+		FailOnError:         p.GetFailOnError(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: create pipeline: %w", err)
@@ -99,7 +100,11 @@ func (s *Store) UpdatePipeline(ctx context.Context, p *ingestionv1.Pipeline) (*i
 	if err != nil {
 		return nil, err
 	}
-	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg})
+	setting := pgtype.Bool{}
+	if p.FailOnError != nil {
+		setting = pgtype.Bool{Bool: p.GetFailOnError(), Valid: true}
+	}
+	n, err := s.q.UpdatePipeline(ctx, sqlcgen.UpdatePipelineParams{TenantID: p.GetTenantId(), PipelineID: p.GetId(), Name: p.GetName(), Description: p.GetDescription(), ExecutionMode: int32(p.GetExecutionMode()), WorkerConfiguration: workerCfg, FailOnError: setting})
 	if err != nil {
 		return nil, fmt.Errorf("datastore/postgres: update pipeline: %w", err)
 	}
@@ -121,6 +126,7 @@ func (s *Store) LoadPipeline(ctx context.Context, tenant filament.TenantID, id s
 	}
 	out := pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
 	out.ExecutionMode = ingestionv1.ExecutionMode(row.ExecutionMode)
+	out.FailOnError = &row.FailOnError
 	if row.CurrentVersionID.Valid {
 		out.CurrentVersion, err = s.LoadPipelineVersion(ctx, tenant, row.ID, 0)
 		if err != nil {
@@ -203,6 +209,7 @@ func (s *Store) ListPipelines(ctx context.Context, f filament.PipelineFilter) ([
 	for i, row := range rows {
 		out[i] = pipelineFromRow(row.ID, row.TenantID, row.Name, row.Description)
 		out[i].ExecutionMode = ingestionv1.ExecutionMode(row.ExecutionMode)
+		out[i].FailOnError = &row.FailOnError
 		if row.CurrentVersionID.Valid {
 			out[i].CurrentVersion, err = s.LoadPipelineVersion(ctx, filament.TenantID(row.TenantID), row.ID, 0)
 			if err != nil {

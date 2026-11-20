@@ -107,6 +107,7 @@ interface PipelineTransformFieldsProviderProps {
   onChange: (definition: TransformDefinition | undefined) => void;
   resource: Resource["name"];
   columns: ResourceColumn[];
+  columnSelection: ResourceColumn["name"][];
   sourceConnectionId: Connection["id"];
   isReadOnly?: boolean;
 }
@@ -118,6 +119,7 @@ const PipelineTransformFieldsProvider: FC<
   onChange,
   resource,
   columns,
+  columnSelection,
   sourceConnectionId,
   isReadOnly = false,
   children,
@@ -179,12 +181,21 @@ const PipelineTransformFieldsProvider: FC<
     () => ({
       resource,
       columns,
+      columnSelection,
       sourceConnectionId,
       functionsByName,
       grammarVersion: catalog.grammarVersion,
       isReadOnly,
     }),
-    [resource, columns, sourceConnectionId, functionsByName, catalog.grammarVersion, isReadOnly],
+    [
+      resource,
+      columns,
+      columnSelection,
+      sourceConnectionId,
+      functionsByName,
+      catalog.grammarVersion,
+      isReadOnly,
+    ],
   );
 
   return (

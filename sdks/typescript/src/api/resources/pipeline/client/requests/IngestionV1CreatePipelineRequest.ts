@@ -21,4 +21,6 @@ export interface IngestionV1CreatePipelineRequest {
     workerConfiguration?: Filament.IngestionV1WorkerConfiguration;
     /** Unspecified defaults to bounded. */
     executionMode?: Filament.IngestionV1ExecutionMode;
+    /** Defaults to false, which isolates resource failures in bounded runs. */
+    failOnError?: boolean;
 }

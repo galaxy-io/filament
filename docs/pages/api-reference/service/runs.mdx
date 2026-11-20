@@ -45,6 +45,12 @@ a resync of a resource the subset leaves out, a subset on a continuous run and
 part of a change stream route are each rejected with `invalid_argument`. A
 change stream route runs all of its resources or none.
 
+`options.fail_on_error` overrides the pipeline's `fail_on_error` setting for
+this start. Omit it to inherit the pipeline setting. False isolates a failed
+resource and lets the others commit. True stops the run at the first resource
+failure. Change stream routes and continuous runs always stop. See
+[Runs and recovery](/pages/guides/concepts/runs-and-recovery#resource-failure-isolation).
+
 A zero value asks the engine or sink to choose its normal default:
 
 | Field | Current behavior |
@@ -65,9 +71,13 @@ A zero value asks the engine or sink to choose its normal default:
 | `RUNNING` | Owned by a worker |
 | `PARTIAL` | Failed with route-wide resumable progress |
 | `PAUSED` | Stopped intentionally and eligible for resume |
-| `COMPLETED` | Committed successfully |
+| `COMPLETED` | Committed successfully. `failed_resources` names any resources that failed and were isolated |
 | `FAILED` | Failed without a safe same-run continuation |
 | `CANCELED` | Intentionally aborted |
+
+A `COMPLETED` run with a non-empty `failed_resources` committed every other
+resource. The UI shows it as Partial, but its status stays `COMPLETED` and it does not resume. `GetRun` returns each
+resource's status and error.
 
 `PARTIAL` does not mean that any checkpoint happened to exist. Every resource in
 the route must meet the safe-resume rules. See
