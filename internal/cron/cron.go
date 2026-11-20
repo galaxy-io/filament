@@ -158,6 +158,10 @@ func parsePart(part string, minVal, maxVal int) (uint64, error) {
 	var bits uint64
 	for v := lo; v <= hi; v += step {
 		bits |= 1 << uint(v)
+		// Stop before adding a step that would leave the range or overflow int.
+		if step > hi-v {
+			break
+		}
 	}
 	return bits, nil
 }
