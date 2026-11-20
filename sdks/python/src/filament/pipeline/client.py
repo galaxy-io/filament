@@ -59,6 +59,7 @@ class PipelineClient:
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1CreatePipelineResponse:
         """
@@ -81,6 +82,9 @@ class PipelineClient:
 
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified defaults to bounded.
+
+        fail_on_error : typing.Optional[bool]
+            Defaults to false, which isolates resource failures in bounded runs.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -109,6 +113,7 @@ class PipelineClient:
             schedule=schedule,
             worker_configuration=worker_configuration,
             execution_mode=execution_mode,
+            fail_on_error=fail_on_error,
             request_options=request_options,
         )
         return _response.data
@@ -362,6 +367,7 @@ class PipelineClient:
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1UpdatePipelineResponse:
         """
@@ -380,6 +386,9 @@ class PipelineClient:
 
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified preserves the saved mode; affects future starts only.
+
+        fail_on_error : typing.Optional[bool]
+            Omit to preserve the saved setting.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -408,6 +417,7 @@ class PipelineClient:
             description=description,
             worker_configuration=worker_configuration,
             execution_mode=execution_mode,
+            fail_on_error=fail_on_error,
             request_options=request_options,
         )
         return _response.data
@@ -514,6 +524,7 @@ class AsyncPipelineClient:
         schedule: typing.Optional[IngestionV1PipelineScheduleConfig] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1CreatePipelineResponse:
         """
@@ -536,6 +547,9 @@ class AsyncPipelineClient:
 
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified defaults to bounded.
+
+        fail_on_error : typing.Optional[bool]
+            Defaults to false, which isolates resource failures in bounded runs.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -572,6 +586,7 @@ class AsyncPipelineClient:
             schedule=schedule,
             worker_configuration=worker_configuration,
             execution_mode=execution_mode,
+            fail_on_error=fail_on_error,
             request_options=request_options,
         )
         return _response.data
@@ -857,6 +872,7 @@ class AsyncPipelineClient:
         description: typing.Optional[str] = OMIT,
         worker_configuration: typing.Optional[IngestionV1WorkerConfiguration] = OMIT,
         execution_mode: typing.Optional[IngestionV1ExecutionMode] = OMIT,
+        fail_on_error: typing.Optional[bool] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1UpdatePipelineResponse:
         """
@@ -875,6 +891,9 @@ class AsyncPipelineClient:
 
         execution_mode : typing.Optional[IngestionV1ExecutionMode]
             Unspecified preserves the saved mode; affects future starts only.
+
+        fail_on_error : typing.Optional[bool]
+            Omit to preserve the saved setting.
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -911,6 +930,7 @@ class AsyncPipelineClient:
             description=description,
             worker_configuration=worker_configuration,
             execution_mode=execution_mode,
+            fail_on_error=fail_on_error,
             request_options=request_options,
         )
         return _response.data

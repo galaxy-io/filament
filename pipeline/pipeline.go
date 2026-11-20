@@ -67,6 +67,9 @@ type Config struct {
 	Contracts     transform.Contracts
 	Functions     transform.FunctionService
 	FunctionBatch FunctionBatch
+	// Failures decides whether a resource-scoped failure quarantines its
+	// resource or stops the run. The zero value stops the run.
+	Failures FailurePolicy
 }
 
 // FunctionBatch sizes and parallelizes alchemy calls; zero fields take the defaults.
@@ -118,7 +121,7 @@ type Pipeline struct {
 
 	nextSeq  func() uint64 // monotonic fact sequence for (tenant, run) dedup
 	pubMu    sync.Mutex    // serializes publish so concurrent writers emit facts safely
-	cancel   context.CancelFunc
+	cancel   context.CancelCauseFunc
 	done     chan struct{} // closed on cancel or fatal error; releases blocked builders
 	doneCh   sync.Once
 	tickStop chan struct{}
@@ -126,6 +129,11 @@ type Pipeline struct {
 	wg       sync.WaitGroup // writer pool; Wait blocks on these
 	twg      sync.WaitGroup // transformer pool; the writer channel closes after these
 	errVal   atomic.Pointer[error]
+
+	policy           FailurePolicy
+	gateMu           sync.Mutex
+	gates            map[string]*resourceGate
+	quarantinedCount atomic.Int32
 }
 
 // New builds a Pipeline from cfg, applying defaults. It does not start goroutines.
@@ -194,6 +202,8 @@ func New(cfg Config) *Pipeline {
 		done:             make(chan struct{}),
 		tickStop:         make(chan struct{}),
 		tickDone:         make(chan struct{}),
+		policy:           cfg.Failures,
+		gates:            make(map[string]*resourceGate),
 	}
 }
 
@@ -203,6 +213,9 @@ func (p *Pipeline) Records() arrowbatch.Inlet {
 	if p.stream != nil {
 		return p.stream
 	}
+	if p.policy.Isolate {
+		return isolatingInlet{&inlet{p: p}}
+	}
 	return &inlet{p: p}
 }
 
@@ -211,7 +224,7 @@ func (p *Pipeline) Records() arrowbatch.Inlet {
 // Apply is called concurrently (one batch per writer), so a parallel run requires
 // a Sink whose Apply is concurrent-safe.
 func (p *Pipeline) Start(ctx context.Context) {
-	ctx, p.cancel = context.WithCancel(ctx)
+	ctx, p.cancel = context.WithCancelCause(ctx)
 	// Cancellation must also release the inlet, or a Source blocked on a full
 	// batch channel deadlocks the run.
 	go func() {
@@ -286,7 +299,11 @@ func (p *Pipeline) CloseIngest(extractErr error) {
 	if extractErr == nil && p.stream == nil {
 		p.registryMu.Lock()
 		builders := make([]*arrowbatch.Builder, 0, len(p.builders))
-		for _, builder := range p.builders {
+		for key, builder := range p.builders {
+			// A quarantined resource's rows are discarded, never flushed.
+			if p.gate(key.resource).quarantined() {
+				continue
+			}
 			builders = append(builders, builder)
 		}
 		p.registryMu.Unlock()
@@ -295,6 +312,11 @@ func (p *Pipeline) CloseIngest(extractErr error) {
 				continue
 			}
 			if err := b.Flush(); err != nil {
+				// Quarantined between the snapshot and this flush: the
+				// resource is already failed alone, not the run.
+				if errors.Is(err, filament.ErrResourceQuarantined) {
+					continue
+				}
 				p.setErr(err)
 				break
 			}
@@ -316,7 +338,7 @@ func (p *Pipeline) CloseIngest(extractErr error) {
 // first fatal error.
 func (p *Pipeline) Wait() error {
 	p.wg.Wait()
-	p.cancel()
+	p.cancel(nil)
 	return p.Err()
 }
 
@@ -328,12 +350,14 @@ func (p *Pipeline) Err() error {
 	return nil
 }
 
-// setErr records the first fatal error, signals the inlet, and cancels the loop.
+// setErr records the first fatal error, signals the inlet, and cancels the
+// loop with that error as the context cause. Outside the serial stream path,
+// only the arbiter (report) calls it.
 func (p *Pipeline) setErr(err error) {
 	p.errVal.CompareAndSwap(nil, &err)
 	p.doneCh.Do(func() { close(p.done) })
 	if p.cancel != nil {
-		p.cancel()
+		p.cancel(err)
 	}
 }
 

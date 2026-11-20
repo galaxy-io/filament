@@ -20,8 +20,11 @@ import {
   RunStatus,
 } from "@/gen/ingestion/v1/runs_pb";
 
+import PipelineRunStatus from "@/components/runs/PipelineRunStatus";
+
 import PipelineHistoryRunInfoConnectionColumn from "@/pages/pipelines/history/components/PipelineHistoryRunInfoConnectionColumn";
 import {
+  PIPELINE_HISTORY_RUN_INFO_COLUMN_WIDTH_STATUS,
   PIPELINE_HISTORY_RUN_INFO_LOADING_WIDTH,
   PIPELINE_HISTORY_RUN_INFO_TABLE_INSET,
   PIPELINE_HISTORY_RUN_TABLE_COLUMN_WIDTH_DURATION,
@@ -58,6 +61,12 @@ const PipelineHistoryRunInfo: FC<PipelineHistoryRunInfoProps> = ({ runId }) => {
             resourceName={row.resourceName}
           />
         ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        width: PIPELINE_HISTORY_RUN_INFO_COLUMN_WIDTH_STATUS,
+        cell: ({ row }) => <PipelineRunStatus status={row.status} error={row.error} />,
       },
       {
         id: "sink",
