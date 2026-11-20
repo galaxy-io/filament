@@ -1,0 +1,57 @@
+---
+title: "App Store Connect source connector"
+sidebarTitle: "App Store Connect"
+description: "Full and incremental reads of Apple App Store Connect apps, customer reviews, analytics report segments, and daily sales reports with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-apple-dark.svg"
+---
+
+Connector ID `appstoreconnect`
+
+The App Store Connect source reads app catalog metadata, customer reviews,
+analytics report segments, and daily sales reports using Apple's ES256 JWT
+authentication and in-memory gzipped TSV parser.
+
+## Configuration
+
+| Field | Scope | Description |
+|---|---|---|
+| `issuer_id` | Connection | Required. App Store Connect API Issuer ID (UUID). |
+| `key_id` | Connection | Required. 10-character App Store Connect Key ID. |
+| `private_key` | Connection | Required. Secret. PKCS#8 ECDSA P-256 private key (`.p8` PEM contents). |
+| `vendor_number` | Connection | Optional. Required only when extracting `sales_reports`. |
+| `app_ids` | Connection | Optional. Comma-separated App Store Connect app IDs filter. Applies to `apps`, `customer_reviews`, and `analytics_reports` only. `sales_reports` ignores this filter and returns rows for all apps under `vendor_number`. |
+| `start_date` | Connection | Optional. `YYYY-MM-DD` initial backfill start date for `sales_reports` (defaults to 30 days ago UTC through yesterday UTC). |
+| `requests_per_second` | Connection | Optional. Maximum API requests per second (default `2`). |
+
+## Resources
+
+Enabled by default: **apps, customer_reviews, and analytics_reports**.
+
+Optional resources: **sales_reports** (requires `vendor_number`).
+
+## Incremental
+
+`customer_reviews` checkpoints `created_at`, `analytics_reports` checkpoints
+`processing_date`, and `sales_reports` checkpoints `report_date`. `apps`
+is a full-refresh catalog resource. Changing `app_ids` automatically resets the
+saved watermark for `customer_reviews` and `analytics_reports` so newly added
+apps are backfilled from the beginning.
+
+For deterministic upserts across re-reads, `analytics_reports` builds its
+primary key `id` from `<app_id>:<report_name>:<event_date>:<dimension_hash>` (falling back to `<processing_date>` when a report has no date dimension column)
+(where `<dimension_hash>` is the hex-encoded 128-bit SHA-256 prefix of the
+explicit Apple dimension columns for that report category, excluding measure
+columns so restated metrics replace the existing row on upsert), and
+`sales_reports` builds `id` from the Summary Sales Report dimension columns
+(including `Provider`, `Provider Country`, `SKU`, `Version`,
+`Product Type Identifier`, `Begin Date`, `End Date`, `Customer Currency`,
+`Country Code`, `Currency of Proceeds`, `Apple Identifier`, `Customer Price`,
+`Promo Code`, `Parent Identifier`, `Subscription`, `Period`, `Category`,
+`CMB`, `Device`, `Supported Platforms`, `Proceeds Reason`,
+`Preserved Pricing`, `Client`, and `Order Type`).
+
+<Note>
+  Reviews, analytics, and sales report extraction are currently validated
+  against wire fixtures and have not been validated against a live App Store
+  Connect account yet.
+</Note>

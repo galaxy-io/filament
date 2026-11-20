@@ -1,0 +1,146 @@
+package appstoreconnect
+
+import (
+	"context"
+	"fmt"
+	"math"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/checkpoint"
+)
+
+var initialWatermark = time.Unix(0, 0).UTC()
+
+const defaultLookback = 24 * time.Hour
+
+// CursorColumns exposes the modification/report timestamp supported by each incremental resource.
+func (s *Source) CursorColumns(_ context.Context, name string) ([]filament.CursorColumn, error) {
+	r, err := lookupResource(name)
+	if err != nil {
+		return nil, err
+	}
+	if r.cursorCol == "" {
+		return nil, nil
+	}
+	fields := schemaFor(r).Fields
+	return []filament.CursorColumn{{
+		SchemaField:      fields[len(fields)-1],
+		Eligible:         true,
+		Recommended:      true,
+		Rank:             1,
+		SupportsLookback: true,
+		Warning:          "Interrupted reads replay the previous interval; use upsert to reconcile overlapping records",
+	}}, nil
+}
+
+// PlanResume restarts full reads from the beginning.
+func (s *Source) PlanResume(_ context.Context, names []string, _ map[string]filament.Checkpoint) (map[string]filament.Checkpoint, error) {
+	for _, name := range names {
+		if _, err := lookupResource(name); err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
+
+func (s *Source) canonicalAppIDs() string {
+	if len(s.appIDs) == 0 {
+		return ""
+	}
+	sorted := slices.Clone(s.appIDs)
+	slices.Sort(sorted)
+	sorted = slices.Compact(sorted)
+	return strings.Join(sorted, ",")
+}
+
+// PlanIncremental preserves completed watermarks and seeds initial backfills.
+// When app_ids changes on an app-scoped resource (customer_reviews, analytics_reports),
+// the watermark resets to initialWatermark so newly selected apps are backfilled from the beginning.
+func (s *Source) PlanIncremental(_ context.Context, names []string, previous map[string]filament.Checkpoint, cursors map[string]filament.ResourceCursorConfig) (map[string]filament.Checkpoint, error) {
+	plans := make(map[string]filament.Checkpoint, len(names))
+	if s.lookbacks == nil {
+		s.lookbacks = make(map[string]time.Duration)
+	}
+	appScope := s.canonicalAppIDs()
+	for _, name := range names {
+		r, err := lookupResource(name)
+		if err != nil {
+			return nil, err
+		}
+		if r.cursorCol == "" {
+			return nil, fmt.Errorf("appstoreconnect source: %s supports full reads only", name)
+		}
+		lookback := defaultLookback
+		if config, ok := cursors[name]; ok {
+			if config.Field != "" && config.Field != r.cursorCol {
+				return nil, fmt.Errorf("appstoreconnect source: %s cursor must be %s", name, r.cursorCol)
+			}
+			if config.LookbackSeconds < 0 || config.LookbackSeconds > math.MaxInt64/int64(time.Second) {
+				return nil, fmt.Errorf("appstoreconnect source: %s lookback is out of range", name)
+			}
+			lookback = time.Duration(config.LookbackSeconds) * time.Second
+		}
+		s.lookbacks[name] = lookback
+		mark := initialWatermark
+		if previous[name] != nil {
+			prevMark, prevApps, err := parseWatermarkWithApps(name, previous[name])
+			if err != nil {
+				return nil, err
+			}
+			if name == "sales_reports" || prevApps == appScope {
+				mark = prevMark
+			}
+		}
+		plans[name] = watermarkPlanWithApps(name, mark, appScope)
+	}
+	return plans, nil
+}
+
+func watermarkPlan(name string, mark time.Time) *filament.CheckpointData {
+	return watermarkPlanWithApps(name, mark, "")
+}
+
+func watermarkPlanWithApps(name string, mark time.Time, appScope string) *filament.CheckpointData {
+	r, _ := lookupResource(name)
+	col := r.cursorCol
+	if col == "" {
+		col = "created_at"
+	}
+	var meta map[string]string
+	if name != "sales_reports" && appScope != "" {
+		meta = map[string]string{"app_ids": appScope}
+	}
+	return (checkpoint.KeysetCheckpoint{
+		Mode:   checkpoint.ModeIncremental,
+		Cols:   []string{col},
+		Types:  []string{"timestamptz"},
+		Shards: []checkpoint.KeysetShard{{Key: []string{mark.UTC().Format(time.RFC3339Nano)}}},
+		Meta:   meta,
+	}).ToCheckpoint(name)
+}
+
+func planWatermark(name string, cp filament.Checkpoint) (time.Time, error) {
+	mark, _, err := parseWatermarkWithApps(name, cp)
+	return mark, err
+}
+
+func parseWatermarkWithApps(name string, cp filament.Checkpoint) (time.Time, string, error) {
+	r, err := lookupResource(name)
+	if err != nil {
+		return time.Time{}, "", err
+	}
+	plan, ok := checkpoint.ParseKeyset(cp)
+	if !ok || cp.Resource() != name || plan.Mode != checkpoint.ModeIncremental ||
+		!slices.Equal(plan.Cols, []string{r.cursorCol}) || !slices.Equal(plan.Types, []string{"timestamptz"}) ||
+		len(plan.Shards) != 1 || len(plan.Shards[0].Key) != 1 {
+		return time.Time{}, "", fmt.Errorf("appstoreconnect source: incompatible checkpoint for %s; reset the resource checkpoint", name)
+	}
+	mark, err := time.Parse(time.RFC3339Nano, plan.Shards[0].Key[0])
+	if err != nil || mark.Before(initialWatermark) {
+		return time.Time{}, "", fmt.Errorf("appstoreconnect source: invalid checkpoint timestamp for %s", name)
+	}
+	return mark, plan.Meta["app_ids"], nil
+}

@@ -161,6 +161,7 @@
               "pages/connectors/sources/nats",
               "pages/connectors/sources/webhook",
               "pages/connectors/sources/apollo",
+              "pages/connectors/sources/appstoreconnect",
               "pages/connectors/sources/asana",
               "pages/connectors/sources/attio",
               "pages/connectors/sources/fhir",
