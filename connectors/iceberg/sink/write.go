@@ -7,6 +7,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/array"
+	iceberg "github.com/apache/iceberg-go"
 	"github.com/apache/iceberg-go/table"
 
 	"github.com/galaxy-io/filament"
@@ -126,11 +127,13 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 		deleteIDs    []int
 		deleteSchema *arrow.Schema
 	)
-	if mergeOnRead(it.tbl, mode) {
+	if mergeOnRead(it.tbl, mode, rb.policy.Keys) {
 		var err error
 		if deleteIDs, deleteSchema, err = equalityDeleteSchema(it, rb.policy.Keys); err != nil {
 			return err
 		}
+	} else if hasEqualityDeletes(it.tbl) {
+		return fmt.Errorf("%s: table has equality deletes that a copy-on-write rewrite would drop; compact them or set the table back to merge-on-read", mode)
 	}
 	m, err := foldMutations(ctx, it, rb, rb.policy.Keys, arrowSchema, deleteSchema)
 	if err != nil {
@@ -172,8 +175,9 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 // governs upsert and merge, write.delete.mode pure deletes. Iceberg defaults
 // both to copy-on-write. Format v1 tables cannot hold delete files, and a
 // partitioned delete must land in the partition of the row it shadows, which an
-// update may have moved, so both fall back to copy-on-write.
-func mergeOnRead(tbl *table.Table, mode writeMode) bool {
+// update may have moved, so both fall back to copy-on-write. Floating-point
+// columns cannot be equality-delete keys, so a float key falls back too.
+func mergeOnRead(tbl *table.Table, mode writeMode, keys []string) bool {
 	key := writeMergeModeKey
 	if mode == writeModeDelete {
 		key = table.WriteDeleteModeKey
@@ -181,7 +185,26 @@ func mergeOnRead(tbl *table.Table, mode writeMode) bool {
 	if tbl.Properties().Get(key, table.WriteModeCopyOnWrite) != table.WriteModeMergeOnRead {
 		return false
 	}
-	return tbl.Metadata().Version() >= 2 && tbl.Spec().IsUnpartitioned()
+	if tbl.Metadata().Version() < 2 || !tbl.Spec().IsUnpartitioned() {
+		return false
+	}
+	for _, k := range keys {
+		if field, ok := tbl.Schema().FindFieldByName(k); ok {
+			switch field.Type.(type) {
+			case iceberg.Float32Type, iceberg.Float64Type:
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// hasEqualityDeletes reports whether the current snapshot carries equality
+// deletes. iceberg-go's copy-on-write rewrite reads data files without their
+// delete files, so rewriting such a table would resurrect deleted rows.
+func hasEqualityDeletes(tbl *table.Table) bool {
+	snap := tbl.CurrentSnapshot()
+	return snap != nil && snap.Summary != nil && snap.Summary.Properties.GetInt("total-equality-deletes", 0) > 0
 }
 
 // equalityDeleteSchema resolves the key columns to field IDs and the Arrow

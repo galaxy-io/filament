@@ -132,14 +132,17 @@ uses current storage credentials, then opens one Iceberg transaction:
   the change instead of the table. Under `copy-on-write`, the Iceberg default for tables the sink did not
   create, it rewrites every data file that may hold a touched key.
   The sink never compacts equality deletes into the data files, so run
-  compaction from the catalog or another engine. Partitioned tables and format version 1 tables always use
-  `copy-on-write`.
+  compaction from the catalog or another engine. Partitioned tables, format version 1 tables, and tables
+  keyed on a floating-point column always use `copy-on-write`. A `copy-on-write`
+  write fails while the table still has equality deletes, because the rewrite
+  would bring the deleted rows back.
 
 Query engines must read equality deletes to see `merge-on-read` tables
 correctly. Trino and Spark read them. Check any other engine before pointing it
 at these tables, or set `table.update_mode` to `copy-on-write` before the sink
-creates them. For a table that already exists, set `write.merge.mode` and
-`write.delete.mode` to `copy-on-write` on the table.
+creates them. For a table that already exists, compact its equality deletes,
+then set `write.merge.mode` and `write.delete.mode` to `copy-on-write` on the
+table.
 
 Buffered rows are invisible until their resource transaction commits. A run
 with several resources commits them sequentially, so a later resource can fail
