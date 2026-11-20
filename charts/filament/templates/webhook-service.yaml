@@ -1,0 +1,22 @@
+{{- if .Values.server.webhooks.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "filament.server.fullname" . }}-webhook
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.server.labels" . | nindent 4 }}
+  {{- with .Values.server.webhooks.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.server.webhooks.service.type }}
+  ports:
+    - name: webhooks
+      port: {{ .Values.server.webhooks.port }}
+      targetPort: webhooks
+      protocol: TCP
+  selector:
+    {{- include "filament.server.selectorLabels" . | nindent 4 }}
+{{- end }}

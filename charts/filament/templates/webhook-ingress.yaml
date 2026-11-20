@@ -1,0 +1,34 @@
+{{- if and .Values.server.webhooks.enabled .Values.server.webhooks.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "filament.server.fullname" . }}-webhook
+  namespace: {{ include "filament.namespace" . }}
+  labels:
+    {{- include "filament.server.labels" . | nindent 4 }}
+  {{- with .Values.server.webhooks.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- with .Values.server.webhooks.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.server.webhooks.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.server.webhooks.ingress.hosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /hooks/
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "filament.server.fullname" $ }}-webhook
+                port:
+                  name: webhooks
+    {{- end }}
+{{- end }}
