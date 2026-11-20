@@ -238,7 +238,12 @@ func (c *Client) invokeOnce(ctx context.Context, ref transform.FunctionRef, inpu
 	}
 	msg := resp.Msg
 	if fe := msg.GetError(); fe != nil {
-		return transform.Invocation{}, nil, &transform.FunctionError{InvocationID: msg.GetInvocationId(), Kind: fe.GetKind().String(), Message: fe.GetMessage()}
+		// A contract failure's message is generic; the violations say where it broke.
+		message := fe.GetMessage()
+		for _, v := range fe.GetViolations() {
+			message += fmt.Sprintf("; %s: %s", v.GetInstancePath(), v.GetMessage())
+		}
+		return transform.Invocation{}, nil, &transform.FunctionError{InvocationID: msg.GetInvocationId(), Kind: fe.GetKind().String(), Message: message}
 	}
 	if msg.GetVersion() != ref.Version {
 		return transform.Invocation{}, nil, fmt.Errorf("alchemy ran version %d, want %d", msg.GetVersion(), ref.Version)
