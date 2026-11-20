@@ -2,8 +2,16 @@ package motherduck
 
 import (
 	"context"
+	"database/sql"
+	"math"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/apache/arrow-go/v18/arrow/memory"
+	duckdb "github.com/marcboeker/go-duckdb/v2"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -192,4 +200,214 @@ func testSchema() filament.RecordSchema {
 		{Name: "id", Logical: filament.LogicalInt64},
 		{Name: "name", Logical: filament.LogicalString, Nullable: true},
 	}, PrimaryKey: []string{"id"}}
+}
+
+// Postgres infinity reaches the sink as the int32 and int64 sentinels.
+// DuckDB dates share the convention, except that its -infinity is -int32
+// max rather than int32 min, so only the negative sentinel shifts.
+func TestInfinityDateValues(t *testing.T) {
+	mem := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	defer mem.AssertSize(t, 0)
+
+	db := array.NewDate32Builder(mem)
+	db.AppendValues([]arrow.Date32{math.MaxInt32, math.MinInt32, 19723}, nil) // 19723 = 2024-01-01
+	col := db.NewArray()
+	defer col.Release()
+
+	fn := valueFor(arrow.Field{Name: "d", Type: arrow.FixedWidthTypes.Date32})
+	want := []time.Time{
+		time.Unix(int64(math.MaxInt32)*86400, 0).UTC(),  // DuckDB infinity
+		time.Unix(-int64(math.MaxInt32)*86400, 0).UTC(), // DuckDB -infinity
+		time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	for i, w := range want {
+		got, ok := fn(col, i).(time.Time)
+		if !ok || !got.Equal(w) {
+			t.Errorf("row %d = %#v, want %v", i, fn(col, i), w)
+		}
+	}
+}
+
+// DuckDB cannot take timestamp infinity through the appender, which accepts
+// time.Time only. Nullable fields keep NULL; NOT NULL fields clamp to the
+// widest finite timestamps the driver accepts, so one infinity value cannot
+// fail the whole batch at flush.
+func TestInfinityTimestampValues(t *testing.T) {
+	mem := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	defer mem.AssertSize(t, 0)
+
+	tb := array.NewTimestampBuilder(mem, &arrow.TimestampType{Unit: arrow.Microsecond})
+	tb.AppendValues([]arrow.Timestamp{math.MaxInt64, math.MinInt64, 1704067200000000}, nil)
+	col := tb.NewArray()
+	defer col.Release()
+
+	maxBound := time.Date(294246, 12, 31, 23, 59, 59, 999999000, time.UTC)
+	minBound := time.Date(-290307, 1, 1, 0, 0, 0, 0, time.UTC)
+	ordinary := time.Unix(1704067200, 0).UTC()
+
+	notNull := valueFor(arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond}})
+	for i, w := range []time.Time{maxBound, minBound, ordinary} {
+		got, ok := notNull(col, i).(time.Time)
+		if !ok || !got.Equal(w) {
+			t.Errorf("not null row %d = %#v, want %v", i, notNull(col, i), w)
+		}
+	}
+	nullable := valueFor(arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond}, Nullable: true})
+	for i := 0; i < 2; i++ {
+		if got := nullable(col, i); got != nil {
+			t.Errorf("nullable row %d = %#v, want nil", i, got)
+		}
+	}
+	if got, ok := nullable(col, 2).(time.Time); !ok || !got.Equal(ordinary) {
+		t.Errorf("nullable row 2 = %#v, want %v", nullable(col, 2), ordinary)
+	}
+}
+
+// The whole batch must land: infinity dates through the sink's own
+// converters and appender, into the NOT NULL column shape the sink creates
+// for required fields, and into a nullable column as infinity, not NULL.
+func TestInfinityDatesLandInDuckDB(t *testing.T) {
+	mem := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	defer mem.AssertSize(t, 0)
+
+	db := array.NewDate32Builder(mem)
+	db.AppendValues([]arrow.Date32{math.MaxInt32, math.MinInt32, 19723}, nil)
+	col := db.NewArray()
+	defer col.Release()
+	fn := valueFor(arrow.Field{Name: "d", Type: arrow.FixedWidthTypes.Date32})
+
+	conn, ctx := duckDBTestConn(t)
+	for _, table := range []string{"dates_not_null", "dates_nullable"} {
+		ddl := "CREATE TABLE " + table + " (d DATE NOT NULL)"
+		if table == "dates_nullable" {
+			ddl = "CREATE TABLE " + table + " (d DATE)"
+		}
+		if _, err := conn.ExecContext(ctx, ddl); err != nil {
+			t.Fatalf("create %s: %v", table, err)
+		}
+		app := duckDBTestAppender(t, conn, table)
+		for i := range 3 {
+			if err := app.AppendRow(fn(col, i)); err != nil {
+				t.Fatalf("%s append row %d: %v", table, i, err)
+			}
+		}
+		if err := app.Flush(); err != nil {
+			t.Fatalf("%s flush: %v", table, err)
+		}
+		if err := app.Close(); err != nil {
+			t.Fatalf("%s close appender: %v", table, err)
+		}
+		rows, err := conn.QueryContext(ctx, "SELECT d::VARCHAR, isinf(d) FROM "+table+" ORDER BY d")
+		if err != nil {
+			t.Fatalf("%s select: %v", table, err)
+		}
+		var got []string
+		for rows.Next() {
+			var s string
+			var inf bool
+			if err := rows.Scan(&s, &inf); err != nil {
+				t.Fatalf("%s scan: %v", table, err)
+			}
+			got = append(got, s)
+			if !inf && s == "2024-01-01" {
+				continue
+			}
+			if !inf {
+				t.Errorf("%s stored %q, want an infinity date", table, s)
+			}
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			t.Fatalf("%s rows: %v", table, err)
+		}
+		want := []string{"-infinity", "2024-01-01", "infinity"}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("%s stored %v, want %v", table, got, want)
+		}
+	}
+}
+
+// The clamped timestamps must land in a NOT NULL column alongside ordinary
+// rows, with their exact microsecond values intact.
+func TestInfinityTimestampsLandInDuckDB(t *testing.T) {
+	mem := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	defer mem.AssertSize(t, 0)
+
+	tb := array.NewTimestampBuilder(mem, &arrow.TimestampType{Unit: arrow.Microsecond})
+	tb.AppendValues([]arrow.Timestamp{math.MaxInt64, math.MinInt64, 1704067200000000}, nil)
+	col := tb.NewArray()
+	defer col.Release()
+	fn := valueFor(arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond}})
+
+	conn, ctx := duckDBTestConn(t)
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE stamps (ts TIMESTAMP NOT NULL)"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	app := duckDBTestAppender(t, conn, "stamps")
+	for i := range 3 {
+		if err := app.AppendRow(fn(col, i)); err != nil {
+			t.Fatalf("append row %d: %v", i, err)
+		}
+	}
+	if err := app.Flush(); err != nil {
+		t.Fatalf("flush: %v", err)
+	}
+	if err := app.Close(); err != nil {
+		t.Fatalf("close appender: %v", err)
+	}
+	rows, err := conn.QueryContext(ctx, "SELECT ts FROM stamps ORDER BY ts")
+	if err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	defer rows.Close()
+	wantMicros := []int64{-9223371158400000000, 1704067200000000, 9223371244799999999}
+	var gotMicros []int64
+	for rows.Next() {
+		var v time.Time
+		if err := rows.Scan(&v); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		gotMicros = append(gotMicros, v.UnixMicro())
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("rows: %v", err)
+	}
+	if len(gotMicros) != len(wantMicros) {
+		t.Fatalf("stored %d rows, want %d", len(gotMicros), len(wantMicros))
+	}
+	for i := range wantMicros {
+		if gotMicros[i] != wantMicros[i] {
+			t.Errorf("row %d micros = %d, want %d", i, gotMicros[i], wantMicros[i])
+		}
+	}
+}
+
+func duckDBTestConn(t *testing.T) (*sql.Conn, context.Context) {
+	t.Helper()
+	sqlDB, err := sql.Open("duckdb", "")
+	if err != nil {
+		t.Fatalf("open duckdb: %v", err)
+	}
+	t.Cleanup(func() { sqlDB.Close() })
+	ctx := context.Background()
+	conn, err := sqlDB.Conn(ctx)
+	if err != nil {
+		t.Fatalf("conn: %v", err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	return conn, ctx
+}
+
+func duckDBTestAppender(t *testing.T, conn *sql.Conn, table string) *duckdb.Appender {
+	t.Helper()
+	var app *duckdb.Appender
+	err := conn.Raw(func(dc any) error {
+		var e error
+		app, e = duckdb.NewAppender(dc.(*duckdb.Conn), "", "main", table)
+		return e
+	})
+	if err != nil {
+		t.Fatalf("appender %s: %v", table, err)
+	}
+	return app
 }

@@ -57,6 +57,15 @@ func columnType(field rowmodel.Field) string {
 	}
 }
 
+// The widest finite timestamps a Postgres infinity sentinel lands as in a
+// NOT NULL column. DuckDB timestamp infinity cannot be delivered instead:
+// go-duckdb's appender takes time.Time only and rejects the sentinel years,
+// and a nil would fail the whole batch at flush.
+var (
+	maxTimestampValue = time.Date(294246, 12, 31, 23, 59, 59, 999999000, time.UTC)
+	minTimestampValue = time.Date(-290307, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
 // valueFn returns row i of a column as the value the appender receives.
 type valueFn func(col arrow.Array, i int) driver.Value
 
@@ -100,8 +109,13 @@ func valueFor(f arrow.Field) valueFn {
 	case arrow.DATE32:
 		return func(col arrow.Array, i int) driver.Value {
 			days := int64(col.(*array.Date32).Value(i))
-			if days == math.MaxInt32 || days == math.MinInt32 { // Postgres infinity has no DuckDB form
-				return nil
+			if days == math.MinInt32 {
+				// Postgres -infinity is int32 min, but DuckDB -infinity
+				// is -int32 max. Shift one day so the value lands as
+				// -infinity, not as a finite date in 5877642 BC.
+				// Postgres infinity is int32 max, which is DuckDB
+				// infinity too, so it passes through unchanged.
+				days = -math.MaxInt32
 			}
 			return time.Unix(days*86400, 0).UTC()
 		}
@@ -112,8 +126,17 @@ func valueFor(f arrow.Field) valueFn {
 	case arrow.TIMESTAMP:
 		return func(col arrow.Array, i int) driver.Value {
 			us := int64(col.(*array.Timestamp).Value(i))
-			if us == math.MaxInt64 || us == math.MinInt64 {
-				return nil
+			switch us {
+			case math.MaxInt64: // Postgres infinity
+				if f.Nullable {
+					return nil
+				}
+				return maxTimestampValue
+			case math.MinInt64: // Postgres -infinity
+				if f.Nullable {
+					return nil
+				}
+				return minTimestampValue
 			}
 			return time.Unix(us/microsPerSecond, us%microsPerSecond*1000).UTC()
 		}
