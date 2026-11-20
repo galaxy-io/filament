@@ -13,6 +13,7 @@ import PipelineTransformFieldsIssuesChip from "@/pages/pipelines/components/tran
 interface PipelineTransformFieldsStepFooterProps {
   issues: string[];
   warnings: string[];
+  pending: string | null;
   typeSummary: string;
   isSaveDisabled: boolean;
   isDisabled: boolean;
@@ -24,6 +25,7 @@ interface PipelineTransformFieldsStepFooterProps {
 const PipelineTransformFieldsStepFooter: FC<PipelineTransformFieldsStepFooterProps> = ({
   issues,
   warnings,
+  pending,
   typeSummary,
   isSaveDisabled,
   isDisabled,
@@ -38,8 +40,8 @@ const PipelineTransformFieldsStepFooter: FC<PipelineTransformFieldsStepFooterPro
     fillWidth
   >
     <Flex alignItems={AlignItems.CENTER} gap={8} grow={1} minWidth={0}>
-      <PipelineTransformFieldsIssuesChip issues={issues} warnings={warnings} />
-      {issues.length === 0 && typeSummary !== "" && (
+      <PipelineTransformFieldsIssuesChip issues={issues} warnings={warnings} pending={pending} />
+      {issues.length === 0 && pending === null && typeSummary !== "" && (
         <Flex alignItems={AlignItems.CENTER} gap={4} minWidth={0}>
           <FlexItem shrink={0}>
             <Text size={TextSize.CAPTION} variant={TextVariant.PRIMARY}>

@@ -5,11 +5,13 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import { CONNECTOR_TILE_SIZE_TO_SIZE_MAP } from "@/components/connections/constants";
 import type { ConnectorTileSize } from "@/components/connections/types";
+import { createConnectorTileBadgeMask } from "@/components/connections/utils";
 
 const ConnectorTileFrame = styled.div<{
   $size: ConnectorTileSize;
   $isClickable: boolean;
   $isDeleted: boolean;
+  $hasBadge: boolean;
 }>`
   width: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
   height: ${({ $size }) => CONNECTOR_TILE_SIZE_TO_SIZE_MAP[$size]}px;
@@ -26,6 +28,8 @@ const ConnectorTileFrame = styled.div<{
     ${({ $isDeleted }) => ($isDeleted ? t.color.border.error : t.color.border.tertiary)};
 
   overflow: hidden;
+
+  mask-image: ${({ $size, $hasBadge }) => ($hasBadge ? createConnectorTileBadgeMask($size) : "none")};
 
   cursor: ${({ $isClickable }) => ($isClickable ? "pointer" : "inherit")};
 

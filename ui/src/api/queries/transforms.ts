@@ -1,4 +1,9 @@
-import { type UseQueryOptions, useQuery, useSuspenseQuery } from "@connectrpc/connect-query";
+import {
+  createConnectQueryKey,
+  type UseQueryOptions,
+  useQuery,
+  useSuspenseQuery,
+} from "@connectrpc/connect-query";
 
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 import type {
@@ -16,6 +21,12 @@ export const useSuspenseListTransformFunctionsQuery = ({
     staleTime: Number.POSITIVE_INFINITY,
   });
 };
+
+export const createValidateTransformQueryKey = () =>
+  createConnectQueryKey({
+    schema: IngestionService.method.validateTransform,
+    cardinality: "finite",
+  });
 
 export const useValidateTransformQuery = ({
   input,

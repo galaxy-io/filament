@@ -13,9 +13,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 
 	"github.com/galaxy-io/filament"
-	webhooksource "github.com/galaxy-io/filament/connectors/webhook"
 	"github.com/galaxy-io/filament/internal/modules/webhookretention"
 	"github.com/galaxy-io/filament/webhooks/inbox"
+	webhookstream "github.com/galaxy-io/filament/webhooks/stream"
 )
 
 const standaloneNATSMaxPayload = 32 << 20
@@ -101,19 +101,8 @@ func openStandaloneWebhooks(ctx context.Context, conn *nats.Conn, config standal
 	return i, retention, err
 }
 
-// standaloneSources swaps the webhook source's NATS_URL attacher for the
-// in-process inbox used by the standalone receiver.
-type standaloneSources struct {
-	filament.SourceRegistry
-	inbox *inbox.Inbox
-}
-
-func (s standaloneSources) Resolve(name string) (filament.Source, error) {
-	if name == "webhook" && s.inbox != nil {
-		if _, err := s.SourceRegistry.Resolve(name); err != nil {
-			return nil, err
-		}
-		return webhooksource.NewWithInbox(s.inbox), nil
-	}
-	return s.SourceRegistry.Resolve(name)
+// standaloneSources gives sources that read the webhook inbox the in-process
+// inbox the standalone receiver fills, instead of attaching through NATS_URL.
+func standaloneSources(sources filament.SourceRegistry, i *inbox.Inbox) filament.SourceRegistry {
+	return webhookstream.Sources{SourceRegistry: sources, Attach: webhookstream.Shared(i)}
 }

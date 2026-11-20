@@ -149,7 +149,7 @@ The three DLS state layouts fill their region. Each has its own size enum (`Empt
 
 - **Category color comes from one registry map** of domain concept to `RoleColor` (transforms blue, schedules yellow). A new concept adds an entry there. A feature never picks a hue inline.
 
-- **Every run status is a square.** `PipelineRunStatusSwatch` (`components/runs/`) draws a DLS `Square` from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]`, a `RoleColor | undefined` where `undefined` leaves the neutral fill. The same map feeds chart series colours, and run-status charts pass `swatch={ChartSwatch.SQUARE}` so legends match.
+- **Every run status is a square.** `PipelineRunStatusSwatch` (`components/runs/`) draws a DLS `Square` from `PIPELINE_RUN_STATUS_TO_HUE_MAP[status]` (pass `failedResources` so a completed run with failures borrows the Partial label and hue, see `components/runs/utils.ts`), a `RoleColor | undefined` where `undefined` leaves the neutral fill. The same map feeds chart series colours, and run-status charts pass `swatch={ChartSwatch.SQUARE}` so legends match.
 - **One map owns each status colour.** Run status lives in `components/runs/constants.ts`, beside `PIPELINE_RUN_STATUS_TO_LABEL_MAP`. Add a status there and nowhere else.
 - **`Beacon` is the live state of one thing**, never a run status. The connection form's "Connected" is one.
 - **`Chip` is for small meta badges.** Status through `variant`, category through `color`. Pass `tooltip` on the Chip, never wrap it in `Tooltip`.

@@ -100,7 +100,7 @@ func (a *Server) validatePipelineGraph(ctx context.Context, tenant string, graph
 		// Standard bounded routes take a write mode per resource. CDC and
 		// continuous routes plan one write for the whole stream.
 		key, message := route, "all resources on a CDC or continuous route must use the same write mode"
-		if mode != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
+		if ev.GetEffectiveExecutionMode() != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS && ev.GetReplication() != ingestionv1.ReplicationMode_REPLICATION_MODE_CDC {
 			key, message = route+"\x00"+edge.GetResource(), "edges for the same resource must use the same write mode"
 		}
 		if previous, ok := routeWriteModes[key]; ok && previous != writeMode {
@@ -159,6 +159,17 @@ func pipelineValidationMessage(resp *ingestionv1.ValidatePipelineResponse) strin
 	return "pipeline graph is invalid"
 }
 
+// resourceExecutionMode is the mode an edge's resource runs in. A source that
+// splits execution runs each resource in its own mode, whatever the pipeline
+// defaults to.
+func resourceExecutionMode(spec filament.ConnectorSpec, resource string, mode ingestionv1.ExecutionMode) ingestionv1.ExecutionMode {
+	pipelineMode, err := convert.ExecutionModeFromProto(mode)
+	if err != nil {
+		return mode
+	}
+	return convert.ExecutionModeToProto(filament.ResourceExecution(spec, resource, pipelineMode))
+}
+
 // validateEdge appends the edge's verdict to resp; a non-nil return is an
 // internal failure that aborts the RPC, not a validation finding.
 func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, tenant string, probes *nodeInspections, resp *ingestionv1.ValidatePipelineResponse, mode ingestionv1.ExecutionMode) error {
@@ -192,6 +203,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		edgeError(ev, "to_node", err.Error())
 		return nil
 	}
+	mode = resourceExecutionMode(srcSpec, edge.GetResource(), mode)
 	runtimeSupported := a.edgeExecutionModes(srcSpec, snkSpec, mode, ev)
 	if mode == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
 		a.validateContinuousEdge(ctx, edge, from, srcConn, srcSpec, snkSpec, runtimeSupported, probes, ev)
@@ -261,7 +273,7 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 
 	a.resourceBreakdown(ctx, edge, from, *srcConn, snkSpec, chosen, supportedReadModes, probes, ev)
 	validateEdgeSelections(ctx, edge, from, *srcConn, srcSpec, chosen, probes, ev)
-	validateEdgeTransform(ctx, edge, from, *srcConn, probes, ev)
+	a.validateEdgeTransform(ctx, filament.TenantID(tenant), edge, from, *srcConn, filament.IsCDCIngestion(chosen), probes, ev)
 	return nil
 }
 
@@ -381,30 +393,22 @@ func validateEdgePartitions(ctx context.Context, edge *ingestionv1.PipelineEdge,
 	}
 }
 
-// selectedSchema narrows a resource schema to an edge's column selection, so
-// transforms are checked against the columns the run will read.
-func selectedSchema(edge *ingestionv1.PipelineEdge, resource string, schema filament.RecordSchema) filament.RecordSchema {
+// edgeColumns is the edge's column selection for resource, nil when it reads every column.
+func edgeColumns(edge *ingestionv1.PipelineEdge, resource string) []string {
 	for _, selection := range edge.GetColumns() {
-		if selection.GetResource() != resource {
-			continue
+		if selection.GetResource() == resource {
+			// A selection that keeps no column stays empty, never nil.
+			return append([]string{}, selection.GetColumns()...)
 		}
-		out := schema.Clone()
-		out.Fields = out.Fields[:0]
-		for _, field := range schema.Fields {
-			if slices.Contains(selection.GetColumns(), field.Name) {
-				out.Fields = append(out.Fields, field)
-			}
-		}
-		return out
 	}
-	return schema
+	return nil
 }
 
 // validateEdgeTransform compiles the edge's transform against the schema of
 // every resource it names, so a definition the source no longer satisfies
 // fails validation rather than the run. Issues carry the definition path the
 // builder uses to place them.
-func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
+func (a *Server) validateEdgeTransform(ctx context.Context, tenant filament.TenantID, edge *ingestionv1.PipelineEdge, from *ingestionv1.PipelineNode, srcConn filament.Connection, cdc bool, probes *nodeInspections, ev *ingestionv1.EdgeValidation) {
 	if !compile.HasTransform(edge) {
 		return
 	}
@@ -426,6 +430,7 @@ func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, 
 			}
 		}
 	}
+	contracts := a.contracts(ctx, tenant, def)
 	for _, resource := range slices.Sorted(maps.Keys(def.Resources)) {
 		inspection, err := probes.resource(ctx, from, srcConn, resource)
 		if err != nil {
@@ -440,7 +445,7 @@ func validateEdgeTransform(ctx context.Context, edge *ingestionv1.PipelineEdge, 
 			edgeError(ev, "transform", fmt.Sprintf("connector %q does not provide resource schemas", srcConn.Connector))
 			return
 		}
-		if _, _, err := transform.Analyze(def, selectedSchema(edge, resource, *inspection.Schema)); err != nil {
+		if _, _, err := transform.Analyze(def, rowmodel.InputFor(*inspection.Schema, edgeColumns(edge, resource), cdc), transform.WithContracts(contracts)); err != nil {
 			transformErrors(ev, err)
 		}
 	}

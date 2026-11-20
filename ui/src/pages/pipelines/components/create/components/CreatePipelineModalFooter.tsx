@@ -11,6 +11,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
 import { useWebhookEndpointSync } from "@/components/webhooks/hooks/useWebhookEndpointSync";
 
 import {
@@ -44,6 +45,7 @@ const CreatePipelineModalFooter: FC = () => {
   const { mutate: createPipelineVersion } = useCreatePipelineVersionMutation();
   const { mutateAsync: createPipelineNotifier } = useCreatePipelineNotifierMutation();
   const syncWebhookEndpoint = useWebhookEndpointSync();
+  const { webhook } = useConnectionWebhookSpec(state.sourceConnection);
 
   const { isBackVisible, isLastStep, isNextDisabled, isSubmitting, hints } = state;
 
@@ -86,6 +88,7 @@ const CreatePipelineModalFooter: FC = () => {
           replication: state.replication,
           executionMode: state.executionMode,
           pipelineId,
+          webhook,
         });
 
         createPipelineVersion(versionRequest, {

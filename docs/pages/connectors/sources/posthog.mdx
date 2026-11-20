@@ -17,6 +17,7 @@ Its resources are stable, though future releases may add columns.
 
 | Field | Scope | Default | Description |
 |---|---|---|---|
+| `ingestion` | Connection | `api` | `api` reads the PostHog API. `webhooks` receives live events and needs no API fields. `both` does both. See [Webhooks](#webhooks). |
 | `api_key` | Connection | | Required. Secret. Personal API key with read scopes for the synced resources. |
 | `project_id` | Connection | | Required. The digits after `/project/` in the app URL. |
 | `host` | Connection | `https://us.posthog.com` | US Cloud, `https://eu.posthog.com`, or a self-hosted origin. |
@@ -40,7 +41,8 @@ experiments, and notebooks fetch details; child resources fetch their parents.
 
 Optional resources include activity logs, alerts, archived catalogs, datasets,
 error tracking, export history, LLM records, property definitions, replay playlists,
-saved endpoints, subscriptions, and survey responses. Events are excluded.
+saved endpoints, subscriptions, and survey responses. Historical events are
+excluded. Live events arrive through [webhooks](#webhooks).
 Optional resources require their corresponding read scopes; survey responses need
 both `survey:read` and `query:read`. Connection tests require `person:read`.
 
@@ -64,6 +66,51 @@ Session recordings re-read 24 hours for ongoing sessions; older uploads and late
 metadata changes need full reads. Incremental reads do not propagate deletions.
 Notebooks retain complete content through full reads. `persons` has no incremental block.
 The API offers no updated-since filter, so every run is a full snapshot.
+
+## Webhooks
+
+With `ingestion` set to `webhooks` or `both`, the connection offers
+`events_webhook`, which holds the events PostHog pushes through an
+[HTTP Webhook destination](https://posthog.com/docs/cdp/destinations/webhook).
+A `webhooks` connection needs no API key or project and offers only
+`events_webhook`. With `both`, one pipeline can hold `events_webhook` and API
+resources together. Its schedule
+and **Run** read the API resources, and **Start stream** reads `events_webhook`
+continuously. Each runs on its own worker with its own progress.
+Webhooks also need the server settings described in the
+[webhook source](/pages/connectors/sources/webhook#setup).
+
+Open the connection and generate its signing key. The key starts with `whsec_`.
+In PostHog, open **Data pipelines** and add an **HTTP Webhook** destination.
+
+| PostHog input | Value |
+|---|---|
+| Webhook URL | The connection's delivery URL followed by `/events_webhook` |
+| Signing secret | The connection's signing key |
+| JSON Body | The default `{"event": "{event}", "person": "{person}"}` |
+
+Use the destination's filters to choose which events are sent. PostHog signs
+each request with [Standard Webhooks](https://www.standardwebhooks.com), and
+Filament rejects requests whose signature or timestamp does not verify. The
+`webhook-id` header stays the same across PostHog's retries, so a retried
+request is stored once.
+
+| Column | Type | Source |
+|---|---|---|
+| `uuid` | string | `event.uuid`, the primary key |
+| `event` | string | `event.event` |
+| `distinct_id` | string | `event.distinct_id` |
+| `timestamp` | timestamptz | `event.timestamp` |
+| `captured_at` | timestamptz | `event.captured_at` |
+| `properties` | json | `event.properties` |
+| `elements_chain` | string | `event.elements_chain` |
+| `person_id` | string | `person.id` |
+| `person_properties` | json | `person.properties` |
+| `raw` | json | Fields the manifest does not project |
+
+Delivery is at least once. Upsert or merge on `uuid` keeps one row per event.
+The destination sends events from the moment it is enabled. Events captured
+earlier are not backfilled.
 
 ## Behavior
 

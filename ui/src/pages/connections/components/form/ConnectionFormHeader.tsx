@@ -8,18 +8,20 @@ import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 import ConnectorTile from "@/components/connections/ConnectorTile";
-import { ConnectorTileSize } from "@/components/connections/types";
+import { type ConnectorTileBadge, ConnectorTileSize } from "@/components/connections/types";
 
 interface ConnectionFormHeaderProps {
   connectorName: ConnectorSpec["name"];
   connectorKind: ConnectorKind;
   title: string;
+  badge?: ConnectorTileBadge;
 }
 
 const ConnectionFormHeader: FC<ConnectionFormHeaderProps> = ({
   connectorName,
   connectorKind,
   title,
+  badge,
 }) => {
   return (
     <Flex alignItems={AlignItems.CENTER} gap={12} fillWidth>
@@ -28,6 +30,7 @@ const ConnectionFormHeader: FC<ConnectionFormHeaderProps> = ({
           connector={connectorName}
           kind={connectorKind}
           size={ConnectorTileSize.LARGE}
+          badge={badge}
         />
       </FlexItem>
       <FlexItem grow={1} minWidth={0}>

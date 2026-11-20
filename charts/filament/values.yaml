@@ -404,6 +404,15 @@ observability:
     # Empty defaults to `grpc`.
     protocol: ""
 
+alchemy:
+  # -- Alchemy API that filament's server, control plane and workers call, stored in the ConfigMaps as
+  # `GALAXY_ALCHEMY_SERVER_URL`. Empty uses `galaxy.productUrls.alchemy`; both empty disables alchemy steps.
+  serverUrl: ""
+  # -- Arrow bytes batched into one alchemy call, stored as `ALCHEMY_BATCH_MAX_BYTES`. Zero takes the 16 MiB default; at most 64 MiB.
+  batchMaxBytes: 0
+  # -- Alchemy calls a run keeps in flight, stored as `ALCHEMY_MAX_IN_FLIGHT`. Zero takes the default of 4.
+  maxInFlight: 0
+
 # Vendored Bitnami PostgreSQL configuration.
 # It is strongly recommended to use an external PostgreSQL instance in production.
 postgresql:

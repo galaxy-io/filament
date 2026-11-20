@@ -111,6 +111,11 @@ message Pipeline {
   WorkerConfiguration worker_configuration = 15;
   // Default execution mode for subsequent starts; existing pipelines are bounded.
   ExecutionMode execution_mode = 16;
+  // fail_on_error stops a bounded run at its first resource failure. False
+  // isolates a failed resource and lets the others finish, so the run can end
+  // completed with failed resources. Change-stream routes always stop.
+  // Pipelines created before this setting existed are true.
+  optional bool fail_on_error = 17;
 }
 
 // PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.
@@ -146,6 +151,8 @@ message CreatePipelineRequest {
   WorkerConfiguration worker_configuration = 4;
   // Unspecified defaults to bounded.
   ExecutionMode execution_mode = 5;
+  // Defaults to false, which isolates resource failures in bounded runs.
+  bool fail_on_error = 6;
 }
 
 message CreatePipelineResponse {
@@ -187,6 +194,8 @@ message UpdatePipelineRequest {
   WorkerConfiguration worker_configuration = 4;
   // Unspecified preserves the saved mode; affects future starts only.
   ExecutionMode execution_mode = 5;
+  // Omit to preserve the saved setting.
+  optional bool fail_on_error = 6;
 }
 
 message UpdatePipelineResponse {

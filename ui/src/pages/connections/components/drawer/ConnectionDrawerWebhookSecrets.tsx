@@ -6,6 +6,7 @@ import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 
 import WebhookEndpointErrorLayout from "@/components/webhooks/WebhookEndpointErrorLayout";
 
@@ -18,20 +19,23 @@ import { isNotFoundError } from "@/utils/errors";
 
 interface ConnectionDrawerWebhookSecretsProps {
   connection: Connection;
+  webhook: WebhookSpec;
 }
 
 const ConnectionDrawerWebhookSecrets: FC<ConnectionDrawerWebhookSecretsProps> = ({
   connection,
+  webhook,
 }) => {
-  const { data, error, isError, isLoading } = useGetWebhookEndpointQuery({
+  const { data, error, isError, isFetched, isLoading } = useGetWebhookEndpointQuery({
     input: createGetWebhookEndpointInput(connection.id),
     options: { retry: false },
   });
   const endpoint = data?.endpoint;
   const isFailed = isError && !isNotFoundError(error);
+  const isFirstLoad = isLoading && !isFetched;
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isFirstLoad) {
       return (
         <Box padding={12}>
           <Skeleton lines={2} />
@@ -43,7 +47,13 @@ const ConnectionDrawerWebhookSecrets: FC<ConnectionDrawerWebhookSecretsProps> = 
       return <WebhookEndpointErrorLayout error={error} />;
     }
 
-    return <ConnectionDrawerWebhookSigningKey connection={connection} endpoint={endpoint} />;
+    return (
+      <ConnectionDrawerWebhookSigningKey
+        connection={connection}
+        webhook={webhook}
+        endpoint={endpoint}
+      />
+    );
   };
 
   return (

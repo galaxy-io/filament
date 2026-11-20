@@ -40,6 +40,9 @@ type (
 	RunCompletedEvent struct {
 		Records int64 `json:"records"`
 		Bytes   int64 `json:"bytes"`
+		// FailedResources lists resources that failed while the run isolated
+		// resource failures. The sink committed every other resource.
+		FailedResources []string `json:"failedResources,omitempty"`
 	}
 	// RunFailedEvent carries the error that ended the run.
 	RunFailedEvent struct {
@@ -91,6 +94,15 @@ type (
 	// ResourceFailedEvent carries the error that ended a resource.
 	ResourceFailedEvent struct {
 		Error string `json:"error"`
+		// Discarded means the resource's commit-gated writes were aborted
+		// while the run went on, so its tentative cursor and tallies are void.
+		Discarded bool `json:"discarded,omitempty"`
+	}
+	// ResourceQuarantinedEvent reports that a failed resource was stopped
+	// while the rest of the run continues. The terminal resource.failed
+	// follows when the run ends.
+	ResourceQuarantinedEvent struct {
+		Error string `json:"error"`
 	}
 
 	// BatchBufferedEvent counts records staged into an in-memory batch.
@@ -104,6 +116,27 @@ type (
 		Records  int64         `json:"records"`
 		Bytes    int64         `json:"bytes"`
 		Duration time.Duration `json:"duration"`
+	}
+	// FunctionInvokedEvent records one batch through an alchemy function.
+	FunctionInvokedEvent struct {
+		Function     string        `json:"function"`
+		Version      int64         `json:"version"`
+		Step         string        `json:"step"`
+		InvocationID string        `json:"invocationId"`
+		Records      int64         `json:"records"`
+		Attempts     int32         `json:"attempts"`
+		Replayed     bool          `json:"replayed,omitempty"`
+		Duration     time.Duration `json:"duration"`
+	}
+	// FunctionFailedEvent records a failed alchemy call; InvocationID is empty if nothing ran.
+	FunctionFailedEvent struct {
+		Function     string        `json:"function"`
+		Version      int64         `json:"version"`
+		Step         string        `json:"step"`
+		InvocationID string        `json:"invocationId,omitempty"`
+		Code         string        `json:"code"`
+		Error        string        `json:"error"`
+		Duration     time.Duration `json:"duration"`
 	}
 	// BatchWrittenEvent marks one batch durably applied to the sink.
 	BatchWrittenEvent struct {
@@ -188,16 +221,19 @@ var (
 	RunCancelRequested = define[RunCancelRequestedEvent]("run.cancel_requested")
 	Heartbeat          = define[HeartbeatEvent]("run.heartbeat")
 
-	ResourceStarted   = define[ResourceStartedEvent]("resource.started")
-	PageFetched       = define[PageFetchedEvent]("resource.page_fetched")
-	FanOutStarted     = define[FanOutStartedEvent]("resource.fan_out_started")
-	ResourceCompleted = define[ResourceCompletedEvent]("resource.completed")
-	SchemaDetected    = define[SchemaDetectedEvent]("schema.detected")
-	SchemaBlocked     = define[SchemaBlockedEvent]("schema.blocked")
-	ResourceFailed    = define[ResourceFailedEvent]("resource.failed")
+	ResourceStarted     = define[ResourceStartedEvent]("resource.started")
+	PageFetched         = define[PageFetchedEvent]("resource.page_fetched")
+	FanOutStarted       = define[FanOutStartedEvent]("resource.fan_out_started")
+	ResourceCompleted   = define[ResourceCompletedEvent]("resource.completed")
+	SchemaDetected      = define[SchemaDetectedEvent]("schema.detected")
+	SchemaBlocked       = define[SchemaBlockedEvent]("schema.blocked")
+	ResourceFailed      = define[ResourceFailedEvent]("resource.failed")
+	ResourceQuarantined = define[ResourceQuarantinedEvent]("resource.quarantined")
 
 	BatchBuffered            = define[BatchBufferedEvent]("batch.buffered")
 	BatchTransformed         = define[BatchTransformedEvent]("batch.transformed")
+	FunctionInvoked          = define[FunctionInvokedEvent]("batch.function_invoked")
+	FunctionFailed           = define[FunctionFailedEvent]("batch.function_failed")
 	BatchWritten             = define[BatchWrittenEvent]("batch.written")
 	IntegrityVerified        = define[IntegrityVerifiedEvent]("batch.integrity_verified")
 	EncodedIntegrityVerified = define[EncodedIntegrityVerifiedEvent]("batch.encoded_integrity_verified")

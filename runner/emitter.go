@@ -80,8 +80,11 @@ func (e *emitter) seedProgress(state filament.RunState) {
 func (e *emitter) next() uint64 { return e.seq.Add(1) }
 
 // terminalPublishWait bounds how long ending facts may publish after the run
-// context is cancelled, so shutdown cannot hang on a dead bus.
-const terminalPublishWait = 5 * time.Second
+// context is cancelled, so shutdown cannot hang on a dead bus. It is longer
+// than a transport's publish retry window (a minute on NATS) so the run's
+// obituary outlasts a broker restart instead of stranding the row until the
+// reaper fails it.
+const terminalPublishWait = 90 * time.Second
 
 // finish detaches the emitter from run cancellation so ending facts — resource
 // terminals and the run obituary — publish even while the host is shutting
@@ -302,6 +305,32 @@ func (e *emitter) failedAt(err error, resource string, resources []string) {
 		emit(e, events.ResourceFailed, res, events.ResourceFailedEvent{Error: message})
 	}
 	e.fail(err)
+}
+
+// dropResource removes an aborted resource's tallies from the run totals. Its
+// batch facts stay published for diagnostics; its rows never committed.
+func (e *emitter) dropResource(resource string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if t := e.res[resource]; t != nil {
+		e.runRecords -= t.records
+		e.runBytes -= t.bytes
+		delete(e.res, resource)
+	}
+	delete(e.latestStream, resource)
+}
+
+// completedExcept is completed for a run that isolated resource failures: the
+// healthy resources complete and run.completed names the failed ones. Their
+// resource.failed facts were published before the sink committed.
+func (e *emitter) completedExcept(healthy, failed []string) {
+	defer e.finish()()
+	for _, res := range healthy {
+		records, bytes := e.resourceTally(res)
+		emit(e, events.ResourceCompleted, res, events.ResourceCompletedEvent{Records: records, Bytes: bytes})
+	}
+	records, bytes := e.runTotals()
+	emit(e, events.RunCompleted, "", events.RunCompletedEvent{Records: records, Bytes: bytes, FailedResources: failed})
 }
 
 // completed publishes the run's success terminals — per-resource completions

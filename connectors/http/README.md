@@ -141,6 +141,9 @@ are rejected. Initial browser authorization remains external to Filament.
   top-level full-read resources. It does not create a discoverable parent resource.
 - `omit_empty_query` omits empty optional query values. Existing manifests retain
   their behavior unless this is enabled.
+- `after` lists top-level resources that must finish before a top-level resource
+  starts. A header read after its line resources holds every header those lines
+  name. Unselected names are ignored, and streams, children and cycles are rejected.
 
 ## Completing and resuming scans
 

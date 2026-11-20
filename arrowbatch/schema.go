@@ -3,6 +3,8 @@
 package arrowbatch
 
 import (
+	"fmt"
+
 	"github.com/apache/arrow-go/v18/arrow"
 
 	"github.com/galaxy-io/filament/rowmodel"
@@ -73,6 +75,62 @@ func Type(f rowmodel.Field) arrow.DataType {
 	default:
 		return arrow.BinaryTypes.String
 	}
+}
+
+// FieldOf inverts Field; a filament.logical hint must match the storage type.
+func FieldOf(af arrow.Field) (rowmodel.Field, error) {
+	f := rowmodel.Field{Name: af.Name, Nullable: af.Nullable, Logical: LogicalOf(af), Native: NativeOf(af)}
+	if dec, ok := af.Type.(*arrow.Decimal128Type); ok {
+		f.Precision, f.Scale = int(dec.Precision), int(dec.Scale)
+	}
+	if f.Logical != rowmodel.LogicalUnknown && !f.Logical.Known() {
+		return rowmodel.Field{}, fmt.Errorf("field %q: %q is not a filament logical type", af.Name, f.Logical)
+	}
+	if f.Logical == rowmodel.LogicalUnknown {
+		logical, ok := logicalForStorage(af.Type)
+		if !ok {
+			return rowmodel.Field{}, fmt.Errorf("field %q: Arrow type %s has no filament type", af.Name, af.Type)
+		}
+		f.Logical = logical
+	}
+	if want := Type(f); !arrow.TypeEqual(want, af.Type) {
+		return rowmodel.Field{}, fmt.Errorf("field %q: logical type %q is stored as %s, not %s", af.Name, f.Logical, want, af.Type)
+	}
+	return f, nil
+}
+
+// logicalForStorage is the logical type Type maps to s when no hint says otherwise.
+func logicalForStorage(s arrow.DataType) (rowmodel.LogicalType, bool) {
+	switch s.ID() {
+	case arrow.BOOL:
+		return rowmodel.LogicalBool, true
+	case arrow.INT16:
+		return rowmodel.LogicalInt16, true
+	case arrow.INT32:
+		return rowmodel.LogicalInt32, true
+	case arrow.INT64:
+		return rowmodel.LogicalInt64, true
+	case arrow.FLOAT32:
+		return rowmodel.LogicalFloat32, true
+	case arrow.FLOAT64:
+		return rowmodel.LogicalFloat64, true
+	case arrow.DECIMAL128:
+		return rowmodel.LogicalDecimal, true
+	case arrow.STRING:
+		return rowmodel.LogicalString, true
+	case arrow.BINARY:
+		return rowmodel.LogicalBytes, true
+	case arrow.DATE32:
+		return rowmodel.LogicalDate, true
+	case arrow.TIME64:
+		return rowmodel.LogicalTime, true
+	case arrow.TIMESTAMP:
+		if s.(*arrow.TimestampType).TimeZone == "" {
+			return rowmodel.LogicalTimestamp, true
+		}
+		return rowmodel.LogicalTimestampTZ, true
+	}
+	return rowmodel.LogicalUnknown, false
 }
 
 // LogicalOf returns the logical type a field was built from.

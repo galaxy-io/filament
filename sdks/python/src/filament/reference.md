@@ -1733,6 +1733,14 @@ worker_configuration shapes this pipeline's runs. Omit it to configure the
 <dl>
 <dd>
 
+**fail_on_error:** `typing.Optional[bool]` — Defaults to false, which isolates resource failures in bounded runs.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>
@@ -2245,6 +2253,14 @@ client.pipeline.update(
 <dd>
 
 **execution_mode:** `typing.Optional[IngestionV1ExecutionMode]` — Unspecified preserves the saved mode; affects future starts only.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**fail_on_error:** `typing.Optional[bool]` — Omit to preserve the saved setting.
     
 </dd>
 </dl>
@@ -2827,290 +2843,83 @@ client.connector.validate_config(
 </dl>
 </details>
 
-## Run
-<details><summary><code>client.run.<a href="src/filament/run/client.py">get</a>(...) -> IngestionV1GetRunResponse</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from filament import Filament
-from filament.environment import FilamentEnvironment
-
-client = Filament(
-    client_id="<clientId>",
-    client_secret="<clientSecret>",
-    environment=FilamentEnvironment.DEFAULT,
-)
-
-client.run.get(
-    connect_timeout_ms=1000,
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**run_id:** `typing.Optional[str]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.run.<a href="src/filament/run/client.py">list</a>(...) -> IngestionV1ListRunsResponse</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from filament import Filament
-from filament.environment import FilamentEnvironment
-
-client = Filament(
-    client_id="<clientId>",
-    client_secret="<clientSecret>",
-    environment=FilamentEnvironment.DEFAULT,
-)
-
-client.run.list(
-    connect_timeout_ms=1000,
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**pipeline_id:** `typing.Optional[str]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**pipeline_version_id:** `typing.Optional[str]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**status:** `typing.Optional[typing.List[IngestionV1RunStatus]]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**pagination:** `typing.Optional[IngestionV1PaginationRequest]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**since_ms:** `typing.Optional[str]` 
-
-since_ms/until_ms window on started_at (inclusive/exclusive, epoch
- millis); 0 means unbounded. Runs that never started are excluded.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**until_ms:** `typing.Optional[str]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**search:** `typing.Optional[str]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**sorting:** `typing.Optional[IngestionV1SortingRequest]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
-<details><summary><code>client.run.<a href="src/filament/run/client.py">signal</a>(...) -> IngestionV1SignalRunResponse</code></summary>
-<dl>
-<dd>
-
-#### 🔌 Usage
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-```python
-from filament import Filament
-from filament.environment import FilamentEnvironment
-
-client = Filament(
-    client_id="<clientId>",
-    client_secret="<clientSecret>",
-    environment=FilamentEnvironment.DEFAULT,
-)
-
-client.run.signal(
-    connect_timeout_ms=1000,
-)
-
-```
-</dd>
-</dl>
-</dd>
-</dl>
-
-#### ⚙️ Parameters
-
-<dl>
-<dd>
-
-<dl>
-<dd>
-
-**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**run_id:** `typing.Optional[str]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**signal:** `typing.Optional[IngestionV1RunSignal]` 
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**expected_revision:** `typing.Optional[str]` 
-
-Optional CAS for continuous desired state. A stale revision is rejected.
- Absent permits a transition against the current revision.
-    
-</dd>
-</dl>
-
-<dl>
-<dd>
-
-**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
-    
-</dd>
-</dl>
-</dd>
-</dl>
-
-
-</dd>
-</dl>
-</details>
-
 ## ingestion.v1.IngestionService
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getalchemyfunction</a>(...) -> IngestionV1GetAlchemyFunctionResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.getalchemyfunction(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**version:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getversion</a>(...) -> IngestionV1GetVersionResponse</code></summary>
 <dl>
 <dd>
@@ -3196,6 +3005,74 @@ client.ingestion_v1ingestionservice.getversion(
 </dl>
 </details>
 
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getwebhookdeliveryurl</a>(...) -> IngestionV1GetWebhookDeliveryUrlResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.getwebhookdeliveryurl(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**source_connection_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
 <details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">getwebhookendpoint</a>(...) -> IngestionV1GetWebhookEndpointResponse</code></summary>
 <dl>
 <dd>
@@ -3259,6 +3136,82 @@ client.ingestion_v1ingestionservice.getwebhookendpoint(
 <dd>
 
 **source_connection_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.ingestion_v1ingestionservice.<a href="src/filament/ingestion_v1ingestionservice/client.py">listalchemyfunctions</a>(...) -> IngestionV1ListAlchemyFunctionsResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.ingestion_v1ingestionservice.listalchemyfunctions(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**search:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**pagination:** `typing.Optional[IngestionV1PaginationRequest]` 
     
 </dd>
 </dl>
@@ -3532,6 +3485,297 @@ client.ingestion_v1ingestionservice.validatetransform(
 <dd>
 
 **transform:** `typing.Optional[GoogleProtobufStruct]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**columns:** `typing.Optional[typing.List[str]]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+## Run
+<details><summary><code>client.run.<a href="src/filament/run/client.py">get</a>(...) -> IngestionV1GetRunResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.run.get(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**run_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.run.<a href="src/filament/run/client.py">list</a>(...) -> IngestionV1ListRunsResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.run.list(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**pipeline_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**pipeline_version_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**status:** `typing.Optional[typing.List[IngestionV1RunStatus]]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**pagination:** `typing.Optional[IngestionV1PaginationRequest]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**since_ms:** `typing.Optional[str]` 
+
+since_ms/until_ms window on started_at (inclusive/exclusive, epoch
+ millis); 0 means unbounded. Runs that never started are excluded.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**until_ms:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**search:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**sorting:** `typing.Optional[IngestionV1SortingRequest]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
+    
+</dd>
+</dl>
+</dd>
+</dl>
+
+
+</dd>
+</dl>
+</details>
+
+<details><summary><code>client.run.<a href="src/filament/run/client.py">signal</a>(...) -> IngestionV1SignalRunResponse</code></summary>
+<dl>
+<dd>
+
+#### 🔌 Usage
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+```python
+from filament import Filament
+from filament.environment import FilamentEnvironment
+
+client = Filament(
+    client_id="<clientId>",
+    client_secret="<clientSecret>",
+    environment=FilamentEnvironment.DEFAULT,
+)
+
+client.run.signal(
+    connect_timeout_ms=1000,
+)
+
+```
+</dd>
+</dl>
+</dd>
+</dl>
+
+#### ⚙️ Parameters
+
+<dl>
+<dd>
+
+<dl>
+<dd>
+
+**connect_timeout_ms:** `typing.Optional[ConnectTimeoutHeader]` — Define the timeout, in ms
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**run_id:** `typing.Optional[str]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**signal:** `typing.Optional[IngestionV1RunSignal]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**expected_revision:** `typing.Optional[str]` 
+
+Optional CAS for continuous desired state. A stale revision is rejected.
+ Absent permits a transition against the current revision.
     
 </dd>
 </dl>

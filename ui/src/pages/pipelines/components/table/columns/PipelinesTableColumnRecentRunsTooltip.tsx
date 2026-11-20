@@ -26,6 +26,9 @@ const PipelinesTableColumnRecentRunsTooltip: FC<PipelinesTableColumnRecentRunsTo
     { label: "Duration", value: formatRunDuration(run.startedAt, run.endedAt) },
     { label: "Records", value: formatNumber(run.records) },
     { label: "Volume", value: formatBytes(run.bytes) },
+    ...(run.failedResources.length > 0
+      ? [{ label: "Failed resources", value: formatNumber(run.failedResources.length) }]
+      : []),
   ];
 
   return (
