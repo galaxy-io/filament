@@ -22,3 +22,8 @@ WHERE id = @tenant_id;
 SELECT id, coalesce(name, '')::text AS name, created_at, updated_at
 FROM tenants
 ORDER BY id;
+
+-- name: TenantExternalID :one
+SELECT coalesce(external_id, '')::text AS external_id
+FROM tenants
+WHERE id = @tenant_id;

@@ -96,3 +96,17 @@ func (s *Store) EnsureUser(ctx context.Context, tenant filament.TenantID, extern
 	}
 	return filament.UserID(id), nil
 }
+
+var _ filament.TenantDirectory = (*Store)(nil)
+
+// TenantExternalID returns the provider id a tenant was resolved from.
+func (s *Store) TenantExternalID(ctx context.Context, id filament.TenantID) (string, error) {
+	ext, err := s.q.TenantExternalID(ctx, string(id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("tenant %q: %w", id, filament.ErrNotFound)
+	}
+	if err != nil {
+		return "", fmt.Errorf("datastore/sqlite: tenant external id: %w", err)
+	}
+	return ext, nil
+}

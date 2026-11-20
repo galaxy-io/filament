@@ -98,10 +98,12 @@
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
+    "@galaxy-io/alchemy-ui": "^0.8.0",
     "@linaria/core": "^7.0.0",
     "@linaria/react": "^7.0.1",
     "@phosphor-icons/react": "^2.1.10",
     "@xyflow/react": "^12.11.2",
+    "apache-arrow": "^21.2.0",
     "pluralize": "^8.0.0",
     "ts-pattern": "^5.9.0",
     "zod": "^4.3.6"

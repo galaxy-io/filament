@@ -14,6 +14,7 @@
 package pipeline
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"sync"
@@ -62,9 +63,19 @@ type Config struct {
 	// when its first builder opens. A resource it names has every batch
 	// transformed before the read-side CRC; other resources pass through.
 	Transform *transform.Definition
+	// Contracts and Functions back alchemy steps.
+	Contracts     transform.Contracts
+	Functions     transform.FunctionService
+	FunctionBatch FunctionBatch
 	// Failures decides whether a resource-scoped failure quarantines its
 	// resource or stops the run. The zero value stops the run.
 	Failures FailurePolicy
+}
+
+// FunctionBatch sizes and parallelizes alchemy calls; zero fields take the defaults.
+type FunctionBatch struct {
+	MaxBytes    int64
+	MaxInFlight int
 }
 
 // AuditConfig enables row-lineage materialization for a run. The run ID comes
@@ -97,12 +108,16 @@ type Pipeline struct {
 	transformCh chan queuedBatch
 	stream      *streamInlet
 
-	registryMu sync.Mutex
-	schemas    map[string]registeredSchema
-	builders   map[partKey]*arrowbatch.Builder
-	alloc      memory.Allocator
-	audit      *AuditConfig
-	transform  *transform.Definition
+	registryMu    sync.Mutex
+	schemas       map[string]registeredSchema
+	builders      map[partKey]*arrowbatch.Builder
+	alloc         memory.Allocator
+	audit         *AuditConfig
+	transform     *transform.Definition
+	contracts     transform.Contracts
+	functions     transform.FunctionService
+	batchMaxBytes int64
+	maxInFlight   int
 
 	nextSeq  func() uint64 // monotonic fact sequence for (tenant, run) dedup
 	pubMu    sync.Mutex    // serializes publish so concurrent writers emit facts safely
@@ -179,6 +194,10 @@ func New(cfg Config) *Pipeline {
 		alloc:            cfg.Allocator,
 		audit:            cfg.Audit,
 		transform:        cfg.Transform,
+		contracts:        cfg.Contracts,
+		functions:        cfg.Functions,
+		batchMaxBytes:    cmp.Or(cfg.FunctionBatch.MaxBytes, defaultBatchMaxBytes),
+		maxInFlight:      cmp.Or(cfg.FunctionBatch.MaxInFlight, defaultMaxInFlight),
 		nextSeq:          nextSeq,
 		done:             make(chan struct{}),
 		tickStop:         make(chan struct{}),
@@ -213,9 +232,14 @@ func (p *Pipeline) Start(ctx context.Context) {
 		p.doneCh.Do(func() { close(p.done) })
 	}()
 	go p.ticker(ctx)
-	p.twg.Add(p.writers)
-	for range p.writers {
-		go p.transformer(ctx)
+	if p.contracts != nil {
+		p.twg.Add(1)
+		go p.packer(ctx)
+	} else {
+		p.twg.Add(p.writers)
+		for range p.writers {
+			go p.transformer(ctx)
+		}
 	}
 	// Transformers and bypass slots both feed the writer channel; it closes once
 	// the transform channel has drained, which CloseIngest triggers after every

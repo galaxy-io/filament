@@ -25,6 +25,7 @@ import {
   usePipelineTransformFieldsEditor,
   usePipelineTransformFieldsEnvironment,
 } from "@/pages/pipelines/components/transform/PipelineTransformFieldsProvider";
+import PipelineTransformFieldsStepAlchemy from "@/pages/pipelines/components/transform/PipelineTransformFieldsStepAlchemy";
 import {
   TransformActionKind,
   type TransformEditableStep,
@@ -52,6 +53,36 @@ const PipelineTransformFieldsSubject: FC<PipelineTransformFieldsSubjectProps> = 
 }) => {
   const editor = usePipelineTransformFieldsEditor();
   const { functionsByName } = usePipelineTransformFieldsEnvironment();
+
+  if (step.kind === TransformStepKind.ALCHEMY) {
+    const alchemy = step;
+    return (
+      <Flex alignItems={AlignItems.START} gap={8} fillWidth>
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <PipelineTransformFieldsActionPicker
+            root={createTransformColumnExpr("")}
+            rootType={undefined}
+            action={{ kind: TransformActionKind.ALCHEMY }}
+            offersKinds
+            onChange={(next) =>
+              onChange(
+                applyTransformAction(alchemy, 0, next, {
+                  functionsByName,
+                  columns: editor.columns,
+                  rootType: undefined,
+                }),
+              )
+            }
+            isError={false}
+          />
+        </FlexItem>
+        <FlexItem grow={1} basis={0} minWidth={0}>
+          <PipelineTransformFieldsStepAlchemy step={alchemy} onChange={onChange} />
+        </FlexItem>
+      </Flex>
+    );
+  }
+
   const output = step.kind === TransformStepKind.COMPUTE ? step.outputs[outputIndex] : undefined;
   const chain = getTransformChain(
     output ? output.expr : createTransformColumnExpr(getTransformStepColumn(step)),

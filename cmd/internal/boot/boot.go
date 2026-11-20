@@ -12,6 +12,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/eventbus"
+	"github.com/galaxy-io/filament/cmd/internal/integrations/alchemy"
 	"github.com/galaxy-io/filament/cmd/internal/logger"
 	"github.com/galaxy-io/filament/cmd/internal/otel"
 	"github.com/galaxy-io/filament/cmd/internal/persistence"
@@ -39,6 +40,7 @@ type Deps struct {
 	Secrets     filament.Secrets
 	Metrics     filament.Metrics
 	Tracer      filament.Tracer
+	Alchemy     alchemy.Config
 }
 
 // FromEnv builds logger, datastore, secrets, and otel providers. The returned
@@ -81,7 +83,12 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 		closeSecrets()
 		closeStore()
 	}
-	return Deps{Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer}, shutdown, nil
+	alc, err := alchemy.FromEnv(store)
+	if err != nil {
+		shutdown()
+		return Deps{}, nil, err
+	}
+	return Deps{Log: lg, Store: store, StreamStore: streamStore, Secrets: secrets, Metrics: metrics, Tracer: tracer, Alchemy: alc}, shutdown, nil
 }
 
 // Telemetry builds the logger and otel providers alone, for a binary that
@@ -130,15 +137,17 @@ func Bus() (bus.Bus, func(), error) {
 // them. Caller closes the returned host.
 func Mount(ctx context.Context, d Deps, b bus.Bus, mods ...module.Module) (*host.Host, error) {
 	rs, err := module.MountAll(ctx, module.Deps{
-		Bus:       b,
-		DataStore: d.Store,
-		Secrets:   d.Secrets,
-		Sources:   d.Sources,
-		Sinks:     d.Sinks,
-		Worker:    d.Worker,
-		Log:       d.Log,
-		Metrics:   d.Metrics,
-		Tracer:    d.Tracer,
+		Bus:           b,
+		DataStore:     d.Store,
+		Secrets:       d.Secrets,
+		Sources:       d.Sources,
+		Sinks:         d.Sinks,
+		Worker:        d.Worker,
+		Log:           d.Log,
+		Metrics:       d.Metrics,
+		Tracer:        d.Tracer,
+		Functions:     d.Alchemy.Functions,
+		FunctionBatch: d.Alchemy.FunctionBatch,
 	}, mods...)
 	if err != nil {
 		return nil, fmt.Errorf("mount: %w", err)

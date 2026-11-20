@@ -34,8 +34,8 @@ type Analysis struct {
 // returns the plan that applies them. Every column reference and function
 // call is checked here, so Apply never meets a name or type it has not seen.
 // A resource the definition does not mention compiles to an identity plan.
-func Compile(def *Definition, in rowmodel.Schema) (*Plan, error) {
-	plan, _, err := Analyze(def, in)
+func Compile(def *Definition, in rowmodel.Schema, opts ...Option) (*Plan, error) {
+	plan, _, err := Analyze(def, in, opts...)
 	return plan, err
 }
 
@@ -43,8 +43,11 @@ func Compile(def *Definition, in rowmodel.Schema) (*Plan, error) {
 // sub-expression that compiled, in compile order, and the schema the steps
 // produce, whether or not the whole definition did. A builder shows those
 // while the author is mid-edit.
-func Analyze(def *Definition, in rowmodel.Schema) (*Plan, Analysis, error) {
+func Analyze(def *Definition, in rowmodel.Schema, opts ...Option) (*Plan, Analysis, error) {
 	c := compiler{layout: in.Clone(), typeIndex: map[string]int{}}
+	for _, opt := range opts {
+		opt(&c)
+	}
 	if res, ok := def.Resources[in.Resource]; ok {
 		for i, st := range res.Steps {
 			c.step(fmt.Sprintf("resources[%q].steps[%d]", in.Resource, i), st)
@@ -66,6 +69,8 @@ type compiler struct {
 	errs      Errors
 	types     []ExpressionType
 	typeIndex map[string]int
+	contracts Contracts
+	invoker   Invoker
 }
 
 // recordType notes the type at path, replacing an earlier note for the same
@@ -98,6 +103,8 @@ func (c *compiler) step(path string, st Step) {
 		c.drop(path+".drop", st.Drop)
 	case st.Compute != nil:
 		c.compute(path, st.Compute, st.Where)
+	case st.Alchemy != nil:
+		c.alchemy(path+".alchemy", st.Alchemy)
 	}
 }
 

@@ -8,6 +8,7 @@ require (
 	connectrpc.com/connect v1.20.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.47.0
 	github.com/apache/arrow-go/v18 v18.8.0
+	github.com/galaxy-io/alchemy/api v0.3.0
 	github.com/go-mysql-org/go-mysql v1.15.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0
