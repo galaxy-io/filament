@@ -25,6 +25,9 @@ func WithAlchemy(client *alchemy.Client) Option {
 // alchemyRuntimesTTL is how long the runtime list, static per alchemy deploy, is reused.
 const alchemyRuntimesTTL = time.Minute
 
+// alchemyRPCTimeout bounds a catalog call, so a stalled alchemy fails the picker instead of hanging it.
+const alchemyRPCTimeout = 30 * time.Second
+
 // runtimeCache holds the last runtime list alchemy returned.
 type runtimeCache struct {
 	mu      sync.Mutex
@@ -50,7 +53,8 @@ func (a *Server) ListAlchemyFunctions(ctx context.Context, req *connect.Request[
 	if a.alchemy == nil {
 		return connect.NewResponse(&ingestionv1.ListAlchemyFunctionsResponse{}), nil
 	}
-	ctx = alchemy.WithTenant(ctx, tenant)
+	ctx, cancel := context.WithTimeout(alchemy.WithTenant(ctx, tenant), alchemyRPCTimeout)
+	defer cancel()
 	listReq := &functionsv1.ListFunctionsRequest{Search: req.Msg.GetSearch()}
 	if p := req.Msg.GetPagination(); p != nil {
 		listReq.Pagination = &functionsv1.PaginationRequest{PageSize: p.GetPageSize(), Cursor: p.Cursor}
@@ -82,7 +86,8 @@ func (a *Server) GetAlchemyFunction(ctx context.Context, req *connect.Request[in
 	if a.alchemy == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("alchemy is not configured"))
 	}
-	ctx = alchemy.WithTenant(ctx, tenant)
+	ctx, cancel := context.WithTimeout(alchemy.WithTenant(ctx, tenant), alchemyRPCTimeout)
+	defer cancel()
 	out, err := a.alchemy.Functions().GetFunction(ctx, connect.NewRequest(&functionsv1.GetFunctionRequest{Id: req.Msg.GetId()}))
 	if err != nil {
 		return nil, alchemyError("get alchemy function", err)

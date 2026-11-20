@@ -18,8 +18,8 @@ func arrayBytes(a arrow.Array) int64 {
 	data := a.Data()
 	off, n := data.Offset(), data.Len()
 	var size int
-	if a.NullN() > 0 {
-		size += len(bitRange(data.Buffers()[0].Bytes(), off, n))
+	if bitmap := data.Buffers()[0]; a.NullN() > 0 && bitmap != nil {
+		size += len(bitRange(bitmap.Bytes(), off, n))
 	}
 	switch v := a.(type) {
 	case *array.Boolean:
