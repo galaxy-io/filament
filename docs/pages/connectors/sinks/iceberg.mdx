@@ -29,7 +29,6 @@ catalog. Rows remain staged until their resource commits.
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
 | `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
-| `maintenance` | Connection | `true` | Compact, merge manifests, and expire snapshots between commits. See [table maintenance](#table-maintenance). |
 
 A `namespace` left empty is defaulted server-side to the normalized source
 connection name.
@@ -74,7 +73,7 @@ Iceberg tables. See
 
 `EnsureSchema` creates the namespace and the table with
 `write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
-`commit.manifest-merge.enabled`, `filament.managed`, and `table.update_mode` for
+`commit.manifest-merge.enabled`, and `table.update_mode` for
 `write.merge.mode` and `write.delete.mode`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
@@ -96,31 +95,6 @@ collides with Iceberg's reserved metadata names gets a `_` suffix.
 | unknown | `string` |
 
 Primary key fields become the table's identifier fields.
-
-### Table maintenance
-
-Continuous runs commit a snapshot per epoch, so small files and snapshots pile
-up. The sink maintains only tables it created, which carry the
-`filament.managed` table property. A table that already existed is written to
-but never maintained. When the sink opens one of its tables, it maintains it
-once 10 commits or 10 minutes have passed since the last maintenance. In a
-continuous run that happens at the start of the next epoch, after the previous
-one is recorded. It compacts small data files toward
-`write.target-file-size-bytes`, merges manifests, and expires snapshots. Each
-step is its own Iceberg commit. A table smaller than the target file size
-is rewritten whole each time. A data file with 50 or more delete files is
-rewritten regardless of size.
-
-Retention follows the standard table properties
-`history.expire.max-snapshot-age-ms` and
-`history.expire.min-snapshots-to-keep` (default 1). Tables the sink creates
-keep snapshots for 1 day. The sink records each run in the
-`filament.maintenance.last-run-ms` table property.
-
-A failed step is logged and never fails the run. The remaining steps still run,
-and the failed step is retried on the next maintenance cadence. Set
-`maintenance` to `false` when the catalog or another engine
-maintains the tables, so the two do not compete for commits.
 
 Array columns are written as their source's literal text. A table created by an older
 Filament version with a `list` column for the same source column must be
@@ -157,8 +131,8 @@ uses current storage credentials, then opens one Iceberg transaction:
   equality delete for every touched key in one snapshot, so the cost follows
   the change instead of the table. Under `copy-on-write`, the Iceberg default for tables the sink did not
   create, it rewrites every data file that may hold a touched key.
-  [Table maintenance](#table-maintenance) compacts equality deletes into the
-  data files. Partitioned tables and format version 1 tables always use
+  The sink never compacts equality deletes into the data files, so run
+  compaction from the catalog or another engine. Partitioned tables and format version 1 tables always use
   `copy-on-write`.
 
 Query engines must read equality deletes to see `merge-on-read` tables

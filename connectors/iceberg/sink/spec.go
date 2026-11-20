@@ -21,7 +21,6 @@ func (s *Sink) Spec() filament.SinkSpec {
 			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables. Empty defaults to the normalized source connection name."},
 			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
 			{Name: "commit_interval", Type: filament.FieldDuration, Default: "1m", Scope: filament.ScopePipeline, Help: "How often a continuous run commits to the table"},
-			{Name: "maintenance", Type: filament.FieldBool, Default: true, Scope: filament.ScopeConnection, Help: "Compact files and expire snapshots between commits"},
 		}...)},
 		SchemaField: "namespace",
 		Capabilities: filament.SinkCapabilities{

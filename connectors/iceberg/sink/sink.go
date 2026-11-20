@@ -47,7 +47,6 @@ type Sink struct {
 	tableUpdateMode    string
 	namespace          string
 	stageBufLimitBytes int64
-	maintenance        bool
 	ingestionTypes     map[string]filament.IngestionType
 	writeModes         map[string]writeMode
 	run                filament.RunID
@@ -123,7 +122,6 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
-	s.maintenance = !cfg.Has("maintenance") || cfg.Bool("maintenance")
 	setup, err := icebergcatalog.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: %w", err)

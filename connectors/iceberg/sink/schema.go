@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
-	"time"
 
 	iceberg "github.com/apache/iceberg-go"
 	"github.com/apache/iceberg-go/catalog"
@@ -83,11 +81,8 @@ func createProperties(updateMode string) iceberg.Properties {
 		"write.format.default":                       "parquet",
 		icetable.MetadataDeleteAfterCommitEnabledKey: "true",
 		icetable.ManifestMergeEnabledKey:             "true",
-		maxSnapshotAgeKey:                            strconv.FormatInt(maxSnapshotAgeCreated.Milliseconds(), 10),
 		writeMergeModeKey:                            updateMode,
 		icetable.WriteDeleteModeKey:                  updateMode,
-		managedKey:                                   "true",
-		maintainedAtKey:                              strconv.FormatInt(time.Now().UnixMilli(), 10),
 	}
 }
 
@@ -134,7 +129,6 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	} else if err != nil {
 		return fmt.Errorf("iceberg sink: create table %s: %w", resource, err)
 	}
-	tbl = s.maintainIfDue(ctx, resource, tbl)
 
 	s.mu.Lock()
 	s.tables[resource] = &iceTable{
