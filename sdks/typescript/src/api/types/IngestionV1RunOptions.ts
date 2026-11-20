@@ -3,8 +3,7 @@
 import type * as Filament from "../index.js";
 
 /**
- * RunOptions overrides the engine's throughput defaults for a run. Every field
- *  is optional: a zero value defers to the engine default downstream.
+ * RunOptions overrides engine defaults for a run. Every field is optional.
  */
 export interface IngestionV1RunOptions {
     fetchSize?: number | undefined;
@@ -18,4 +17,9 @@ export interface IngestionV1RunOptions {
      *  Continuous creates a durable activation; unavailable profiles are rejected.
      */
     executionMode?: Filament.IngestionV1ExecutionMode | undefined;
+    /**
+     * Stop the run at its first resource failure. Omit to inherit the pipeline's
+     *  fail_on_error setting.
+     */
+    failOnError?: (boolean | null) | undefined;
 }

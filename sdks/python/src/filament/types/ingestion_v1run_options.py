@@ -12,8 +12,7 @@ from .ingestion_v1rate_policy import IngestionV1RatePolicy
 
 class IngestionV1RunOptions(UniversalBaseModel):
     """
-    RunOptions overrides the engine's throughput defaults for a run. Every field
-     is optional: a zero value defers to the engine default downstream.
+    RunOptions overrides engine defaults for a run. Every field is optional.
     """
 
     fetch_size: typing_extensions.Annotated[
@@ -45,6 +44,19 @@ class IngestionV1RunOptions(UniversalBaseModel):
     """
     Unspecified inherits the pipeline mode. Explicit values override this start.
      Continuous creates a durable activation; unavailable profiles are rejected.
+    """
+
+    fail_on_error: typing_extensions.Annotated[
+        typing.Optional[bool],
+        FieldMetadata(alias="failOnError"),
+        pydantic.Field(
+            alias="failOnError",
+            description="Stop the run at its first resource failure. Omit to inherit the pipeline's\n fail_on_error setting.",
+        ),
+    ] = None
+    """
+    Stop the run at its first resource failure. Omit to inherit the pipeline's
+     fail_on_error setting.
     """
 
     if IS_PYDANTIC_V2:

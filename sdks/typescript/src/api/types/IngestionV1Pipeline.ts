@@ -28,4 +28,11 @@ export interface IngestionV1Pipeline {
     workerConfiguration?: Filament.IngestionV1WorkerConfiguration | undefined;
     /** Default execution mode for subsequent starts; existing pipelines are bounded. */
     executionMode?: Filament.IngestionV1ExecutionMode | undefined;
+    /**
+     * fail_on_error stops a bounded run at its first resource failure. False
+     *  isolates a failed resource and lets the others finish, so the run can end
+     *  completed with failed resources. Change-stream routes always stop.
+     *  Pipelines created before this setting existed are true.
+     */
+    failOnError?: (boolean | null) | undefined;
 }
