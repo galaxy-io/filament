@@ -69,6 +69,17 @@ func decimalType(f rowmodel.Field) string {
 	return fmt.Sprintf("Decimal(%d, %d)", f.Precision, f.Scale)
 }
 
+// The values a Postgres infinity sentinel lands as in a NOT NULL ClickHouse
+// column, where a nil would be stored as 1970-01-01. Date32 takes its own
+// type bounds. DateTime64 is narrower than its type: clickhouse-go converts
+// time.Time through UnixNano, which overflows past 2262-04-11, so its
+// writable ceiling is the bound the driver itself declares.
+var (
+	maxDate32Value     = time.Date(2299, 12, 31, 0, 0, 0, 0, time.UTC)
+	minTemporalValue   = time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
+	maxDateTime64Value = time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC)
+)
+
 // valueFn returns row i of a column as the value clickhouse-go appends.
 type valueFn func(col arrow.Array, i int) any
 
@@ -111,8 +122,17 @@ func valueFor(f arrow.Field) valueFn {
 	case arrow.DATE32:
 		return func(col arrow.Array, i int) any {
 			v := int64(col.(*array.Date32).Value(i))
-			if v == math.MaxInt32 || v == math.MinInt32 { // Postgres infinity has no ClickHouse form
-				return nil
+			switch v {
+			case math.MaxInt32: // Postgres infinity has no ClickHouse form
+				if f.Nullable {
+					return nil
+				}
+				return maxDate32Value
+			case math.MinInt32: // Postgres -infinity
+				if f.Nullable {
+					return nil
+				}
+				return minTemporalValue
 			}
 			return time.Unix(v*86400, 0).UTC()
 		}
@@ -124,16 +144,34 @@ func valueFor(f arrow.Field) valueFn {
 		if f.Type.(*arrow.TimestampType).TimeZone != "" {
 			return func(col arrow.Array, i int) any {
 				us := int64(col.(*array.Timestamp).Value(i))
-				if us == math.MaxInt64 || us == math.MinInt64 { // Postgres infinity has no ClickHouse form
-					return nil
+				switch us {
+				case math.MaxInt64: // Postgres infinity has no ClickHouse form
+					if f.Nullable {
+						return nil
+					}
+					return maxDateTime64Value
+				case math.MinInt64: // Postgres -infinity
+					if f.Nullable {
+						return nil
+					}
+					return minTemporalValue
 				}
 				return time.Unix(us/arrowtext.MicrosPerSecond, us%arrowtext.MicrosPerSecond*1000).UTC()
 			}
 		}
 		return func(col arrow.Array, i int) any {
 			us := int64(col.(*array.Timestamp).Value(i))
-			if us == math.MaxInt64 || us == math.MinInt64 {
-				return nil
+			switch us {
+			case math.MaxInt64: // Postgres infinity has no ClickHouse form
+				if f.Nullable {
+					return nil
+				}
+				us = maxDateTime64Value.UnixMicro()
+			case math.MinInt64: // Postgres -infinity
+				if f.Nullable {
+					return nil
+				}
+				us = minTemporalValue.UnixMicro()
 			}
 			return string(arrowtext.AppendTimestamp(nil, us, ' '))
 		}
