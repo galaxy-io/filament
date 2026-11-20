@@ -47,6 +47,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
   const {
     resource,
     columns: resourceColumns,
+    columnSelection,
     sourceConnectionId,
     functionsByName,
     grammarVersion,
@@ -69,6 +70,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
       sourceConnectionId,
       resource,
       transform: prefixDefinition,
+      columns: columnSelection,
     }),
     options: { enabled: hasPrefix },
   });
@@ -93,6 +95,7 @@ export const usePipelineTransformFieldsValidation = (draft: PipelineTransformFie
       sourceConnectionId,
       resource,
       transform: definition,
+      columns: columnSelection,
     }),
     options: {
       enabled:

@@ -97,7 +97,12 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	case inspection.Schema == nil:
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource schemas", conn.Connector))
 	}
-	schema := *inspections[0].Schema
+	srcSpec, err := a.worker.SourceSpec(ctx, conn.Connector)
+	if err != nil {
+		return nil, connectorError(err)
+	}
+	cdc := filament.ReplicationFor(srcSpec, filament.NewConfig(config)) == filament.ReplicationCDC
+	schema := rowmodel.InputFor(*inspections[0].Schema, req.Msg.GetColumns(), cdc)
 
 	// A Struct is JSON, and JSON is yaml, so the transform takes the same
 	// path a hand-written one does.
