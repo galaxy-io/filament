@@ -39,10 +39,16 @@ apps are backfilled from the beginning.
 
 For deterministic upserts across re-reads, `analytics_reports` builds its
 primary key `id` from `<app_id>:<report_name>:<processing_date>:<dimension_hash>`
-(where `<dimension_hash>` is the hex-encoded 128-bit SHA-256 prefix of the row's
-dimension columns, excluding numeric measures so restated metrics replace the
-existing row on upsert), and `sales_reports` builds `id` from
-`<Provider>:<SKU>:<Begin Date>:<Country Code>:<Product Type Identifier>`.
+(where `<dimension_hash>` is the hex-encoded 128-bit SHA-256 prefix of the
+explicit Apple dimension columns for that report category, excluding measure
+columns so restated metrics replace the existing row on upsert), and
+`sales_reports` builds `id` from the Summary Sales Report dimension columns
+(including `Provider`, `Provider Country`, `SKU`, `Version`,
+`Product Type Identifier`, `Begin Date`, `End Date`, `Customer Currency`,
+`Country Code`, `Currency of Proceeds`, `Apple Identifier`, `Customer Price`,
+`Promo Code`, `Parent Identifier`, `Subscription`, `Period`, `Category`,
+`CMB`, `Device`, `Supported Platforms`, `Proceeds Reason`,
+`Preserved Pricing`, `Client`, and `Order Type`).
 
 <Note>
   Reviews, analytics, and sales report extraction are currently validated

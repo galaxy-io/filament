@@ -232,11 +232,16 @@ func TestAnalyticsAndSalesGzippedTSVIncrementalExtraction(t *testing.T) {
 					t.Fatalf("unexpected analytics_reports composite id format: %q", r.id)
 				}
 			}
-			// Verify that restating a measure (Sessions 42 -> 99) for the same dimensions preserves the row ID.
-			h1 := analyticsDimensionHash(map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Sessions": "42"})
-			h2 := analyticsDimensionHash(map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Sessions": "99"})
+			// Verify that restating a measure (Sessions 42 -> 99) for the same dimensions preserves the row ID,
+			// while changing a numeric dimension (Hour "1" -> "2") produces a distinct dimension hash.
+			h1 := analyticsDimensionHash("APP_USAGE", "App Sessions", map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Hour": "1", "Sessions": "42"})
+			h2 := analyticsDimensionHash("APP_USAGE", "App Sessions", map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Hour": "1", "Sessions": "99"})
 			if h1 != h2 {
 				t.Fatalf("expected restated measure to preserve dimension hash, got %q != %q", h1, h2)
+			}
+			h3 := analyticsDimensionHash("APP_USAGE", "App Sessions", map[string]string{"Date": "2026-11-16", "App Name": "Galaxy App", "Territory": "US", "Hour": "2", "Sessions": "42"})
+			if h1 == h3 {
+				t.Fatalf("expected distinct dimension hash for different numeric Hour dimension, got identical %q", h1)
 			}
 		}
 	}

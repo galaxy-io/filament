@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -355,7 +354,7 @@ func (s *Source) walkAnalyticsInstanceSegments(ctx context.Context, resName, app
 			for _, metricsMap := range rows {
 				rawMetrics, _ := json.Marshal(metricsMap)
 				row := recordRow{
-					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, procDateStr, analyticsDimensionHash(metricsMap)),
+					id:         fmt.Sprintf("%s:%s:%s:%s", appID, name, procDateStr, analyticsDimensionHash(category, name, metricsMap)),
 					appID:      appID,
 					category:   category,
 					name:       name,
@@ -423,10 +422,31 @@ func (s *Source) walkSalesReports(ctx context.Context, r resource, limit int, lo
 			}
 			compositeID := strings.Join([]string{
 				metricsMap["Provider"],
+				metricsMap["Provider Country"],
 				metricsMap["SKU"],
-				beginDate,
-				metricsMap["Country Code"],
+				metricsMap["Developer"],
+				metricsMap["Title"],
+				metricsMap["Version"],
 				metricsMap["Product Type Identifier"],
+				beginDate,
+				metricsMap["End Date"],
+				metricsMap["Customer Currency"],
+				metricsMap["Country Code"],
+				metricsMap["Currency of Proceeds"],
+				metricsMap["Apple Identifier"],
+				metricsMap["Customer Price"],
+				metricsMap["Promo Code"],
+				metricsMap["Parent Identifier"],
+				metricsMap["Subscription"],
+				metricsMap["Period"],
+				metricsMap["Category"],
+				metricsMap["CMB"],
+				metricsMap["Device"],
+				metricsMap["Supported Platforms"],
+				metricsMap["Proceeds Reason"],
+				metricsMap["Preserved Pricing"],
+				metricsMap["Client"],
+				metricsMap["Order Type"],
 			}, ":")
 			row := recordRow{
 				id:         compositeID,
@@ -536,35 +556,77 @@ func parseDateOrRFC3339(val string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unsupported date format %q", val)
 }
 
-// analyticsDimensionHash computes a 128-bit SHA-256 hex digest over only the dimension columns
-// of an analytics report row so restated numeric measure values upsert cleanly in place.
-func analyticsDimensionHash(metricsMap map[string]string) string {
+// appleAnalyticsDimensionsByCategory lists the explicit dimension columns defined in
+// Apple's App Store Connect Analytics Report documentation per report category, plus
+// report-specific overrides, so numeric dimensions (e.g. Hour, Age, Days Since Download)
+// are never misclassified as measures.
+var appleAnalyticsDimensionsByCategory = map[string][]string{
+	"APP_USAGE": {
+		"Date", "App Name", "App Apple Identifier", "App Version", "Device", "Platform Version",
+		"Source Type", "Source Info", "Campaign", "Page Type", "Page Title", "Territory",
+		"Event", "Engagement Type", "Install Type",
+	},
+	"APP_STORE_ENGAGEMENT": {
+		"Date", "App Name", "App Apple Identifier", "Device", "Platform Version", "Source Type",
+		"Source Info", "Campaign", "Page Type", "Page Title", "Territory", "Engagement Type",
+		"Event", "Search Term",
+	},
+	"COMMERCE": {
+		"Date", "App Name", "App Apple Identifier", "In-App Purchase", "In-App Purchase Apple Identifier",
+		"In-App Purchase Type", "Purchase Type", "Download Type", "Device", "Platform Version",
+		"Source Type", "Source Info", "Campaign", "Page Type", "Page Title", "Territory",
+		"Subscription", "Subscription Name", "Subscription Apple Identifier", "Subscription Group ID",
+		"Standard Subscription Duration", "Offer Name", "Offer Code", "Offer Type",
+		"Proceeds Reason", "Preserved Pricing", "Pre-Order", "Order Type",
+		"Currency", "Customer Currency", "Proceeds Currency", "Age", "Hour",
+	},
+	"FRAMEWORK_USAGE": {
+		"Date", "App Name", "App Apple Identifier", "App Version", "Device", "Platform Version",
+		"Territory", "Framework", "Framework Type",
+	},
+	"PERFORMANCE": {
+		"Date", "App Name", "App Apple Identifier", "App Version", "Device", "Platform Version",
+		"Territory", "Connection Type", "Disk Space", "Percentile", "Error Type",
+	},
+}
+
+// appleAnalyticsCommonDimensionColumns is the union of all documented App Store Connect
+// analytics dimension headers used when a report name or category introduces shared dimensions.
+var appleAnalyticsCommonDimensionColumns = []string{
+	"Date", "Hour", "App Name", "App Apple Identifier", "App Version", "Build",
+	"Device", "Platform", "Platform Version", "Territory", "Country", "Region", "Locale",
+	"Source Type", "Source Info", "App Referrer", "Web Referrer", "Campaign",
+	"Page Type", "Page Title", "Search Term", "Engagement Type", "Event", "Install Type",
+	"Purchase Type", "Download Type", "In-App Purchase", "In-App Purchase Apple Identifier",
+	"In-App Purchase Type", "Subscription", "Subscription Name", "Subscription Apple Identifier",
+	"Subscription Group ID", "Standard Subscription Duration", "Offer Name", "Offer Code",
+	"Offer Type", "Proceeds Reason", "Preserved Pricing", "Pre-Order", "Order Type",
+	"Currency", "Customer Currency", "Proceeds Currency", "Age", "Days Since Download",
+	"CohortDate", "Framework", "Framework Type", "Connection Type", "Disk Space",
+	"Percentile", "Error Type",
+}
+
+// analyticsDimensionHash computes a 128-bit SHA-256 hex digest over the explicit Apple
+// dimension columns for the report category so restated measure values upsert cleanly in place
+// while numeric dimensions (such as Hour or Age buckets) remain part of the key.
+func analyticsDimensionHash(category, reportName string, metricsMap map[string]string) string {
+	allowed := make(map[string]struct{}, len(appleAnalyticsCommonDimensionColumns))
+	for _, col := range appleAnalyticsDimensionsByCategory[strings.ToUpper(strings.TrimSpace(category))] {
+		allowed[col] = struct{}{}
+	}
+	for _, col := range appleAnalyticsCommonDimensionColumns {
+		allowed[col] = struct{}{}
+	}
 	dims := make(map[string]string, len(metricsMap))
 	for k, v := range metricsMap {
-		if isAnalyticsMeasureColumn(k, v) {
-			continue
+		if _, ok := allowed[k]; ok {
+			dims[k] = v
 		}
-		dims[k] = v
 	}
-	if len(dims) == 0 {
-		dims = metricsMap
+	if reportName != "" {
+		dims["_report_name"] = reportName
 	}
 	rawDims, _ := json.Marshal(dims)
 	sum := sha256.Sum256(rawDims)
 	return hex.EncodeToString(sum[:16])
-}
-
-func isAnalyticsMeasureColumn(colName, val string) bool {
-	lower := strings.ToLower(strings.TrimSpace(colName))
-	for _, idSuffix := range []string{"id", "date", "territory", "device", "platform", "version", "type", "source", "referrer", "campaign", "page", "locale", "region", "country", "code", "name", "title", "state", "status", "category"} {
-		if lower == idSuffix || strings.HasSuffix(lower, " "+idSuffix) || strings.HasSuffix(lower, "_"+idSuffix) {
-			return false
-		}
-	}
-	trimmed := strings.TrimSpace(strings.TrimSuffix(val, "%"))
-	if trimmed == "" {
-		return false
-	}
-	_, err := strconv.ParseFloat(trimmed, 64)
-	return err == nil
 }
