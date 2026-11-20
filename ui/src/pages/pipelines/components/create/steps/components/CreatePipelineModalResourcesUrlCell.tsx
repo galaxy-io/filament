@@ -8,7 +8,10 @@ import { createWebhookDeliveryUrl } from "@/components/webhooks/utils";
 import { useCreatePipelineModalState } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
 
-import { createGetWebhookEndpointInput, useGetWebhookEndpointQuery } from "@/api/queries/webhooks";
+import {
+  createGetWebhookDeliveryURLInput,
+  useGetWebhookDeliveryURLQuery,
+} from "@/api/queries/webhooks";
 
 interface CreatePipelineModalResourcesUrlCellProps {
   row: CreatePipelineModalResourceRow;
@@ -19,8 +22,8 @@ const CreatePipelineModalResourcesUrlCell: FC<CreatePipelineModalResourcesUrlCel
 }) => {
   const { sourceConnection } = useCreatePipelineModalState();
   const sourceConnectionId = sourceConnection?.id ?? "";
-  const { data } = useGetWebhookEndpointQuery({
-    input: createGetWebhookEndpointInput(sourceConnectionId),
+  const { data } = useGetWebhookDeliveryURLQuery({
+    input: createGetWebhookDeliveryURLInput(sourceConnectionId),
     options: { enabled: sourceConnectionId !== "", retry: false },
   });
 
@@ -31,7 +34,7 @@ const CreatePipelineModalResourcesUrlCell: FC<CreatePipelineModalResourcesUrlCel
       family={FontFamily.MONO}
       lineClamp={1}
     >
-      {createWebhookDeliveryUrl(row.name, data?.endpoint?.deliveryUrl) ?? "URL unavailable"}
+      {createWebhookDeliveryUrl(row.name, data?.deliveryUrl) ?? "URL unavailable"}
     </Text>
   );
 };

@@ -1,12 +1,10 @@
 import { useCallback } from "react";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 import type { WebhookEndpointConfig } from "@/gen/ingestion/v1/webhooks_pb";
 
-import {
-  createPutWebhookEndpointRequest,
-  createWebhookDeliveryBaseUrl,
-} from "@/components/webhooks/utils";
+import { createPutWebhookEndpointRequest } from "@/components/webhooks/utils";
 
 import type { ConnectionFormSigningKeyReveal } from "@/pages/connections/components/form/types";
 
@@ -23,6 +21,7 @@ export const useConnectionWebhookKeyMint = () => {
   const mintKey = useCallback(
     (
       connection: Connection,
+      webhook: WebhookSpec,
       endpoint: WebhookEndpointConfig | undefined,
       { onSuccess, onError }: ConnectionWebhookKeyMintCallbacks,
     ) =>
@@ -37,8 +36,9 @@ export const useConnectionWebhookKeyMint = () => {
             reset();
             onSuccess({
               connection,
+              webhook,
               signingKey: response.mintedSecret,
-              deliveryUrl: createWebhookDeliveryBaseUrl(response.endpoint?.deliveryUrl),
+              deliveryUrl: response.endpoint?.deliveryUrl ?? "",
             });
           },
           onError,

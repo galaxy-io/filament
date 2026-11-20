@@ -3,9 +3,11 @@ package server
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -106,6 +108,53 @@ func TestValidatePipelineResolvesExecutionPerResource(t *testing.T) {
 		}
 		if got := edges[1].GetEffectiveExecutionMode(); got != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
 			t.Errorf("pipeline %v: live runs %v", mode, got)
+		}
+	}
+}
+
+// ingestingSource is a split source whose connections choose how they read
+// it through the "ingestion" field.
+type ingestingSource struct{ splitSource }
+
+func (ingestingSource) Spec() filament.ConnectorSpec {
+	spec := splitSource{}.Spec()
+	spec.Name = "ingestingsource"
+	spec.Webhook.IngestionField = "ingestion"
+	spec.Config = filament.ConfigSchema{Fields: []filament.ConfigField{{
+		Name: "ingestion", Type: filament.FieldEnum, Default: filament.IngestionAPI, Scope: filament.ScopeConnection,
+		Enum: []filament.EnumOption{{Value: filament.IngestionAPI}, {Value: filament.IngestionWebhooks}, {Value: filament.IngestionBoth}},
+	}}}
+	return spec
+}
+
+// A connection offers only the execution modes its ingestion choice can run.
+func TestConnectionExecutionModesFollowIngestion(t *testing.T) {
+	sources := registry.NewSources()
+	sources.Register("ingestingsource", func() filament.Source { return ingestingSource{} })
+	api := New(worker.Local(sources, registry.NewSinks()), continuousMemory{Store: sqlite.NewMemory()}, nil, nil)
+	bounded, continuous := ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED, ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS
+	for ingestion, want := range map[string][]ingestionv1.ExecutionMode{
+		"":                         {bounded},
+		filament.IngestionAPI:      {bounded},
+		filament.IngestionWebhooks: {continuous},
+		filament.IngestionBoth:     {bounded, continuous},
+	} {
+		config := map[string]any{}
+		if ingestion != "" {
+			config["ingestion"] = ingestion
+		}
+		cfg, err := structpb.NewStruct(config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := api.CreateConnection(testCtx(), connect.NewRequest(&ingestionv1.CreateConnectionRequest{
+			Kind: ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE, Name: "src " + ingestion, Connector: "ingestingsource", Config: cfg,
+		}))
+		if err != nil {
+			t.Fatalf("ingestion %q: %v", ingestion, err)
+		}
+		if got := resp.Msg.GetConnection().GetExecutionModes(); !slices.Equal(got, want) {
+			t.Errorf("ingestion %q: execution modes %v, want %v", ingestion, got, want)
 		}
 	}
 }

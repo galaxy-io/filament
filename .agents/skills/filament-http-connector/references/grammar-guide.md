@@ -25,6 +25,7 @@ field_sets: {}        # reusable field bundles
 connection: {}        # required
 resources: []         # required, at least one
 discovery: {}         # static or dynamic
+webhook: {}           # optional; the provider pushes records to Filament
 ```
 
 Metadata belongs in the manifest, not in constructor arguments. Resolve real
@@ -441,3 +442,126 @@ manifest still uses dynamic discovery.
 The runtime also supports `mode: stream` with `ndjson`, `sse`, or `chunked_array`.
 No catalog manifest currently uses it. If needed, inspect the stream schema and
 implementation rather than treating a streaming endpoint as paginated JSON.
+
+## webhook — records the provider pushes
+
+Add a `webhook` block only when the provider documents outbound webhooks with
+a stable signing scheme. Each resource with `mode: webhook` streams deliveries
+from Filament's inbox continuously, even in a pipeline that schedules the
+manifest's API resources. It makes no request, so it declares only `name`,
+`records`, `events`, `primary_key` and `fields`. Validation rejects anything
+else, and request defaults never apply to it.
+
+```yaml
+webhook:
+  verifier: {profile: standard_webhooks}   # a profile in webhooks/, plus optional params
+  setup: |                                 # Markdown shown with the delivery URL and key
+    In Example, add a webhook pointing at {{delivery_url:orders_webhook}}.
+resources:
+  - name: orders
+    path: /orders
+    primary_key: [id]
+    fields: {id: string, status: string}
+  - name: orders_webhook
+    mode: webhook
+    records: $.data          # omit when the whole body is one record
+    primary_key: [id]
+    fields: {id: string, status: string}
+```
+
+### Verifiers
+
+Choose the verifier the provider documents. A new scheme is a new profile in
+`webhooks/`, never connector code, and most need no new profile.
+
+| Profile | Covers |
+|---|---|
+| `standard_webhooks` | Standard Webhooks senders. Takes no params |
+| `hmac` | An HMAC of the body, optionally with a timestamp and delivery ID, in a header. GitHub, Shopify, Stripe, Slack and most others |
+| `shared_secret_header` | Senders that only repeat a secret in a header. `params.delivery_id` names a header or body path |
+| `generic_hmac_sha256` | Filament's own scheme. Takes no params |
+
+`hmac` params, all but `signature.header` and `delivery_id` optional.
+
+```yaml
+verifier:
+  profile: hmac
+  params:
+    algorithm: sha256              # sha256, sha1 or sha512
+    signature:
+      header: Stripe-Signature
+      pair: v1                     # the header is key=value pairs, read every v1
+      separator: ","               # between pairs, default ","
+      prefix: ""                   # before each signature, such as "sha256=" or "v0="
+      encoding: hex                # hex or base64
+    timestamp: {pair: t, tolerance_seconds: 300}   # or {header: X-Slack-Request-Timestamp}
+    signed: "{timestamp}.{body}"   # over {body}, {timestamp}, {delivery_id}. Default {body}
+    delivery_id: {body: id}        # or {header: X-GitHub-Delivery}
+    key: {prefix: whsec_, encoding: base64}         # how the stored secret becomes the key. Default raw
+```
+
+The delivery ID must stay constant across the provider's retries. Without one,
+retries become duplicate rows.
+
+### One URL for every event
+
+Some providers send every event type to one URL and name the type in a header
+or the body. Add `route` and list each webhook resource's event types in
+`events`. `"*"` takes every type no other resource lists. An event no selected
+resource reads is acknowledged and dropped, so the provider does not retry it.
+Each resource keeps its own URL as well.
+
+```yaml
+webhook:
+  verifier: {profile: hmac, params: {signature: {header: X-Hub-Signature-256, prefix: "sha256="}, delivery_id: {header: X-GitHub-Delivery}}}
+  route: {event: {header: X-GitHub-Event}}       # or {body: type}
+  setup: Point the webhook at {{delivery_url}}.
+resources:
+  - name: pushes
+    mode: webhook
+    events: [push]
+    ...
+```
+
+### Subscription challenges
+
+Providers that verify the URL with a handshake before sending events, such as
+Meta's `hub.challenge` GET, Slack's `url_verification` and Zoom's
+`endpoint.url_validation`, are not supported yet. Treat one as a blocker and
+name it. Support is a new field on `webhooks.Ingress`, answered in
+`webhooks/receiver.go` before a delivery is verified. The endpoint stores
+ingress as one JSON object, so it needs no migration or proto change.
+
+### Setup text
+
+`setup` is Markdown shown beside the endpoint. Write delivery URLs as
+placeholders, which the UI fills in with the connection's URL.
+`{{delivery_url}}` is the single routed URL and needs `route`.
+`{{delivery_url:<resource>}}` is one webhook resource's URL. Validation rejects
+a placeholder that names no webhook resource.
+
+### Notes
+
+- Give a webhook resource its own name, such as `orders_webhook`. When it mirrors
+  an API resource, match that resource's field names and types so a pipeline can
+  write both to one table.
+- Set `secret: provider` when the provider creates each webhook's signing
+  secret, as Metronome does. The connection is then given that secret and
+  Filament never generates one. The default, `filament`, generates a key for
+  the user to copy into the sender, which suits providers that accept any
+  secret, such as PostHog's HTTP Webhook destination.
+- The source adds an `ingestion` connection field, `api` by default, with
+  `webhooks` and `both`, so do not declare that name in `config`. Webhook
+  resources are discovered only with `webhooks` or `both`, and bounded runs
+  never read them. A `webhooks` connection hides every connection-scoped
+  `config` field, skips their validation and the connection probe, and offers
+  no API resources. Connection-scoped fields therefore cannot declare
+  `visible_when` in a manifest with a webhook block.
+- A delivery whose body does not decode as its resource, or fails a field type,
+  is skipped whole and counted in `filament_webhook_rejected_deliveries_total`.
+  It stays in the inbox until retention purges it.
+- Only manifests in the catalog or `HTTP_MANIFESTS_DIR` receive webhooks. The
+  manifest-path source, which loads its manifest from connection config, cannot,
+  because its webhook spec must be known before configuration.
+- A connector update that changes the verifier or `route` reaches existing
+  endpoints when the server starts or the endpoint is next read.

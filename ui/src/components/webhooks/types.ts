@@ -7,3 +7,14 @@ export enum WebhookEndpointStatus {
   WAITING = "WAITING",
   LIVE = "LIVE",
 }
+
+export interface WebhookDeliveryTarget {
+  label: string;
+  resource: string;
+}
+
+export enum WebhookIngestion {
+  API = "api",
+  WEBHOOKS = "webhooks",
+  BOTH = "both",
+}

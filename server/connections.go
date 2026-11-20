@@ -246,8 +246,9 @@ func (a *Server) connectionForResponse(ctx context.Context, conn filament.Connec
 		if err != nil {
 			return out
 		}
-		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, filament.NewConfig(conn.Config)))
-		out.ExecutionModes = a.sourceExecutionModes(spec)
+		cfg := filament.NewConfig(conn.Config)
+		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, cfg))
+		out.ExecutionModes = a.connectionExecutionModes(spec, cfg)
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {
