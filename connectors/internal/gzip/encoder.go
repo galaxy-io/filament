@@ -213,7 +213,10 @@ func (e *Encoder) compressBlocks(dst, window, content []byte) ([]byte, error) {
 		block := &blocks[i]
 		block.out = block.out[:0]
 		if count == 1 {
+			// Inline, without a goroutine, but still within the process limit.
+			slots <- struct{}{}
 			errs[i] = deflateBlock(block, dict, content[from:to])
+			<-slots
 			break
 		}
 		slots <- struct{}{}
@@ -234,7 +237,12 @@ func (e *Encoder) compressBlocks(dst, window, content []byte) ([]byte, error) {
 
 func deflateBlock(out *blockBuffer, dict, content []byte) error {
 	w := writers.Get().(*flate.Writer)
-	defer writers.Put(w)
+	defer func() {
+		// ResetDict keeps the dictionary and the output writer; drop both so a
+		// pooled writer does not hold a batch's buffers.
+		w.ResetDict(nil, nil)
+		writers.Put(w)
+	}()
 	w.ResetDict(out, dict)
 	if _, err := w.Write(content); err != nil {
 		return err
