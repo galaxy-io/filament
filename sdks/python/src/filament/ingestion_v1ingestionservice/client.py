@@ -234,6 +234,7 @@ class IngestionV1IngestionserviceClient:
         source_connection_id: typing.Optional[str] = OMIT,
         resource: typing.Optional[str] = OMIT,
         transform: typing.Optional[GoogleProtobufStruct] = OMIT,
+        columns: typing.Optional[typing.Sequence[str]] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1ValidateTransformResponse:
         """
@@ -247,6 +248,8 @@ class IngestionV1IngestionserviceClient:
         resource : typing.Optional[str]
 
         transform : typing.Optional[GoogleProtobufStruct]
+
+        columns : typing.Optional[typing.Sequence[str]]
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -273,6 +276,7 @@ class IngestionV1IngestionserviceClient:
             source_connection_id=source_connection_id,
             resource=resource,
             transform=transform,
+            columns=columns,
             request_options=request_options,
         )
         return _response.data
@@ -525,6 +529,7 @@ class AsyncIngestionV1IngestionserviceClient:
         source_connection_id: typing.Optional[str] = OMIT,
         resource: typing.Optional[str] = OMIT,
         transform: typing.Optional[GoogleProtobufStruct] = OMIT,
+        columns: typing.Optional[typing.Sequence[str]] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> IngestionV1ValidateTransformResponse:
         """
@@ -538,6 +543,8 @@ class AsyncIngestionV1IngestionserviceClient:
         resource : typing.Optional[str]
 
         transform : typing.Optional[GoogleProtobufStruct]
+
+        columns : typing.Optional[typing.Sequence[str]]
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -572,6 +579,7 @@ class AsyncIngestionV1IngestionserviceClient:
             source_connection_id=source_connection_id,
             resource=resource,
             transform=transform,
+            columns=columns,
             request_options=request_options,
         )
         return _response.data

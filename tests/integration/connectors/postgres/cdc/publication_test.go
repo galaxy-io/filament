@@ -36,6 +36,7 @@ func TestPostgresCDCManagedPublicationFollowsSlot(t *testing.T) {
 	if slots, publications := count(); slots != 1 || publications != 1 {
 		t.Fatalf("stream must own a slot and a publication of its name: slot=%d publication=%d", slots, publications)
 	}
+	waitSlotReleased(t, ctx, pg, "filament_test_owned")
 	if err := src.CleanupReplicationStream(ctx, filament.ReplicationStream{ConsumerName: "filament_test_owned"}); err != nil {
 		t.Fatal(err)
 	}

@@ -81,6 +81,24 @@ func (w *barrierWriter) EndRow(meta filament.RowMeta) error {
 	return w.RowWriter.EndRow(meta)
 }
 
+// waitSlotReleased waits for the walsender of a closed session to exit. Closing
+// the replication connection returns before the server releases the slot.
+func waitSlotReleased(t *testing.T, ctx context.Context, pg *testcontainers.PG, slot string) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		var active bool
+		err := pg.Pool().QueryRow(ctx, `SELECT coalesce(bool_or(active), false) FROM pg_replication_slots WHERE slot_name = $1`, slot).Scan(&active)
+		if err == nil && !active {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("slot %s still active: %v", slot, err)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 func TestPostgresCDCBootstrapSnapshotThenWAL(t *testing.T) {
 	pg := testcontainers.SharedPostgresCDC(t)
 	// The timeout budgets the pipeline, not the container boot above it.

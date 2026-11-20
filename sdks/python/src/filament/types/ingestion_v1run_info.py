@@ -100,6 +100,19 @@ class IngestionV1RunInfo(UniversalBaseModel):
     resources this run reads. Empty means every resource its route selects.
     """
 
+    failed_resources: typing_extensions.Annotated[
+        typing.Optional[typing.List[str]],
+        FieldMetadata(alias="failedResources"),
+        pydantic.Field(
+            alias="failedResources",
+            description="failed_resources names the resources that failed in this run. A completed\n run with failed resources isolated them and committed the rest.",
+        ),
+    ] = None
+    """
+    failed_resources names the resources that failed in this run. A completed
+     run with failed resources isolated them and committed the rest.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:
