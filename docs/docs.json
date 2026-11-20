@@ -197,6 +197,7 @@
               "pages/connectors/sinks/mysql",
               "pages/connectors/sinks/kafka",
               "pages/connectors/sinks/nats",
+              "pages/connectors/sinks/rabbitmq",
               "pages/connectors/sinks/clickhouse",
               "pages/connectors/sinks/databricks-zerobus",
               "pages/connectors/sinks/motherduck",
