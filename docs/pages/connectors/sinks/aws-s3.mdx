@@ -30,7 +30,7 @@ table-level atomic commits. See the Iceberg sink for that.
 | `compression` | Pipeline | per format | `none` or `gzip` for JSON formats; `snappy` for Parquet |
 | `part_size_mib` | Pipeline | `16` | Starting multipart request size in MiB, from 5 through 5120. Parts double in size every 1,000 parts, so any value reaches the 5 TiB S3 object limit within 10,000 parts |
 | `max_file_size_mib` | Pipeline | `1024` | Target object size in MiB, from 5 through 1048576. A resource that grows past it continues in the next numbered object |
-| `upload_concurrency` | Pipeline | `4` | Concurrent S3 upload operations across resources, from 1 through 32 |
+| `upload_concurrency` | Pipeline | `8` | Concurrent S3 upload operations across resources, from 1 through 32. Each holds up to one part in memory |
 
 A `prefix` left empty is defaulted server-side to the normalized source
 connection name.
@@ -223,7 +223,10 @@ every quiet resource at every boundary.
 
 The sink does not need temporary disk for the full run. Memory use comes mainly
 from unfinished multipart buffers, in-flight uploads, and the current encoded
-batch. Each of those buffers is at most one part, so peak memory grows as a
+batch. In-flight uploads hold up to `upload_concurrency` parts, about 128 MiB
+at the defaults. Raise `upload_concurrency` for uncompressed output with many
+resources, where uploads are the limit, and lower it for small worker pods.
+Compressed output is limited by CPU, and more uploads do not speed it up. Each of those buffers is at most one part, so peak memory grows as a
 very large object moves into larger parts. Parquet also buffers one row group
 per active resource. Objects smaller than one part remain in memory until commit.
 

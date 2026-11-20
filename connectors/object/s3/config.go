@@ -16,7 +16,7 @@ const (
 	minPartSizeMiB            = 5
 	maxPartSizeMiB            = 5 * 1024
 	defaultPartSizeMiB        = 16
-	defaultUploadWorkers      = 4
+	defaultUploadWorkers      = 8
 	maxUploadWorkers          = 32
 	minFileSizeMiB            = 5
 	maxFileSizeMiB            = 1 << 20 // 1 TiB, well inside what 10,000 growing parts can hold
