@@ -4,8 +4,11 @@ import { match } from "ts-pattern";
 
 import Box, { BoxVariant } from "@galaxy-io/dls/layout/Box";
 import Flex, { FlexDirection } from "@galaxy-io/dls/layout/Flex";
+import PendingLayout from "@galaxy-io/dls/layout/PendingLayout";
 import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Modal from "@galaxy-io/dls/modal/Modal";
+
+import { PIPELINE_CREATE_TITLE } from "@/components/pipelines/constants";
 
 import CreatePipelineModalProvider, {
   useCreatePipelineModalState,
@@ -20,12 +23,26 @@ import CreatePipelineModalResources from "@/pages/pipelines/components/create/st
 import CreatePipelineModalResourcesColumnsPane from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesColumnsPane";
 import {
   type CreatePipelineModalResourceRow,
+  type CreatePipelineModalSeedSearch,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
+import {
+  getCreatePipelineModalSeedIds,
+  mapConnectionsToCreatePipelineModalSeed,
+} from "@/pages/pipelines/components/create/utils";
+
+import { useGetConnectionQueries } from "@/api/queries/connections";
 
 import { useOverlaySession } from "@/hooks/useOverlaySession";
 
 interface CreatePipelineModalProps {
+  isOpen: boolean;
+  sourceId?: CreatePipelineModalSeedSearch["sourceId"];
+  sinkIds?: CreatePipelineModalSeedSearch["sinkIds"];
+  onClose: () => void;
+}
+
+interface CreatePipelineModalContentProps {
   isOpen: boolean;
   onClose: () => void;
 }
@@ -36,7 +53,7 @@ interface CreatePipelineModalContentState {
 
 const DEFAULT_CONTENT_STATE: CreatePipelineModalContentState = {};
 
-const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) => {
+const CreatePipelineModalContent: FC<CreatePipelineModalContentProps> = ({ isOpen, onClose }) => {
   const { step, rowsBySink, activeSinkId } = useCreatePipelineModalState();
   const [localState, setLocalState] =
     useState<CreatePipelineModalContentState>(DEFAULT_CONTENT_STATE);
@@ -84,7 +101,7 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
     <Modal
       isOpen={isOpen}
       isFullscreen
-      header="New pipeline"
+      header={PIPELINE_CREATE_TITLE}
       sidebar={activeRow ? null : <CreatePipelineModalSidebar />}
       footer={<CreatePipelineModalFooter />}
       aside={
@@ -109,18 +126,51 @@ const CreatePipelineModalContent: FC<CreatePipelineModalProps> = ({ isOpen, onCl
   );
 };
 
-const CreatePipelineModal: FC<CreatePipelineModalProps> = ({ isOpen, onClose }) => {
-  const session = useOverlaySession(isOpen);
+const CreatePipelineModalSession: FC<CreatePipelineModalProps> = ({
+  isOpen,
+  sourceId,
+  sinkIds,
+  onClose,
+}) => {
+  const [seedSearch] = useState<CreatePipelineModalSeedSearch>(() => ({ sourceId, sinkIds }));
+  const { connections, isLoading } = useGetConnectionQueries(
+    getCreatePipelineModalSeedIds(seedSearch),
+    { retry: false },
+  );
+
+  if (isLoading) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        isFullscreen
+        header={PIPELINE_CREATE_TITLE}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) onClose();
+        }}
+      >
+        <PendingLayout />
+      </Modal>
+    );
+  }
+
+  return (
+    <CreatePipelineModalProvider
+      isOpen={isOpen}
+      seed={mapConnectionsToCreatePipelineModalSeed(seedSearch, connections)}
+    >
+      <CreatePipelineModalContent isOpen={isOpen} onClose={onClose} />
+    </CreatePipelineModalProvider>
+  );
+};
+
+const CreatePipelineModal: FC<CreatePipelineModalProps> = (props) => {
+  const session = useOverlaySession(props.isOpen);
 
   if (!session) {
     return null;
   }
 
-  return (
-    <CreatePipelineModalProvider key={session} isOpen={isOpen}>
-      <CreatePipelineModalContent isOpen={isOpen} onClose={onClose} />
-    </CreatePipelineModalProvider>
-  );
+  return <CreatePipelineModalSession key={session} {...props} />;
 };
 
 export default CreatePipelineModal;

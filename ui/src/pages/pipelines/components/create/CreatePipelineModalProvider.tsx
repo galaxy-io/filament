@@ -48,9 +48,10 @@ import createPipelineModalReducer from "@/pages/pipelines/components/create/redu
 import { getDefaultPipelineName } from "@/pages/pipelines/components/create/rows";
 import {
   type CreatePipelineModalContextValue,
+  type CreatePipelineModalSeed,
   CreatePipelineModalStep,
 } from "@/pages/pipelines/components/create/types";
-import { createInitialCreatePipelineModalState } from "@/pages/pipelines/components/create/utils";
+import { createSeededCreatePipelineModalState } from "@/pages/pipelines/components/create/utils";
 import { isPipelineNotifierValid } from "@/pages/pipelines/components/notifier/utils";
 import { formatPipelineScheduleSummary } from "@/pages/pipelines/components/schedule/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
@@ -143,16 +144,18 @@ export const useCreatePipelineModalActions = () => {
 
 interface CreatePipelineModalProviderProps {
   isOpen: boolean;
+  seed: CreatePipelineModalSeed;
 }
 
 const CreatePipelineModalProvider: FC<PropsWithChildren<CreatePipelineModalProviderProps>> = ({
   isOpen,
+  seed,
   children,
 }) => {
   const [state, dispatch] = useReducer(
     createPipelineModalReducer,
-    undefined,
-    createInitialCreatePipelineModalState,
+    seed,
+    createSeededCreatePipelineModalState,
   );
 
   const {

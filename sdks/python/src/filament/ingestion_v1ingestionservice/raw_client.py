@@ -14,8 +14,11 @@ from ..types.connect_timeout_header import ConnectTimeoutHeader
 from ..types.google_protobuf_struct import GoogleProtobufStruct
 from ..types.ingestion_v1get_version_request import IngestionV1GetVersionRequest
 from ..types.ingestion_v1get_version_response import IngestionV1GetVersionResponse
+from ..types.ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
 from ..types.ingestion_v1list_transform_functions_response import IngestionV1ListTransformFunctionsResponse
+from ..types.ingestion_v1put_webhook_endpoint_response import IngestionV1PutWebhookEndpointResponse
 from ..types.ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
+from ..types.ingestion_v1webhook_endpoint_config import IngestionV1WebhookEndpointConfig
 from pydantic import ValidationError
 
 # this is used as the default value for optional parameters
@@ -81,6 +84,63 @@ class RawIngestionV1IngestionserviceClient:
             )
         raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
+    def getwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[IngestionV1GetWebhookEndpointResponse]:
+        """
+        Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[IngestionV1GetWebhookEndpointResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetWebhookEndpoint",
+            method="POST",
+            json={
+                "sourceConnectionId": source_connection_id,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetWebhookEndpointResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetWebhookEndpointResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
     def listtransformfunctions(
         self,
         *,
@@ -125,6 +185,85 @@ class RawIngestionV1IngestionserviceClient:
                     IngestionV1ListTransformFunctionsResponse,
                     parse_obj_as(
                         type_=IngestionV1ListTransformFunctionsResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return HttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    def putwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        endpoint: typing.Optional[IngestionV1WebhookEndpointConfig] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
+        imported_secret: typing.Optional[str] = OMIT,
+        mint_secret: typing.Optional[bool] = OMIT,
+        expected_pipeline_version_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> HttpResponse[IngestionV1PutWebhookEndpointResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        endpoint : typing.Optional[IngestionV1WebhookEndpointConfig]
+
+        expected_revision : typing.Optional[str]
+            Zero creates an endpoint. Updates must send the last observed revision.
+
+        imported_secret : typing.Optional[str]
+            Supply an imported provider key or ask Filament to mint one. Omit both on
+             update to keep the current key. A newly supplied key replaces the old one,
+             which keeps verifying for 72 hours so senders can switch over.
+
+        mint_secret : typing.Optional[bool]
+
+        expected_pipeline_version_id : typing.Optional[str]
+            When set, the endpoint write must use the pipeline's current version.
+             Pipeline graph synchronization sends this to reject stale saves.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        HttpResponse[IngestionV1PutWebhookEndpointResponse]
+            Success
+        """
+        _response = self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/PutWebhookEndpoint",
+            method="POST",
+            json={
+                "endpoint": convert_and_respect_annotation_metadata(
+                    object_=endpoint, annotation=IngestionV1WebhookEndpointConfig, direction="write"
+                ),
+                "expectedRevision": expected_revision,
+                "importedSecret": imported_secret,
+                "mintSecret": mint_secret,
+                "expectedPipelineVersionId": expected_pipeline_version_id,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1PutWebhookEndpointResponse,
+                    parse_obj_as(
+                        type_=IngestionV1PutWebhookEndpointResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )
@@ -263,6 +402,63 @@ class AsyncRawIngestionV1IngestionserviceClient:
             )
         raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
 
+    async def getwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        source_connection_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[IngestionV1GetWebhookEndpointResponse]:
+        """
+        Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
+
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        source_connection_id : typing.Optional[str]
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[IngestionV1GetWebhookEndpointResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/GetWebhookEndpoint",
+            method="POST",
+            json={
+                "sourceConnectionId": source_connection_id,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1GetWebhookEndpointResponse,
+                    parse_obj_as(
+                        type_=IngestionV1GetWebhookEndpointResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
     async def listtransformfunctions(
         self,
         *,
@@ -307,6 +503,85 @@ class AsyncRawIngestionV1IngestionserviceClient:
                     IngestionV1ListTransformFunctionsResponse,
                     parse_obj_as(
                         type_=IngestionV1ListTransformFunctionsResponse,  # type: ignore
+                        object_=_response.json(),
+                    ),
+                )
+                return AsyncHttpResponse(response=_response, data=_data)
+            _response_json = _response.json()
+        except JSONDecodeError:
+            raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response.text)
+        except ValidationError as e:
+            raise ParsingError(
+                status_code=_response.status_code, headers=dict(_response.headers), body=_response.json(), cause=e
+            )
+        raise ApiError(status_code=_response.status_code, headers=dict(_response.headers), body=_response_json)
+
+    async def putwebhookendpoint(
+        self,
+        *,
+        connect_timeout_ms: typing.Optional[ConnectTimeoutHeader] = None,
+        endpoint: typing.Optional[IngestionV1WebhookEndpointConfig] = OMIT,
+        expected_revision: typing.Optional[str] = OMIT,
+        imported_secret: typing.Optional[str] = OMIT,
+        mint_secret: typing.Optional[bool] = OMIT,
+        expected_pipeline_version_id: typing.Optional[str] = OMIT,
+        request_options: typing.Optional[RequestOptions] = None,
+    ) -> AsyncHttpResponse[IngestionV1PutWebhookEndpointResponse]:
+        """
+        Parameters
+        ----------
+        connect_timeout_ms : typing.Optional[ConnectTimeoutHeader]
+            Define the timeout, in ms
+
+        endpoint : typing.Optional[IngestionV1WebhookEndpointConfig]
+
+        expected_revision : typing.Optional[str]
+            Zero creates an endpoint. Updates must send the last observed revision.
+
+        imported_secret : typing.Optional[str]
+            Supply an imported provider key or ask Filament to mint one. Omit both on
+             update to keep the current key. A newly supplied key replaces the old one,
+             which keeps verifying for 72 hours so senders can switch over.
+
+        mint_secret : typing.Optional[bool]
+
+        expected_pipeline_version_id : typing.Optional[str]
+            When set, the endpoint write must use the pipeline's current version.
+             Pipeline graph synchronization sends this to reject stale saves.
+
+        request_options : typing.Optional[RequestOptions]
+            Request-specific configuration.
+
+        Returns
+        -------
+        AsyncHttpResponse[IngestionV1PutWebhookEndpointResponse]
+            Success
+        """
+        _response = await self._client_wrapper.httpx_client.request(
+            "ingestion.v1.IngestionService/PutWebhookEndpoint",
+            method="POST",
+            json={
+                "endpoint": convert_and_respect_annotation_metadata(
+                    object_=endpoint, annotation=IngestionV1WebhookEndpointConfig, direction="write"
+                ),
+                "expectedRevision": expected_revision,
+                "importedSecret": imported_secret,
+                "mintSecret": mint_secret,
+                "expectedPipelineVersionId": expected_pipeline_version_id,
+            },
+            headers={
+                "content-type": "application/json",
+                "Connect-Timeout-Ms": str(connect_timeout_ms) if connect_timeout_ms is not None else None,
+            },
+            request_options=request_options,
+            omit=OMIT,
+        )
+        try:
+            if 200 <= _response.status_code < 300:
+                _data = typing.cast(
+                    IngestionV1PutWebhookEndpointResponse,
+                    parse_obj_as(
+                        type_=IngestionV1PutWebhookEndpointResponse,  # type: ignore
                         object_=_response.json(),
                     ),
                 )

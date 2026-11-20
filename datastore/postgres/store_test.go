@@ -76,7 +76,7 @@ func newTestStore(t *testing.T) *postgres.Store {
 
 	// wipe between tests so each test starts from a clean slate against the
 	// same long-lived container/schema.
-	for _, table := range []string{"stream_epochs", "stream_attempts", "secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "replication_stream_resources", "runs", "replication_streams", "schedules", "pipelines", "connections", "users", "tenants"} {
+	for _, table := range []string{"webhook_endpoints", "stream_epochs", "stream_attempts", "secrets", "run_dedup_seen", "pipeline_resource_checkpoints", "run_resource_checkpoints", "run_resource_states", "replication_stream_resources", "runs", "replication_streams", "schedules", "pipelines", "connections", "users", "tenants"} {
 		if table == "runs" {
 			// Release current-run references after deleting continuous history.
 			if _, err := pool.Exec(ctx, "UPDATE replication_streams SET current_run_id=NULL, run_spec=NULL, desired_revision=0, desired_state='stopped', last_epoch=0"); err != nil {
@@ -167,6 +167,21 @@ func TestStore_RunLifecycle(t *testing.T) {
 	}
 	if !seenAfter {
 		t.Fatal("expected second DedupSeen call to report already seen")
+	}
+
+	hw, ok, err := store.DedupHighWater(ctx, tenantA, runOne)
+	if err != nil {
+		t.Fatalf("DedupHighWater: %v", err)
+	}
+	if !ok || hw != 42 {
+		t.Fatalf("DedupHighWater = (%d, %t), want (42, true)", hw, ok)
+	}
+	_, ok, err = store.DedupHighWater(ctx, tenantA, "20000000-0000-4000-8000-0000000000ff")
+	if err != nil {
+		t.Fatalf("DedupHighWater for unseen run: %v", err)
+	}
+	if ok {
+		t.Fatal("expected no high-water mark for a run with no dedup row")
 	}
 }
 

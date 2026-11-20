@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/apache/arrow-go/v18/arrow/decimal128"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -185,6 +186,69 @@ func TestDecDecimal(t *testing.T) {
 			}
 			if got := arr.Value(0).ToString(c.scale); got != c.want {
 				t.Fatalf("got %s want %s", got, c.want)
+			}
+		})
+	}
+}
+
+// stubTimeWriter implements arrowbatch.RowWriter for unit testing parseTime,
+// recording the value it writes.
+type stubTimeWriter struct {
+	timeVal int64
+	wrote   bool
+}
+
+func (s *stubTimeWriter) Null()                      {}
+func (s *stubTimeWriter) Bool(bool)                  {}
+func (s *stubTimeWriter) Int16(int16)                {}
+func (s *stubTimeWriter) Int32(int32)                {}
+func (s *stubTimeWriter) Int64(int64)                {}
+func (s *stubTimeWriter) Float32(float32)            {}
+func (s *stubTimeWriter) Float64(float64)            {}
+func (s *stubTimeWriter) Decimal(decimal128.Num)     {}
+func (s *stubTimeWriter) String(string)              {}
+func (s *stubTimeWriter) StringBytes([]byte)         {}
+func (s *stubTimeWriter) Bytes([]byte)               {}
+func (s *stubTimeWriter) Date(int32)                 {}
+func (s *stubTimeWriter) Time(v int64)               { s.timeVal = v; s.wrote = true }
+func (s *stubTimeWriter) Timestamp(int64)            {}
+func (s *stubTimeWriter) EndRow(rowmodel.Meta) error { return nil }
+func (s *stubTimeWriter) Flush() error               { return nil }
+func (s *stubTimeWriter) Drain(rowmodel.Meta) error  { return nil }
+func (s *stubTimeWriter) Close() error               { return nil }
+
+var _ arrowbatch.RowWriter = (*stubTimeWriter)(nil)
+
+// TestParseTime verifies that the text path takes 24:00:00 as a full day,
+// matching the binary path, and stays strict about every other value past
+// the end of the day.
+func TestParseTime(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    int64
+		wantErr bool
+	}{
+		{name: "end of day at 24:00:00", input: "24:00:00", want: arrowtext.MicrosPerDay},
+		{name: "ordinary time", input: "13:00:00.000005", want: arrowtext.MicrosPerHour*13 + 5},
+		{name: "past the end of the day", input: "24:00:01", wantErr: true},
+		{name: "minute out of range", input: "12:60:00", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &stubTimeWriter{}
+			err := parseTime(w, []byte(tt.input))
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !w.wrote || w.timeVal != tt.want {
+				t.Fatalf("got %d, want %d", w.timeVal, tt.want)
 			}
 		})
 	}

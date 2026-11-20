@@ -1,0 +1,54 @@
+---
+title: "Zendesk Support source connector"
+sidebarTitle: "Zendesk Support"
+description: "Read tickets, users, organizations, groups, brands, and ticket comments from Zendesk Support with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-zendesk-dark.svg"
+---
+
+Connector ID `zendesk`
+
+The Zendesk Support source reads users, tickets, organizations, groups, ticket fields, brands, custom roles, satisfaction ratings, tags, and ticket comments from the Zendesk Support REST API. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). This connector is in preview. It targets API version `v2`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `subdomain` | Connection | | Required. Zendesk subdomain, such as `mycompany` for `mycompany.zendesk.com`. |
+| `auth_method` | Connection | `api_token` | Optional. Choose `api_token` for Basic Auth or `oauth_access_token` for an OAuth Bearer token. |
+| `email` | Connection | | Required when using `api_token`. Email address of an admin or agent account. |
+| `api_token` | Connection | | Required when using `api_token`. Secret. API token generated in Zendesk Admin Center. |
+| `access_token` | Connection | | Required when using `oauth_access_token`. Secret. OAuth access token generated via a Zendesk OAuth client. |
+
+Connection testing calls `GET /api/v2/users.json?page[size]=100`. Requests target `https://{subdomain}.zendesk.com`.
+
+## Resources
+
+All resources except `custom_roles`, `satisfaction_ratings`, and `ticket_comments` are selected by default. `custom_roles` requires a Zendesk Enterprise plan or higher, and `satisfaction_ratings` requires administrator credentials. Selecting `ticket_comments` fans out across parent tickets.
+
+| Resource | Endpoint | Primary Key | Parent |
+|---|---|---|---|
+| `users` | `GET /api/v2/users.json` | `id` | |
+| `tickets` | `GET /api/v2/tickets.json` | `id` | |
+| `organizations` | `GET /api/v2/organizations.json` | `id` | |
+| `groups` | `GET /api/v2/groups.json` | `id` | |
+| `ticket_fields` | `GET /api/v2/ticket_fields.json` | `id` | |
+| `brands` | `GET /api/v2/brands.json` | `id` | |
+| `custom_roles` | `GET /api/v2/custom_roles.json` | `id` | |
+| `satisfaction_ratings` | `GET /api/v2/satisfaction_ratings.json` | `id` | |
+| `tags` | `GET /api/v2/tags.json` | `name` | |
+| `ticket_comments` | `GET /api/v2/tickets/{ticket_id}/comments.json` | `id` | `tickets` |
+
+## Modes
+
+All resources perform full reads. Use **full upsert** to refresh rows or **full replace** to remove rows that are no longer returned by Zendesk.
+
+When using full replace, consider these Zendesk API boundaries:
+
+- **Archived tickets**. Zendesk automatically archives tickets approximately 120 days after closure (three days on sandboxes, or earlier on high-volume accounts) and excludes them from `GET /api/v2/tickets.json`. A full replace removes archived tickets and their comments from destination storage.
+- **Tag limits**. Zendesk lists at most the 20,000 most popular tags from the preceding 60 days. A full replace drops older or less frequent tags that fall outside this window.
+
+## Behavior
+
+- **Auth**. Every request sends either HTTP Basic Authentication with `{email}/token` and `api_token`, or a Bearer token when `auth_method` is `oauth_access_token`.
+- **Pagination**. Endpoints use cursor-based pagination with `page[size]=100`, walking `page[after]` from `meta.after_cursor` until `meta.has_more` is false.
+- **Rate limiting**. Zendesk rate limits vary by subscription tier. Team plans allow 200 requests per minute, Growth allows 400, and Professional and Enterprise allow 700 or more. The connector paces requests at 3 requests per second with a burst allowance of 5 requests so smaller plan tiers do not experience throttling.

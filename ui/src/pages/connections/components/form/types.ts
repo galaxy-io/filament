@@ -16,3 +16,9 @@ export interface ConnectionFormState {
   validationErrors: ValidationError[];
   shouldShowErrors: boolean;
 }
+
+export interface ConnectionFormSigningKeyReveal {
+  connection: Connection;
+  signingKey: string;
+  deliveryUrl: string | undefined;
+}

@@ -17,3 +17,10 @@ export enum FilamentNavItem {
   SOURCES = "SOURCES",
   SINKS = "SINKS",
 }
+
+export enum GalaxyProduct {
+  ALCHEMY = "alchemy",
+  FILAMENT = "filament",
+}
+
+export type GalaxyProductUrls = Partial<Record<GalaxyProduct, string>>;
