@@ -1,35 +1,90 @@
 // Package gzipencoder wraps an encoder in one streaming gzip member.
+//
+// Each batch's content is cut into blocks that are deflated concurrently and
+// concatenated in order, the technique pgzip uses. A block's compressor is
+// primed with the 32 KiB of content before it, the whole deflate window, so
+// back-references across block boundaries still work and the ratio stays close
+// to a serial stream. Every block ends with a sync flush, which leaves the
+// stream byte-aligned so blocks join without bit shifting. The result is one
+// ordinary gzip member that every reader decodes, unlike concatenated members,
+// which some readers silently truncate after the first.
 package gzipencoder
 
 import (
-	"compress/gzip"
+	"encoding/binary"
 	"fmt"
+	"hash/crc32"
+	"runtime"
+	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/klauspost/compress/flate"
 
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
 )
 
+const (
+	// blockSize is the content compressed by one goroutine. Smaller blocks
+	// spread a batch over more cores; each block costs a sync marker and a
+	// fresh Huffman table.
+	blockSize = 256 << 10
+	// windowSize is the deflate back-reference window and so the dictionary
+	// each block needs from the content before it.
+	windowSize = 32 << 10
+	level      = flate.DefaultCompression
+)
+
+// gzipHeader is the RFC 1952 member header the standard library writes for a
+// writer with no name, comment, or modification time: deflate, no flags,
+// mtime 0, no extra flags at the default level, unknown OS.
+var gzipHeader = []byte{0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff}
+
+// finalBlock is an empty fixed-Huffman deflate block with BFINAL set, the
+// bytes a deflate writer emits when closed with nothing pending.
+var finalBlock = []byte{0x03, 0x00}
+
+var castagnoli = crc32.MakeTable(crc32.Castagnoli)
+
+// slots bounds concurrent block compression across every encoder in the
+// process, so many resources compressing at once cannot oversubscribe the CPU.
+var slots = make(chan struct{}, runtime.GOMAXPROCS(0))
+
+var writers = sync.Pool{New: func() any {
+	w, err := flate.NewWriter(nil, level)
+	if err != nil {
+		panic(err) // level is a constant the package accepts
+	}
+	return w
+}}
+
 // Encoder incrementally compresses batches belonging to one Arrow schema.
-// EncodeBatch flushes the gzip writer so every call returns all bytes produced
-// for that batch. Finalize must be called to append the gzip trailer.
+// EncodeBatch returns every compressed byte produced for that batch. Finalize
+// must be called to append the deflate end and the gzip trailer.
 type Encoder struct {
-	json   encoder.Encoder
-	out    encoder.Buffer
-	gzip   *gzip.Writer
-	raw    []byte
-	closed bool
+	json    encoder.Encoder
+	raw     []byte
+	window  []byte // last windowSize bytes of content already compressed
+	crc     uint32 // CRC-32 (IEEE) of all content, for the gzip trailer
+	size    uint32 // content length modulo 2^32, for the gzip trailer
+	started bool
+	closed  bool
+	blocks  []blockBuffer
+}
+
+type blockBuffer struct{ out []byte }
+
+func (b *blockBuffer) Write(p []byte) (int, error) {
+	b.out = append(b.out, p...)
+	return len(p), nil
 }
 
 // NewEncoder prepares a gzip stream around a JSON encoder.
 func NewEncoder(jsonEncoder encoder.Encoder) *Encoder {
-	e := &Encoder{json: jsonEncoder}
-	e.gzip = gzip.NewWriter(&e.out)
-	return e
+	return &Encoder{json: jsonEncoder, window: make([]byte, 0, windowSize)}
 }
 
 // EncodeBatch appends rows to the gzip stream and returns the compressed bytes
-// emitted for this batch plus their independently verified CRC32C.
+// emitted for this batch plus their CRC32C.
 func (e *Encoder) EncodeBatch(dst []byte, rows arrow.RecordBatch) ([]byte, uint32, error) {
 	if e.closed {
 		return nil, 0, fmt.Errorf("gzip: encode after finalize")
@@ -39,16 +94,15 @@ func (e *Encoder) EncodeBatch(dst []byte, rows arrow.RecordBatch) ([]byte, uint3
 	if err != nil {
 		return nil, 0, fmt.Errorf("gzip: encode content: %w", err)
 	}
-	if _, err := e.gzip.Write(e.raw); err != nil {
-		return nil, 0, fmt.Errorf("gzip: compress batch: %w", err)
+	start := len(dst)
+	dst = e.header(dst)
+	if dst, err = e.compress(dst, e.raw); err != nil {
+		return nil, 0, err
 	}
-	if err := e.gzip.Flush(); err != nil {
-		return nil, 0, fmt.Errorf("gzip: flush batch: %w", err)
-	}
-	return e.out.Drain(dst, "gzip")
+	return dst, crc32.Checksum(dst[start:], castagnoli), nil
 }
 
-// Finalize closes the gzip stream and returns its trailer bytes.
+// Finalize closes the gzip stream and returns its last bytes.
 func (e *Encoder) Finalize(dst []byte) ([]byte, uint32, error) {
 	if e.closed {
 		return nil, 0, fmt.Errorf("gzip: already finalized")
@@ -59,13 +113,88 @@ func (e *Encoder) Finalize(dst []byte) ([]byte, uint32, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("gzip: finalize content: %w", err)
 	}
-	if len(e.raw) > 0 {
-		if _, err := e.gzip.Write(e.raw); err != nil {
-			return nil, 0, fmt.Errorf("gzip: compress trailer: %w", err)
+	start := len(dst)
+	dst = e.header(dst)
+	if dst, err = e.compress(dst, e.raw); err != nil {
+		return nil, 0, err
+	}
+	dst = append(dst, finalBlock...)
+	dst = binary.LittleEndian.AppendUint32(dst, e.crc)
+	dst = binary.LittleEndian.AppendUint32(dst, e.size)
+	return dst, crc32.Checksum(dst[start:], castagnoli), nil
+}
+
+func (e *Encoder) header(dst []byte) []byte {
+	if e.started {
+		return dst
+	}
+	e.started = true
+	return append(dst, gzipHeader...)
+}
+
+// compress appends content as sync-flushed deflate blocks, compressing the
+// blocks concurrently, and advances the trailer checksum and the window.
+func (e *Encoder) compress(dst, content []byte) ([]byte, error) {
+	if len(content) == 0 {
+		return dst, nil
+	}
+	count := (len(content) + blockSize - 1) / blockSize
+	if cap(e.blocks) < count {
+		e.blocks = make([]blockBuffer, count)
+	}
+	blocks := e.blocks[:count]
+	errs := make([]error, count)
+
+	var wg sync.WaitGroup
+	for i := range blocks {
+		from, to := i*blockSize, min((i+1)*blockSize, len(content))
+		dict := e.window
+		if i > 0 {
+			dict = content[max(0, from-windowSize):from]
 		}
+		block := &blocks[i]
+		block.out = block.out[:0]
+		if count == 1 {
+			errs[i] = deflateBlock(block, dict, content[from:to])
+			break
+		}
+		slots <- struct{}{}
+		wg.Go(func() {
+			defer func() { <-slots }()
+			errs[i] = deflateBlock(block, dict, content[from:to])
+		})
 	}
-	if err := e.gzip.Close(); err != nil {
-		return nil, 0, fmt.Errorf("gzip: finalize: %w", err)
+	wg.Wait()
+	for i := range blocks {
+		if errs[i] != nil {
+			return nil, fmt.Errorf("gzip: compress block: %w", errs[i])
+		}
+		dst = append(dst, blocks[i].out...)
 	}
-	return e.out.Drain(dst, "gzip")
+
+	e.crc = crc32.Update(e.crc, crc32.IEEETable, content)
+	e.size += uint32(len(content)) //nolint:gosec // ISIZE is defined modulo 2^32
+	e.window = appendWindow(e.window, content)
+	return dst, nil
+}
+
+func deflateBlock(out *blockBuffer, dict, content []byte) error {
+	w := writers.Get().(*flate.Writer)
+	defer writers.Put(w)
+	w.ResetDict(out, dict)
+	if _, err := w.Write(content); err != nil {
+		return err
+	}
+	return w.Flush()
+}
+
+// appendWindow keeps the last windowSize bytes of window followed by content.
+func appendWindow(window, content []byte) []byte {
+	if len(content) >= windowSize {
+		return append(window[:0], content[len(content)-windowSize:]...)
+	}
+	if keep := windowSize - len(content); len(window) > keep {
+		window = append(window[:0], window[len(window)-keep:]...)
+	}
+	return append(window, content...)
 }
