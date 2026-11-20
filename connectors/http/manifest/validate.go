@@ -560,6 +560,8 @@ func (m *Manifest) validateSemantics() error {
 		}
 	}
 
+	validateAfter(&agg, m.Resources, byName)
+
 	// Cycle detection on parent refs. A two-cycle (A → B → A) would crash
 	// SortResources with a stack overflow; a longer cycle would loop
 	// forever in extract. Catch at load.
@@ -729,6 +731,84 @@ func validateTemplateAny(agg *errs.ManifestErrors, path string, v any) {
 			validateTemplate(agg, fmt.Sprintf("%s.%s", path, k), val)
 		}
 	}
+}
+
+// validateAfter checks read-order dependencies. Both ends must be top-level
+// resources, since children already run after every top-level read, and the
+// awaited resource must finish, so a stream can never be awaited. A cycle would
+// deadlock extraction.
+func validateAfter(agg *errs.ManifestErrors, resources []Resource, byName map[string]*Resource) {
+	edges := make(map[string][]string, len(resources))
+	for _, r := range resources {
+		if len(r.After) == 0 {
+			continue
+		}
+		path := fmt.Sprintf("resources[%q].after", r.Name)
+		if r.Parent != nil {
+			_ = agg.Addf(path, "is only supported on top-level resources")
+		}
+		for i, name := range r.After {
+			at := fmt.Sprintf("%s[%d]", path, i)
+			dep, ok := byName[name]
+			switch {
+			case !ok:
+				_ = agg.Addf(at, "unknown resource %q", name)
+				continue
+			case name == r.Name:
+				_ = agg.Addf(at, "a resource cannot wait on itself")
+				continue
+			case dep.Parent != nil:
+				_ = agg.Addf(at, "resource %q is a child and already runs after every top-level resource", name)
+			case dep.Mode == "stream":
+				_ = agg.Addf(at, "resource %q is a stream and never finishes", name)
+			}
+			edges[r.Name] = append(edges[r.Name], name)
+		}
+	}
+	if cycle := detectAfterCycle(resources, edges); cycle != nil {
+		_ = agg.Addf("resources", "after cycle: %s", formatCycle(cycle))
+	}
+}
+
+// detectAfterCycle returns a cycle in the after graph, or nil.
+func detectAfterCycle(resources []Resource, edges map[string][]string) []string {
+	const (
+		white = iota
+		gray
+		black
+	)
+	color := make(map[string]int, len(resources))
+	var cycle []string
+	var dfs func(name string, path []string) bool
+	dfs = func(name string, path []string) bool {
+		switch color[name] {
+		case gray:
+			for i, p := range path {
+				if p == name {
+					cycle = append(append([]string{}, path[i:]...), name)
+					break
+				}
+			}
+			return true
+		case black:
+			return false
+		}
+		color[name] = gray
+		path = append(path, name)
+		for _, next := range edges[name] {
+			if dfs(next, path) {
+				return true
+			}
+		}
+		color[name] = black
+		return false
+	}
+	for _, r := range resources {
+		if color[r.Name] == white && dfs(r.Name, nil) {
+			return cycle
+		}
+	}
+	return nil
 }
 
 // detectParentCycle returns the cycle path (slice of resource names ending

@@ -363,8 +363,13 @@ type Resource struct {
 	Pagination  PaginationSpec    `yaml:"pagination"`
 	Incremental *IncrementalSpec  `yaml:"incremental,omitempty"`
 	Parent      *ParentRef        `yaml:"parent,omitempty"`
-	Stream      *StreamSpec       `yaml:"stream,omitempty"`
-	Export      *ExportSpec       `yaml:"export,omitempty"`
+	// After lists top-level resources that must finish before this one starts.
+	// A header read after its line items holds every header its lines name,
+	// so a sync never lands a line whose header arrives only in the next one.
+	// Names not selected for a run are ignored.
+	After  []string    `yaml:"after,omitempty"`
+	Stream *StreamSpec `yaml:"stream,omitempty"`
+	Export *ExportSpec `yaml:"export,omitempty"`
 }
 
 // FieldSpec maps a response path to a typed output field.

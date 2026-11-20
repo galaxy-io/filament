@@ -103,6 +103,9 @@ type extractOptions struct {
 	ResumeWatermarks     map[string]map[string]string
 	IncrementalLookbacks map[string]int
 	IncrementalResources map[string]bool
+	// Failures is set when the run isolates resource failures. Nil keeps
+	// strict mode, where any resource error fails the extraction.
+	Failures filament.ResourceFailureReporter
 }
 
 // SetManifestPath is called by the registry before Configure.

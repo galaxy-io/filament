@@ -32,6 +32,7 @@ export enum CreatePipelineModalActionType {
   UPDATE_NOTIFIER = "UPDATE_NOTIFIER",
   REMOVE_NOTIFIER = "REMOVE_NOTIFIER",
   SET_WORKER_CONFIGURATION = "SET_WORKER_CONFIGURATION",
+  SET_FAIL_ON_ERROR = "SET_FAIL_ON_ERROR",
   GO_TO_STEP = "GO_TO_STEP",
   GO_BACK = "GO_BACK",
   GO_NEXT = "GO_NEXT",
@@ -154,6 +155,11 @@ export interface SetWorkerConfigurationAction {
   payload: string;
 }
 
+export interface SetFailOnErrorAction {
+  type: CreatePipelineModalActionType.SET_FAIL_ON_ERROR;
+  payload: Pipeline["failOnError"];
+}
+
 export interface GoToStepAction {
   type: CreatePipelineModalActionType.GO_TO_STEP;
   payload: CreatePipelineModalStep;
@@ -193,6 +199,7 @@ export type CreatePipelineModalAction =
   | UpdateNotifierAction
   | RemoveNotifierAction
   | SetWorkerConfigurationAction
+  | SetFailOnErrorAction
   | GoToStepAction
   | GoBackAction
   | GoNextAction

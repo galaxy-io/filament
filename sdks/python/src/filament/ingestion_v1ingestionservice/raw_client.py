@@ -284,6 +284,7 @@ class RawIngestionV1IngestionserviceClient:
         source_connection_id: typing.Optional[str] = OMIT,
         resource: typing.Optional[str] = OMIT,
         transform: typing.Optional[GoogleProtobufStruct] = OMIT,
+        columns: typing.Optional[typing.Sequence[str]] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> HttpResponse[IngestionV1ValidateTransformResponse]:
         """
@@ -297,6 +298,8 @@ class RawIngestionV1IngestionserviceClient:
         resource : typing.Optional[str]
 
         transform : typing.Optional[GoogleProtobufStruct]
+
+        columns : typing.Optional[typing.Sequence[str]]
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -315,6 +318,7 @@ class RawIngestionV1IngestionserviceClient:
                 "transform": convert_and_respect_annotation_metadata(
                     object_=transform, annotation=GoogleProtobufStruct, direction="write"
                 ),
+                "columns": columns,
             },
             headers={
                 "content-type": "application/json",
@@ -602,6 +606,7 @@ class AsyncRawIngestionV1IngestionserviceClient:
         source_connection_id: typing.Optional[str] = OMIT,
         resource: typing.Optional[str] = OMIT,
         transform: typing.Optional[GoogleProtobufStruct] = OMIT,
+        columns: typing.Optional[typing.Sequence[str]] = OMIT,
         request_options: typing.Optional[RequestOptions] = None,
     ) -> AsyncHttpResponse[IngestionV1ValidateTransformResponse]:
         """
@@ -615,6 +620,8 @@ class AsyncRawIngestionV1IngestionserviceClient:
         resource : typing.Optional[str]
 
         transform : typing.Optional[GoogleProtobufStruct]
+
+        columns : typing.Optional[typing.Sequence[str]]
 
         request_options : typing.Optional[RequestOptions]
             Request-specific configuration.
@@ -633,6 +640,7 @@ class AsyncRawIngestionV1IngestionserviceClient:
                 "transform": convert_and_respect_annotation_metadata(
                     object_=transform, annotation=GoogleProtobufStruct, direction="write"
                 ),
+                "columns": columns,
             },
             headers={
                 "content-type": "application/json",

@@ -1733,6 +1733,14 @@ worker_configuration shapes this pipeline's runs. Omit it to configure the
 <dl>
 <dd>
 
+**fail_on_error:** `typing.Optional[bool]` — Defaults to false, which isolates resource failures in bounded runs.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
 **request_options:** `typing.Optional[RequestOptions]` — Request-specific configuration.
     
 </dd>
@@ -2245,6 +2253,14 @@ client.pipeline.update(
 <dd>
 
 **execution_mode:** `typing.Optional[IngestionV1ExecutionMode]` — Unspecified preserves the saved mode; affects future starts only.
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**fail_on_error:** `typing.Optional[bool]` — Omit to preserve the saved setting.
     
 </dd>
 </dl>
@@ -3532,6 +3548,14 @@ client.ingestion_v1ingestionservice.validatetransform(
 <dd>
 
 **transform:** `typing.Optional[GoogleProtobufStruct]` 
+    
+</dd>
+</dl>
+
+<dl>
+<dd>
+
+**columns:** `typing.Optional[typing.List[str]]` 
     
 </dd>
 </dl>

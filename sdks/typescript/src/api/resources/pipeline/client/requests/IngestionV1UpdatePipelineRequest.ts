@@ -17,4 +17,6 @@ export interface IngestionV1UpdatePipelineRequest {
     workerConfiguration?: Filament.IngestionV1WorkerConfiguration;
     /** Unspecified preserves the saved mode; affects future starts only. */
     executionMode?: Filament.IngestionV1ExecutionMode;
+    /** Omit to preserve the saved setting. */
+    failOnError?: boolean | null;
 }

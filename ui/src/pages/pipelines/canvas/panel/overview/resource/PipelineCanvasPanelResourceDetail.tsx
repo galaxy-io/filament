@@ -345,6 +345,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                       onChange={handleTransformChange}
                       resource={resource}
                       columns={selectedColumns}
+                      columnSelection={selectedColumnNames}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >
