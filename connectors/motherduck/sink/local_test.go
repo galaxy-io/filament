@@ -218,6 +218,139 @@ func TestLocalAbortDropsStageIntegration(t *testing.T) {
 	}
 }
 
+type timesSpec struct {
+	id   int64
+	us   int64
+	null bool
+}
+
+func timesSchema() filament.RecordSchema {
+	return filament.RecordSchema{
+		Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "end_time", Logical: filament.LogicalTime, Nullable: true},
+		},
+		PrimaryKey: []string{"id"},
+	}
+}
+
+func timesBatch(t *testing.T, schema filament.RecordSchema, specs []timesSpec) *arrowbatch.Batch {
+	t.Helper()
+	collector := &integrationCollector{}
+	builder := arrowbatch.NewBuilder(arrowbatch.Schema(schema), nil, arrowbatch.Options{MaxRows: len(specs) + 1}, collector)
+	for _, spec := range specs {
+		builder.Int64(spec.id)
+		if spec.null {
+			builder.Null()
+		} else {
+			builder.Time(spec.us)
+		}
+		if err := builder.EndRow(rowmodel.Meta{}); err != nil {
+			_ = builder.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := builder.Flush(); err != nil {
+		_ = builder.Close()
+		t.Fatal(err)
+	}
+	if err := builder.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(collector.batches) != 1 {
+		t.Fatalf("builder emitted %d batches, want 1", len(collector.batches))
+	}
+	collector.batches[0].Resource = "times"
+	return collector.batches[0]
+}
+
+func openTimesSink(t *testing.T, ctx context.Context, path string, run filament.RunID, policy filament.WritePolicy) *Sink {
+	t.Helper()
+	sink := newLocal(path)
+	err := sink.Open(ctx, filament.RunSpec{
+		Run:           run,
+		Sink:          filament.Ref{Config: map[string]any{"schema": "main"}},
+		Options:       filament.RunOptions{SnapshotParallelism: 1},
+		WritePolicies: map[string]filament.WritePolicy{"times": policy},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sink.Abort(context.Background()) })
+	if err := sink.EnsureSchema(ctx, "times", timesSchema()); err != nil {
+		t.Fatal(err)
+	}
+	return sink
+}
+
+func TestLocalAppendKeepsEndOfDayTimeIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "times.duckdb")
+	policy := filament.WritePolicy{
+		Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend},
+		Resource:   "times",
+	}
+	sink := openTimesSink(t, ctx, path, "times-run", policy)
+
+	batch := timesBatch(t, timesSchema(), []timesSpec{
+		{id: 1, us: 43_200_000_000},
+		{id: 2, us: 86_400_000_000},
+		{id: 3, us: 86_399_999_999},
+		{id: 4, null: true},
+	})
+	defer batch.Release()
+	if _, err := sink.Apply(ctx, batch, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	// A second, ordinary batch on the same sink exercises the appender path
+	// after the statement path on the same connection.
+	extra := timesBatch(t, timesSchema(), []timesSpec{
+		{id: 5, us: 1_000_000},
+		{id: 6, us: 86_399_999_999},
+	})
+	defer extra.Release()
+	if _, err := sink.Apply(ctx, extra, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows := queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR) FROM "main"."times" ORDER BY id`)
+	want := [][]any{
+		{int64(1), "12:00:00"}, {int64(2), "24:00:00"}, {int64(3), "23:59:59.999999"},
+		{int64(4), nil}, {int64(5), "00:00:01"}, {int64(6), "23:59:59.999999"},
+	}
+	if fmt.Sprint(rows) != fmt.Sprint(want) {
+		t.Fatalf("times = %v, want %v", rows, want)
+	}
+}
+
+func TestLocalReplaceKeepsEndOfDayTimeIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "times-replace.duckdb")
+	policy := filament.WritePolicy{
+		Capability: filament.WritePolicyCapability{Mode: filament.WriteReplace},
+		Resource:   "times",
+	}
+	sink := openTimesSink(t, ctx, path, "times-replace-run", policy)
+	batch := timesBatch(t, timesSchema(), []timesSpec{
+		{id: 1, us: 86_400_000_000},
+		{id: 2, us: 43_200_000_000},
+	})
+	defer batch.Release()
+	if _, err := sink.Apply(ctx, batch, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows := queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR) FROM "main"."times" ORDER BY id`)
+	want := [][]any{{int64(1), "24:00:00"}, {int64(2), "12:00:00"}}
+	if fmt.Sprint(rows) != fmt.Sprint(want) {
+		t.Fatalf("times = %v, want %v", rows, want)
+	}
+}
+
 func TestLocalParallelApplyIntegration(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "parallel.duckdb")
