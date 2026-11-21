@@ -2,11 +2,8 @@ version: 1
 name: clickup
 display_name: ClickUp
 description: Project management platform where teams plan work, track tasks through custom workflows, and organize projects across spaces, folders, and lists.
-# The Galaxy CDN does not yet host a ClickUp logo (both URLs return 403),
-# so the docs use the Simple Icons ClickUp mark until an official logo is
-# uploaded to the CDN.
-dark_logo_url: https://cdn.simpleicons.org/clickup
-light_logo_url: https://cdn.simpleicons.org/clickup/white
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-clickup-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-clickup-light.svg
 api_version: "v2"
 config:
   api_token:
