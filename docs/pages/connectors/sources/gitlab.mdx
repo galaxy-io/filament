@@ -57,14 +57,13 @@ All resources are selected by default. Top-level resources list projects and gro
 
 All resources support full reads. Use **full upsert** to refresh rows or **full replace** to reconcile active records.
 
-`issues`, `merge_requests`, `pipelines`, and `commits` support incremental reads:
+`issues`, `merge_requests`, and `pipelines` support incremental reads:
 
 | Resource | Cursor Field | Request Parameter | Comparator | Checkpoint Key | Overlap |
 |---|---|---|---|---|---|
 | `issues` | `updated_at` | `updated_after` (query) | `time` | `issues_updated_at` | 300 seconds |
 | `merge_requests` | `updated_at` | `updated_after` (query) | `time` | `merge_requests_updated_at` | 300 seconds |
 | `pipelines` | `updated_at` | `updated_after` (query) | `time` | `pipelines_updated_at` | 300 seconds |
-| `commits` | `committed_date` | `since` (query) | `time` | `commits_committed_date` | 300 seconds |
 
 Each incremental resource shares a single durable watermark across projects. The 300-second overlap window re-reads a short lookback span to capture records modified during the previous scan.
 

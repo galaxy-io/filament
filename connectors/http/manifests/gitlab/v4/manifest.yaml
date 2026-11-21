@@ -21,6 +21,7 @@ config:
   base_url:
     type: string
     default: https://gitlab.com/api/v4
+    pattern: "^(https://|http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?).*"
     help: GitLab API base URL (default https://gitlab.com/api/v4, or your self-hosted instance endpoint).
 connection:
   base_url: "{{ config.base_url }}"
@@ -273,13 +274,6 @@ resources:
     query:
       order: default
     primary_key: [project_id, id]
-    incremental:
-      cursor_field: committed_date
-      start_param: since
-      inject_into: query
-      checkpoint_key: commits_committed_date
-      comparator: time
-      overlap_seconds: 300
     fields:
       project_id: {path: parent.project_id, type: int64}
       id: string
