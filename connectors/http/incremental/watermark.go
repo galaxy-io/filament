@@ -40,6 +40,7 @@ package incremental
 import (
 	"fmt"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"strconv"
 	"time"
@@ -238,6 +239,12 @@ func (t *Tracker) effective() string {
 		return v
 	}
 	if t.spec.Comparator == "numeric" {
+		// An integer-shaped watermark subtracts exactly. Past 2^53 the float
+		// path below rounds the result back up to the watermark itself, which
+		// silently drops the overlap window.
+		if iv, ok := new(big.Int).SetString(v, 10); ok {
+			return iv.Sub(iv, big.NewInt(int64(t.spec.OverlapSeconds))).String()
+		}
 		parsed, err := strconv.ParseFloat(v, 64)
 		if err != nil {
 			t.logger.Warn("incremental: cannot apply overlap to non-numeric watermark",

@@ -3,7 +3,6 @@ package stream
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -57,8 +56,8 @@ func (r *ndjsonReader) Read(ctx context.Context, body io.Reader, emit EmitFunc) 
 		if len(line) == 0 {
 			continue
 		}
-		var record map[string]any
-		if err := json.Unmarshal(line, &record); err != nil {
+		record, err := decodeRecord(line)
+		if err != nil {
 			errors++
 			logger.Warn("ndjson malformed line",
 				"line", lineNum,

@@ -3487,3 +3487,26 @@ func TestPostHogDashboardDetailHydration(t *testing.T) {
 		t.Fatalf("detail fields lost: %s", sink.records[0].Data)
 	}
 }
+
+func TestRecordIDKeepsLargeIntegerKeysExact(t *testing.T) {
+	cases := map[string]string{
+		`{"id":9007199254740993}`:    "9007199254740993",
+		`{"id":1234567890123456789}`: "1234567890123456789",
+		`{"id":-9007199254740993}`:   "-9007199254740993",
+		`{"id":42}`:                  "42",
+		`{"id":"abc"}`:               "abc",
+		`{"id":true}`:                "true",
+	}
+	for keyJSON, want := range cases {
+		if got := recordID([]byte(keyJSON)); got != want {
+			t.Errorf("recordID(%s) = %q, want %q", keyJSON, got, want)
+		}
+	}
+	if a, b := recordID([]byte(`{"id":9007199254740993}`)), recordID([]byte(`{"id":9007199254740992}`)); a == b {
+		t.Errorf("distinct keys collide: both %q", a)
+	}
+	out := recordData([]byte(`{"id":9007199254740993}`), []byte(`{"name":"x"}`))
+	if want := `{"data":{"name":"x"},"id":9007199254740993}`; string(out) != want {
+		t.Errorf("recordData = %s, want %s", out, want)
+	}
+}
