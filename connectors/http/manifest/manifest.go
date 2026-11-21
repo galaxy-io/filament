@@ -524,6 +524,9 @@ type PaginationSpec struct {
 
 	// next_url
 	NextURLPath string `yaml:"next_url_path,omitempty"`
+
+	// last_record
+	LastRecordField string `yaml:"last_record_field,omitempty"`
 }
 
 // UnmarshalYAML accepts concise pagination strategies while retaining a
@@ -564,64 +567,114 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		p.Type = "next_url"
 		return value.Decode(&p.NextURLPath)
 	case "cursor":
-		var spec struct {
-			Response       string `yaml:"response"`
-			Request        string `yaml:"request"`
-			More           string `yaml:"more"`
-			NullTerminates bool   `yaml:"null_terminates"`
-			Strict         bool   `yaml:"strict"`
-		}
-		if err := value.Decode(&spec); err != nil {
+		if err := p.decodeCursor(value); err != nil {
 			return err
 		}
-		target, param, ok := strings.Cut(spec.Request, ".")
-		if !ok || (target != "query" && target != "body" && target != "header") {
-			return fmt.Errorf("cursor.request must be query.<name>, body.<path>, or header.<name>")
+	case "last_record":
+		if err := p.decodeLastRecord(value); err != nil {
+			return err
 		}
-		p.Strict = spec.Strict
-		p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
 	case "offset":
-		var spec struct {
-			Start        int    `yaml:"start"`
-			PageSizeFrom string `yaml:"page_size_from"`
-			More         string `yaml:"more"`
-			Offset       string `yaml:"offset"`
-			Limit        string `yaml:"limit"`
-			PageSize     int    `yaml:"page_size"`
-		}
-		if err := value.Decode(&spec); err != nil {
+		if err := p.decodeOffset(value); err != nil {
 			return err
 		}
-		offsetTarget, offsetParam := paginationTarget(spec.Offset)
-		limitTarget, limitParam := paginationTarget(spec.Limit)
-		if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body" && offsetTarget != "state") {
-			return fmt.Errorf("offset pagination fields must share a query, body, or state target")
-		}
-		p.Start, p.PageSizeFrom = spec.Start, spec.PageSizeFrom
-		p.HasMorePath = spec.More
-		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
 	case "page":
-		var spec struct {
-			Number     string `yaml:"number"`
-			Size       string `yaml:"size"`
-			PageSize   int    `yaml:"page_size"`
-			TotalPages string `yaml:"total_pages"`
-			More       string `yaml:"more"`
-		}
-		if err := value.Decode(&spec); err != nil {
+		if err := p.decodePage(value); err != nil {
 			return err
 		}
-		numberTarget, numberParam := paginationTarget(spec.Number)
-		sizeTarget, sizeParam := paginationTarget(spec.Size)
-		if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
-			return fmt.Errorf("page pagination fields must share a query or body target")
-		}
-		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
-		p.InjectInto, p.HasMorePath = numberTarget, spec.More
 	default:
 		return fmt.Errorf("unknown pagination strategy %q", strategy)
 	}
 	return nil
+}
+
+func (p *PaginationSpec) decodeCursor(value *yaml.Node) error {
+	var spec struct {
+		Response       string `yaml:"response"`
+		Request        string `yaml:"request"`
+		More           string `yaml:"more"`
+		NullTerminates bool   `yaml:"null_terminates"`
+		Strict         bool   `yaml:"strict"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+	target, param, err := splitRequestTarget(spec.Request, "cursor")
+	if err != nil {
+		return err
+	}
+	p.Strict = spec.Strict
+	p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
+	return nil
+}
+
+func (p *PaginationSpec) decodeLastRecord(value *yaml.Node) error {
+	var spec struct {
+		Field    string `yaml:"field"`
+		Request  string `yaml:"request"`
+		PageSize int    `yaml:"page_size"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+	target, param, err := splitRequestTarget(spec.Request, "last_record")
+	if err != nil {
+		return err
+	}
+	p.Type, p.LastRecordField, p.InjectInto, p.CursorParam, p.PageSize = "last_record", spec.Field, target, param, spec.PageSize
+	return nil
+}
+
+func (p *PaginationSpec) decodeOffset(value *yaml.Node) error {
+	var spec struct {
+		Start        int    `yaml:"start"`
+		PageSizeFrom string `yaml:"page_size_from"`
+		More         string `yaml:"more"`
+		Offset       string `yaml:"offset"`
+		Limit        string `yaml:"limit"`
+		PageSize     int    `yaml:"page_size"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+	offsetTarget, offsetParam := paginationTarget(spec.Offset)
+	limitTarget, limitParam := paginationTarget(spec.Limit)
+	if offsetTarget != limitTarget || (offsetTarget != "query" && offsetTarget != "body" && offsetTarget != "state") {
+		return fmt.Errorf("offset pagination fields must share a query, body, or state target")
+	}
+	p.Start, p.PageSizeFrom = spec.Start, spec.PageSizeFrom
+	p.HasMorePath = spec.More
+	p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
+	return nil
+}
+
+func (p *PaginationSpec) decodePage(value *yaml.Node) error {
+	var spec struct {
+		Number     string `yaml:"number"`
+		Size       string `yaml:"size"`
+		PageSize   int    `yaml:"page_size"`
+		TotalPages string `yaml:"total_pages"`
+		More       string `yaml:"more"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+	numberTarget, numberParam := paginationTarget(spec.Number)
+	sizeTarget, sizeParam := paginationTarget(spec.Size)
+	if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
+		return fmt.Errorf("page pagination fields must share a query or body target")
+	}
+	p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
+	p.InjectInto, p.HasMorePath = numberTarget, spec.More
+	return nil
+}
+
+func splitRequestTarget(request, strategy string) (string, string, error) {
+	target, param, ok := strings.Cut(request, ".")
+	if !ok || (target != "query" && target != "body" && target != "header") {
+		return "", "", fmt.Errorf("%s.request must be query.<name>, body.<path>, or header.<name>", strategy)
+	}
+	return target, param, nil
 }
 
 // paginationTarget defaults bare page and offset parameter names to query

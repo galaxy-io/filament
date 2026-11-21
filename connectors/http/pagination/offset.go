@@ -64,7 +64,7 @@ func (p *offsetPaginator) Apply(req *http.Request, s State) (map[string]any, err
 	return nil, nil
 }
 
-func (p *offsetPaginator) Next(_ *http.Response, body map[string]any, recordCount int) (State, error) {
+func (p *offsetPaginator) Next(_ *http.Response, body map[string]any, records []map[string]any) (State, error) {
 	if p.lastOffset > int(^uint(0)>>1)-p.pageSize {
 		return State{}, fmt.Errorf("offset pagination overflow")
 	}
@@ -78,7 +78,7 @@ func (p *offsetPaginator) Next(_ *http.Response, body map[string]any, recordCoun
 		}
 		return State{Offset: p.lastOffset + p.pageSize}, nil
 	}
-	if recordCount < p.pageSize {
+	if recordCount := len(records); recordCount < p.pageSize {
 		return State{Done: true}, nil
 	}
 	return State{Offset: p.lastOffset + p.pageSize}, nil

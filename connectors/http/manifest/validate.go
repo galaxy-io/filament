@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"net/textproto"
 	"regexp"
 	"slices"
 	"strconv"
@@ -377,6 +378,20 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
+		if r.Pagination.Type == "last_record" {
+			if r.Pagination.LastRecordField == "" {
+				_ = agg.Addf(path+".pagination.last_record_field", "is required")
+			}
+			if r.Pagination.InjectInto != "query" && r.Pagination.InjectInto != "body" && r.Pagination.InjectInto != "header" {
+				_ = agg.Addf(path+".pagination.inject_into", "last_record requires query, body, or header")
+			}
+			if r.Pagination.CursorParam == "" {
+				_ = agg.Addf(path+".pagination.cursor_param", "is required")
+			}
+			if r.Pagination.PageSize <= 0 {
+				_ = agg.Addf(path+".pagination.page_size", "must be greater than 0")
+			}
+		}
 		if r.Pagination.Strict && (r.Pagination.Type != "cursor" || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "") {
 			_ = agg.Addf(path+".pagination", "strict cursor pagination requires more and records paths")
 		}
@@ -653,7 +668,7 @@ func validateIncrementalInitial(spec IncrementalSpec) error {
 func paginationInjectionCollides(pagination PaginationSpec, incremental IncrementalSpec) bool {
 	target, param := "", ""
 	switch pagination.Type {
-	case "cursor":
+	case "cursor", "last_record":
 		target, param = pagination.InjectInto, pagination.CursorParam
 	case "offset":
 		if pagination.OffsetParam == incremental.StartParam {
@@ -672,7 +687,15 @@ func paginationInjectionCollides(pagination PaginationSpec, incremental Incremen
 			param = pagination.SizeParam
 		}
 	}
-	return target == incremental.InjectInto && param == incremental.StartParam
+	if target != incremental.InjectInto {
+		return false
+	}
+	// Header names are case-insensitive, so canonicalize both sides before
+	// comparing; query and body names stay exact.
+	if target == "header" {
+		return textproto.CanonicalMIMEHeaderKey(param) == textproto.CanonicalMIMEHeaderKey(incremental.StartParam)
+	}
+	return param == incremental.StartParam
 }
 
 // validateTemplate parses s and records any syntax/semantic issue against
