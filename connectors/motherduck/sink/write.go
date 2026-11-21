@@ -153,10 +153,13 @@ func batchHasEndOfDayTime(batch *arrowbatch.Batch) bool {
 
 // statementValue returns the value the prepared INSERT receives for one
 // cell. TIME64 goes as text, decimals as exact text at the declared scale,
-// and logical UUIDs as their original string. The statement binder rejects
+// and logical UUIDs as their canonical string. The statement binder rejects
 // duckdb.Decimal outright and only accepts UUIDs through fmt.Stringer, which
 // the duckdb.UUID value type does not implement, so those two cannot go
-// through the appender converter. Everything else uses it unchanged.
+// through the appender converter. UUIDs are parsed first, the way the
+// appender path parses them, so a URN form stores the same canonical value
+// instead of failing DuckDB's parser. Everything else uses the appender
+// converter unchanged.
 func statementValue(f arrow.Field, col arrow.Array, i int, fn valueFn) driver.Value {
 	switch f.Type.ID() {
 	case arrow.TIME64:
@@ -166,7 +169,12 @@ func statementValue(f arrow.Field, col arrow.Array, i int, fn valueFn) driver.Va
 		return string(arrowtext.AppendDecimal(nil, col.(*array.Decimal128).Value(i), int(scale)))
 	case arrow.STRING:
 		if arrowbatch.LogicalOf(f) == rowmodel.LogicalUUID {
-			return col.(*array.String).Value(i)
+			var id duckdb.UUID
+			text := col.(*array.String).Value(i)
+			if err := id.Scan(text); err != nil {
+				return text // the statement reports the malformed value
+			}
+			return id.String()
 		}
 	}
 	return fn(col, i)

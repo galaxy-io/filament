@@ -376,6 +376,62 @@ func TestLocalAppendStatementPathRollsBackAndRecoversIntegration(t *testing.T) {
 	}
 }
 
+// TestLocalAppendStatementPathParsesURNUUIDIntegration covers a UUID in URN
+// form on the statement path: the appender path parses it, so the statement
+// path must store the same canonical value instead of letting DuckDB reject
+// the prefix.
+func TestLocalAppendStatementPathParsesURNUUIDIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "urn-uuid.duckdb")
+	schema := filament.RecordSchema{
+		Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "end_time", Logical: filament.LogicalTime, Nullable: true},
+			{Name: "event_id", Logical: filament.LogicalUUID, Nullable: true},
+		},
+		PrimaryKey: []string{"id"},
+	}
+	policy := filament.WritePolicy{
+		Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend},
+		Resource:   "times",
+	}
+	sink := openTimesSink(t, ctx, path, "urn-uuid-run", policy, schema)
+
+	collector := &integrationCollector{}
+	builder := arrowbatch.NewBuilder(arrowbatch.Schema(schema), nil, arrowbatch.Options{MaxRows: 3}, collector)
+	builder.Int64(1)
+	builder.Time(86_400_000_000)
+	builder.String("urn:uuid:" + testUUID(1))
+	if err := builder.EndRow(rowmodel.Meta{}); err != nil {
+		_ = builder.Close()
+		t.Fatal(err)
+	}
+	if err := builder.Flush(); err != nil {
+		_ = builder.Close()
+		t.Fatal(err)
+	}
+	if err := builder.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(collector.batches) != 1 {
+		t.Fatalf("builder emitted %d batches, want 1", len(collector.batches))
+	}
+	batch := collector.batches[0]
+	batch.Resource = "times"
+	defer batch.Release()
+	if _, err := sink.Apply(ctx, batch, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got := queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR), CAST(event_id AS VARCHAR) FROM "main"."times" ORDER BY id`)
+	want := [][]any{{int64(1), "24:00:00", testUUID(1)}}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("rows = %v, want %v", got, want)
+	}
+}
+
 func TestLocalReplaceKeepsEndOfDayTimeIntegration(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "times-replace.duckdb")
