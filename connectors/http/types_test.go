@@ -82,6 +82,128 @@ func TestExtractFixedDecimalRounding(t *testing.T) {
 	}
 }
 
+func TestExtractUnboundedDecimalExponent(t *testing.T) {
+	// An unbounded decimal in exponent form must keep its exact digits.
+	// A float64 round-trip only holds about 15 to 17 significant digits,
+	// so longer values lost digits silently. See issue #740.
+	for _, tc := range []struct{ value, want string }{
+		{"1.234567890123456789e10", "12345678901.23456789"},
+		{"1.234567890123456789e20", "123456789012345678900"},
+		{"-1.234567890123456789e10", "-12345678901.23456789"},
+		{"1.5e-3", "0.0015"},
+		{"1e5", "100000"},
+		{"1.234567890123456789", "1.234567890123456789"},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", tc.value)
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("got rows %q, err %v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
+func TestExtractUnboundedDecimalExponentExact(t *testing.T) {
+	// The expansion works on the digits directly, never through a binary
+	// float, so even a value with more significant digits than any float
+	// mantissa holds keeps them all. See issue #740 and the CodeRabbit
+	// review on PR #744.
+	longDigits := "1." + strings.Repeat("0", 80) + "1e0"
+	for _, tc := range []struct{ value, want string }{
+		{longDigits, "1." + strings.Repeat("0", 80) + "1"},
+		{"1.5e3", "1500"},
+		{"1.50e0", "1.5"},
+		{"-0.25e-2", "-0.0025"},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", tc.value)
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("got rows %q, err %v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
+func TestExtractUnboundedDecimalExponentBound(t *testing.T) {
+	// A value whose plain digit expansion would exceed the bound is an
+	// error, not a huge allocation. See the CodeRabbit review on PR #744.
+	for _, value := range []string{"1e100000000", "1e10001", "1e-100000"} {
+		t.Run(value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", value)
+			if err == nil || !strings.Contains(err.Error(), `field "n"`) {
+				t.Fatalf("rows=%q, err=%v, want decimal field error", rows, err)
+			}
+		})
+	}
+}
+
+func TestExtractUnboundedDecimalExponentZero(t *testing.T) {
+	// The exponent is validated before the zero shortcut: a malformed
+	// exponent is a field error even when the mantissa is zero. A valid
+	// zero stays zero whatever the exponent, with no expansion work.
+	// See the CodeRabbit review on PR #744.
+	for _, tc := range []struct {
+		value, want string
+		wantErr     bool
+	}{
+		{`"0e"`, "", true},
+		{`"0efoo"`, "", true},
+		{`"-0e"`, "", true},
+		{`"0e5"`, "0", false},
+		{`"0e100000000"`, "0", false},
+		{`"-0e100000000"`, "-0", false},
+		{`"0.0e-100000"`, "0", false},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", tc.value)
+			if tc.wantErr {
+				if err == nil || !strings.Contains(err.Error(), `field "n"`) {
+					t.Fatalf("rows=%q, err=%v, want decimal field error", rows, err)
+				}
+				return
+			}
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("got rows %q, err %v, want %q", rows, err, want)
+			}
+		})
+	}
+}
+
+func TestExtractUnboundedDecimalExponentFractionLength(t *testing.T) {
+	// The expanded length of a long fraction counts the digits once:
+	// "0." plus 5,000 ones is 5,002 characters, inside the bound.
+	// See the CodeRabbit review on PR #744.
+	value := `"0.` + strings.Repeat("1", 5000) + `e0"`
+	want := "0." + strings.Repeat("1", 5000)
+	rows, err := extractValue(t, "decimal", value)
+	wantRows := []string{fmt.Sprintf(`{"id":"a","n":%s}`, want)}
+	if err != nil || !slices.Equal(rows, wantRows) {
+		t.Fatalf("got %d rows, err %v, want the 5,002 character value", len(rows), err)
+	}
+}
+
+func TestExtractUnboundedDecimalExponentMantissaAdjustedBound(t *testing.T) {
+	// The size limit is measured on the mantissa-adjusted expansion:
+	// 0.01e10001 expands to 1 followed by 9,999 zeros, 10,000
+	// characters, so it fits, while 1e10001 does not. See the
+	// CodeRabbit review on PR #744.
+	for _, tc := range []struct{ value, want string }{
+		{"0.01e10001", "1" + strings.Repeat("0", 9999)},
+		{"0.001e10002", "1" + strings.Repeat("0", 9999)},
+	} {
+		t.Run(tc.value, func(t *testing.T) {
+			rows, err := extractValue(t, "decimal", tc.value)
+			want := []string{fmt.Sprintf(`{"id":"a","n":%s}`, tc.want)}
+			if err != nil || !slices.Equal(rows, want) {
+				t.Fatalf("got %d rows, err %v, want a 10,000 character expansion", len(rows), err)
+			}
+		})
+	}
+}
+
 func TestExtractTimestampAcceptsNumericOffset(t *testing.T) {
 	// Jira Cloud emits created and updated with a numeric zone offset and no
 	// colon, for example 2026-11-13T01:09:44.630+0500. RFC 3339 parsing
