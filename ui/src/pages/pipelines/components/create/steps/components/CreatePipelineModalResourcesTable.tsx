@@ -12,7 +12,8 @@ import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { isWebhookResource } from "@/components/webhooks/utils";
 
 import {
   useCreatePipelineModalActions,
@@ -146,16 +147,17 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
   };
 
   const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
-  const isWebhook = isWebhookConnector(sourceConnection?.connector);
+  const { webhook } = useConnectionWebhookSpec(sourceConnection);
+  const isWebhookOnly = !!webhook && rows.every((row) => isWebhookResource(webhook, row.name));
   const columns = useMemo(() => {
-    if (isWebhook) return RESOURCE_COLUMNS_WEBHOOK;
+    if (isWebhookOnly) return RESOURCE_COLUMNS_WEBHOOK;
     if (!hasColumnSelection) {
       return hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
     }
     return hasReadLevers
       ? [...RESOURCE_COLUMNS_WITH_LEVERS, OPEN_COLUMN_PINNED]
       : [...RESOURCE_COLUMNS_BASE, OPEN_COLUMN];
-  }, [hasReadLevers, hasColumnSelection, isWebhook]);
+  }, [hasReadLevers, hasColumnSelection, isWebhookOnly]);
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>

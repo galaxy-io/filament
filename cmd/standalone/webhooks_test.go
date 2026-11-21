@@ -42,8 +42,8 @@ func TestStandaloneWebhooksUseEmbeddedInbox(t *testing.T) {
 		t.Fatalf("open standalone webhooks: %v", err)
 	}
 	base := registry.NewSources()
-	base.Register("webhook", func() filament.Source { return webhooksource.New(nil) })
-	source, err := (standaloneSources{SourceRegistry: base, inbox: i}).Resolve("webhook")
+	base.Register("webhook", func() filament.Source { return webhooksource.New() })
+	source, err := standaloneSources(base, i).Resolve("webhook")
 	if err != nil {
 		t.Fatal(err)
 	}

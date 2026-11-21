@@ -11,6 +11,7 @@ from ..core.serialization import FieldMetadata
 from .ingestion_v1config_schema import IngestionV1ConfigSchema
 from .ingestion_v1connector_kind import IngestionV1ConnectorKind
 from .ingestion_v1replication_mode import IngestionV1ReplicationMode
+from .ingestion_v1webhook_spec import IngestionV1WebhookSpec
 
 
 class IngestionV1ConnectorSpec(UniversalBaseModel):
@@ -61,12 +62,15 @@ class IngestionV1ConnectorSpec(UniversalBaseModel):
     webhook_verifier: typing_extensions.Annotated[
         typing.Optional[str],
         FieldMetadata(alias="webhookVerifier"),
-        pydantic.Field(
-            alias="webhookVerifier", description="Ingress verifier for sources that receive webhooks. Empty otherwise."
-        ),
+        pydantic.Field(alias="webhookVerifier", description="Deprecated: read webhook.verifier."),
     ] = None
     """
-    Ingress verifier for sources that receive webhooks. Empty otherwise.
+    Deprecated: read webhook.verifier.
+    """
+
+    webhook: typing.Optional[IngestionV1WebhookSpec] = pydantic.Field(default=None)
+    """
+    Set for sources that receive provider webhooks.
     """
 
     if IS_PYDANTIC_V2:

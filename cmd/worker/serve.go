@@ -29,7 +29,7 @@ const shutdownTimeout = 10 * time.Second
 // from the event bus and executes them, the way a dispatched Job would, for
 // deployments without Kubernetes.
 func serve(ctx context.Context, serveConnectors, execute bool) error {
-	sources, err := connectors.SourcesFromEnv()
+	sources, err := connectors.SourcesFromEnv(nil)
 	if err != nil {
 		return err
 	}
@@ -133,6 +133,7 @@ func startExecutor(parent context.Context, sources filament.SourceRegistry, sink
 	streams := streamsupervisor.New(runner.Deps{
 		Bus: bus, DataStore: deps.Store, StreamStore: deps.StreamStore, Secrets: deps.Secrets,
 		Sources: sources, Sinks: sinks, Log: deps.Log, Tracer: deps.Tracer,
+		Functions: deps.Alchemy.Functions, FunctionBatch: deps.Alchemy.FunctionBatch,
 	}, nil)
 	streams.Start(ctx)
 	checks := []health.Check{deps.Store.Ping, func(ctx context.Context) error {

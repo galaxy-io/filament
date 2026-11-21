@@ -139,6 +139,32 @@ exporters also honor the standard OTLP headers, TLS, timeout, and compression
 variables for that transport. Application logs remain JSON on standard output;
 Filament does not export logs through OTLP.
 
+### Alchemy
+
+Alchemy transform steps run functions on an alchemy server. The server, the
+control plane and workers read these variables.
+
+| Variable | Default | Description |
+|---|---|---|
+| `GALAXY_ALCHEMY_SERVER_URL` | `GALAXY_ALCHEMY_URL` | Alchemy API the server, control plane and workers call. Set it when they reach alchemy at an internal address. Unset with `GALAXY_ALCHEMY_URL` unset disables alchemy steps |
+| `ALCHEMY_BATCH_MAX_BYTES` | `16777216` | Arrow bytes batched into one function call, at most 64 MiB. A call whose encoded input is over alchemy's 64 MiB limit is split by rows |
+| `ALCHEMY_MAX_IN_FLIGHT` | `4` | Function calls a run keeps in flight |
+
+The transform builder links to Alchemy's UI to create or open a function only
+when `GALAXY_ALCHEMY_URL` is set. For people to come back with the new
+function, Alchemy needs `GALAXY_FILAMENT_URL` set to this UI.
+
+Every call carries an idempotency key, so a call retried after a dropped
+connection replays its first result instead of running again. Alchemy keeps
+those results in its function logs bucket and rejects keyed calls without one,
+so configure that bucket on alchemy before running alchemy steps.
+
+With `AUTH_PROVIDER=proxy`, each call names the run's tenant in
+`X-Forwarded-Tenant` and `X-Forwarded-Service: filament`. Alchemy must trust
+those headers only from the gateway and filament, so restrict who can reach it
+with a network policy. With any other provider, or with authentication off,
+filament calls alchemy without auth headers.
+
 ## Server
 
 | Variable | Default | Description |

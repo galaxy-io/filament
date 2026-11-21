@@ -1502,6 +1502,68 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetAlchemyFunction": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetAlchemyFunction",
+        "operationId": "ingestion.v1.IngestionService.GetAlchemyFunction",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetAlchemyFunctionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetAlchemyFunctionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/GetConnection": {
       "post": {
         "tags": [
@@ -1937,6 +1999,68 @@
         }
       }
     },
+    "/ingestion.v1.IngestionService/GetWebhookDeliveryURL": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "GetWebhookDeliveryURL",
+        "operationId": "ingestion.v1.IngestionService.GetWebhookDeliveryURL",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.GetWebhookDeliveryURLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.GetWebhookDeliveryURLResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ingestion.v1.IngestionService/GetWebhookEndpoint": {
       "post": {
         "tags": [
@@ -1993,6 +2117,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ingestion.v1.GetWebhookEndpointResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingestion.v1.IngestionService/ListAlchemyFunctions": {
+      "post": {
+        "tags": [
+          "ingestion.v1.IngestionService"
+        ],
+        "summary": "ListAlchemyFunctions",
+        "operationId": "ingestion.v1.IngestionService.ListAlchemyFunctions",
+        "parameters": [
+          {
+            "name": "Connect-Protocol-Version",
+            "in": "header",
+            "description": "Define the version of the Connect protocol",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/connect-protocol-version"
+            },
+            "example": 1
+          },
+          {
+            "name": "Connect-Timeout-Ms",
+            "in": "header",
+            "description": "Define the timeout, in ms",
+            "schema": {
+              "$ref": "#/components/schemas/connect-timeout-header"
+            },
+            "example": 1000
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ingestion.v1.ListAlchemyFunctionsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/connect.error"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ingestion.v1.ListAlchemyFunctionsResponse"
                 }
               }
             }
@@ -3791,6 +3977,77 @@
         ],
         "description": "Any JSON value: `null`, number, string, boolean, array, or object."
       },
+      "ingestion.v1.AlchemyContractKind": {
+        "type": "string",
+        "title": "AlchemyContractKind",
+        "enum": [
+          "ALCHEMY_CONTRACT_KIND_UNSPECIFIED",
+          "ALCHEMY_CONTRACT_KIND_ARROW",
+          "ALCHEMY_CONTRACT_KIND_JSON_SCHEMA"
+        ],
+        "description": "AlchemyContractKind is how a function types its boundary; only ARROW can back a transform step."
+      },
+      "ingestion.v1.AlchemyFunction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "name": {
+            "type": "string",
+            "title": "name"
+          },
+          "description": {
+            "type": "string",
+            "title": "description"
+          },
+          "currentVersion": {
+            "type": "string",
+            "title": "current_version",
+            "format": "int64",
+            "description": "current_version is the latest ready version, zero until one is ready."
+          },
+          "contractKind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.AlchemyContractKind"
+              }
+            ],
+            "title": "contract_kind"
+          },
+          "runtime": {
+            "type": "string",
+            "title": "runtime"
+          },
+          "runtimeDarkIconUrl": {
+            "type": "string",
+            "title": "runtime_dark_icon_url"
+          },
+          "runtimeLightIconUrl": {
+            "type": "string",
+            "title": "runtime_light_icon_url"
+          },
+          "runtimeHandlerPath": {
+            "type": "string",
+            "title": "runtime_handler_path"
+          }
+        },
+        "title": "AlchemyFunction",
+        "additionalProperties": false,
+        "description": "AlchemyFunction is one function a transform step can pin; runtime fields are empty for image-based functions."
+      },
+      "ingestion.v1.AlchemyVersionStatus": {
+        "type": "string",
+        "title": "AlchemyVersionStatus",
+        "enum": [
+          "ALCHEMY_VERSION_STATUS_UNSPECIFIED",
+          "ALCHEMY_VERSION_STATUS_BUILDING",
+          "ALCHEMY_VERSION_STATUS_READY",
+          "ALCHEMY_VERSION_STATUS_FAILED"
+        ],
+        "description": "AlchemyVersionStatus is where a function version's build stands."
+      },
       "ingestion.v1.CandidateStatus": {
         "type": "string",
         "title": "CandidateStatus",
@@ -4093,7 +4350,17 @@
           "webhookVerifier": {
             "type": "string",
             "title": "webhook_verifier",
-            "description": "Ingress verifier for sources that receive webhooks. Empty otherwise."
+            "description": "Deprecated: read webhook.verifier.",
+            "deprecated": true
+          },
+          "webhook": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookSpec"
+              }
+            ],
+            "title": "webhook",
+            "description": "Set for sources that receive provider webhooks."
           }
         },
         "title": "ConnectorSpec",
@@ -4224,6 +4491,11 @@
             ],
             "title": "execution_mode",
             "description": "Unspecified defaults to bounded."
+          },
+          "failOnError": {
+            "type": "boolean",
+            "title": "fail_on_error",
+            "description": "Defaults to false, which isolates resource failures in bounded runs."
           }
         },
         "title": "CreatePipelineRequest",
@@ -4638,6 +4910,51 @@
         ],
         "description": "FieldType drives UI form controls for connector configuration fields."
       },
+      "ingestion.v1.GetAlchemyFunctionRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "id"
+          },
+          "version": {
+            "type": "string",
+            "title": "version",
+            "format": "int64"
+          }
+        },
+        "title": "GetAlchemyFunctionRequest",
+        "additionalProperties": false,
+        "description": "GetAlchemyFunctionRequest names one function to describe, and optionally a version whose build to report."
+      },
+      "ingestion.v1.GetAlchemyFunctionResponse": {
+        "type": "object",
+        "properties": {
+          "function": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.AlchemyFunction"
+              }
+            ],
+            "title": "function"
+          },
+          "versionStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.AlchemyVersionStatus"
+              }
+            ],
+            "title": "version_status",
+            "description": "version_status is the requested version's build, unspecified when no version was requested."
+          },
+          "versionStatusMessage": {
+            "type": "string",
+            "title": "version_status_message"
+          }
+        },
+        "title": "GetAlchemyFunctionResponse",
+        "additionalProperties": false
+      },
       "ingestion.v1.GetConnectionRequest": {
         "type": "object",
         "properties": {
@@ -4861,6 +5178,30 @@
         "title": "GetVersionResponse",
         "additionalProperties": false
       },
+      "ingestion.v1.GetWebhookDeliveryURLRequest": {
+        "type": "object",
+        "properties": {
+          "sourceConnectionId": {
+            "type": "string",
+            "title": "source_connection_id"
+          }
+        },
+        "title": "GetWebhookDeliveryURLRequest",
+        "additionalProperties": false,
+        "description": "The delivery URL belongs to the source connection, so it is known before the\n endpoint exists. A provider that creates the signing secret needs the URL\n first, and the endpoint needs that secret."
+      },
+      "ingestion.v1.GetWebhookDeliveryURLResponse": {
+        "type": "object",
+        "properties": {
+          "deliveryUrl": {
+            "type": "string",
+            "title": "delivery_url",
+            "description": "\u003cpublic base URL\u003e/hooks/\u003csource_connection_id\u003e, without the resource.\n Empty when the server has no public base URL configured."
+          }
+        },
+        "title": "GetWebhookDeliveryURLResponse",
+        "additionalProperties": false
+      },
       "ingestion.v1.GetWebhookEndpointRequest": {
         "type": "object",
         "properties": {
@@ -4886,6 +5227,53 @@
         },
         "title": "GetWebhookEndpointResponse",
         "additionalProperties": false
+      },
+      "ingestion.v1.ListAlchemyFunctionsRequest": {
+        "type": "object",
+        "properties": {
+          "search": {
+            "type": "string",
+            "title": "search"
+          },
+          "pagination": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.PaginationRequest"
+              }
+            ],
+            "title": "pagination"
+          }
+        },
+        "title": "ListAlchemyFunctionsRequest",
+        "additionalProperties": false,
+        "description": "ListAlchemyFunctionsRequest pages the caller's alchemy functions, optionally narrowed by name."
+      },
+      "ingestion.v1.ListAlchemyFunctionsResponse": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "enabled"
+          },
+          "functions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.AlchemyFunction"
+            },
+            "title": "functions"
+          },
+          "pagination": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.PaginationResponse"
+              }
+            ],
+            "title": "pagination"
+          }
+        },
+        "title": "ListAlchemyFunctionsResponse",
+        "additionalProperties": false,
+        "description": "ListAlchemyFunctionsResponse is empty with enabled false when the server has no alchemy configured."
       },
       "ingestion.v1.ListConnectionsRequest": {
         "type": "object",
@@ -5572,6 +5960,14 @@
             ],
             "title": "execution_mode",
             "description": "Default execution mode for subsequent starts; existing pipelines are bounded."
+          },
+          "failOnError": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "fail_on_error",
+            "description": "fail_on_error stops a bounded run at its first resource failure. False\n isolates a failed resource and lets the others finish, so the run can end\n completed with failed resources. Change-stream routes always stop.\n Pipelines created before this setting existed are true."
           }
         },
         "title": "Pipeline",
@@ -6424,6 +6820,14 @@
             },
             "title": "resources",
             "description": "resources this run reads. Empty means every resource its route selects."
+          },
+          "failedResources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "failed_resources",
+            "description": "failed_resources names the resources that failed in this run. A completed\n run with failed resources isolated them and committed the rest."
           }
         },
         "title": "RunInfo",
@@ -6474,11 +6878,19 @@
             ],
             "title": "execution_mode",
             "description": "Unspecified inherits the pipeline mode. Explicit values override this start.\n Continuous creates a durable activation; unavailable profiles are rejected."
+          },
+          "failOnError": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "fail_on_error",
+            "description": "Stop the run at its first resource failure. Omit to inherit the pipeline's\n fail_on_error setting."
           }
         },
         "title": "RunOptions",
         "additionalProperties": false,
-        "description": "RunOptions overrides the engine's throughput defaults for a run. Every field\n is optional: a zero value defers to the engine default downstream."
+        "description": "RunOptions overrides engine defaults for a run. Every field is optional."
       },
       "ingestion.v1.RunPipelineRequest": {
         "type": "object",
@@ -6964,6 +7376,14 @@
             ],
             "title": "execution_mode",
             "description": "Unspecified preserves the saved mode; affects future starts only."
+          },
+          "failOnError": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "title": "fail_on_error",
+            "description": "Omit to preserve the saved setting."
           }
         },
         "title": "UpdatePipelineRequest",
@@ -7136,11 +7556,18 @@
               }
             ],
             "title": "transform"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "columns"
           }
         },
         "title": "ValidateTransformRequest",
         "additionalProperties": false,
-        "description": "ValidateTransformRequest compiles a transform against one resource's\n schema, read from the source connection, exactly as a run would. The\n transform is the same JSON object an edge carries."
+        "description": "ValidateTransformRequest compiles a transform against one resource's\n schema, read from the source connection, exactly as a run would. The\n transform is the same JSON object an edge carries, and columns is the\n edge's column selection for the resource, empty when it reads every column."
       },
       "ingestion.v1.ValidateTransformResponse": {
         "type": "object",
@@ -7169,6 +7596,12 @@
               "$ref": "#/components/schemas/ingestion.v1.TransformExpressionType"
             },
             "title": "expression_types"
+          },
+          "outputArrowSchema": {
+            "type": "string",
+            "title": "output_arrow_schema",
+            "format": "byte",
+            "description": "output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract."
           }
         },
         "title": "ValidateTransformResponse",
@@ -7265,6 +7698,88 @@
         "title": "WebhookEndpointConfig",
         "additionalProperties": false,
         "description": "WebhookEndpointConfig is tenant-owned receiver configuration. Signing keys\n are never returned by a read operation."
+      },
+      "ingestion.v1.WebhookSecretIssuer": {
+        "type": "string",
+        "title": "WebhookSecretIssuer",
+        "enum": [
+          "WEBHOOK_SECRET_ISSUER_UNSPECIFIED",
+          "WEBHOOK_SECRET_ISSUER_FILAMENT",
+          "WEBHOOK_SECRET_ISSUER_PROVIDER"
+        ],
+        "description": "WebhookSecretIssuer says who creates a webhook's signing secret."
+      },
+      "ingestion.v1.WebhookSpec": {
+        "type": "object",
+        "properties": {
+          "verifier": {
+            "type": "string",
+            "title": "verifier",
+            "description": "Verifier profile that authenticates deliveries, and its parameters."
+          },
+          "verifierParams": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "verifier_params"
+          },
+          "dynamicResources": {
+            "type": "boolean",
+            "title": "dynamic_resources",
+            "description": "The endpoint configuration names the resources, rather than the source."
+          },
+          "ingestionField": {
+            "type": "string",
+            "title": "ingestion_field",
+            "description": "Enum connection config field that chooses how a connection reads the\n source: \"api\" (the default), \"webhooks\" or \"both\". Empty means every\n connection of the source receives webhooks."
+          },
+          "setup": {
+            "type": "string",
+            "title": "setup",
+            "description": "Markdown instructions for configuring the sender."
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "title": "resources",
+            "description": "Resources the source reads from deliveries. Empty when\n dynamic_resources is set and the endpoint names them."
+          },
+          "ingress": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "ingress",
+            "description": "How the receiver routes deliveries sent to the endpoint's single URL.\n Saving an endpoint copies it."
+          },
+          "splitsExecution": {
+            "type": "boolean",
+            "title": "splits_execution",
+            "description": "Webhook resources run continuously while the source's other resources\n run bounded, so one pipeline holds both. The webhook route key then ends\n in \"/continuous\"."
+          },
+          "routed": {
+            "type": "boolean",
+            "title": "routed",
+            "description": "Deliveries may be sent to the endpoint's single URL and are routed to a\n resource by their event type. Each resource keeps its own URL as well."
+          },
+          "secretIssuer": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ingestion.v1.WebhookSecretIssuer"
+              }
+            ],
+            "title": "secret_issuer",
+            "description": "Who creates the signing secret. With PROVIDER the connection must be\n given the provider's secret and Filament never mints one."
+          }
+        },
+        "title": "WebhookSpec",
+        "additionalProperties": false,
+        "description": "WebhookSpec describes how a source receives provider webhooks."
       },
       "ingestion.v1.WorkerConfiguration": {
         "type": "object",

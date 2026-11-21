@@ -44,6 +44,8 @@ receiver listens on `http://localhost:8080`.
 `PutWebhookEndpoint` configures the endpoint without the web UI. The endpoint
 lists resource names only. The pipeline decides where each resource is written.
 `DiscoverResources` lists the names already registered on a saved endpoint.
+`GetWebhookDeliveryURL` returns a source's delivery URL before its endpoint
+exists, for a provider that issues the signing secret only once it has the URL.
 
 The endpoint can be created disabled before the pipeline exists. To enable it,
 set `pipelineId` and `routeKey` to a persisted continuous route. The route does
@@ -151,6 +153,12 @@ delivery is dropped, counted in `filament_webhook_expired_total`, and logged
 with its source. `filament_webhook_oldest_unreleased_seconds` reports how long
 the oldest waiting delivery has waited. Alert on it well before the hold
 period ends.
+
+A connector source that reads deliveries as typed rows, such as PostHog's
+`events_webhook`, skips a delivery whose body does not match its resource. The
+stream keeps running. The delivery is logged with its ID and counted in
+`filament_webhook_rejected_deliveries_total` by resource, and stays in the inbox
+until retention purges it.
 
 A delivery for a deleted source, or for a source no stream can resume, is
 purged on age alone. Once a deleted source's deliveries are all purged, its

@@ -95,7 +95,7 @@ func (c *Connector) paginate(
 		}
 		records, err := extractor.Records(raw)
 		if err != nil {
-			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
+			return totalRecords, pageCount, resourceScoped(fmt.Errorf("decode %s: %w", res.Name, err))
 		}
 
 		checkpointValue := ""
@@ -378,17 +378,17 @@ func (c *Connector) doRequest(
 				return nil, nil, err
 			}
 		case resp.StatusCode >= 500:
-			err := fmt.Errorf("%s %s HTTP %d: %s",
+			err := &statusError{status: resp.StatusCode, msg: fmt.Sprintf("%s %s HTTP %d: %s",
 				resourceName, req.URL.Redacted(),
-				resp.StatusCode, formatHTTPErrorBody(body))
+				resp.StatusCode, formatHTTPErrorBody(body))}
 			c.reportRetryExhausted(resourceName, err)
 			return resp, body, err
 		case matchesEmptyResponse(resp, body, res.Response.Empty):
 			return resp, body, nil
 		case resp.StatusCode >= 400:
-			return resp, body, fmt.Errorf("%s %s HTTP %d: %s",
+			return resp, body, &statusError{status: resp.StatusCode, msg: fmt.Sprintf("%s %s HTTP %d: %s",
 				resourceName, req.URL.Redacted(),
-				resp.StatusCode, formatHTTPErrorBody(body))
+				resp.StatusCode, formatHTTPErrorBody(body))}
 		default:
 			return resp, body, nil
 		}

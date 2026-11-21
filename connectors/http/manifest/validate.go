@@ -25,6 +25,10 @@ func (m *Manifest) Normalize() {
 	for i := range m.Resources {
 		r := &m.Resources[i]
 		m.normalizeResourceFields(r)
+		if r.Mode == ModeWebhook {
+			normalizeWebhookResource(r)
+			continue
+		}
 		// Export requests have their own HTTP and decoding settings. Resource
 		// defaults must not accidentally paginate a job or change its payload.
 		if r.Mode == "export" {
@@ -224,7 +228,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		names[r.Name] = struct{}{}
 
-		if r.Path == "" && r.Mode != "export" {
+		if r.Path == "" && r.Mode != "export" && r.Mode != ModeWebhook {
 			_ = agg.Addf(path+".path", "is required")
 		}
 		if r.Parent != nil && r.Parent.Resource == "" {
@@ -453,6 +457,8 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "unknown resource %q", name)
 		} else if byName[name].CaptureOnly {
 			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "resource %q is capture_only", name)
+		} else if byName[name].IsWebhook() {
+			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "resource %q receives webhooks and is discovered from the webhook block", name)
 		}
 	}
 	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Include) > 0 {
@@ -463,11 +469,15 @@ func (m *Manifest) validateSemantics() error {
 	}
 	for i, name := range m.Discovery.DefaultResources {
 		path := fmt.Sprintf("discovery.default_resources[%d]", i)
-		if _, ok := names[name]; !ok {
+		_, known := names[name]
+		switch {
+		case !known:
 			_ = agg.Addf(path, "unknown resource %q", name)
-		} else if byName[name].CaptureOnly {
+		case byName[name].CaptureOnly:
 			_ = agg.Addf(path, "resource %q is capture_only", name)
-		} else if len(m.Discovery.Include) > 0 && !slices.Contains(m.Discovery.Include, name) {
+		case byName[name].IsWebhook():
+			_ = agg.Addf(path, "resource %q receives webhooks and is discovered from the webhook block", name)
+		case len(m.Discovery.Include) > 0 && !slices.Contains(m.Discovery.Include, name):
 			_ = agg.Addf(path, "resource %q is not in discovery.include", name)
 		}
 	}
@@ -550,6 +560,8 @@ func (m *Manifest) validateSemantics() error {
 		}
 	}
 
+	validateAfter(&agg, m.Resources, byName)
+
 	// Cycle detection on parent refs. A two-cycle (A → B → A) would crash
 	// SortResources with a stack overflow; a longer cycle would loop
 	// forever in extract. Catch at load.
@@ -572,6 +584,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		seen[key] = r.Name
 	}
+	validateWebhook(&agg, m)
 
 	return agg.AsError()
 }
@@ -718,6 +731,84 @@ func validateTemplateAny(agg *errs.ManifestErrors, path string, v any) {
 			validateTemplate(agg, fmt.Sprintf("%s.%s", path, k), val)
 		}
 	}
+}
+
+// validateAfter checks read-order dependencies. Both ends must be top-level
+// resources, since children already run after every top-level read, and the
+// awaited resource must finish, so a stream can never be awaited. A cycle would
+// deadlock extraction.
+func validateAfter(agg *errs.ManifestErrors, resources []Resource, byName map[string]*Resource) {
+	edges := make(map[string][]string, len(resources))
+	for _, r := range resources {
+		if len(r.After) == 0 {
+			continue
+		}
+		path := fmt.Sprintf("resources[%q].after", r.Name)
+		if r.Parent != nil {
+			_ = agg.Addf(path, "is only supported on top-level resources")
+		}
+		for i, name := range r.After {
+			at := fmt.Sprintf("%s[%d]", path, i)
+			dep, ok := byName[name]
+			switch {
+			case !ok:
+				_ = agg.Addf(at, "unknown resource %q", name)
+				continue
+			case name == r.Name:
+				_ = agg.Addf(at, "a resource cannot wait on itself")
+				continue
+			case dep.Parent != nil:
+				_ = agg.Addf(at, "resource %q is a child and already runs after every top-level resource", name)
+			case dep.Mode == "stream":
+				_ = agg.Addf(at, "resource %q is a stream and never finishes", name)
+			}
+			edges[r.Name] = append(edges[r.Name], name)
+		}
+	}
+	if cycle := detectAfterCycle(resources, edges); cycle != nil {
+		_ = agg.Addf("resources", "after cycle: %s", formatCycle(cycle))
+	}
+}
+
+// detectAfterCycle returns a cycle in the after graph, or nil.
+func detectAfterCycle(resources []Resource, edges map[string][]string) []string {
+	const (
+		white = iota
+		gray
+		black
+	)
+	color := make(map[string]int, len(resources))
+	var cycle []string
+	var dfs func(name string, path []string) bool
+	dfs = func(name string, path []string) bool {
+		switch color[name] {
+		case gray:
+			for i, p := range path {
+				if p == name {
+					cycle = append(append([]string{}, path[i:]...), name)
+					break
+				}
+			}
+			return true
+		case black:
+			return false
+		}
+		color[name] = gray
+		path = append(path, name)
+		for _, next := range edges[name] {
+			if dfs(next, path) {
+				return true
+			}
+		}
+		color[name] = black
+		return false
+	}
+	for _, r := range resources {
+		if color[r.Name] == white && dfs(r.Name, nil) {
+			return cycle
+		}
+	}
+	return nil
 }
 
 // detectParentCycle returns the cycle path (slice of resource names ending

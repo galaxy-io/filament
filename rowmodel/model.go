@@ -28,6 +28,16 @@ const (
 	LogicalArray       LogicalType = "array"
 )
 
+// LogicalTypes lists every known logical type; LogicalUnknown is not one.
+var LogicalTypes = []LogicalType{
+	LogicalBool, LogicalInt16, LogicalInt32, LogicalInt64, LogicalFloat32, LogicalFloat64, LogicalDecimal,
+	LogicalString, LogicalBytes, LogicalDate, LogicalTime, LogicalTimestamp, LogicalTimestampTZ,
+	LogicalJSON, LogicalUUID, LogicalArray,
+}
+
+// Known reports whether t is one of LogicalTypes.
+func (t LogicalType) Known() bool { return slices.Contains(LogicalTypes, t) }
+
 // Operation is the change kind carried by a row.
 type Operation uint8
 

@@ -39,6 +39,9 @@ type Deps struct {
 	Sinks       filament.SinkRegistry
 	Log         filament.Logger
 	Tracer      filament.Tracer
+	// Functions backs alchemy steps; nil fails runs that use one.
+	Functions     transform.FunctionService
+	FunctionBatch pipeline.FunctionBatch
 }
 
 // SpecFromState builds the RunSpec to execute from a persisted run state.
@@ -237,8 +240,14 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// twice: against the discovered schema for sink DDL, and again inside the
 	// pipeline when each resource's first builder opens.
 	var transformDef *transform.Definition
+	var contracts transform.Contracts
 	if spec.Transform != "" {
 		if transformDef, err = transform.Parse([]byte(spec.Transform)); err != nil {
+			abortSink(ctx, deps, snk)
+			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
+			return nil
+		}
+		if contracts, err = resolveContracts(extractCtx, spec.Tenant, deps.Functions, transformDef, spec.Resources); err != nil {
 			abortSink(ctx, deps, snk)
 			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
 			return nil
@@ -248,7 +257,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// A schema-aware sink needs typed DDL before any write. When the source can
 	// supply per-resource schemas, ensure each one up front so a Schematized sink
 	// (e.g. iceberg, postgres) creates/evolves its tables before extraction.
-	if err := ensureSchemas(extractCtx, snk, spec, schemas, transformDef); err != nil {
+	if err := ensureSchemas(extractCtx, snk, spec, schemas, transformDef, contracts); err != nil {
 		abortSink(ctx, deps, snk)
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
@@ -286,11 +295,15 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		Options:       spec.Options,
 		Log:           deps.Log,
 		Transform:     transformDef,
+		Contracts:     contracts,
+		Functions:     deps.Functions,
+		FunctionBatch: deps.FunctionBatch,
 		Audit: &pipeline.AuditConfig{
 			RunStartedAt: runStartedAt,
 			CDC:          plan.RequiresCDC,
 			CDCAppend:    filament.IsCDCAppend(spec.IngestionTypes),
 		},
+		Failures: failurePolicy(spec, plan, src, snk),
 	})
 	p.Start(ctx)
 
@@ -316,21 +329,36 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	// A write failure (waitErr) is the root cause and takes precedence: when the
 	// pipeline fails, the inlet returns it to Extract too, so extractErr is just
-	// the echo.
+	// the echo. A non-nil extractErr always fails the run, even when it names
+	// one resource: the source stopped, so no other resource is known complete.
 	runErr := waitErr
 	if runErr == nil {
 		runErr = extractErr
 	}
 
 	resources := resolveResources(spec.Resources, em.seenResources())
+	// Resources the pipeline quarantined under an isolating policy. The run
+	// goes on without them unless nothing healthy is left.
+	quarantined := p.Quarantined()
+	if runErr == nil && allQuarantined(resources, quarantined) {
+		runErr = errEveryResourceFailed(quarantined)
+	}
 	if waitErr == nil && stoppedByControl(extractCtx, extractErr, control.requested()) {
-		finishControlled(ctx, deps, spec, plan, snk, em, resources, control.seal())
+		signal := control.seal()
+		if signal == controlPause && len(quarantined) > 0 {
+			if err := settleQuarantine(ctx, deps, spec, snk, em, resources, quarantined); err != nil {
+				failedWithCauses(em, err, resources, quarantined, false)
+				abortSink(ctx, deps, snk)
+				return nil
+			}
+		}
+		finishControlled(ctx, deps, spec, plan, snk, em, resources, signal)
 		return nil
 	}
 
 	if runErr != nil {
 		resumable := isResumableRun(spec, plan)
-		em.failed(runErr, resources, resumable)
+		failedWithCauses(em, runErr, resources, quarantined, resumable)
 		if resumable {
 			return nil
 		}
@@ -341,6 +369,15 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 
+	// Abort the quarantined resources' writes before anything commits, so the
+	// commit below (or a pause commit) covers only the healthy resources.
+	if len(quarantined) > 0 {
+		if err := settleQuarantine(ctx, deps, spec, snk, em, resources, quarantined); err != nil {
+			failedWithCauses(em, err, resources, quarantined, false)
+			abortSink(ctx, deps, snk)
+			return nil
+		}
+	}
 	if signal := control.seal(); signal != controlNone {
 		finishControlled(ctx, deps, spec, plan, snk, em, resources, signal)
 		return nil
@@ -350,7 +387,11 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		abortSink(ctx, deps, snk)
 		return nil
 	}
-	em.completed(resources)
+	if len(quarantined) > 0 {
+		em.completedExcept(healthyResources(resources, quarantined), pipeline.QuarantinedResources(quarantined))
+	} else {
+		em.completed(resources)
+	}
 	acknowledgeDurableChanges(ctx, deps, spec, src, em.streamCheckpoints())
 	cleanupRetiredReplicationStreams(ctx, deps, spec, src)
 	return nil

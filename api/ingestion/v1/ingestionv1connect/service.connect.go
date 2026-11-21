@@ -69,6 +69,9 @@ const (
 	// IngestionServicePutWebhookEndpointProcedure is the fully-qualified name of the IngestionService's
 	// PutWebhookEndpoint RPC.
 	IngestionServicePutWebhookEndpointProcedure = "/ingestion.v1.IngestionService/PutWebhookEndpoint"
+	// IngestionServiceGetWebhookDeliveryURLProcedure is the fully-qualified name of the
+	// IngestionService's GetWebhookDeliveryURL RPC.
+	IngestionServiceGetWebhookDeliveryURLProcedure = "/ingestion.v1.IngestionService/GetWebhookDeliveryURL"
 	// IngestionServiceValidatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// ValidatePipeline RPC.
 	IngestionServiceValidatePipelineProcedure = "/ingestion.v1.IngestionService/ValidatePipeline"
@@ -78,6 +81,12 @@ const (
 	// IngestionServiceValidateTransformProcedure is the fully-qualified name of the IngestionService's
 	// ValidateTransform RPC.
 	IngestionServiceValidateTransformProcedure = "/ingestion.v1.IngestionService/ValidateTransform"
+	// IngestionServiceListAlchemyFunctionsProcedure is the fully-qualified name of the
+	// IngestionService's ListAlchemyFunctions RPC.
+	IngestionServiceListAlchemyFunctionsProcedure = "/ingestion.v1.IngestionService/ListAlchemyFunctions"
+	// IngestionServiceGetAlchemyFunctionProcedure is the fully-qualified name of the IngestionService's
+	// GetAlchemyFunction RPC.
+	IngestionServiceGetAlchemyFunctionProcedure = "/ingestion.v1.IngestionService/GetAlchemyFunction"
 	// IngestionServiceCreatePipelineProcedure is the fully-qualified name of the IngestionService's
 	// CreatePipeline RPC.
 	IngestionServiceCreatePipelineProcedure = "/ingestion.v1.IngestionService/CreatePipeline"
@@ -157,11 +166,14 @@ type IngestionServiceClient interface {
 	// Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
 	GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error)
 	PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error)
+	GetWebhookDeliveryURL(context.Context, *connect.Request[v1.GetWebhookDeliveryURLRequest]) (*connect.Response[v1.GetWebhookDeliveryURLResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Transformations; the function catalog and per-resource compile check a builder needs.
 	ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error)
 	ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error)
+	ListAlchemyFunctions(context.Context, *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error)
+	GetAlchemyFunction(context.Context, *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -275,6 +287,12 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(ingestionServiceMethods.ByName("PutWebhookEndpoint")),
 			connect.WithClientOptions(opts...),
 		),
+		getWebhookDeliveryURL: connect.NewClient[v1.GetWebhookDeliveryURLRequest, v1.GetWebhookDeliveryURLResponse](
+			httpClient,
+			baseURL+IngestionServiceGetWebhookDeliveryURLProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetWebhookDeliveryURL")),
+			connect.WithClientOptions(opts...),
+		),
 		validatePipeline: connect.NewClient[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse](
 			httpClient,
 			baseURL+IngestionServiceValidatePipelineProcedure,
@@ -291,6 +309,18 @@ func NewIngestionServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+IngestionServiceValidateTransformProcedure,
 			connect.WithSchema(ingestionServiceMethods.ByName("ValidateTransform")),
+			connect.WithClientOptions(opts...),
+		),
+		listAlchemyFunctions: connect.NewClient[v1.ListAlchemyFunctionsRequest, v1.ListAlchemyFunctionsResponse](
+			httpClient,
+			baseURL+IngestionServiceListAlchemyFunctionsProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("ListAlchemyFunctions")),
+			connect.WithClientOptions(opts...),
+		),
+		getAlchemyFunction: connect.NewClient[v1.GetAlchemyFunctionRequest, v1.GetAlchemyFunctionResponse](
+			httpClient,
+			baseURL+IngestionServiceGetAlchemyFunctionProcedure,
+			connect.WithSchema(ingestionServiceMethods.ByName("GetAlchemyFunction")),
 			connect.WithClientOptions(opts...),
 		),
 		createPipeline: connect.NewClient[v1.CreatePipelineRequest, v1.CreatePipelineResponse](
@@ -430,9 +460,12 @@ type ingestionServiceClient struct {
 	deleteConnection       *connect.Client[v1.DeleteConnectionRequest, v1.DeleteConnectionResponse]
 	getWebhookEndpoint     *connect.Client[v1.GetWebhookEndpointRequest, v1.GetWebhookEndpointResponse]
 	putWebhookEndpoint     *connect.Client[v1.PutWebhookEndpointRequest, v1.PutWebhookEndpointResponse]
+	getWebhookDeliveryURL  *connect.Client[v1.GetWebhookDeliveryURLRequest, v1.GetWebhookDeliveryURLResponse]
 	validatePipeline       *connect.Client[v1.ValidatePipelineRequest, v1.ValidatePipelineResponse]
 	listTransformFunctions *connect.Client[v1.ListTransformFunctionsRequest, v1.ListTransformFunctionsResponse]
 	validateTransform      *connect.Client[v1.ValidateTransformRequest, v1.ValidateTransformResponse]
+	listAlchemyFunctions   *connect.Client[v1.ListAlchemyFunctionsRequest, v1.ListAlchemyFunctionsResponse]
+	getAlchemyFunction     *connect.Client[v1.GetAlchemyFunctionRequest, v1.GetAlchemyFunctionResponse]
 	createPipeline         *connect.Client[v1.CreatePipelineRequest, v1.CreatePipelineResponse]
 	createPipelineVersion  *connect.Client[v1.CreatePipelineVersionRequest, v1.CreatePipelineVersionResponse]
 	updatePipeline         *connect.Client[v1.UpdatePipelineRequest, v1.UpdatePipelineResponse]
@@ -515,6 +548,11 @@ func (c *ingestionServiceClient) PutWebhookEndpoint(ctx context.Context, req *co
 	return c.putWebhookEndpoint.CallUnary(ctx, req)
 }
 
+// GetWebhookDeliveryURL calls ingestion.v1.IngestionService.GetWebhookDeliveryURL.
+func (c *ingestionServiceClient) GetWebhookDeliveryURL(ctx context.Context, req *connect.Request[v1.GetWebhookDeliveryURLRequest]) (*connect.Response[v1.GetWebhookDeliveryURLResponse], error) {
+	return c.getWebhookDeliveryURL.CallUnary(ctx, req)
+}
+
 // ValidatePipeline calls ingestion.v1.IngestionService.ValidatePipeline.
 func (c *ingestionServiceClient) ValidatePipeline(ctx context.Context, req *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
 	return c.validatePipeline.CallUnary(ctx, req)
@@ -528,6 +566,16 @@ func (c *ingestionServiceClient) ListTransformFunctions(ctx context.Context, req
 // ValidateTransform calls ingestion.v1.IngestionService.ValidateTransform.
 func (c *ingestionServiceClient) ValidateTransform(ctx context.Context, req *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error) {
 	return c.validateTransform.CallUnary(ctx, req)
+}
+
+// ListAlchemyFunctions calls ingestion.v1.IngestionService.ListAlchemyFunctions.
+func (c *ingestionServiceClient) ListAlchemyFunctions(ctx context.Context, req *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error) {
+	return c.listAlchemyFunctions.CallUnary(ctx, req)
+}
+
+// GetAlchemyFunction calls ingestion.v1.IngestionService.GetAlchemyFunction.
+func (c *ingestionServiceClient) GetAlchemyFunction(ctx context.Context, req *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error) {
+	return c.getAlchemyFunction.CallUnary(ctx, req)
 }
 
 // CreatePipeline calls ingestion.v1.IngestionService.CreatePipeline.
@@ -648,11 +696,14 @@ type IngestionServiceHandler interface {
 	// Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
 	GetWebhookEndpoint(context.Context, *connect.Request[v1.GetWebhookEndpointRequest]) (*connect.Response[v1.GetWebhookEndpointResponse], error)
 	PutWebhookEndpoint(context.Context, *connect.Request[v1.PutWebhookEndpointRequest]) (*connect.Response[v1.PutWebhookEndpointResponse], error)
+	GetWebhookDeliveryURL(context.Context, *connect.Request[v1.GetWebhookDeliveryURLRequest]) (*connect.Response[v1.GetWebhookDeliveryURLResponse], error)
 	// Pipeline options and validation are resolved for the complete graph.
 	ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error)
 	// Transformations; the function catalog and per-resource compile check a builder needs.
 	ListTransformFunctions(context.Context, *connect.Request[v1.ListTransformFunctionsRequest]) (*connect.Response[v1.ListTransformFunctionsResponse], error)
 	ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error)
+	ListAlchemyFunctions(context.Context, *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error)
+	GetAlchemyFunction(context.Context, *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error)
 	// Pipelines; the persisted node graph.
 	CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error)
 	CreatePipelineVersion(context.Context, *connect.Request[v1.CreatePipelineVersionRequest]) (*connect.Response[v1.CreatePipelineVersionResponse], error)
@@ -762,6 +813,12 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		connect.WithSchema(ingestionServiceMethods.ByName("PutWebhookEndpoint")),
 		connect.WithHandlerOptions(opts...),
 	)
+	ingestionServiceGetWebhookDeliveryURLHandler := connect.NewUnaryHandler(
+		IngestionServiceGetWebhookDeliveryURLProcedure,
+		svc.GetWebhookDeliveryURL,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetWebhookDeliveryURL")),
+		connect.WithHandlerOptions(opts...),
+	)
 	ingestionServiceValidatePipelineHandler := connect.NewUnaryHandler(
 		IngestionServiceValidatePipelineProcedure,
 		svc.ValidatePipeline,
@@ -778,6 +835,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 		IngestionServiceValidateTransformProcedure,
 		svc.ValidateTransform,
 		connect.WithSchema(ingestionServiceMethods.ByName("ValidateTransform")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceListAlchemyFunctionsHandler := connect.NewUnaryHandler(
+		IngestionServiceListAlchemyFunctionsProcedure,
+		svc.ListAlchemyFunctions,
+		connect.WithSchema(ingestionServiceMethods.ByName("ListAlchemyFunctions")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestionServiceGetAlchemyFunctionHandler := connect.NewUnaryHandler(
+		IngestionServiceGetAlchemyFunctionProcedure,
+		svc.GetAlchemyFunction,
+		connect.WithSchema(ingestionServiceMethods.ByName("GetAlchemyFunction")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestionServiceCreatePipelineHandler := connect.NewUnaryHandler(
@@ -926,12 +995,18 @@ func NewIngestionServiceHandler(svc IngestionServiceHandler, opts ...connect.Han
 			ingestionServiceGetWebhookEndpointHandler.ServeHTTP(w, r)
 		case IngestionServicePutWebhookEndpointProcedure:
 			ingestionServicePutWebhookEndpointHandler.ServeHTTP(w, r)
+		case IngestionServiceGetWebhookDeliveryURLProcedure:
+			ingestionServiceGetWebhookDeliveryURLHandler.ServeHTTP(w, r)
 		case IngestionServiceValidatePipelineProcedure:
 			ingestionServiceValidatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceListTransformFunctionsProcedure:
 			ingestionServiceListTransformFunctionsHandler.ServeHTTP(w, r)
 		case IngestionServiceValidateTransformProcedure:
 			ingestionServiceValidateTransformHandler.ServeHTTP(w, r)
+		case IngestionServiceListAlchemyFunctionsProcedure:
+			ingestionServiceListAlchemyFunctionsHandler.ServeHTTP(w, r)
+		case IngestionServiceGetAlchemyFunctionProcedure:
+			ingestionServiceGetAlchemyFunctionHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineProcedure:
 			ingestionServiceCreatePipelineHandler.ServeHTTP(w, r)
 		case IngestionServiceCreatePipelineVersionProcedure:
@@ -1029,6 +1104,10 @@ func (UnimplementedIngestionServiceHandler) PutWebhookEndpoint(context.Context, 
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.PutWebhookEndpoint is not implemented"))
 }
 
+func (UnimplementedIngestionServiceHandler) GetWebhookDeliveryURL(context.Context, *connect.Request[v1.GetWebhookDeliveryURLRequest]) (*connect.Response[v1.GetWebhookDeliveryURLResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetWebhookDeliveryURL is not implemented"))
+}
+
 func (UnimplementedIngestionServiceHandler) ValidatePipeline(context.Context, *connect.Request[v1.ValidatePipelineRequest]) (*connect.Response[v1.ValidatePipelineResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ValidatePipeline is not implemented"))
 }
@@ -1039,6 +1118,14 @@ func (UnimplementedIngestionServiceHandler) ListTransformFunctions(context.Conte
 
 func (UnimplementedIngestionServiceHandler) ValidateTransform(context.Context, *connect.Request[v1.ValidateTransformRequest]) (*connect.Response[v1.ValidateTransformResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ValidateTransform is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) ListAlchemyFunctions(context.Context, *connect.Request[v1.ListAlchemyFunctionsRequest]) (*connect.Response[v1.ListAlchemyFunctionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.ListAlchemyFunctions is not implemented"))
+}
+
+func (UnimplementedIngestionServiceHandler) GetAlchemyFunction(context.Context, *connect.Request[v1.GetAlchemyFunctionRequest]) (*connect.Response[v1.GetAlchemyFunctionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("ingestion.v1.IngestionService.GetAlchemyFunction is not implemented"))
 }
 
 func (UnimplementedIngestionServiceHandler) CreatePipeline(context.Context, *connect.Request[v1.CreatePipelineRequest]) (*connect.Response[v1.CreatePipelineResponse], error) {

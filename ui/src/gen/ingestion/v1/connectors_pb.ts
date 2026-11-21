@@ -2,8 +2,8 @@
 // @generated from file ingestion/v1/connectors.proto (package ingestion.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
 import type { ConfigSchema, ConnectorKind, ReplicationMode } from "./common_pb";
 import { file_ingestion_v1_common } from "./common_pb";
@@ -17,7 +17,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/connectors.proto.
  */
 export const file_ingestion_v1_connectors: GenFile = /*@__PURE__*/
-  fileDesc("Ch1pbmdlc3Rpb24vdjEvY29ubmVjdG9ycy5wcm90bxIMaW5nZXN0aW9uLnYxIpMDCg1Db25uZWN0b3JTcGVjEgwKBG5hbWUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEikKBGtpbmQYAyABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRITCgtkZXNjcmlwdGlvbhgHIAEoCRIVCg1kYXJrX2xvZ29fdXJsGAggASgJEhYKDmxpZ2h0X2xvZ29fdXJsGAkgASgJEhQKDHNjaGVtYV9maWVsZBgKIAEoCRITCgthcGlfdmVyc2lvbhgMIAEoCRIUCgxhbGlhc190YXJnZXQYDSABKAkSEgoKaXNfcHJldmlldxgOIAEoCBIYChB3ZWJob29rX3ZlcmlmaWVyGA8gASgJSgQICxAMUghtYXR1cml0eSK2AQoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIzCgpwYWdpbmF0aW9uGAIgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0Eg4KBnNlYXJjaBgDIAEoCRItCgdzb3J0aW5nGAQgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0In8KFkxpc3RDb25uZWN0b3JzUmVzcG9uc2USLwoKY29ubmVjdG9ycxgBIAMoCzIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JTcGVjEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIlMKE0dldENvbm5lY3RvclJlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJGChRHZXRDb25uZWN0b3JSZXNwb25zZRIuCgljb25uZWN0b3IYASABKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKVAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIVCg1jb25uZWN0aW9uX2lkGAQgASgJIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJ+ChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCBIVCg1jb25uZWN0aW9uX2lkGAQgASgJItUBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhUKDWlzX3NlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSEAoIc2VsZWN0b3IYBCABKAkSFAoMZGlzcGxheV9uYW1lGAUgASgJEjYKCG1ldGFkYXRhGAYgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIoEBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYAyABKAkSEQoJcmVzb3VyY2VzGAQgAygJIpMCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRITCgtpc19udWxsYWJsZRgEIAEoCBIWCg5pc19wcmltYXJ5X2tleRgFIAEoCBIaChJpc19jdXJzb3JfZWxpZ2libGUYBiABKAgSHQoVaXNfY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIXCg9pc19jb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAginwEKD1Jlc291cmNlQ29sdW1ucxIQCghyZXNvdXJjZRgBIAEoCRItCgdjb2x1bW5zGAIgAygLMhwuaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1uEhsKE21hbmFnZWRfaW5jcmVtZW50YWwYAyABKAgSGgoSc2VsZWN0YWJsZV9jb2x1bW5zGAQgASgIEhIKCnBhcnRpdGlvbnMYBSADKAkiTgoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0uaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1uc2IGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
+  fileDesc("Ch1pbmdlc3Rpb24vdjEvY29ubmVjdG9ycy5wcm90bxIMaW5nZXN0aW9uLnYxIsMDCg1Db25uZWN0b3JTcGVjEgwKBG5hbWUYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEikKBGtpbmQYAyABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIPCgd2ZXJzaW9uGAQgASgJEiwKBW1vZGVzGAUgAygOMh0uaW5nZXN0aW9uLnYxLlJlcGxpY2F0aW9uTW9kZRIxCg1jb25maWdfc2NoZW1hGAYgASgLMhouaW5nZXN0aW9uLnYxLkNvbmZpZ1NjaGVtYRITCgtkZXNjcmlwdGlvbhgHIAEoCRIVCg1kYXJrX2xvZ29fdXJsGAggASgJEhYKDmxpZ2h0X2xvZ29fdXJsGAkgASgJEhQKDHNjaGVtYV9maWVsZBgKIAEoCRITCgthcGlfdmVyc2lvbhgMIAEoCRIUCgxhbGlhc190YXJnZXQYDSABKAkSEgoKaXNfcHJldmlldxgOIAEoCBIcChB3ZWJob29rX3ZlcmlmaWVyGA8gASgJQgIYARIqCgd3ZWJob29rGBAgASgLMhkuaW5nZXN0aW9uLnYxLldlYmhvb2tTcGVjSgQICxAMUghtYXR1cml0eSK1AgoLV2ViaG9va1NwZWMSEAoIdmVyaWZpZXIYASABKAkSMAoPdmVyaWZpZXJfcGFyYW1zGAIgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIZChFkeW5hbWljX3Jlc291cmNlcxgDIAEoCBIXCg9pbmdlc3Rpb25fZmllbGQYBCABKAkSDQoFc2V0dXAYBSABKAkSEQoJcmVzb3VyY2VzGAYgAygJEigKB2luZ3Jlc3MYByABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhgKEHNwbGl0c19leGVjdXRpb24YCCABKAgSDgoGcm91dGVkGAkgASgIEjgKDXNlY3JldF9pc3N1ZXIYCiABKA4yIS5pbmdlc3Rpb24udjEuV2ViaG9va1NlY3JldElzc3VlciK2AQoVTGlzdENvbm5lY3RvcnNSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIzCgpwYWdpbmF0aW9uGAIgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0Eg4KBnNlYXJjaBgDIAEoCRItCgdzb3J0aW5nGAQgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0In8KFkxpc3RDb25uZWN0b3JzUmVzcG9uc2USLwoKY29ubmVjdG9ycxgBIAMoCzIbLmluZ2VzdGlvbi52MS5Db25uZWN0b3JTcGVjEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIlMKE0dldENvbm5lY3RvclJlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEikKBGtpbmQYAiABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZCJGChRHZXRDb25uZWN0b3JSZXNwb25zZRIuCgljb25uZWN0b3IYASABKAsyGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yU3BlYyKVAQoVVmFsaWRhdGVDb25maWdSZXF1ZXN0EikKBGtpbmQYASABKA4yGy5pbmdlc3Rpb24udjEuQ29ubmVjdG9yS2luZBIRCgljb25uZWN0b3IYAiABKAkSJwoGY29uZmlnGAMgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBIVCg1jb25uZWN0aW9uX2lkGAQgASgJIjEKD1ZhbGlkYXRpb25FcnJvchINCgVmaWVsZBgBIAEoCRIPCgdtZXNzYWdlGAIgASgJIlYKFlZhbGlkYXRlQ29uZmlnUmVzcG9uc2USDQoFdmFsaWQYASABKAgSLQoGZXJyb3JzGAIgAygLMh0uaW5nZXN0aW9uLnYxLlZhbGlkYXRpb25FcnJvciJ+ChhEaXNjb3ZlclJlc291cmNlc1JlcXVlc3QSEQoJY29ubmVjdG9yGAEgASgJEicKBmNvbmZpZxgCIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDwoHcmVmcmVzaBgDIAEoCBIVCg1jb25uZWN0aW9uX2lkGAQgASgJItUBCghSZXNvdXJjZRIMCgRuYW1lGAEgASgJEhUKDWlzX3NlbGVjdGFibGUYAiABKAgSEwoLcHJpbWFyeV9rZXkYAyADKAkSEAoIc2VsZWN0b3IYBCABKAkSFAoMZGlzcGxheV9uYW1lGAUgASgJEjYKCG1ldGFkYXRhGAYgAygLMiQuaW5nZXN0aW9uLnYxLlJlc291cmNlLk1ldGFkYXRhRW50cnkaLwoNTWV0YWRhdGFFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIkYKGURpc2NvdmVyUmVzb3VyY2VzUmVzcG9uc2USKQoJcmVzb3VyY2VzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlJlc291cmNlIoEBChlHZXRSZXNvdXJjZUNvbHVtbnNSZXF1ZXN0EhEKCWNvbm5lY3RvchgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EhUKDWNvbm5lY3Rpb25faWQYAyABKAkSEQoJcmVzb3VyY2VzGAQgAygJIpMCCg5SZXNvdXJjZUNvbHVtbhIMCgRuYW1lGAEgASgJEhQKDGxvZ2ljYWxfdHlwZRgCIAEoCRITCgtuYXRpdmVfdHlwZRgDIAEoCRITCgtpc19udWxsYWJsZRgEIAEoCBIWCg5pc19wcmltYXJ5X2tleRgFIAEoCBIaChJpc19jdXJzb3JfZWxpZ2libGUYBiABKAgSHQoVaXNfY3Vyc29yX3JlY29tbWVuZGVkGAcgASgIEhsKE3JlY29tbWVuZGF0aW9uX3JhbmsYCCABKAUSDwoHd2FybmluZxgJIAEoCRIXCg9pc19jb25maWd1cmFibGUYCiABKAgSGQoRc3VwcG9ydHNfbG9va2JhY2sYCyABKAginwEKD1Jlc291cmNlQ29sdW1ucxIQCghyZXNvdXJjZRgBIAEoCRItCgdjb2x1bW5zGAIgAygLMhwuaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1uEhsKE21hbmFnZWRfaW5jcmVtZW50YWwYAyABKAgSGgoSc2VsZWN0YWJsZV9jb2x1bW5zGAQgASgIEhIKCnBhcnRpdGlvbnMYBSADKAkiTgoaR2V0UmVzb3VyY2VDb2x1bW5zUmVzcG9uc2USMAoJcmVzb3VyY2VzGAEgAygLMh0uaW5nZXN0aW9uLnYxLlJlc291cmNlQ29sdW1ucyqEAQoTV2ViaG9va1NlY3JldElzc3VlchIlCiFXRUJIT09LX1NFQ1JFVF9JU1NVRVJfVU5TUEVDSUZJRUQQABIiCh5XRUJIT09LX1NFQ1JFVF9JU1NVRVJfRklMQU1FTlQQARIiCh5XRUJIT09LX1NFQ1JFVF9JU1NVRVJfUFJPVklERVIQAmIGcHJvdG8z", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_sorting]);
 
 /**
  * ConnectorSpec describes one registered source or sink connector.
@@ -93,11 +93,19 @@ export type ConnectorSpec = Message<"ingestion.v1.ConnectorSpec"> & {
   isPreview: boolean;
 
   /**
-   * Ingress verifier for sources that receive webhooks. Empty otherwise.
+   * Deprecated: read webhook.verifier.
    *
-   * @generated from field: string webhook_verifier = 15;
+   * @generated from field: string webhook_verifier = 15 [deprecated = true];
+   * @deprecated
    */
   webhookVerifier: string;
+
+  /**
+   * Set for sources that receive provider webhooks.
+   *
+   * @generated from field: ingestion.v1.WebhookSpec webhook = 16;
+   */
+  webhook?: WebhookSpec | undefined;
 };
 
 /**
@@ -106,6 +114,96 @@ export type ConnectorSpec = Message<"ingestion.v1.ConnectorSpec"> & {
  */
 export const ConnectorSpecSchema: GenMessage<ConnectorSpec> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_connectors, 0);
+
+/**
+ * WebhookSpec describes how a source receives provider webhooks.
+ *
+ * @generated from message ingestion.v1.WebhookSpec
+ */
+export type WebhookSpec = Message<"ingestion.v1.WebhookSpec"> & {
+  /**
+   * Verifier profile that authenticates deliveries, and its parameters.
+   *
+   * @generated from field: string verifier = 1;
+   */
+  verifier: string;
+
+  /**
+   * @generated from field: google.protobuf.Struct verifier_params = 2;
+   */
+  verifierParams?: JsonObject | undefined;
+
+  /**
+   * The endpoint configuration names the resources, rather than the source.
+   *
+   * @generated from field: bool dynamic_resources = 3;
+   */
+  dynamicResources: boolean;
+
+  /**
+   * Enum connection config field that chooses how a connection reads the
+   * source: "api" (the default), "webhooks" or "both". Empty means every
+   * connection of the source receives webhooks.
+   *
+   * @generated from field: string ingestion_field = 4;
+   */
+  ingestionField: string;
+
+  /**
+   * Markdown instructions for configuring the sender.
+   *
+   * @generated from field: string setup = 5;
+   */
+  setup: string;
+
+  /**
+   * Resources the source reads from deliveries. Empty when
+   * dynamic_resources is set and the endpoint names them.
+   *
+   * @generated from field: repeated string resources = 6;
+   */
+  resources: string[];
+
+  /**
+   * How the receiver routes deliveries sent to the endpoint's single URL.
+   * Saving an endpoint copies it.
+   *
+   * @generated from field: google.protobuf.Struct ingress = 7;
+   */
+  ingress?: JsonObject | undefined;
+
+  /**
+   * Webhook resources run continuously while the source's other resources
+   * run bounded, so one pipeline holds both. The webhook route key then ends
+   * in "/continuous".
+   *
+   * @generated from field: bool splits_execution = 8;
+   */
+  splitsExecution: boolean;
+
+  /**
+   * Deliveries may be sent to the endpoint's single URL and are routed to a
+   * resource by their event type. Each resource keeps its own URL as well.
+   *
+   * @generated from field: bool routed = 9;
+   */
+  routed: boolean;
+
+  /**
+   * Who creates the signing secret. With PROVIDER the connection must be
+   * given the provider's secret and Filament never mints one.
+   *
+   * @generated from field: ingestion.v1.WebhookSecretIssuer secret_issuer = 10;
+   */
+  secretIssuer: WebhookSecretIssuer;
+};
+
+/**
+ * Describes the message ingestion.v1.WebhookSpec.
+ * Use `create(WebhookSpecSchema)` to create a new message.
+ */
+export const WebhookSpecSchema: GenMessage<WebhookSpec> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_connectors, 1);
 
 /**
  * @generated from message ingestion.v1.ListConnectorsRequest
@@ -137,7 +235,7 @@ export type ListConnectorsRequest = Message<"ingestion.v1.ListConnectorsRequest"
  * Use `create(ListConnectorsRequestSchema)` to create a new message.
  */
 export const ListConnectorsRequestSchema: GenMessage<ListConnectorsRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 1);
+  messageDesc(file_ingestion_v1_connectors, 2);
 
 /**
  * @generated from message ingestion.v1.ListConnectorsResponse
@@ -159,7 +257,7 @@ export type ListConnectorsResponse = Message<"ingestion.v1.ListConnectorsRespons
  * Use `create(ListConnectorsResponseSchema)` to create a new message.
  */
 export const ListConnectorsResponseSchema: GenMessage<ListConnectorsResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 2);
+  messageDesc(file_ingestion_v1_connectors, 3);
 
 /**
  * @generated from message ingestion.v1.GetConnectorRequest
@@ -181,7 +279,7 @@ export type GetConnectorRequest = Message<"ingestion.v1.GetConnectorRequest"> & 
  * Use `create(GetConnectorRequestSchema)` to create a new message.
  */
 export const GetConnectorRequestSchema: GenMessage<GetConnectorRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 3);
+  messageDesc(file_ingestion_v1_connectors, 4);
 
 /**
  * @generated from message ingestion.v1.GetConnectorResponse
@@ -198,7 +296,7 @@ export type GetConnectorResponse = Message<"ingestion.v1.GetConnectorResponse"> 
  * Use `create(GetConnectorResponseSchema)` to create a new message.
  */
 export const GetConnectorResponseSchema: GenMessage<GetConnectorResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 4);
+  messageDesc(file_ingestion_v1_connectors, 5);
 
 /**
  * @generated from message ingestion.v1.ValidateConfigRequest
@@ -230,7 +328,7 @@ export type ValidateConfigRequest = Message<"ingestion.v1.ValidateConfigRequest"
  * Use `create(ValidateConfigRequestSchema)` to create a new message.
  */
 export const ValidateConfigRequestSchema: GenMessage<ValidateConfigRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 5);
+  messageDesc(file_ingestion_v1_connectors, 6);
 
 /**
  * @generated from message ingestion.v1.ValidationError
@@ -252,7 +350,7 @@ export type ValidationError = Message<"ingestion.v1.ValidationError"> & {
  * Use `create(ValidationErrorSchema)` to create a new message.
  */
 export const ValidationErrorSchema: GenMessage<ValidationError> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 6);
+  messageDesc(file_ingestion_v1_connectors, 7);
 
 /**
  * @generated from message ingestion.v1.ValidateConfigResponse
@@ -274,7 +372,7 @@ export type ValidateConfigResponse = Message<"ingestion.v1.ValidateConfigRespons
  * Use `create(ValidateConfigResponseSchema)` to create a new message.
  */
 export const ValidateConfigResponseSchema: GenMessage<ValidateConfigResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 7);
+  messageDesc(file_ingestion_v1_connectors, 8);
 
 /**
  * @generated from message ingestion.v1.DiscoverResourcesRequest
@@ -306,7 +404,7 @@ export type DiscoverResourcesRequest = Message<"ingestion.v1.DiscoverResourcesRe
  * Use `create(DiscoverResourcesRequestSchema)` to create a new message.
  */
 export const DiscoverResourcesRequestSchema: GenMessage<DiscoverResourcesRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 8);
+  messageDesc(file_ingestion_v1_connectors, 9);
 
 /**
  * @generated from message ingestion.v1.Resource
@@ -348,7 +446,7 @@ export type Resource = Message<"ingestion.v1.Resource"> & {
  * Use `create(ResourceSchema)` to create a new message.
  */
 export const ResourceSchema: GenMessage<Resource> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 9);
+  messageDesc(file_ingestion_v1_connectors, 10);
 
 /**
  * @generated from message ingestion.v1.DiscoverResourcesResponse
@@ -365,7 +463,7 @@ export type DiscoverResourcesResponse = Message<"ingestion.v1.DiscoverResourcesR
  * Use `create(DiscoverResourcesResponseSchema)` to create a new message.
  */
 export const DiscoverResourcesResponseSchema: GenMessage<DiscoverResourcesResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 10);
+  messageDesc(file_ingestion_v1_connectors, 11);
 
 /**
  * @generated from message ingestion.v1.GetResourceColumnsRequest
@@ -397,7 +495,7 @@ export type GetResourceColumnsRequest = Message<"ingestion.v1.GetResourceColumns
  * Use `create(GetResourceColumnsRequestSchema)` to create a new message.
  */
 export const GetResourceColumnsRequestSchema: GenMessage<GetResourceColumnsRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 11);
+  messageDesc(file_ingestion_v1_connectors, 12);
 
 /**
  * @generated from message ingestion.v1.ResourceColumn
@@ -464,7 +562,7 @@ export type ResourceColumn = Message<"ingestion.v1.ResourceColumn"> & {
  * Use `create(ResourceColumnSchema)` to create a new message.
  */
 export const ResourceColumnSchema: GenMessage<ResourceColumn> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 12);
+  messageDesc(file_ingestion_v1_connectors, 13);
 
 /**
  * @generated from message ingestion.v1.ResourceColumns
@@ -507,7 +605,7 @@ export type ResourceColumns = Message<"ingestion.v1.ResourceColumns"> & {
  * Use `create(ResourceColumnsSchema)` to create a new message.
  */
 export const ResourceColumnsSchema: GenMessage<ResourceColumns> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 13);
+  messageDesc(file_ingestion_v1_connectors, 14);
 
 /**
  * @generated from message ingestion.v1.GetResourceColumnsResponse
@@ -524,5 +622,39 @@ export type GetResourceColumnsResponse = Message<"ingestion.v1.GetResourceColumn
  * Use `create(GetResourceColumnsResponseSchema)` to create a new message.
  */
 export const GetResourceColumnsResponseSchema: GenMessage<GetResourceColumnsResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_connectors, 14);
+  messageDesc(file_ingestion_v1_connectors, 15);
+
+/**
+ * WebhookSecretIssuer says who creates a webhook's signing secret.
+ *
+ * @generated from enum ingestion.v1.WebhookSecretIssuer
+ */
+export enum WebhookSecretIssuer {
+  /**
+   * Filament mints the secret.
+   *
+   * @generated from enum value: WEBHOOK_SECRET_ISSUER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Filament mints the secret and the user copies it into the sender.
+   *
+   * @generated from enum value: WEBHOOK_SECRET_ISSUER_FILAMENT = 1;
+   */
+  FILAMENT = 1,
+
+  /**
+   * The provider creates the secret and the user copies it into Filament.
+   *
+   * @generated from enum value: WEBHOOK_SECRET_ISSUER_PROVIDER = 2;
+   */
+  PROVIDER = 2,
+}
+
+/**
+ * Describes the enum ingestion.v1.WebhookSecretIssuer.
+ */
+export const WebhookSecretIssuerSchema: GenEnum<WebhookSecretIssuer> = /*@__PURE__*/
+  enumDesc(file_ingestion_v1_connectors, 0);
 

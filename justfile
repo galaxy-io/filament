@@ -123,7 +123,7 @@ sdks: proto
 
 # Tidy go.mod
 [group('code')]
-tidy: (_each "GOWORK=off go mod tidy")
+tidy: && (_each "GOWORK=off go mod tidy")
     go work sync
 
 # Build everything
