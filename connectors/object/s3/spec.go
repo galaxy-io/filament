@@ -50,6 +50,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Capabilities: filament.SinkCapabilities{
 			EncodedIntegrity:    true,
 			Schematized:         true,
+			PreferredBatchRows:  preferredBatchRows,
 			PreferredBatchBytes: defaultPartSizeMiB << 20,
 			WritePolicies: object.CommitDurableCapabilities(
 				filament.IngestionFullAppend,

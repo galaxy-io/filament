@@ -21,6 +21,8 @@ const (
 	minFileSizeMiB            = 5
 	maxFileSizeMiB            = 1 << 20 // 1 TiB, well inside what 10,000 growing parts can hold
 	defaultFileSizeMiB        = 1024
+	// Preferred Apply batch size; gzip needs batches this large to compress in parallel.
+	preferredBatchRows = 8_192
 )
 
 type sinkConfig struct {
