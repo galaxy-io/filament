@@ -166,9 +166,12 @@ func serverOptions(deps boot.Deps, metricStore filament.MetricsStore, identityPr
 	return opts
 }
 
-// mountRoutes serves the API and the UI rendered with uiConfig.
+// mountRoutes serves the API and the UI rendered with uiConfig. Deliveries
+// sent to this listener get 404 so senders retry instead of the UI answering
+// 200. The receiver listens on WEBHOOK_ADDR.
 func mountRoutes(mux *http.ServeMux, api *server.Server, uiConfig ui.Config) {
 	api.Mount(mux)
+	mux.Handle("/hooks/", http.NotFoundHandler())
 	mux.Handle("/", ui.Handler(uiConfig))
 }
 

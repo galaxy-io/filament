@@ -2,7 +2,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "filament.server.fullname" . }}-webhook
+  name: {{ include "filament.webhook.fullname" . }}
   namespace: {{ include "filament.namespace" . }}
   labels:
     {{- include "filament.server.labels" . | nindent 4 }}
@@ -27,7 +27,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ include "filament.server.fullname" $ }}-webhook
+                name: {{ include "filament.webhook.fullname" $ }}
                 port:
                   name: webhooks
     {{- end }}
