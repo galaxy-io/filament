@@ -612,3 +612,35 @@ func TestStrictCursorStopOnEmptyEndsWalkOnEmptyPage(t *testing.T) {
 		t.Fatalf("ids=%v, want [c1]", ids)
 	}
 }
+
+// The empty final page can repeat the previous cursor or drop it. With strict
+// and stop_on_empty, the walk ends on the empty page before the cursor is
+// validated, so neither case is reported as a cursor error.
+func TestStrictCursorStopOnEmptyIgnoresCursorOnEmptyPage(t *testing.T) {
+	manifest := strings.Replace(scrollTestManifest, "        stop_on_empty: true\n",
+		"        more: has_more\n        strict: true\n        stop_on_empty: true\n", 1)
+	if manifest == scrollTestManifest {
+		t.Fatal("fixture did not add strict")
+	}
+	for name, last := range map[string]string{
+		"repeated cursor": `{"data":[],"scroll_param":"s1","has_more":true}`,
+		"missing cursor":  `{"data":[],"has_more":true}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			api, params := scrollAPI(t, map[string]string{
+				"":   `{"data":[{"id":"c1"}],"scroll_param":"s1","has_more":true}`,
+				"s1": last,
+			})
+			ids, err := extractScroll(t, manifest, api.URL)
+			if err != nil {
+				t.Fatalf("Extract: %v", err)
+			}
+			if got := strings.Join(*params, ","); got != ",s1" {
+				t.Fatalf("scroll params=%q, want \",s1\"", got)
+			}
+			if strings.Join(ids, ",") != "c1" {
+				t.Fatalf("ids=%v, want [c1]", ids)
+			}
+		})
+	}
+}

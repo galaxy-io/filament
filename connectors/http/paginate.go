@@ -86,16 +86,21 @@ func (c *Connector) paginate(
 		if !strictCursor && resp.StatusCode == http.StatusNoContent {
 			return totalRecords, pageCount + 1, nil
 		}
+		records, err := extractor.Records(raw)
+		if err != nil {
+			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
+		}
 		token, more := "", false
 		if strictCursor {
+			// An empty final page may repeat or drop the cursor, so stop_on_empty
+			// ends the walk before the cursor envelope is validated.
+			if stopsOnEmptyPage(res, records) {
+				return totalRecords, pageCount + 1, finishStrictEmptyPage(sink, progressResource, tokenMode, state.Cursor)
+			}
 			token, more, err = responseCursor(res, raw, seen)
 			if err != nil {
 				return totalRecords, pageCount, err
 			}
-		}
-		records, err := extractor.Records(raw)
-		if err != nil {
-			return totalRecords, pageCount, fmt.Errorf("decode %s: %w", res.Name, err)
 		}
 
 		checkpointValue := ""
@@ -118,7 +123,7 @@ func (c *Connector) paginate(
 		})
 
 		if strictCursor {
-			if !more || stopsOnEmptyPage(res, records) {
+			if !more {
 				if !tokenMode {
 					return totalRecords, pageCount, nil
 				}
@@ -200,6 +205,15 @@ func responseCursor(res manifest.Resource, raw []byte, seen map[string]bool) (st
 	}
 	seen[token] = true
 	return token, more, nil
+}
+
+// finishStrictEmptyPage ends a strict cursor walk on an empty page. In token
+// mode it checkpoints the cursor that fetched the page, the last one validated.
+func finishStrictEmptyPage(sink recordSink, resource string, tokenMode bool, cursor string) error {
+	if !tokenMode || cursor == "" {
+		return nil
+	}
+	return checkpointResponseCursor(sink, resource, cursor)
 }
 
 func checkpointResponseCursor(sink recordSink, resource, token string) error {
