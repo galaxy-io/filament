@@ -1,0 +1,79 @@
+---
+title: "GitLab source connector"
+sidebarTitle: "GitLab"
+description: "Read projects, groups, members, issues, merge requests, pipelines, commits, and branches from GitLab with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-gitlab-dark.svg"
+---
+
+Connector ID `gitlab`
+
+The GitLab source reads projects, groups, group members, project members, issues, merge requests, CI pipelines, commits, and branches from the GitLab REST API. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). This connector is in preview. It targets API version `v4`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `token` | Connection | | Required. Secret. GitLab personal access token, project access token, or OAuth token with `read_api` scope. |
+| `auth_method` | Connection | `private_token` | Optional. Choose `private_token` for `PRIVATE-TOKEN` header auth or `oauth_token` for Bearer token auth. |
+| `base_url` | Connection | `https://gitlab.com/api/v4` | Optional. GitLab API base URL. Use `https://gitlab.com/api/v4` or your self-hosted instance API endpoint. |
+
+Connection testing sends `GET /projects?membership=true&per_page=100`.
+
+## Resources
+
+All resources are selected by default. Top-level resources list projects and groups. Child resources fan out across their respective parent entities.
+
+| Resource | Endpoint | Primary Key | Parent |
+|---|---|---|---|
+| `projects` | `GET /projects` | `id` | |
+| `groups` | `GET /groups` | `id` | |
+| `group_members` | `GET /groups/{group_id}/members` | `group_id`, `id` | `groups` |
+| `project_members` | `GET /projects/{project_id}/members` | `project_id`, `id` | `projects` |
+| `issues` | `GET /projects/{project_id}/issues` | `project_id`, `id` | `projects` |
+| `merge_requests` | `GET /projects/{project_id}/merge_requests` | `project_id`, `id` | `projects` |
+| `pipelines` | `GET /projects/{project_id}/pipelines` | `project_id`, `id` | `projects` |
+| `commits` | `GET /projects/{project_id}/repository/commits` | `project_id`, `id` | `projects` |
+| `branches` | `GET /projects/{project_id}/repository/branches` | `project_id`, `name` | `projects` |
+
+`projects` queries `/projects` with `membership=true` to retrieve only projects accessible to the authenticated token.
+
+`groups` queries `/groups` with `min_access_level=10` to restrict listing to groups where the user holds membership.
+
+`group_members` retrieves direct members of each accessible group.
+
+`project_members` lists direct members and access levels for each project.
+
+`issues` extracts issues including issue numbers, state, labels, assignees, and timestamps.
+
+`merge_requests` captures merge request lifecycle events, branch details, status flags, and reviewers.
+
+`pipelines` reads CI/CD pipeline executions, status outcomes, commit references, and timestamps.
+
+`commits` lists Git repository commits, authored and committed timestamps, messages, and author metadata.
+
+`branches` captures branch names, commit references, default branch status, and push protection rules.
+
+## Modes
+
+All resources support full reads. Use **full upsert** to refresh rows or **full replace** to reconcile active records.
+
+`issues`, `merge_requests`, `pipelines`, and `commits` support incremental reads:
+
+| Resource | Cursor Field | Request Parameter | Comparator | Checkpoint Key | Overlap |
+|---|---|---|---|---|---|
+| `issues` | `updated_at` | `updated_after` (query) | `time` | `issues_updated_at` | 300 seconds |
+| `merge_requests` | `updated_at` | `updated_after` (query) | `time` | `merge_requests_updated_at` | 300 seconds |
+| `pipelines` | `updated_at` | `updated_after` (query) | `time` | `pipelines_updated_at` | 300 seconds |
+| `commits` | `committed_date` | `since` (query) | `time` | `commits_committed_date` | 300 seconds |
+
+Each incremental resource shares a single durable watermark across projects. The 300-second overlap window re-reads a short lookback span to capture records modified during the previous scan.
+
+All other resources run in full read mode.
+
+## Behavior
+
+- **Auth**. Every request sends either a `PRIVATE-TOKEN` header when `auth_method` is `private_token` or an `Authorization: Bearer` header when set to `oauth_token`.
+- **Pagination**. Requests use standard RFC 5988 `Link` headers (`rel="next"`) with `per_page=100`.
+- **Rate limiting**. Requests pace at 5 requests per second with adaptive backoff honoring `RateLimit-Remaining` and `RateLimit-Reset` response headers. HTTP 429 responses back off using `Retry-After`.
+- **Scope confinement**. Top-level queries enforce `membership=true` on projects and `min_access_level=10` on groups to prevent accidental traversals of public GitLab.com entities.
+- Every resource includes a `raw` remainder column preserving unmapped upstream payload fields.
