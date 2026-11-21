@@ -22,12 +22,17 @@ import (
 //
 // has_more_path, when configured, takes precedence: missing/null/false all
 // terminate. Combine the two when an API uses both signals defensively.
+//
+// stop_on_empty, when set, terminates on a page with no records before either
+// signal is read. It is for APIs that still return a cursor on the final,
+// empty page.
 type cursorPaginator struct {
 	cursorPath          string
 	cursorParam         string
 	injectInto          string // body | query | header
 	hasMorePath         string
 	allowNullTerminates bool
+	stopOnEmpty         bool
 }
 
 func newCursor(spec manifest.PaginationSpec) (*cursorPaginator, error) {
@@ -50,6 +55,7 @@ func newCursor(spec manifest.PaginationSpec) (*cursorPaginator, error) {
 		injectInto:          inject,
 		hasMorePath:         spec.HasMorePath,
 		allowNullTerminates: spec.AllowNullTerminates,
+		stopOnEmpty:         spec.StopOnEmpty,
 	}, nil
 }
 
@@ -72,7 +78,10 @@ func (p *cursorPaginator) Apply(req *http.Request, s State) (map[string]any, err
 	return nil, nil
 }
 
-func (p *cursorPaginator) Next(_ *http.Response, body map[string]any, _ []map[string]any) (State, error) {
+func (p *cursorPaginator) Next(_ *http.Response, body map[string]any, records []map[string]any) (State, error) {
+	if p.stopOnEmpty && len(records) == 0 {
+		return State{Done: true}, nil
+	}
 	if p.hasMorePath != "" {
 		more, err := hasMore(body, p.hasMorePath)
 		if err != nil {

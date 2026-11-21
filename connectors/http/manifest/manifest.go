@@ -495,6 +495,12 @@ type PaginationSpec struct {
 	// signal from missing to null doesn't masquerade as the end of data.
 	// Opt in only when the upstream contract documents null-as-terminator.
 	AllowNullTerminates bool `yaml:"allow_null_terminates,omitempty"`
+	// StopOnEmpty, when true, ends cursor pagination when a page returns no
+	// records, before the cursor is read. Default false. Opt in for APIs that
+	// keep returning a cursor on the final, empty page (for example Intercom's
+	// scroll endpoints), where following it would request a page that no
+	// longer exists.
+	StopOnEmpty bool `yaml:"stop_on_empty,omitempty"`
 
 	// offset
 	OffsetParam      string `yaml:"offset_param,omitempty"`
@@ -582,6 +588,7 @@ func (p *PaginationSpec) decodeCursor(value *yaml.Node) error {
 		Request        string `yaml:"request"`
 		More           string `yaml:"more"`
 		NullTerminates bool   `yaml:"null_terminates"`
+		StopOnEmpty    bool   `yaml:"stop_on_empty"`
 		Strict         bool   `yaml:"strict"`
 	}
 	if err := value.Decode(&spec); err != nil {
@@ -592,6 +599,7 @@ func (p *PaginationSpec) decodeCursor(value *yaml.Node) error {
 		return err
 	}
 	p.Strict = spec.Strict
+	p.StopOnEmpty = spec.StopOnEmpty
 	p.Type, p.CursorPath, p.InjectInto, p.CursorParam, p.HasMorePath, p.AllowNullTerminates = "cursor", spec.Response, target, param, spec.More, spec.NullTerminates
 	return nil
 }

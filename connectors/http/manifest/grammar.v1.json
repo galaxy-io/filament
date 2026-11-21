@@ -520,6 +520,7 @@
                 "request": { "type": "string", "minLength": 3 },
                 "more": { "type": "string" },
                 "null_terminates": { "type": "boolean" },
+                "stop_on_empty": { "type": "boolean" },
                 "strict": { "type": "boolean" }
               }
             },

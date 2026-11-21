@@ -464,3 +464,127 @@ func TestLastRecordPaginationWalksBeforeCursor(t *testing.T) {
 		t.Fatalf("ids=%v, want [a1 a2 a3]", ids)
 	}
 }
+
+const scrollTestManifest = `
+version: 1
+name: test
+display_name: Test
+description: Generic HTTP runtime fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+  headers: {Accept: application/json}
+resources:
+  - name: companies
+    path: /companies/scroll
+    pagination:
+      cursor:
+        response: scroll_param
+        request: query.scroll_param
+        stop_on_empty: true
+    primary_key: [id]
+    fields:
+      id: string
+    response:
+      records: data
+`
+
+// scrollAPI mimics a scroll endpoint that keeps returning a cursor on its
+// final, empty page and answers 404 when that cursor is followed.
+func scrollAPI(t *testing.T, pages map[string]string) (*httptest.Server, *[]string) {
+	t.Helper()
+	var params []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		param := r.URL.Query().Get("scroll_param")
+		params = append(params, param)
+		body, ok := pages[param]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"errors":[{"code":"not_found","message":"scroll parameter not found"}]}`)
+			return
+		}
+		fmt.Fprint(w, body)
+	}))
+	t.Cleanup(api.Close)
+	return api, &params
+}
+
+func extractScroll(t *testing.T, manifest, baseURL string) ([]string, error) {
+	t.Helper()
+	src := NewManifest([]byte(strings.Replace(manifest,
+		"base_url: https://example.com", "base_url: "+baseURL, 1)))
+	if err := src.Configure(t.Context(), filament.NewConfig(map[string]any{})); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
+	var sink collectSink
+	err := src.Extract(context.Background(), &sink, filament.ExtractOpts{
+		Resources: []string{"companies"},
+	})
+	var ids []string
+	for _, rec := range sink.records {
+		ids = append(ids, rec.ID)
+	}
+	return ids, err
+}
+
+// The final page has no records but still carries a cursor. With
+// stop_on_empty the walk ends there instead of following the cursor into a 404.
+func TestCursorStopOnEmptyEndsWalkOnEmptyPage(t *testing.T) {
+	api, params := scrollAPI(t, map[string]string{
+		"":   `{"data":[{"id":"c1"},{"id":"c2"}],"scroll_param":"s1"}`,
+		"s1": `{"data":[{"id":"c3"}],"scroll_param":"s2"}`,
+		"s2": `{"data":[],"scroll_param":"s3"}`,
+	})
+	ids, err := extractScroll(t, scrollTestManifest, api.URL)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if got := strings.Join(*params, ","); got != ",s1,s2" {
+		t.Fatalf("scroll params=%q, want \",s1,s2\" (no request after the empty page)", got)
+	}
+	if strings.Join(ids, ",") != "c1,c2,c3" {
+		t.Fatalf("ids=%v, want [c1 c2 c3]", ids)
+	}
+}
+
+// A normal walk is unchanged by stop_on_empty: every page has records, and the
+// walk ends when the cursor is dropped.
+func TestCursorStopOnEmptyKeepsNormalMultiPageWalk(t *testing.T) {
+	api, params := scrollAPI(t, map[string]string{
+		"":   `{"data":[{"id":"c1"}],"scroll_param":"s1"}`,
+		"s1": `{"data":[{"id":"c2"}],"scroll_param":"s2"}`,
+		"s2": `{"data":[{"id":"c3"}]}`,
+	})
+	ids, err := extractScroll(t, scrollTestManifest, api.URL)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if got := strings.Join(*params, ","); got != ",s1,s2" {
+		t.Fatalf("scroll params=%q, want \",s1,s2\"", got)
+	}
+	if strings.Join(ids, ",") != "c1,c2,c3" {
+		t.Fatalf("ids=%v, want [c1 c2 c3]", ids)
+	}
+}
+
+// Without stop_on_empty, cursor pagination keeps its existing behaviour: an
+// empty page with a cursor is followed, so this API's 404 surfaces as an error.
+func TestCursorWithoutStopOnEmptyFollowsCursorPastEmptyPage(t *testing.T) {
+	api, params := scrollAPI(t, map[string]string{
+		"":   `{"data":[{"id":"c1"}],"scroll_param":"s1"}`,
+		"s1": `{"data":[],"scroll_param":"s2"}`,
+	})
+	manifest := strings.Replace(scrollTestManifest, "        stop_on_empty: true\n", "", 1)
+	if manifest == scrollTestManifest {
+		t.Fatal("fixture did not drop stop_on_empty")
+	}
+	_, err := extractScroll(t, manifest, api.URL)
+	if err == nil {
+		t.Fatal("Extract succeeded, want the 404 from following the cursor past the empty page")
+	}
+	if got := strings.Join(*params, ","); got != ",s1,s2" {
+		t.Fatalf("scroll params=%q, want \",s1,s2\" (cursor followed past the empty page)", got)
+	}
+}
