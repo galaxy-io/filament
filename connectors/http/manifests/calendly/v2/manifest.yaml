@@ -1,0 +1,183 @@
+version: 1
+name: calendly
+display_name: Calendly
+description: Cloud scheduling and appointment management platform that automates meeting coordination and calendar booking for teams and individuals.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-calendly-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-calendly-light.svg
+api_version: "v2"
+config:
+  token:
+    type: secret
+    required: true
+    help: Calendly personal access token from Integrations > API and Webhooks, or OAuth access token.
+defaults:
+  method: GET
+  response:
+    records: $.collection
+    pagination:
+      cursor:
+        response: pagination.next_page_token
+        request: query.page_token
+        null_terminates: true
+connection:
+  base_url: https://api.calendly.com
+  auth:
+    bearer: config.token
+  headers:
+    Accept: application/json
+    User-Agent: filament/1.0
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 1.5
+    burst: 3
+    dynamic:
+      remaining_header: X-RateLimit-Remaining
+      reset_header: X-RateLimit-Reset
+      reset_format: seconds_from_now
+      min_floor_rps: 0.5
+resources:
+  - name: users
+    path: /users/me
+    response:
+      records: $.resource
+      cardinality: one
+      pagination: none
+    primary_key: [uri]
+    fields:
+      uri: string
+      name: string?
+      slug: string?
+      email: string?
+      scheduling_url: string?
+      timezone: string?
+      avatar_url: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      current_organization: string?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      organization_uri: current_organization
+      user_uri: uri
+
+  - name: organization_memberships
+    path: /organization_memberships
+    for_each: users
+    query:
+      organization: "{{ parent.organization_uri }}"
+      count: "100"
+    primary_key: [uri]
+    fields:
+      uri: string
+      role: string?
+      user: json?
+      organization: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: event_types
+    path: /event_types
+    for_each: users
+    query:
+      organization: "{{ parent.organization_uri }}"
+      count: "100"
+    primary_key: [uri]
+    fields:
+      uri: string
+      name: string?
+      active: bool?
+      slug: string?
+      scheduling_url: string?
+      duration: int32?
+      kind: string?
+      pooling_type: string?
+      type: string?
+      color: string?
+      description_plain: string?
+      internal_note: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: scheduled_events
+    path: /scheduled_events
+    for_each: users
+    query:
+      organization: "{{ parent.organization_uri }}"
+      count: "100"
+    primary_key: [uri]
+    fields:
+      uri: string
+      name: string?
+      status: string?
+      start_time: timestamptz?
+      end_time: timestamptz?
+      event_type: string?
+      location: json?
+      invitees_counter: json?
+      event_memberships: json?
+      event_guests: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: routing_forms
+    path: /routing_forms
+    for_each: users
+    query:
+      organization: "{{ parent.organization_uri }}"
+      count: "100"
+    primary_key: [uri]
+    fields:
+      uri: string
+      name: string?
+      status: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: webhook_subscriptions
+    path: /webhook_subscriptions
+    for_each: users
+    query:
+      organization: "{{ parent.organization_uri }}"
+      scope: organization
+      count: "100"
+    primary_key: [uri]
+    fields:
+      uri: string
+      callback_url: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      retry_started_at: timestamptz?
+      state: string?
+      events: json?
+      scope: string?
+      creator: string?
+      organization: string?
+      user: string?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: user_availability_schedules
+    path: /user_availability_schedules
+    for_each: users
+    query:
+      user: "{{ parent.user_uri }}"
+      count: "100"
+    primary_key: [uri]
+    fields:
+      uri: string
+      name: string?
+      default: bool?
+      timezone: string?
+      rules: json?
+      user: string?
+      raw: {path: $, type: json, mode: remainder}
+
+discovery:
+  mode: static
+  default_resources:
+    - users
+    - organization_memberships
+    - event_types
+    - scheduled_events
