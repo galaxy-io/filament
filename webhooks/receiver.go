@@ -38,7 +38,7 @@ type Inbox interface {
 	Resolve(ctx context.Context, tenant, endpoint, providerID string, body []byte) (inbox.Receipt, error)
 }
 
-// Receiver serves the delivery route on the server's listener.
+// Receiver serves the delivery routes. The server gives it its own listener.
 type Receiver struct {
 	Endpoints EndpointResolver
 	Inbox     Inbox
