@@ -312,7 +312,7 @@ Explicit null requires `null_terminates: true`. A configured `more` flag takes
 precedence and a missing, null, or false flag stops pagination, so do not invent
 a has-more field. Cursor pagination does not stop merely because a page is short.
 Set `stop_on_empty: true` only when the API keeps returning a cursor on its
-final, empty page (for example Intercom's `/companies/scroll`); the walk then
+final, empty page, for example Intercom's `/companies/scroll`. The walk then
 ends on a page with no records, before the cursor or `more` flag is read.
 
 Body injection changes the cursor field while preserving rendered filters and

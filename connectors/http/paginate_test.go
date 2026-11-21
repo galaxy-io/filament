@@ -588,3 +588,27 @@ func TestCursorWithoutStopOnEmptyFollowsCursorPastEmptyPage(t *testing.T) {
 		t.Fatalf("scroll params=%q, want \",s1,s2\" (cursor followed past the empty page)", got)
 	}
 }
+
+// Strict cursor pagination reads the cursor envelope itself instead of calling
+// the paginator, so stop_on_empty must also end the walk there.
+func TestStrictCursorStopOnEmptyEndsWalkOnEmptyPage(t *testing.T) {
+	api, params := scrollAPI(t, map[string]string{
+		"":   `{"data":[{"id":"c1"}],"scroll_param":"s1","has_more":true}`,
+		"s1": `{"data":[],"scroll_param":"s2","has_more":true}`,
+	})
+	manifest := strings.Replace(scrollTestManifest, "        stop_on_empty: true\n",
+		"        more: has_more\n        strict: true\n        stop_on_empty: true\n", 1)
+	if manifest == scrollTestManifest {
+		t.Fatal("fixture did not add strict")
+	}
+	ids, err := extractScroll(t, manifest, api.URL)
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if got := strings.Join(*params, ","); got != ",s1" {
+		t.Fatalf("scroll params=%q, want \",s1\" (no request after the empty page)", got)
+	}
+	if strings.Join(ids, ",") != "c1" {
+		t.Fatalf("ids=%v, want [c1]", ids)
+	}
+}
