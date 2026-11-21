@@ -9,7 +9,10 @@
 //	{{ env.<key> }}      — process environment captured at connector configuration
 //	{{ cursor }}         — current pagination cursor (no sub-key)
 //
-// Default values: {{ config.key | default "fallback" }}
+// Filters:
+//
+//	{{ config.key | default "fallback" }} — fallback value when key is missing
+//	{{ parent.uri | basename }}           — final path segment of a URL or path
 //
 // # Worked example
 //
