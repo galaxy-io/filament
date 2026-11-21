@@ -83,7 +83,7 @@ func (c *Connector) discoverOne(ctx context.Context, disc *manifest.Discovery) (
 		if pag == nil {
 			break
 		}
-		state, err = pag.Next(resp, decodeBody(raw), len(records))
+		state, err = pag.Next(resp, decodeBody(raw), records)
 		if err != nil {
 			return nil, fmt.Errorf("discovery paginate %s: %w", disc.From, err)
 		}

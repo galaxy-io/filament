@@ -317,10 +317,13 @@ pagination:
     request: query.cursor                      # query.<name> | body.<path> | header.<name>
     more: has_more                             # optional has-more path
     null_terminates: true                      # optional
+    stop_on_empty: true                        # optional: stop on a page with no records
 pagination:
   offset: { offset: body.offset, limit: body.limit, page_size: 500 }  # both must share query.* or body.*
 pagination:
   page: { number: query.page, size: query.per_page, page_size: 100, total_pages: meta.total_pages }
+pagination:
+  last_record: { field: id, request: query.before, page_size: 1000 }  # page_size must match the requested limit
 pagination: none
 ```
 
@@ -329,6 +332,9 @@ Cursor response paths use bare dot paths such as `records.cursor`, not the
 Explicit null requires `null_terminates: true`. A configured `more` flag takes
 precedence and a missing, null, or false flag stops pagination, so do not invent
 a has-more field. Cursor pagination does not stop merely because a page is short.
+Set `stop_on_empty: true` only when the API keeps returning a cursor on its
+final, empty page, for example Intercom's `/companies/scroll`. The walk then
+ends on a page with no records, before the cursor or `more` flag is read.
 
 Body injection changes the cursor field while preserving rendered filters and
 selectors. Offset targets must both be in query or both in body. Verify page
@@ -336,7 +342,10 @@ number conventions and termination against the actual paginator before using it.
 The current page strategy starts at 1 and injects into query parameters. Offset
 starts at 0. By default, both stop on a short page. Offset and page pagination
 can instead use `more: info.more_records` when the endpoint documents that signal.
-Page pagination also supports `total_pages`.
+Page pagination also supports `total_pages`. Last-record pagination is for
+root-array endpoints with no next-page token: it takes the cursor from a field
+of the last record on each page and stops on a short page, so `page_size` must
+match the limit the manifest requests.
 A configured `more` path takes precedence; missing or false stops the walk.
 Do not copy a has-more path from another endpoint that happens to look similar.
 

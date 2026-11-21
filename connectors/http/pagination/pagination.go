@@ -8,7 +8,7 @@
 //	for !state.Done {
 //	    bodyOverrides, err := p.Apply(req, state)
 //	    ...merge overrides into body template, send req...
-//	    state, err = p.Next(resp, body, recordCount)
+//	    state, err = p.Next(resp, body, records)
 //	}
 //
 // # Adding a new strategy
@@ -94,8 +94,10 @@ type Paginator interface {
 	Apply(req *http.Request, state State) (map[string]any, error)
 
 	// Next consumes a response and returns the next State. When no more pages
-	// remain, the returned State has Done == true.
-	Next(resp *http.Response, body map[string]any, recordCount int) (State, error)
+	// remain, the returned State has Done == true. records is the page's
+	// decoded record list; strategies that page off record contents
+	// (last_record) read it, others use len(records) or ignore it.
+	Next(resp *http.Response, body map[string]any, records []map[string]any) (State, error)
 }
 
 // Factory builds a Paginator from a spec. Returned by registry lookups and
@@ -110,6 +112,7 @@ var (
 		"page":        func(s manifest.PaginationSpec) (Paginator, error) { return newPage(s) },
 		"link_header": func(s manifest.PaginationSpec) (Paginator, error) { return newLinkHeader(s), nil },
 		"next_url":    func(s manifest.PaginationSpec) (Paginator, error) { return newNextURL(s) },
+		"last_record": func(s manifest.PaginationSpec) (Paginator, error) { return newLastRecord(s) },
 	}
 )
 

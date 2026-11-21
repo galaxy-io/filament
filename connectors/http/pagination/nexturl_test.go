@@ -26,7 +26,7 @@ func TestNextURLSelectorFollowsRelationNext(t *testing.T) {
 		map[string]any{"relation": "self", "url": "https://hapi.fhir.org/baseR4/Patient?_count=100"},
 		map[string]any{"relation": "next", "url": "https://hapi.fhir.org/baseR4/Patient?_count=100&searchId=abc"},
 	)
-	state, err := p.Next(nil, body, 200)
+	state, err := p.Next(nil, body, nil)
 	if err != nil {
 		t.Fatalf("Next: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestNextURLSelectorTerminatesWithoutNextLink(t *testing.T) {
 	body := bundleBody(
 		map[string]any{"relation": "self", "url": "https://hapi.fhir.org/baseR4/Patient?_count=100"},
 	)
-	state, err := p.Next(nil, body, 200)
+	state, err := p.Next(nil, body, nil)
 	if err != nil {
 		t.Fatalf("Next: %v", err)
 	}

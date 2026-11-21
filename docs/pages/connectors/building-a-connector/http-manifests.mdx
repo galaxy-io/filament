@@ -266,7 +266,9 @@ Choose the pagination style that matches the API:
 
 - `link: <rel>` (RFC 5988 headers, default rel `next`)
 - `next_url: <path>` (whole-URL envelopes like Django REST Framework)
-- `cursor {response, request: query.X|body.X|header.X, more, null_terminates}`
+- `cursor {response, request: query.X|body.X|header.X, more, null_terminates, stop_on_empty}`.
+  Set `stop_on_empty: true` when the API still returns a cursor on its final,
+  empty page. The walk then stops on a page with no records.
 - `offset {offset, limit, page_size}` (stops on a short page)
 - `page {number, size, page_size, total_pages, more}`. For JSON bodies, use
   `body.<path>` for both `number` and `size`. Only `query.`, `body.`, and

@@ -118,7 +118,7 @@ func (c *Connector) paginate(
 		})
 
 		if strictCursor {
-			if !more {
+			if !more || stopsOnEmptyPage(res, records) {
 				if !tokenMode {
 					return totalRecords, pageCount, nil
 				}
@@ -134,7 +134,7 @@ func (c *Connector) paginate(
 
 		// Decode body for paginators that consume response paths (cursor, next_url).
 		// Root-array bodies decode as nil — ok, those pagers don't use body.
-		state, err = pag.Next(resp, decodeBody(raw), len(records))
+		state, err = pag.Next(resp, decodeBody(raw), records)
 		if err != nil {
 			return totalRecords, pageCount, fmt.Errorf("paginator next on %s: %w", res.Name, err)
 		}
@@ -637,4 +637,11 @@ func extractKey(record map[string]any, primaryKey []string) map[string]any {
 		key[pk] = record[pk]
 	}
 	return key
+}
+
+// stopsOnEmptyPage reports whether cursor stop_on_empty ends the walk on this
+// page. Strict cursor pagination reads the cursor envelope itself, so it checks
+// this before following the cursor, the same as the cursor paginator does.
+func stopsOnEmptyPage(res manifest.Resource, records []map[string]any) bool {
+	return res.Pagination.StopOnEmpty && len(records) == 0
 }
