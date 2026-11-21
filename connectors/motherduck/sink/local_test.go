@@ -481,6 +481,85 @@ func TestLocalAppendStatementPathPreservesTypesIntegration(t *testing.T) {
 	}
 }
 
+// TestLocalAppendStatementPathNegativeScaleDecimalIntegration covers the
+// decimal edge case CodeRabbit raised on PR #780: arrowbatch.Type permits
+// negative scales, and the old decimalText helper panicked slicing past the
+// end of the digits for them. A batch with 24:00:00 and a negative-scale
+// decimal must reach the statement path and store the exact value: 125 at
+// scale -2 is "12500". DuckDB has no negative-scale DECIMAL, so the
+// destination column is DECIMAL(18, 0); the value the statement path binds
+// is rendered from the Arrow scale, not the column scale.
+func TestLocalAppendStatementPathNegativeScaleDecimalIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "negscale.duckdb")
+	queryLocal(t, path, `CREATE TABLE "main"."times" (
+		"id" BIGINT NOT NULL,
+		"end_time" TIME,
+		"amount" DECIMAL(18, 0),
+		PRIMARY KEY ("id")
+	)`)
+	schema := filament.RecordSchema{
+		Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "end_time", Logical: filament.LogicalTime, Nullable: true},
+			{Name: "amount", Logical: filament.LogicalDecimal, Precision: 18, Scale: -2, Nullable: true},
+		},
+		PrimaryKey: []string{"id"},
+	}
+	policy := filament.WritePolicy{
+		Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend},
+		Resource:   "times",
+	}
+	sink := openTimesSink(t, ctx, path, "negscale-run", policy, schema)
+
+	collector := &integrationCollector{}
+	builder := arrowbatch.NewBuilder(arrowbatch.Schema(schema), nil, arrowbatch.Options{MaxRows: 3}, collector)
+	rows := []struct {
+		id  int64
+		us  int64
+		amt int64
+	}{
+		{1, 86_400_000_000, 125},
+		{2, 43_200_000_000, -250},
+	}
+	for _, row := range rows {
+		builder.Int64(row.id)
+		builder.Time(row.us)
+		builder.Decimal(decimal128.FromI64(row.amt))
+		if err := builder.EndRow(rowmodel.Meta{}); err != nil {
+			_ = builder.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := builder.Flush(); err != nil {
+		_ = builder.Close()
+		t.Fatal(err)
+	}
+	if err := builder.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(collector.batches) != 1 {
+		t.Fatalf("builder emitted %d batches, want 1", len(collector.batches))
+	}
+	batch := collector.batches[0]
+	batch.Resource = "times"
+	defer batch.Release()
+	if _, err := sink.Apply(ctx, batch, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got := queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR), CAST(amount AS VARCHAR) FROM "main"."times" ORDER BY id`)
+	want := [][]any{
+		{int64(1), "24:00:00", "12500"},
+		{int64(2), "12:00:00", "-25000"},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("rows = %v, want %v", got, want)
+	}
+}
+
 func TestLocalParallelApplyIntegration(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "parallel.duckdb")

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -164,34 +163,13 @@ func statementValue(f arrow.Field, col arrow.Array, i int, fn valueFn) driver.Va
 		return string(arrowtext.AppendTimeOfDay(nil, int64(col.(*array.Time64).Value(i))))
 	case arrow.DECIMAL128:
 		scale := f.Type.(*arrow.Decimal128Type).Scale
-		return decimalText(col.(*array.Decimal128).Value(i).BigInt(), int(scale))
+		return string(arrowtext.AppendDecimal(nil, col.(*array.Decimal128).Value(i), int(scale)))
 	case arrow.STRING:
 		if arrowbatch.LogicalOf(f) == rowmodel.LogicalUUID {
 			return col.(*array.String).Value(i)
 		}
 	}
 	return fn(col, i)
-}
-
-// decimalText renders an unscaled integer at the given scale, so 125 at
-// scale 2 becomes "1.25" and 200 at scale 2 becomes "2.00".
-func decimalText(value *big.Int, scale int) string {
-	neg := value.Sign() < 0
-	digits := new(big.Int).Abs(value).String()
-	if scale == 0 {
-		if neg {
-			return "-" + digits
-		}
-		return digits
-	}
-	for len(digits) <= scale {
-		digits = "0" + digits
-	}
-	text := digits[:len(digits)-scale] + "." + digits[len(digits)-scale:]
-	if neg {
-		return "-" + text
-	}
-	return text
 }
 
 // writeViaStatements writes one batch through a prepared INSERT, passing TIME
