@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"sort"
+	"math/big"
 	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -116,7 +116,7 @@ func writePositions(fields []arrow.Field, destination []string) ([]int, int, err
 	}
 	index := make(map[string]int, len(destination))
 	for i, name := range destination {
-		index[name] = i
+		index[strings.ToLower(name)] = i
 	}
 	for i, f := range fields {
 		position, ok := index[strings.ToLower(f.Name)]
@@ -152,11 +152,56 @@ func batchHasEndOfDayTime(batch *arrowbatch.Batch) bool {
 	return false
 }
 
+// statementValue returns the value the prepared INSERT receives for one
+// cell. TIME64 goes as text, decimals as exact text at the declared scale,
+// and logical UUIDs as their original string. The statement binder rejects
+// duckdb.Decimal outright and only accepts UUIDs through fmt.Stringer, which
+// the duckdb.UUID value type does not implement, so those two cannot go
+// through the appender converter. Everything else uses it unchanged.
+func statementValue(f arrow.Field, col arrow.Array, i int, fn valueFn) driver.Value {
+	switch f.Type.ID() {
+	case arrow.TIME64:
+		return string(arrowtext.AppendTimeOfDay(nil, int64(col.(*array.Time64).Value(i))))
+	case arrow.DECIMAL128:
+		scale := f.Type.(*arrow.Decimal128Type).Scale
+		return decimalText(col.(*array.Decimal128).Value(i).BigInt(), int(scale))
+	case arrow.STRING:
+		if arrowbatch.LogicalOf(f) == rowmodel.LogicalUUID {
+			return col.(*array.String).Value(i)
+		}
+	}
+	return fn(col, i)
+}
+
+// decimalText renders an unscaled integer at the given scale, so 125 at
+// scale 2 becomes "1.25" and 200 at scale 2 becomes "2.00".
+func decimalText(value *big.Int, scale int) string {
+	neg := value.Sign() < 0
+	digits := new(big.Int).Abs(value).String()
+	if scale == 0 {
+		if neg {
+			return "-" + digits
+		}
+		return digits
+	}
+	for len(digits) <= scale {
+		digits = "0" + digits
+	}
+	text := digits[:len(digits)-scale] + "." + digits[len(digits)-scale:]
+	if neg {
+		return "-" + text
+	}
+	return text
+}
+
 // writeViaStatements writes one batch through a prepared INSERT, passing TIME
 // values as text. DuckDB accepts "24:00:00" as a TIME value, which the
 // appender path cannot carry: it binds TIME only from time.Time and reads the
 // time of day off it, so 24:00:00 wraps to midnight. The batch writes in one
-// transaction, so a failure leaves no partial rows behind.
+// transaction, so a failure leaves no partial rows behind. Every destination
+// column is listed, with explicit NULLs for columns the source lacks, so the
+// batch stores the same values as the appender path instead of letting a
+// column default apply.
 func (s *Sink) writeViaStatements(ctx context.Context, conn *pooledConnection, batch *arrowbatch.Batch, tbl *table) (filament.WriteReceipt, error) {
 	rows := batch.Rows()
 	cols := rows.Columns()
@@ -165,20 +210,22 @@ func (s *Sink) writeViaStatements(ctx context.Context, conn *pooledConnection, b
 	for i, f := range fields {
 		fns[i] = valueFor(f)
 	}
-	positions, _, err := writePositions(fields, tbl.columns)
+	positions, width, err := writePositions(fields, tbl.columns)
 	if err != nil {
 		return filament.WriteReceipt{}, err
 	}
-	ordered := make([]int, len(cols))
-	for i := range ordered {
-		ordered[i] = i
-	}
-	sort.Slice(ordered, func(a, b int) bool { return positions[ordered[a]] < positions[ordered[b]] })
-	names := make([]string, len(ordered))
-	placeholders := make([]string, len(ordered))
-	for i, c := range ordered {
-		names[i] = quoteIdent(fields[c].Name)
-		placeholders[i] = "?"
+	names := make([]string, width)
+	placeholders := make([]string, width)
+	if tbl.columns != nil {
+		for i, name := range tbl.columns {
+			names[i] = quoteIdent(name)
+			placeholders[i] = "?"
+		}
+	} else {
+		for i, f := range fields {
+			names[i] = quoteIdent(f.Name)
+			placeholders[i] = "?"
+		}
 	}
 	query := "INSERT INTO " + tbl.writeTo + " (" + strings.Join(names, ", ") + ") VALUES (" + strings.Join(placeholders, ", ") + ")"
 	preparer, ok := conn.conn.(driver.ConnPrepareContext)
@@ -199,18 +246,16 @@ func (s *Sink) writeViaStatements(ctx context.Context, conn *pooledConnection, b
 			_ = conn.exec(context.WithoutCancel(ctx), "ROLLBACK")
 		}
 	}()
-	values := make([]driver.Value, len(ordered))
+	values := make([]driver.Value, width)
 	for i := range batch.NumRows() {
-		for j, c := range ordered {
-			if cols[c].IsNull(i) {
-				values[j] = nil
+		for j := range values {
+			values[j] = nil
+		}
+		for c, col := range cols {
+			if col.IsNull(i) {
 				continue
 			}
-			if fields[c].Type.ID() == arrow.TIME64 {
-				values[j] = string(arrowtext.AppendTimeOfDay(nil, int64(cols[c].(*array.Time64).Value(i))))
-				continue
-			}
-			values[j] = fns[c](cols[c], i)
+			values[positions[c]] = statementValue(fields[c], col, i, fns[c])
 		}
 		if err := execStmt(ctx, stmt, values); err != nil {
 			return filament.WriteReceipt{}, fmt.Errorf("row %d: %w", i, err)

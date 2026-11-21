@@ -264,7 +264,7 @@ func timesBatch(t *testing.T, schema filament.RecordSchema, specs []timesSpec) *
 	return collector.batches[0]
 }
 
-func openTimesSink(t *testing.T, ctx context.Context, path string, run filament.RunID, policy filament.WritePolicy) *Sink {
+func openTimesSink(t *testing.T, ctx context.Context, path string, run filament.RunID, policy filament.WritePolicy, schema filament.RecordSchema) *Sink {
 	t.Helper()
 	sink := newLocal(path)
 	err := sink.Open(ctx, filament.RunSpec{
@@ -277,7 +277,7 @@ func openTimesSink(t *testing.T, ctx context.Context, path string, run filament.
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = sink.Abort(context.Background()) })
-	if err := sink.EnsureSchema(ctx, "times", timesSchema()); err != nil {
+	if err := sink.EnsureSchema(ctx, "times", schema); err != nil {
 		t.Fatal(err)
 	}
 	return sink
@@ -290,7 +290,7 @@ func TestLocalAppendKeepsEndOfDayTimeIntegration(t *testing.T) {
 		Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend},
 		Resource:   "times",
 	}
-	sink := openTimesSink(t, ctx, path, "times-run", policy)
+	sink := openTimesSink(t, ctx, path, "times-run", policy, timesSchema())
 
 	batch := timesBatch(t, timesSchema(), []timesSpec{
 		{id: 1, us: 43_200_000_000},
@@ -332,7 +332,7 @@ func TestLocalReplaceKeepsEndOfDayTimeIntegration(t *testing.T) {
 		Capability: filament.WritePolicyCapability{Mode: filament.WriteReplace},
 		Resource:   "times",
 	}
-	sink := openTimesSink(t, ctx, path, "times-replace-run", policy)
+	sink := openTimesSink(t, ctx, path, "times-replace-run", policy, timesSchema())
 	batch := timesBatch(t, timesSchema(), []timesSpec{
 		{id: 1, us: 86_400_000_000},
 		{id: 2, us: 43_200_000_000},
@@ -348,6 +348,85 @@ func TestLocalReplaceKeepsEndOfDayTimeIntegration(t *testing.T) {
 	want := [][]any{{int64(1), "24:00:00"}, {int64(2), "12:00:00"}}
 	if fmt.Sprint(rows) != fmt.Sprint(want) {
 		t.Fatalf("times = %v, want %v", rows, want)
+	}
+}
+
+// TestLocalAppendStatementPathPreservesTypesIntegration covers the three
+// values the statement path must carry exactly: a decimal, a logical UUID,
+// and a NULL in a destination-only column that has a DEFAULT, which the
+// INSERT must not let the default fill.
+func TestLocalAppendStatementPathPreservesTypesIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "types.duckdb")
+	queryLocal(t, path, `CREATE TABLE "main"."times" (
+		"id" BIGINT NOT NULL,
+		"end_time" TIME,
+		"amount" DECIMAL(18, 2),
+		"event_id" UUID,
+		"extra" INTEGER DEFAULT 7,
+		PRIMARY KEY ("id")
+	)`)
+	schema := filament.RecordSchema{
+		Fields: []filament.SchemaField{
+			{Name: "id", Logical: filament.LogicalInt64},
+			{Name: "end_time", Logical: filament.LogicalTime, Nullable: true},
+			{Name: "amount", Logical: filament.LogicalDecimal, Precision: 18, Scale: 2, Nullable: true},
+			{Name: "event_id", Logical: filament.LogicalUUID, Nullable: true},
+		},
+		PrimaryKey: []string{"id"},
+	}
+	policy := filament.WritePolicy{
+		Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend},
+		Resource:   "times",
+	}
+	sink := openTimesSink(t, ctx, path, "types-run", policy, schema)
+
+	collector := &integrationCollector{}
+	builder := arrowbatch.NewBuilder(arrowbatch.Schema(schema), nil, arrowbatch.Options{MaxRows: 3}, collector)
+	rows := []struct {
+		id  int64
+		us  int64
+		amt int64
+	}{
+		{1, 86_400_000_000, 125},
+		{2, 43_200_000_000, 250},
+	}
+	for _, row := range rows {
+		builder.Int64(row.id)
+		builder.Time(row.us)
+		builder.Decimal(decimal128.FromI64(row.amt))
+		builder.String(testUUID(row.id))
+		if err := builder.EndRow(rowmodel.Meta{}); err != nil {
+			_ = builder.Close()
+			t.Fatal(err)
+		}
+	}
+	if err := builder.Flush(); err != nil {
+		_ = builder.Close()
+		t.Fatal(err)
+	}
+	if err := builder.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if len(collector.batches) != 1 {
+		t.Fatalf("builder emitted %d batches, want 1", len(collector.batches))
+	}
+	batch := collector.batches[0]
+	batch.Resource = "times"
+	defer batch.Release()
+	if _, err := sink.Apply(ctx, batch, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	got := queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR), CAST(amount AS VARCHAR), CAST(event_id AS VARCHAR), extra FROM "main"."times" ORDER BY id`)
+	want := [][]any{
+		{int64(1), "24:00:00", "1.25", testUUID(1), nil},
+		{int64(2), "12:00:00", "2.50", testUUID(2), nil},
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("rows = %v, want %v", got, want)
 	}
 }
 
