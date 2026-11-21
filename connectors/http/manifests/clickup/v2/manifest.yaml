@@ -1,0 +1,242 @@
+version: 1
+name: clickup
+display_name: ClickUp
+description: Project management platform where teams plan work, track tasks through custom workflows, and organize projects across spaces, folders, and lists.
+# The Galaxy CDN does not yet host a ClickUp logo (both URLs return 403),
+# so the docs use the Simple Icons ClickUp mark until an official logo is
+# uploaded to the CDN.
+dark_logo_url: https://cdn.simpleicons.org/clickup
+light_logo_url: https://cdn.simpleicons.org/clickup/white
+api_version: "v2"
+config:
+  api_token:
+    type: secret
+    required: true
+    help: Personal API token from ClickUp Settings > Apps. The token reads what its account can see.
+connection:
+  base_url: https://api.clickup.com/api
+  auth: {header: {name: Authorization, value: config.api_token}}
+  headers: {Accept: application/json}
+  timeout_seconds: 60
+  rate_limit:
+    # ClickUp allows 100 requests per minute per token. 1.5 per second stays under that.
+    requests_per_second: 1.5
+defaults:
+  method: GET
+  response:
+    strict_records: true
+resources:
+  - name: teams
+    path: /v2/team
+    capture: {team_id: id}
+    response:
+      records: $.teams
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      color: string?
+      avatar: string?
+      members: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: spaces
+    path: /v2/team/{team_id}/space
+    for_each: teams
+    params: {team_id: parent.team_id}
+    capture: {space_id: id}
+    query:
+      archived: "false"
+    response:
+      records: $.spaces
+      pagination: none
+    primary_key: [id]
+    fields:
+      team_id: {path: parent.team_id, type: string}
+      id: string
+      name: string
+      archived: bool
+      private: bool
+      color: string?
+      avatar: string?
+      multiple_assignees: bool
+      admin_can_manage: bool?
+      statuses: json?
+      features: json?
+      members: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: folders
+    path: /v2/space/{space_id}/folder
+    for_each: spaces
+    params: {space_id: parent.space_id}
+    capture: {folder_id: id}
+    query:
+      archived: "false"
+    response:
+      records: $.folders
+      pagination: none
+    primary_key: [id]
+    fields:
+      space_id: {path: parent.space_id, type: string}
+      id: string
+      name: string
+      archived: bool
+      hidden: bool
+      orderindex: int64
+      parent_folder: string?
+      task_count: int64?
+      override_statuses: bool
+      statuses: json?
+      space: json?
+      raw: {path: $, type: json, mode: remainder}
+  - name: folder_lists
+    path: /v2/folder/{folder_id}/list
+    for_each: folders
+    params: {folder_id: parent.folder_id}
+    query:
+      archived: "false"
+    response:
+      records: $.lists
+      pagination: none
+    primary_key: [id]
+    fields:
+      folder_id: {path: parent.folder_id, type: string}
+      id: string
+      name: string
+      archived: bool
+      content: string?
+      orderindex: int64
+      task_count: int64?
+      due_date: int64?
+      start_date: int64?
+      folder: json?
+      space: json?
+      status: json?
+      priority: json?
+      # The spec says assignee is a string, but it was already wrong about
+      # task_count, and the shape when one is set is uncertain, so this
+      # stays json and accepts any shape instead of failing the read.
+      assignee: json?
+      override_statuses: bool
+      permission_level: string?
+      raw: {path: $, type: json, mode: remainder}
+  - name: folderless_lists
+    path: /v2/space/{space_id}/list
+    for_each: spaces
+    params: {space_id: parent.space_id}
+    query:
+      archived: "false"
+    response:
+      records: $.lists
+      pagination: none
+    primary_key: [id]
+    fields:
+      space_id: {path: parent.space_id, type: string}
+      id: string
+      name: string
+      archived: bool
+      content: string?
+      orderindex: int64
+      task_count: int64?
+      due_date: int64?
+      start_date: int64?
+      folder: json?
+      space: json?
+      status: json?
+      priority: json?
+      assignee: json?
+      override_statuses: bool
+      permission_level: string?
+      raw: {path: $, type: json, mode: remainder}
+  # Tasks are read workspace-wide so every task is returned once, even when
+  # it lives in several lists. The list-tasks endpoint cannot fan out from
+  # both folders and spaces, and it drops multi-listed tasks by default.
+  # Live-tested: the team endpoint returns the full task object except
+  # time_spent, which is absent. That field is not declared here.
+  - name: tasks
+    path: /v2/team/{team_id}/task
+    for_each: teams
+    params: {team_id: parent.team_id}
+    query:
+      order_by: "updated"
+      # order_by=updated returns newest first by default (verified live).
+      # reverse walks pages oldest to newest, so a run that fails or hits
+      # a limit midway saves an older watermark and never skips tasks it
+      # had not reached yet.
+      reverse: "true"
+      include_closed: "true"
+      subtasks: "true"
+      include_markdown_description: "true"
+    response:
+      records: $.tasks
+      pagination:
+        # ClickUp pages are 0-indexed and the engine page strategy starts
+        # at 1 with no start option, so the offset strategy sends the page
+        # numbers directly: page=0, 1, 2, ... . page_size here is the
+        # offset STEP (1), not the API page size (fixed at 100 by ClickUp).
+        # The walk stops on the first empty page. The grammar requires a
+        # limit field, but ClickUp has no page-size parameter, so limit=1
+        # is sent and ignored by the API (verified live: page 0 with
+        # limit=1 still returned all 10 tasks on the page).
+        offset:
+          start: 0
+          offset: query.page
+          limit: query.limit
+          page_size: 1
+    primary_key: [id]
+    fields:
+      id: string
+      team_id: {path: parent.team_id, type: string}
+      name: string
+      description: string?
+      text_content: string?
+      markdown_description: string?
+      status: json?
+      priority: json?
+      assignees: json?
+      watchers: json?
+      tags: json?
+      checklists: json?
+      custom_fields: json?
+      dependencies: json?
+      linked_tasks: json?
+      parent: string?
+      list: json?
+      space: json?
+      folder: json?
+      project: json?
+      url: string
+      date_created: int64
+      date_updated: int64
+      date_closed: int64?
+      date_done: int64?
+      due_date: int64?
+      start_date: int64?
+      points: float64?
+      time_estimate: float64?
+      creator: json?
+      orderindex: json?
+      permission_level: string?
+      archived: bool
+      top_level_parent: string?
+      custom_item_id: int64?
+      custom_id: string?
+      group_assignees: json?
+      sharing: json?
+      locations: json?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: date_updated
+      start_param: date_updated_gt
+      inject_into: query
+      initial: "0"
+      checkpoint_key: tasks_date_updated
+      comparator: numeric
+      # The numeric watermark is Unix milliseconds, so the overlap value is
+      # in milliseconds too: 300000ms = 5 minutes. The engine subtracts
+      # overlap_seconds in the watermark's own units for a numeric
+      # comparator (watermark.go effective()).
+      overlap_seconds: 300000
+discovery:
+  mode: static
+  default_resources: [teams, spaces, folders, folder_lists, folderless_lists, tasks]
