@@ -325,6 +325,57 @@ func TestLocalAppendKeepsEndOfDayTimeIntegration(t *testing.T) {
 	}
 }
 
+// TestLocalAppendStatementPathRollsBackAndRecoversIntegration checks the
+// statement path's all-or-nothing guarantee: a batch whose second row
+// duplicates the first row's primary key fails and leaves no rows, and the
+// same sink then accepts a corrected batch. The table is pre-created with
+// the key because append tables the sink creates carry no primary key, so
+// this is the existing destination case.
+func TestLocalAppendStatementPathRollsBackAndRecoversIntegration(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "times-rollback.duckdb")
+	queryLocal(t, path, `CREATE TABLE "main"."times" (
+		"id" BIGINT NOT NULL,
+		"end_time" TIME,
+		PRIMARY KEY ("id")
+	)`)
+	policy := filament.WritePolicy{
+		Capability: filament.WritePolicyCapability{Mode: filament.WriteAppend},
+		Resource:   "times",
+	}
+	sink := openTimesSink(t, ctx, path, "times-rollback-run", policy, timesSchema())
+
+	bad := timesBatch(t, timesSchema(), []timesSpec{
+		{id: 1, us: 86_400_000_000},
+		{id: 1, us: 43_200_000_000},
+	})
+	defer bad.Release()
+	if _, err := sink.Apply(ctx, bad, filament.ApplyOptions{Policy: policy}); err == nil {
+		t.Fatal("Apply with a duplicate primary key succeeded, want an error")
+	}
+	rows := queryLocal(t, path, `SELECT id FROM "main"."times" ORDER BY id`)
+	if len(rows) != 0 {
+		t.Fatalf("rows after failed batch = %v, want none", rows)
+	}
+
+	good := timesBatch(t, timesSchema(), []timesSpec{
+		{id: 1, us: 86_400_000_000},
+		{id: 2, us: 43_200_000_000},
+	})
+	defer good.Release()
+	if _, err := sink.Apply(ctx, good, filament.ApplyOptions{Policy: policy}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sink.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows = queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR) FROM "main"."times" ORDER BY id`)
+	want := [][]any{{int64(1), "24:00:00"}, {int64(2), "12:00:00"}}
+	if fmt.Sprint(rows) != fmt.Sprint(want) {
+		t.Fatalf("times = %v, want %v", rows, want)
+	}
+}
+
 func TestLocalReplaceKeepsEndOfDayTimeIntegration(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "times-replace.duckdb")
