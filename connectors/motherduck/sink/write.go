@@ -226,15 +226,15 @@ func (s *Sink) writeViaStatements(ctx context.Context, conn *pooledConnection, b
 }
 
 func execStmt(ctx context.Context, stmt driver.Stmt, values []driver.Value) error {
-	if execer, ok := stmt.(driver.StmtExecContext); ok {
-		named := make([]driver.NamedValue, len(values))
-		for i, value := range values {
-			named[i] = driver.NamedValue{Ordinal: i + 1, Value: value}
-		}
-		_, err := execer.ExecContext(ctx, named)
-		return err
+	execer, ok := stmt.(driver.StmtExecContext)
+	if !ok {
+		return fmt.Errorf("statement does not support ExecContext")
 	}
-	_, err := stmt.Exec(values)
+	named := make([]driver.NamedValue, len(values))
+	for i, value := range values {
+		named[i] = driver.NamedValue{Ordinal: i + 1, Value: value}
+	}
+	_, err := execer.ExecContext(ctx, named)
 	return err
 }
 
