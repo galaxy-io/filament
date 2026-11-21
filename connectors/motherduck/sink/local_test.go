@@ -317,8 +317,12 @@ func TestLocalAppendKeepsEndOfDayTimeIntegration(t *testing.T) {
 	}
 	rows := queryLocal(t, path, `SELECT id, CAST(end_time AS VARCHAR) FROM "main"."times" ORDER BY id`)
 	want := [][]any{
-		{int64(1), "12:00:00"}, {int64(2), "24:00:00"}, {int64(3), "23:59:59.999999"},
-		{int64(4), nil}, {int64(5), "00:00:01"}, {int64(6), "23:59:59.999999"},
+		{int64(1), "12:00:00"},
+		{int64(2), "24:00:00"},
+		{int64(3), "23:59:59.999999"},
+		{int64(4), nil},
+		{int64(5), "00:00:01"},
+		{int64(6), "23:59:59.999999"},
 	}
 	if fmt.Sprint(rows) != fmt.Sprint(want) {
 		t.Fatalf("times = %v, want %v", rows, want)
