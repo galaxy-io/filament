@@ -21,7 +21,7 @@ config:
   base_url:
     type: string
     default: https://gitlab.com/api/v4
-    pattern: "^(https://|http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?).*"
+    pattern: "^(https://.*|http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(/.*)?)$"
     help: GitLab API base URL (default https://gitlab.com/api/v4, or your self-hosted instance endpoint).
 connection:
   base_url: "{{ config.base_url }}"
