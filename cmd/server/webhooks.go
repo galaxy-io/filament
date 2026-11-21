@@ -13,19 +13,22 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/cmd/internal/health"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/webhooks"
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
 
 // webhookReceiver is the receiver, its endpoint cache, the inbox it fills,
-// and the public origin senders reach it on.
+// the address it listens on, and the public origin senders reach it on.
 type webhookReceiver struct {
 	receiver      *webhooks.Receiver
 	cache         *webhooks.EndpointCache
 	inbox         *inbox.Inbox
+	addr          string
 	publicBaseURL string
 }
 
@@ -37,11 +40,21 @@ func (w *webhookReceiver) apiOption() server.Option {
 	})
 }
 
-// serve mounts the receiver and keeps stored endpoints in step with their
-// source connectors.
-func (w *webhookReceiver) serve(ctx context.Context, mux *http.ServeMux, api *server.Server) {
-	w.receiver.Mount(mux)
+// listen serves the delivery routes on their own listener, so a public
+// webhook ingress never reaches the API, and keeps stored endpoints in step
+// with their source connectors. Health is served too for load balancer
+// checks. A listener error goes to errCh.
+func (w *webhookReceiver) listen(ctx context.Context, api *server.Server, healthState *health.State, errCh chan<- error) *http.Server {
 	api.StartWebhookReconciler(ctx)
+	mux := http.NewServeMux()
+	healthState.Mount(mux)
+	w.receiver.Mount(mux)
+	srv := &http.Server{
+		Addr: w.addr, Handler: otelhttp.NewHandler(mux, "webhooks"),
+		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second,
+	}
+	go func() { errCh <- srv.ListenAndServe() }()
+	return srv
 }
 
 // webhooksFromEnv provisions the durable inbox only when explicitly
@@ -66,6 +79,10 @@ func webhooksFromEnv(ctx context.Context, store any, secrets filament.Secrets, m
 		if err != nil || maxInFlight < 1 || maxInFlight > 10000 {
 			return nil, nil, errors.New("WEBHOOK_MAX_IN_FLIGHT must be between 1 and 10000")
 		}
+	}
+	addr := os.Getenv("WEBHOOK_ADDR")
+	if addr == "" {
+		addr = ":8088"
 	}
 	publicBaseURL, err := parsePublicBaseURL(os.Getenv("WEBHOOK_PUBLIC_BASE_URL"))
 	if err != nil {
@@ -101,7 +118,7 @@ func webhooksFromEnv(ctx context.Context, store any, secrets filament.Secrets, m
 		Endpoints: cache, Inbox: i, Metrics: metrics,
 		Slots: make(chan struct{}, maxInFlight),
 	}
-	return &webhookReceiver{receiver: receiver, cache: cache, inbox: i, publicBaseURL: publicBaseURL}, conn.Close, nil
+	return &webhookReceiver{receiver: receiver, cache: cache, inbox: i, addr: addr, publicBaseURL: publicBaseURL}, conn.Close, nil
 }
 
 // parsePublicBaseURL accepts an absolute http or https origin, optionally
