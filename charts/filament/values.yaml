@@ -43,8 +43,27 @@ server:
     maxMessageBytes: 2097152
     # -- JetStream replicas for the webhook inbox.
     replicas: 1
-    # -- Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set.
+    # -- Public origin webhook senders reach, normally the webhook ingress host, e.g. `https://webhooks.example.com`. The UI shows full delivery URLs when set.
     publicBaseURL: ""
+    # -- Port the server serves `/hooks/` on, separate from the API port.
+    port: 8088
+    service:
+      # -- Webhook Service type.
+      type: ClusterIP
+      # -- Annotations for the webhook Service, e.g. cloud load balancer settings.
+      annotations: {}
+    ingress:
+      # -- Enable a separate Ingress that exposes only `/hooks/`.
+      enabled: false
+      # -- IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default.
+      className: ""
+      # -- Annotations for the webhook Ingress.
+      annotations: {}
+      # -- Hostnames served by the webhook Ingress.
+      hosts:
+        - webhooks.example.com
+      # -- Webhook Ingress TLS configuration, passed through verbatim.
+      tls: []
   # -- Minimum server log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
 

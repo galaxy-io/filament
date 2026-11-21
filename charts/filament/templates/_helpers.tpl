@@ -122,3 +122,7 @@ app.kubernetes.io/component: server
 {{- define "filament.server.serviceAccountName" -}}
 {{- .Values.server.serviceAccount.name | default (include "filament.server.fullname" .) -}}
 {{- end -}}
+
+{{- define "filament.webhook.fullname" -}}
+{{- printf "%s-webhook" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}

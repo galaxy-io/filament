@@ -51,6 +51,11 @@ spec:
             - name: http
               containerPort: {{ .Values.server.service.port }}
               protocol: TCP
+            {{- if .Values.server.webhooks.enabled }}
+            - name: webhooks
+              containerPort: {{ .Values.server.webhooks.port }}
+              protocol: TCP
+            {{- end }}
           startupProbe:
             httpGet:
               path: /startupz
