@@ -14,7 +14,7 @@ config:
     required: true
     help: Personal API token from ClickUp Settings > Apps. The token reads what its account can see.
 connection:
-  base_url: https://api.clickup.com/api/v2
+  base_url: https://api.clickup.com/api
   auth: {header: {name: Authorization, value: config.api_token}}
   headers: {Accept: application/json}
   timeout_seconds: 60
@@ -113,7 +113,10 @@ resources:
       space: json?
       status: json?
       priority: json?
-      assignee: string?
+      # The spec says assignee is a string, but it was already wrong about
+      # task_count, and the shape when one is set is uncertain, so this
+      # stays json and accepts any shape instead of failing the read.
+      assignee: json?
       override_statuses: bool
       permission_level: string?
       raw: {path: $, type: json, mode: remainder}
@@ -141,7 +144,7 @@ resources:
       space: json?
       status: json?
       priority: json?
-      assignee: string?
+      assignee: json?
       override_statuses: bool
       permission_level: string?
       raw: {path: $, type: json, mode: remainder}
@@ -156,6 +159,11 @@ resources:
     params: {team_id: parent.team_id}
     query:
       order_by: "updated"
+      # order_by=updated returns newest first by default (verified live).
+      # reverse walks pages oldest to newest, so a run that fails or hits
+      # a limit midway saves an older watermark and never skips tasks it
+      # had not reached yet.
+      reverse: "true"
       include_closed: "true"
       subtasks: "true"
       include_markdown_description: "true"

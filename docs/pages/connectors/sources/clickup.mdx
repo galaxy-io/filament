@@ -17,11 +17,11 @@ This connector is in preview. It has been validated against a live ClickUp works
 |---|---|---|---|
 | `api_token` | Connection | | Required. Secret. Personal API token created in ClickUp Settings > Apps. |
 
-Create a personal API token in ClickUp under Settings > Apps. Choose the expiry when you create it. The token reads what its account can see. Use a service account token for unattended syncs so the data does not change when a person leaves the team. See
+Create a personal API token in ClickUp under Settings > Apps. The token reads what its account can see. Use a service account token for unattended syncs so the data does not change when a person leaves the team. See
 [ClickUp API authentication](https://developer.clickup.com/docs/authentication) for token setup.
 
 Connection testing calls `GET /v2/team`. Every request goes to
-`https://api.clickup.com/api/v2`.
+`https://api.clickup.com/api`, with the `v2` version on each path.
 
 ## Resources
 
@@ -56,7 +56,7 @@ All resources report their read mode in the connector settings. Use **full upser
 ## Behavior
 
 - **Auth**. Every request sends the personal API token in the `Authorization` header with no `Bearer` prefix. Authentication and permission errors fail the read.
-- **Pagination**. Teams, spaces, folders, and lists return one page. Tasks page by number starting at zero with 100 tasks per page. The walk stops on the first empty page.
+- **Pagination**. Teams, spaces, folders, and lists return one page. Tasks page by number starting at zero with 100 tasks per page, oldest first, so a run that stops midway resumes without skipping tasks. The walk stops on the first empty page.
 - **Fields**. Date fields arrive as Unix millisecond strings and land as integers. Task priority, assignees, watchers, tags, checklists, and custom fields land as JSON columns. The list, space, folder, and project references land as JSON columns too.
 - **Rate limiting**. Requests are paced at one and a half per second, below the 100 per minute limit for a personal token. The HTTP engine retries throttled requests and honors `Retry-After`.
 - **ClickUp only**. ClickUp API version `v2` is the only supported version.
