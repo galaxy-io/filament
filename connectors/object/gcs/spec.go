@@ -39,7 +39,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		}},
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{
-			EncodedIntegrity: true, Schematized: true, PreferredBatchBytes: defaultChunkSizeMiB << 20,
+			EncodedIntegrity: true, Schematized: true, PreferredBatchRows: preferredBatchRows, PreferredBatchBytes: defaultChunkSizeMiB << 20,
 			WritePolicies: object.CommitDurableCapabilities(filament.IngestionFullAppend, filament.IngestionCDCAppend, filament.IngestionFullReplace),
 		},
 	}

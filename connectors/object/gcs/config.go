@@ -19,6 +19,8 @@ const (
 	maxUploadWorkers        = 32
 	maxPooledEncodedBuffer  = 4 << 20
 	initialEncodedBufferCap = 64 << 10
+	// Preferred Apply batch size; gzip needs batches this large to compress in parallel.
+	preferredBatchRows = 8_192
 )
 
 type sinkConfig struct {
