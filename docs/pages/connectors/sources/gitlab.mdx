@@ -69,6 +69,12 @@ Each incremental resource shares a single durable watermark across projects. The
 
 All other resources run in full read mode.
 
+## Limitations
+
+`commits` executes a full read for every project on every run. Git commit timestamps reflect author or commit dates on branches rather than repository merge dates. Filtering commits with `since` would silently skip older commits merged after the watermark.
+
+Incremental resources share a single watermark across projects. If a run is interrupted before scanning all projects, remaining projects advance with the watermark on subsequent runs.
+
 ## Behavior
 
 - **Auth**. Every request sends either a `PRIVATE-TOKEN` header when `auth_method` is `private_token` or an `Authorization: Bearer` header when set to `oauth_token`.
