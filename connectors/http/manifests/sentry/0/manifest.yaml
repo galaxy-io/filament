@@ -86,7 +86,6 @@ resources:
       features: json?
       raw: {path: $, type: json, mode: remainder}
     capture:
-      organization_slug: parent.organization_slug
       project_id: id
       project_slug: slug
 
@@ -172,7 +171,7 @@ resources:
       project_slug: {path: project.slug, type: string, nullable: true}
       type: string?
       num_comments: {path: numComments, type: int64, nullable: true}
-      total_count: {path: totalCount, type: int64, nullable: true}
+      total_count: {path: count, type: int64, nullable: true}
       user_count: {path: userCount, type: int64, nullable: true}
       first_seen: {path: firstSeen, type: timestamptz, nullable: true}
       last_seen: {path: lastSeen, type: timestamptz, nullable: true}
@@ -180,29 +179,4 @@ resources:
       assigned_to: {path: assignedTo, type: json, nullable: true}
       metadata: json?
       status_details: {path: statusDetails, type: json, nullable: true}
-      raw: {path: $, type: json, mode: remainder}
-    capture:
-      issue_id: id
-
-  - name: alert_rules
-    path: /projects/{organization_slug}/{project_slug}/rules/
-    params:
-      organization_slug: parent.organization_slug
-      project_slug: parent.project_slug
-    for_each: projects
-    primary_key: [project_id, id]
-    fields:
-      project_id: {path: parent.project_id, type: string}
-      project_slug: {path: parent.project_slug, type: string}
-      organization_slug: {path: parent.organization_slug, type: string}
-      id: string
-      name: string
-      action_match: {path: actionMatch, type: string, nullable: true}
-      filter_match: {path: filterMatch, type: string, nullable: true}
-      frequency: int64?
-      date_created: {path: dateCreated, type: timestamptz, nullable: true}
-      status: string?
-      conditions: json?
-      actions: json?
-      filters: json?
       raw: {path: $, type: json, mode: remainder}
