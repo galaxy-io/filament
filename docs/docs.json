@@ -184,6 +184,7 @@
               "pages/connectors/sources/pylon",
               "pages/connectors/sources/qbo",
               "pages/connectors/sources/resend",
+              "pages/connectors/sources/sendgrid",
               "pages/connectors/sources/servicetitan",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
