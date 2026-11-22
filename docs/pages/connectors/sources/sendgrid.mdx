@@ -20,7 +20,7 @@ currently in preview.
 | Field | Scope | Default | Description |
 |---|---|---|---|
 | `api_key` | Connection | | Required. Secret. SendGrid API key (`SG.…`) from **Settings > API Keys** with read access to Template Engine, Marketing, Suppressions, and Stats. |
-| `base_url` | Connection | `https://api.sendgrid.com` | SendGrid API host. Options: `https://api.sendgrid.com` (Global), `https://api.eu.sendgrid.com` (EU regional subusers pinned to European data residency). |
+| `base_url` | Connection | `https://api.sendgrid.com` | SendGrid API host. Options: `https://api.sendgrid.com` (Global), `https://api.eu.sendgrid.com` (EU regional subusers pinned to European data residency). Because SendGrid does not support Marketing Campaigns on EU regional subusers, deselect `lists` and `singlesends` (and leave `contacts` unselected) when using `https://api.eu.sendgrid.com`. |
 | `stats_start_date` | Pipeline | `2020-01-01` | Earliest `YYYY-MM-DD` date for the initial `global_stats` read. Incremental runs override `start_date` with the saved date watermark. |
 
 ## Resources
@@ -28,9 +28,9 @@ currently in preview.
 | Resource | Endpoint | Parent | Notes |
 |---|---|---|---|
 | `templates` | `GET /v3/templates` | | Legacy and dynamic transactional templates (`generations=legacy,dynamic`), the connection probe |
-| `lists` | `GET /v3/marketing/lists` | | Marketing contact lists |
-| `contacts` | `GET /v3/marketing/contacts` | | Opt-in (not selected by default). Sample of up to 50 most recent marketing contacts returned by the synchronous list endpoint |
-| `singlesends` | `GET /v3/marketing/singlesends` | | Marketing Single Send campaigns and metadata |
+| `lists` | `GET /v3/marketing/lists` | | Marketing contact lists (Global host only; deselect for EU regional subusers) |
+| `contacts` | `GET /v3/marketing/contacts` | | Opt-in (not selected by default; Global host only). Sample of up to 50 most recent marketing contacts returned by the synchronous list endpoint |
+| `singlesends` | `GET /v3/marketing/singlesends` | | Marketing Single Send campaigns and metadata (Global host only; deselect for EU regional subusers) |
 | `bounces` | `GET /v3/suppression/bounces` | | Bounced recipient addresses and bounce reasons (PK `[email]`). Incremental via `start_time` |
 | `blocks` | `GET /v3/suppression/blocks` | | Blocked recipient deliveries and SMTP failure reasons (PK `[email]`). Incremental via `start_time` |
 | `spam_reports` | `GET /v3/suppression/spam_reports` | | Recipients who reported messages as spam (PK `[email]`). Incremental via `start_time` |
@@ -41,7 +41,7 @@ currently in preview.
 ## Modes
 
 - **Incremental**: `bounces`, `blocks`, `spam_reports`, `unsubscribes`, and `invalid_emails` track the `created` field (Unix epoch seconds, typed `int64`) with a `numeric` comparator and inject `start_time` with a 300-second overlap window. Each suppression list keys records by `primary_key: [email]` so rows re-read within the 300-second overlap window deduplicate cleanly under upsert. `global_stats` tracks the `YYYY-MM-DD` `date` field with a `lex` comparator and injects `start_date`.
-- **Full**: `templates`, `lists`, `contacts`, and `singlesends` run as full reads. Because SendGrid's synchronous `GET /v3/marketing/contacts` endpoint returns at most 50 recent contacts without pagination (full multi-thousand contact exports require SendGrid's asynchronous export job API), `contacts` is excluded from `default_resources` and must be selected explicitly when needed.
+- **Full**: `templates`, `lists`, `contacts`, and `singlesends` run as full reads. Because SendGrid's synchronous `GET /v3/marketing/contacts` endpoint returns at most 50 recent contacts without pagination (full multi-thousand contact exports require SendGrid's asynchronous export job API), `contacts` is excluded from `default_resources` and must be selected explicitly when needed. SendGrid EU regional subusers (`https://api.eu.sendgrid.com`) do not support Marketing endpoints (`/v3/marketing/*`), so EU pipelines should exclude `lists`, `singlesends`, and `contacts`.
 
 ## Behavior
 
