@@ -1,16 +1,17 @@
 ---
 title: "SendGrid source connector"
 sidebarTitle: "SendGrid"
-description: "Read marketing lists, contacts, Single Sends, templates, suppression events, and global delivery statistics from Twilio SendGrid"
+description: "Read templates, suppression events, global delivery statistics, and marketing lists, contacts, and Single Sends from Twilio SendGrid"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-sendgrid-dark.svg"
 ---
 
 Connector ID `sendgrid`
 
-The SendGrid source reads marketing lists, contacts, Single Sends, transactional
-and marketing templates, suppression lists (bounces, blocks, spam reports,
-global unsubscribes, and invalid emails), and daily global delivery statistics
-from the [Twilio SendGrid v3 Web API](https://www.twilio.com/docs/sendgrid/api-reference).
+The SendGrid source reads transactional and marketing templates, suppression
+lists (bounces, blocks, spam reports, global unsubscribes, and invalid emails),
+daily global delivery statistics, and marketing lists, contacts, and Single
+Sends from the
+[Twilio SendGrid v3 Web API](https://www.twilio.com/docs/sendgrid/api-reference).
 It is built with an
 [HTTP manifest](/pages/connectors/building-a-connector/http-manifests) and is
 currently in preview.
@@ -19,7 +20,7 @@ currently in preview.
 
 | Field | Scope | Default | Description |
 |---|---|---|---|
-| `api_key` | Connection | | Required. Secret. SendGrid API key (`SG.…`) from **Settings > API Keys** with read access to Marketing, Template Engine, Suppressions, and Stats. |
+| `api_key` | Connection | | Required. Secret. SendGrid API key (`SG.…`) from **Settings > API Keys** with read access to Template Engine, Suppressions, Stats, and (for global accounts) Marketing. |
 | `region` | Connection | `global` | SendGrid regional API host: `global` (`https://api.sendgrid.com`) or `eu` (`https://api.eu.sendgrid.com`). |
 | `stats_start_date` | Pipeline | `2020-01-01` | Earliest `YYYY-MM-DD` date for the initial `global_stats` read. Incremental runs override `start_date` with the saved date watermark. |
 
@@ -27,25 +28,26 @@ currently in preview.
 
 | Resource | Endpoint | Parent | Notes |
 |---|---|---|---|
-| `lists` | `GET /v3/marketing/lists` | | Marketing contact lists, the connection probe |
-| `contacts` | `GET /v3/marketing/contacts` | | Sample of up to 50 most recent marketing contacts returned by the synchronous list endpoint |
-| `singlesends` | `GET /v3/marketing/singlesends` | | Marketing Single Send campaigns and metadata |
-| `templates` | `GET /v3/templates` | | Legacy and dynamic transactional templates (`generations=legacy,dynamic`) |
+| `templates` | `GET /v3/templates` | | Legacy and dynamic transactional templates (`generations=legacy,dynamic`), the connection probe |
 | `bounces` | `GET /v3/suppression/bounces` | | Bounced recipient addresses and bounce reasons. Incremental via `start_time` |
 | `blocks` | `GET /v3/suppression/blocks` | | Blocked recipient deliveries and SMTP failure reasons. Incremental via `start_time` |
 | `spam_reports` | `GET /v3/suppression/spam_reports` | | Recipients who reported messages as spam. Incremental via `start_time` |
 | `unsubscribes` | `GET /v3/suppression/unsubscribes` | | Global unsubscribe suppression entries. Incremental via `start_time` |
 | `invalid_emails` | `GET /v3/suppression/invalid_emails` | | Malformed or invalid recipient email addresses. Incremental via `start_time` |
 | `global_stats` | `GET /v3/stats` | | Daily aggregated email delivery statistics (`aggregated_by=day`). Incremental via `start_date` |
+| `lists` | `GET /v3/marketing/lists` | | Optional (global region only). Marketing contact lists |
+| `contacts` | `GET /v3/marketing/contacts` | | Optional (global region only). Sample of up to 50 most recent marketing contacts returned by the synchronous list endpoint |
+| `singlesends` | `GET /v3/marketing/singlesends` | | Optional (global region only). Marketing Single Send campaigns and metadata |
 
 ## Modes
 
 - **Incremental**: `bounces`, `blocks`, `spam_reports`, `unsubscribes`, and `invalid_emails` track the `created` field (Unix epoch seconds, typed `int64`) with a `numeric` comparator and inject `start_time` with a 300-second overlap window. Because an email address can appear more than once across time in suppression logs, suppression resources are keyed on `[email, created]`. `global_stats` tracks the `YYYY-MM-DD` `date` field with a `lex` comparator and injects `start_date`.
-- **Full**: `lists`, `contacts`, `singlesends`, and `templates` run as full reads. SendGrid's synchronous `GET /v3/marketing/contacts` endpoint returns at most 50 recent contacts without pagination; full multi-thousand contact exports require SendGrid's asynchronous export job API.
+- **Full**: `templates`, `lists`, `contacts`, and `singlesends` run as full reads. SendGrid's synchronous `GET /v3/marketing/contacts` endpoint returns at most 50 recent contacts without pagination; full multi-thousand contact exports require SendGrid's asynchronous export job API.
 
 ## Behavior
 
 - **Auth**: bearer token from `api_key` (`Authorization: Bearer <api_key>`) on every request.
-- **Pagination**: `lists`, `singlesends`, and `templates` follow `_metadata.next` via `next_url` pagination (`page_size=100`). The five suppression endpoints and `global_stats` use query `offset` and `limit` pagination (`page_size=500`), terminating on the first short page.
+- **Region & defaults**: `templates` is the connection probe because it is supported on both `global` (`api.sendgrid.com`) and `eu` (`api.eu.sendgrid.com`) hosts. Twilio SendGrid does not support Marketing Campaigns on EU regional subusers, so `lists`, `contacts`, and `singlesends` are optional (not in `default_resources`) and can be enabled on `global` connections.
+- **Pagination**: `templates`, `lists`, and `singlesends` follow `_metadata.next` via `next_url` pagination (`page_size=100`). The five suppression endpoints and `global_stats` use query `offset` and `limit` pagination (`page_size=500`), terminating on the first short page.
 - **Rate limiting**: paced at 5 requests/second with dynamic header throttling honoring `X-RateLimit-Remaining` and `X-RateLimit-Reset` (Unix epoch seconds, minimum floor 1 request/second) and HTTP 429 `Retry-After`.
-- **Timestamps**: SendGrid suppression endpoints emit `created` as integer Unix epoch seconds. Those fields are typed `int64` so raw epoch seconds survive intact and compare numerically for `start_time` watermarks. Marketing resources (`contacts`, `singlesends`) emit ISO 8601 timestamps and are typed `timestamptz`. `templates.updated_at` is rendered as `YYYY-MM-DD HH:MM:SS` without an offset and is kept as `string`.
+- **Timestamps**: SendGrid suppression endpoints emit `created` as integer Unix epoch seconds. Those fields are typed `int64` so raw epoch seconds survive intact and compare numerically for `start_time` watermarks. Marketing `created_at` and `updated_at` timestamps emit ISO 8601 and are typed `timestamptz?`. `singlesends.send_at` is typed `string?` because the list endpoint can return the literal `"now"` in addition to ISO 8601 timestamps or `null`. `templates.updated_at` is rendered as `YYYY-MM-DD HH:MM:SS` without an offset and is kept as `string?`.

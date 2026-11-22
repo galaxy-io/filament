@@ -9,7 +9,7 @@ config:
   api_key:
     type: secret
     required: true
-    help: SendGrid API key from Settings > API Keys (SG.…). Grant read permissions on Marketing, Template Engine, Stats, and Suppressions.
+    help: SendGrid API key from Settings > API Keys (SG.…). Grant read permissions on Template Engine, Stats, Suppressions, and Marketing.
   region:
     type: enum
     enum: [global, eu]
@@ -53,78 +53,9 @@ connection:
       min_floor_rps: 1
 resources:
   # First top-level resource, so it doubles as the TestConnection probe.
-  - name: lists
-    path: /v3/marketing/lists
-    query:
-      page_size: "100"
-    response:
-      records: $.result
-      pagination:
-        next_url: _metadata.next
-    primary_key: [id]
-    fields:
-      id: string
-      name: string
-      contact_count: int64?
-      _metadata: json?
-      raw: {path: $, type: json, mode: remainder}
-
-  - name: contacts
-    # SendGrid's GET /v3/marketing/contacts returns up to 50 most recent
-    # contacts with _metadata.self; full contact exports above 50 rows use
-    # SendGrid's asynchronous export job (/v3/marketing/contacts/exports).
-    path: /v3/marketing/contacts
-    response:
-      records: $.result
-      pagination: none
-    primary_key: [id]
-    fields:
-      id: string
-      email: string?
-      first_name: string?
-      last_name: string?
-      alternate_emails: json?
-      address_line_1: string?
-      address_line_2: string?
-      city: string?
-      state_province_region: string?
-      postal_code: string?
-      country: string?
-      phone_number: string?
-      whatsapp: string?
-      line: string?
-      facebook: string?
-      unique_name: string?
-      list_ids: json?
-      segment_ids: json?
-      custom_fields: json?
-      created_at: timestamptz?
-      updated_at: timestamptz?
-      _metadata: json?
-      raw: {path: $, type: json, mode: remainder}
-
-  - name: singlesends
-    path: /v3/marketing/singlesends
-    query:
-      page_size: "100"
-    response:
-      records: $.result
-      pagination:
-        next_url: _metadata.next
-    primary_key: [id]
-    fields:
-      id: string
-      name: string
-      status: string?
-      categories: json?
-      send_at: timestamptz?
-      created_at: timestamptz?
-      updated_at: timestamptz?
-      is_abtest: bool?
-      abtest: json?
-      _metadata: json?
-      raw: {path: $, type: json, mode: remainder}
-
+  # Templates are supported on both global (api.sendgrid.com) and EU regional
+  # subuser (api.eu.sendgrid.com) endpoints, unlike Marketing Campaigns which
+  # is global-only.
   - name: templates
     path: /v3/templates
     query:
@@ -283,12 +214,89 @@ resources:
       inject_into: query
       checkpoint_key: global_stats_date
       comparator: lex
+
+  # Marketing Campaigns resources (/v3/marketing/*) are supported on the global
+  # API host only (Twilio SendGrid does not offer Marketing Campaigns on EU
+  # regional subusers). They remain discoverable and selectable for global
+  # accounts while excluded from default_resources so EU connections run out of
+  # the box without unselecting them.
+  - name: lists
+    path: /v3/marketing/lists
+    query:
+      page_size: "100"
+    response:
+      records: $.result
+      pagination:
+        next_url: _metadata.next
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      contact_count: int64?
+      _metadata: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: contacts
+    # SendGrid's GET /v3/marketing/contacts returns up to 50 most recent
+    # contacts with _metadata.self; full contact exports above 50 rows use
+    # SendGrid's asynchronous export job (/v3/marketing/contacts/exports).
+    path: /v3/marketing/contacts
+    response:
+      records: $.result
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      email: string?
+      first_name: string?
+      last_name: string?
+      alternate_emails: json?
+      address_line_1: string?
+      address_line_2: string?
+      city: string?
+      state_province_region: string?
+      postal_code: string?
+      country: string?
+      phone_number: string?
+      whatsapp: string?
+      line: string?
+      facebook: string?
+      unique_name: string?
+      list_ids: json?
+      segment_ids: json?
+      custom_fields: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      _metadata: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: singlesends
+    path: /v3/marketing/singlesends
+    query:
+      page_size: "100"
+    response:
+      records: $.result
+      pagination:
+        next_url: _metadata.next
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      status: string?
+      categories: json?
+      # SendGrid's Single Sends list endpoint can return the literal string
+      # "now" as well as an ISO-8601 timestamp or null for send_at. Typed
+      # string? so "now" is preserved intact without failing timestamp parsing.
+      send_at: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      is_abtest: bool?
+      abtest: json?
+      _metadata: json?
+      raw: {path: $, type: json, mode: remainder}
 discovery:
   mode: static
   default_resources:
-    - lists
-    - contacts
-    - singlesends
     - templates
     - bounces
     - blocks
