@@ -14,4 +14,6 @@ export interface IngestionV1ValidateTransformResponse {
     issues?: Filament.IngestionV1ValidationError[] | undefined;
     outputColumns?: Filament.IngestionV1ResourceColumn[] | undefined;
     expressionTypes?: Filament.IngestionV1TransformExpressionType[] | undefined;
+    /** output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract. */
+    outputArrowSchema?: string | undefined;
 }

@@ -202,7 +202,7 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 			if err != nil {
 				return nil, connectorError(err)
 			}
-			if spec.Resources.WebhookEndpointBacked {
+			if spec.Webhook != nil && spec.Webhook.DynamicResources {
 				endpoint, err := a.webhooks.LoadWebhookEndpointForTenant(ctx, tenant, id)
 				if errors.Is(err, filament.ErrNotFound) {
 					return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{}), nil
@@ -213,7 +213,10 @@ func (a *Server) DiscoverResources(ctx context.Context, req *connect.Request[ing
 				names := slices.Sorted(slices.Values(endpoint.Resources))
 				resources := make([]*ingestionv1.Resource, 0, len(names))
 				for _, name := range names {
-					resources = append(resources, &ingestionv1.Resource{Name: name, IsSelectable: true})
+					resources = append(resources, &ingestionv1.Resource{
+						Name: name, IsSelectable: true,
+						Metadata: map[string]string{filament.ResourceMetaIngress: filament.ResourceIngressWebhook},
+					})
 				}
 				return connect.NewResponse(&ingestionv1.DiscoverResourcesResponse{Resources: resources}), nil
 			}

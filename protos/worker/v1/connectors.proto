@@ -80,7 +80,8 @@ message ResourceCapabilities {
   bool discoverable = 1;
   bool per_resource_cursor = 2;
   bool selectable_columns = 3;
-  bool webhook_endpoint_backed = 4;
+  // Deprecated: read the spec's webhook.dynamic_resources.
+  bool webhook_endpoint_backed = 4 [deprecated = true];
 }
 
 message WritePolicyCapability {

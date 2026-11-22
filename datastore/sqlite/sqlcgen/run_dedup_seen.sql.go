@@ -39,3 +39,21 @@ func (q *Queries) AdvanceDedupSeen(ctx context.Context, arg AdvanceDedupSeenPara
 	err := row.Scan(&last_seq)
 	return last_seq, err
 }
+
+const getDedupSeen = `-- name: GetDedupSeen :one
+SELECT last_seq FROM run_dedup_seen
+WHERE tenant_id = ?1 AND run_id = ?2
+`
+
+type GetDedupSeenParams struct {
+	TenantID string
+	RunID    string
+}
+
+// Reads the (tenant, run) high-water mark without advancing it.
+func (q *Queries) GetDedupSeen(ctx context.Context, arg GetDedupSeenParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getDedupSeen, arg.TenantID, arg.RunID)
+	var last_seq int64
+	err := row.Scan(&last_seq)
+	return last_seq, err
+}

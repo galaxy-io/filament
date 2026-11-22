@@ -38,7 +38,7 @@ const PipelineTransformFieldsStepCard: FC<PipelineTransformFieldsStepCardProps> 
 }) => {
   const { isReadOnly } = usePipelineTransformFieldsEnvironment();
   const { setDraft, cancel, save, removeStep } = usePipelineTransformFieldsActions();
-  const { editor, issues, warnings, typeSummary, isSaveDisabled } =
+  const { editor, issues, warnings, pending, typeSummary, isSaveDisabled } =
     usePipelineTransformFieldsValidation(draft);
   const { id, step } = draft;
 
@@ -69,10 +69,12 @@ const PipelineTransformFieldsStepCard: FC<PipelineTransformFieldsStepCardProps> 
               .with({ kind: TransformStepKind.COMPUTE }, (compute) => (
                 <PipelineTransformFieldsStepCompute step={compute} onChange={setDraft} />
               ))
+              .with({ kind: TransformStepKind.ALCHEMY }, () => null)
               .exhaustive()}
             <PipelineTransformFieldsStepFooter
               issues={issues}
               warnings={warnings}
+              pending={pending}
               typeSummary={typeSummary}
               isSaveDisabled={isSaveDisabled}
               isDisabled={isReadOnly}

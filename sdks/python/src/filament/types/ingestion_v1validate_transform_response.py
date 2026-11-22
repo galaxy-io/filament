@@ -32,6 +32,17 @@ class IngestionV1ValidateTransformResponse(UniversalBaseModel):
         FieldMetadata(alias="expressionTypes"),
         pydantic.Field(alias="expressionTypes"),
     ] = None
+    output_arrow_schema: typing_extensions.Annotated[
+        typing.Optional[str],
+        FieldMetadata(alias="outputArrowSchema"),
+        pydantic.Field(
+            alias="outputArrowSchema",
+            description="output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract.",
+        ),
+    ] = None
+    """
+    output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2

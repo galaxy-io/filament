@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,7 +44,14 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	c.parentRecords = make(map[string][]Capture)
 	c.mu.Unlock()
 
-	topLevel, children := manifest.Split(c.filteredResources(c.manifest.Resources))
+	requests, err := requestResources(c.manifest.Resources, opts.Resources)
+	if err != nil {
+		return err
+	}
+	topLevel, children := manifest.Split(c.filteredResources(requests))
+	if opts.Failures != nil {
+		return c.extractIsolated(ctx, sink, opts.Failures, topLevel, children)
+	}
 
 	outcomes := c.extractConcurrent(ctx, topLevel, sink)
 
@@ -85,14 +93,37 @@ func (c *Connector) extract(ctx context.Context, sink recordSink, opts extractOp
 	return nil
 }
 
+// extractConcurrent reads top-level resources in parallel. A resource with an
+// after list starts once every listed resource in this run has finished,
+// whatever its outcome: a failed dependency already fails the run, and reading
+// the waiting resource later is always consistent. Listed resources outside
+// this run are ignored. Validation rejects cycles, so the waits terminate.
 func (c *Connector) extractConcurrent(ctx context.Context, resources []manifest.Resource, sink recordSink) []error {
 	outcomes := make([]error, len(resources))
 	var wg sync.WaitGroup
+
+	done := make(map[string]chan struct{}, len(resources))
+	for _, res := range resources {
+		done[res.Name] = make(chan struct{})
+	}
 
 	for i, res := range resources {
 		wg.Add(1)
 		go func(idx int, res manifest.Resource) {
 			defer wg.Done()
+			defer close(done[res.Name])
+			for _, name := range res.After {
+				ch, ok := done[name]
+				if !ok {
+					continue
+				}
+				select {
+				case <-ch:
+				case <-ctx.Done():
+					outcomes[idx] = ctx.Err()
+					return
+				}
+			}
 			err := c.extractResource(ctx, res, sink, nil)
 			outcomes[idx] = err
 		}(i, res)
@@ -197,7 +228,7 @@ func (c *Connector) readResource(ctx context.Context, res manifest.Resource, sin
 	if res.Pagination.PageSizeFrom != "" {
 		n, err := strconv.Atoi(c.creds[res.Pagination.PageSizeFrom])
 		if err != nil || n <= 0 {
-			return fmt.Errorf("invalid page size in %s", res.Pagination.PageSizeFrom)
+			return resourceScoped(fmt.Errorf("invalid page size in %s", res.Pagination.PageSizeFrom))
 		}
 		res.Pagination.PageSize = n
 	}
@@ -381,6 +412,22 @@ func (c *Connector) buildResourceFilter(resources []string) {
 		}
 		c.enabledResources[resource] = struct{}{}
 	}
+}
+
+// requestResources drops webhook resources, which have no request and are
+// read only by a continuous run. Asking a bounded run for one is an error.
+func requestResources(resources []manifest.Resource, requested []string) ([]manifest.Resource, error) {
+	out := make([]manifest.Resource, 0, len(resources))
+	for _, res := range resources {
+		if !res.IsWebhook() {
+			out = append(out, res)
+			continue
+		}
+		if slices.Contains(requested, res.Name) {
+			return nil, fmt.Errorf("resource %q receives webhooks and is read only by a continuous pipeline", res.Name)
+		}
+	}
+	return out, nil
 }
 
 func (c *Connector) filteredResources(resources []manifest.Resource) []manifest.Resource {

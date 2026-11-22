@@ -165,11 +165,14 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		return nil
 	}
 
-	seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+	// Check the high-water mark without advancing it, so a fold that fails is
+	// redelivered and applied instead of being skipped as already seen. Advance
+	// only after the fold succeeds, as the terminal path does.
+	hw, ok, err := m.ds.DedupHighWater(ctx, string(f.Tenant), f.Run)
 	if err != nil {
 		return err
 	}
-	if seen {
+	if ok && msg.Seq() <= hw {
 		if m.log != nil {
 			m.log.Debug("duplicate fact ignored",
 				filament.Field{Key: "event.name", Value: "tracker.fact.duplicate"},
@@ -179,8 +182,14 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 		}
 		return nil // already applied — idempotent no-op
 	}
-
-	return m.apply(ctx, f)
+	if err := m.apply(ctx, f); err != nil {
+		return err
+	}
+	// A crash between apply and this advance re-applies the fact on redelivery.
+	// Non-terminal folds are not idempotent (batch.written adds to the run totals),
+	// so that window can double count those totals.
+	_, err = m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+	return err
 }
 
 func terminalFactStatus(data any) (string, bool) {
@@ -214,11 +223,20 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.RunCompletedEvent:
-		return m.terminal(ctx, env, "completed", true, func(r *filament.RunState) {
+		// A run that isolated resource failures committed only its healthy
+		// resources. A failed resource's cursor is promoted only when its
+		// writes were durable on Apply; commit-gated progress was aborted.
+		skip := m.uncommittedFailures(env.Run, d.FailedResources)
+		return m.terminalExcept(ctx, env, "completed", true, skip, func(r *filament.RunState) {
 			r.Status = filament.RunCompleted
 			// The terminal fact carries the engine's authoritative totals.
 			r.Records = d.Records
 			r.Bytes = d.Bytes
+			// resource.failed is best effort, so mark the failed resources
+			// here too or a lost one leaves the run looking complete.
+			for _, name := range d.FailedResources {
+				resourceRef(r, name).Status = filament.RunFailed
+			}
 		})
 
 	case events.RunFailedEvent:
@@ -265,11 +283,24 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return nil
 
 	case events.ResourceFailedEvent:
-		return m.mutate(ctx, env, func(r *filament.RunState) {
+		if err := m.mutate(ctx, env, func(r *filament.RunState) {
 			rs := resourceRef(r, env.Resource)
+			// Aborted writes never landed: take them out of the totals once,
+			// so a redelivered fact cannot subtract twice.
+			if d.Discarded && rs.Status != filament.RunFailed {
+				r.Records -= rs.Records
+				r.Bytes -= rs.Bytes
+				rs.Records, rs.Bytes = 0, 0
+			}
 			rs.Status = filament.RunFailed
 			rs.Error = d.Error
-		})
+		}); err != nil {
+			return err
+		}
+		if d.Discarded {
+			m.discardResource(env.Run, env.Resource)
+		}
+		return nil
 
 	case events.BatchWrittenEvent:
 		return m.applyBatchWritten(ctx, env, d)
@@ -337,6 +368,22 @@ func (m *Module) terminal(
 	promoteCommitGated bool,
 	fn func(*filament.RunState),
 ) error {
+	return m.terminalExcept(ctx, env, status, promoteCommitGated, nil, fn)
+}
+
+// terminalExcept is terminal that discards, rather than persists, the
+// tentative cursors of the resources in skip.
+func (m *Module) terminalExcept(
+	ctx context.Context,
+	env events.Envelope,
+	status string,
+	promoteCommitGated bool,
+	skip map[string]bool,
+	fn func(*filament.RunState),
+) error {
+	for resource := range skip {
+		m.discardResource(env.Run, resource)
+	}
 	if err := m.flushRunFor(ctx, env.Tenant, env.Run, promoteCommitGated, checkpointReason(status)); err != nil {
 		return err
 	}
@@ -384,6 +431,36 @@ func (m *Module) evictRun(run filament.RunID) {
 			delete(m.modes, key)
 		}
 	}
+}
+
+// discardResource drops a resource's tentative progress after its sink writes
+// were aborted while the run went on. Persisted progress is untouched: only
+// apply-durable cursors are ever persisted before commit, and those rows stay.
+func (m *Module) discardResource(run filament.RunID, resource string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := ckKey{run: run, resource: resource}
+	delete(m.cp, key)
+	delete(m.since, key)
+	delete(m.bm, key)
+}
+
+// uncommittedFailures returns the failed resources whose progress the run's
+// commit does not cover. Only a cursor known to be durable on Apply survives
+// its resource's failure; an unknown boundary is treated as commit-gated.
+func (m *Module) uncommittedFailures(run filament.RunID, failed []string) map[string]bool {
+	if len(failed) == 0 {
+		return nil
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	skip := make(map[string]bool, len(failed))
+	for _, resource := range failed {
+		if m.boundary[ckKey{run: run, resource: resource}] != filament.CheckpointAfterBatch {
+			skip[resource] = true
+		}
+	}
+	return skip
 }
 
 // applyCheckpoint persists a cursor fact's checkpoint.

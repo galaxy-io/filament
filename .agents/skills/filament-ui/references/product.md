@@ -60,6 +60,8 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **The path.** Sources (or Sinks) → **New source** → pick a connector from the searchable catalog → name it and fill the fields the connector's schema asks for → **Validate** → a green "Connected" beacon and the save button → the toast "Connection created" → the connection's drawer opens.
 
+**Webhooks.** A connector that can read either way, whose spec `webhook` names an `ingestion_field`, wears a small round webhook badge on its logo corner in the catalog. A connection wears the same badge on its Sources card when it reads webhooks. The generic Webhook connector gets none, since its logo already says it. When the spec names an `ingestion_field`, the form opens with a **Read from** toggle, API or Webhooks. It writes that field, hides the API fields under Webhooks and locks once the connection exists. The UI never offers `both`, so every pipeline keeps one execution mode. After create, a Webhooks connection gets its signing key at once. Filament mints it and shows it once, or the provider issues it and the user pastes it, or picks **Set up later**. Either way the delivery URLs and the spec's setup steps sit beside it. The connection's drawer always lists the delivery URLs, before any key or pipeline exists. The API version select shows only when a connector has more than one version.
+
 **How it should feel.** Certain. The user knows it works before it exists. Every field is labelled, examples in placeholders show the expected shape (`Enter host...`), and a failed validation shows the server's reason under the form, stacked as a plain line over the raw message.
 
 **What breaks it.** Saving an untested connection. A generic "Invalid configuration" with no server detail. Losing what was typed when validation fails. Asking for a field the connector does not need.
@@ -70,7 +72,7 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **The path.** Pipelines → **New pipeline** (`C`) → the wizard. **Connections** (pick a source and sinks) → **Resources** (which streams, read mode, cursor) → **Delivery** (each sink's write mode and options) → **Details** (name, schedule, notifiers) → "Pipeline created" → the pipeline's canvas.
 
-**How it should feel.** Fast. Every step arrives with working defaults, so a user who only picks a source and a sink can press Next to the end and get a pipeline that runs. Each step is there to review, not to fill in. While Next is blocked, a red "Invalid" chip in the footer lists exactly why.
+**How it should feel.** Fast. Every step arrives with working defaults, so a user who only picks a source and a sink can press Next to the end and get a pipeline that runs. Each step is there to review, not to fill in. Bounded pipelines isolate a failed resource by default, and Delivery offers Fail the run when a resource fails for anyone who wants the old stop. While Next is blocked, a red "Invalid" chip in the footer lists exactly why.
 
 **What breaks it.** A required decision with no default. A step that cannot be understood without docs. An error discovered only on the last step. Landing anywhere but the new pipeline.
 
@@ -98,7 +100,7 @@ Seven flows carry the product, four to set it up and three to operate it. A new 
 
 **Who and why.** Anyone with access starts a run now and follows it to the end.
 
-**The path.** Pipeline header → **Run** opens the run modal (`flow=RUN_PIPELINE`) → **Run now**, or **Start custom run** once a section reads Custom → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Succeeded or Failed.
+**The path.** Pipeline header → **Run** opens the run modal (`flow=RUN_PIPELINE`) → **Run now**, or **Start custom run** once a section reads Custom → "Starting run..." becomes "Run started" and the page lands on the Canvas tab with nothing else changed → the header switches to the live run's actions (cancel) → the Activity pane under the canvas shows Running in its header and holds the live log when opened. It never opens by itself → History shows the run with a live status square, its activity streaming, its resources filling in → it lands as Completed, Partial or Failed. A completed run with at least one failed resource shows as Partial. It is derived from `RunInfo.failedResources` on a `COMPLETED` run, never the `PARTIAL` status, and borrows Partial's label and `pink` square.
 
 **How it should feel.** Live while it runs and still when it is done. Polling runs only while a run is active, and everything stops moving at the end. Durations and record counts are real numbers in mono.
 
@@ -156,11 +158,11 @@ Every screen owes keyboard users the same things.
 | Key | Does | Built with |
 |---|---|---|
 | `C` | The page's primary create action | `Button` `hotKeys={["c"]} shouldBindHotKey` on the `PRIMARY` create button |
-| `/` | Focus the list search | `ListSearch` passes `hotKeys={["/"]} shouldBindHotKey` to DLS `SearchInput` |
-| `⌘↵` | Save the focused settings section, or submit a modal's primary action | `Button` `hotKeys={["mod", "enter"]} shouldBindHotKey`, scoped to the section or modal with `useHotkey`'s `scope` |
+| `/` | Focus the view's search | `SearchInput` `hotKeys={["/"]} shouldBindHotKey` on the one primary search of a page, toolbar, popover or modal step (`ListSearch` does it for lists). A view with two searches side by side (the wizard's sources and sinks), a second search in the same pane and the filters inside canvas nodes stay unbound, since several sit on screen at once |
+| `⌘↵` | Save the focused settings section, or run a modal's primary action | `Button` `hotKeys={["mod", "enter"]} shouldBindHotKey` on the action that commits (Create, Run, Validate, Next). A continuation button that carries the ⌘↵ caps drops its trailing right arrow, since the caps already say it moves forward. Never on Done or Close, so a double press cannot dismiss a one-time secret, and never on a destructive `ConfirmDialog` |
 | `G` then a letter | Go to a top-level destination (`G O` Observability, `G P` Pipelines, `G S` Sources, `G K` Sinks) | needs sequence support, which DLS `useHotkey` does not have yet. Compose it and request it per the rule above |
 | `↑` `↓` `↵` | Move between table rows and open one | `InfiniteTable` `onRowClick`, which brings roving row focus with it |
 | `⌘K` | The command palette | the host. Every new top-level page and create flow adds its item to `useFilamentCommandItems` in `module/commands.ts` |
 | `Esc` | Close the top overlay and return focus | DLS overlays do this. Never break it |
 
-A bound `Button` ignores a shortcut without a modifier while focus is in a text field, so typing `c` in a field never opens a modal, and `⌘↵` still saves from inside one. `hotKeys` also draws the `Kbd` caps on the button or in its tooltip.
+A bound `Button` ignores a shortcut without a modifier while focus is in a text field, so typing `c` in a field never opens a modal, and `⌘↵` still saves from inside one. `hotKeys` also draws the `Kbd` caps on the button or in its tooltip. When two bindings share a key the newest registration wins, so a modal's `/` and `⌘↵` beat the page's without a `scope`. A page search still turns its `/` off while a flow modal is open (`shouldBindHotKey={!flow}` from `useFilamentLayoutSearch`), so `/` never lands on a field behind the modal and the DLS duplicate-binding warning stays quiet. A disabled or loading button drops its binding, so put `hotKeys` on its loading variant too to keep the caps steady.

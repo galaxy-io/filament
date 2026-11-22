@@ -168,6 +168,21 @@ func TestStore_RunLifecycle(t *testing.T) {
 	if !seenAfter {
 		t.Fatal("expected second DedupSeen call to report already seen")
 	}
+
+	hw, ok, err := store.DedupHighWater(ctx, tenantA, runOne)
+	if err != nil {
+		t.Fatalf("DedupHighWater: %v", err)
+	}
+	if !ok || hw != 42 {
+		t.Fatalf("DedupHighWater = (%d, %t), want (42, true)", hw, ok)
+	}
+	_, ok, err = store.DedupHighWater(ctx, tenantA, "20000000-0000-4000-8000-0000000000ff")
+	if err != nil {
+		t.Fatalf("DedupHighWater for unseen run: %v", err)
+	}
+	if ok {
+		t.Fatal("expected no high-water mark for a run with no dedup row")
+	}
 }
 
 // TestStore_DedupSeenHighWaterMark verifies the high-water-mark semantics:
@@ -691,6 +706,19 @@ func TestStore_ResolveTenantIdempotent(t *testing.T) {
 	}
 	if _, err := store.ResolveTenant(ctx, "", "Nameless"); err == nil {
 		t.Fatal("ResolveTenant accepted an empty external id")
+	}
+	if ext, err := store.TenantExternalID(ctx, first); err != nil || ext != "zitadel-org-1" {
+		t.Fatalf("TenantExternalID = %q, %v", ext, err)
+	}
+	local := filament.TenantID("11111111-1111-1111-1111-111111111111")
+	if err := store.EnsureTenant(ctx, local, "Local"); err != nil {
+		t.Fatalf("EnsureTenant: %v", err)
+	}
+	if ext, err := store.TenantExternalID(ctx, local); err != nil || ext != "" {
+		t.Fatalf("provider-less tenant external id = %q, %v", ext, err)
+	}
+	if _, err := store.TenantExternalID(ctx, "22222222-2222-2222-2222-222222222222"); !errors.Is(err, filament.ErrNotFound) {
+		t.Fatalf("missing tenant: %v", err)
 	}
 }
 

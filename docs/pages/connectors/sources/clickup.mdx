@@ -1,0 +1,65 @@
+---
+title: "ClickUp source connector"
+sidebarTitle: "ClickUp"
+description: "Read workspaces, spaces, folders, lists, and tasks from ClickUp with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-clickup-dark.svg"
+---
+
+Connector ID `clickup`
+
+The ClickUp source reads workspaces, spaces, folders, lists, and tasks from ClickUp. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It has been validated against a live ClickUp workspace with a personal API token. The live run covered the connection probe, all six resources, the page walk on team tasks, and an incremental read that returned the edited task and the task at the watermark itself, which proves the filter is greater-than-or-equal. A saved pipeline run is still the last step before the preview label comes off. It targets ClickUp API version `v2`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `api_token` | Connection | | Required. Secret. Personal API token created in ClickUp Settings > Apps. |
+
+Create a personal API token in ClickUp under Settings > Apps. The token reads what its account can see. Use a service account token for unattended syncs so the data does not change when a person leaves the team. See
+[ClickUp API authentication](https://developer.clickup.com/docs/authentication) for token setup.
+
+Connection testing calls `GET /v2/team`. Every request goes to
+`https://api.clickup.com/api`, with the `v2` version on each path.
+
+## Resources
+
+All resources are selected by default.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `teams` | `GET /v2/team` |  |
+| `spaces` | `GET /v2/team/{team_id}/space` | `teams` |
+| `folders` | `GET /v2/space/{space_id}/folder` | `spaces` |
+| `folder_lists` | `GET /v2/folder/{folder_id}/list` | `folders` |
+| `folderless_lists` | `GET /v2/space/{space_id}/list` | `spaces` |
+| `tasks` | `GET /v2/team/{team_id}/task` | `teams` |
+
+IDs are ClickUp ID strings. Tasks carry their team ID and the objects for their list, space, folder, and project. References to other objects remain JSON columns, and every resource includes a `raw` column for unmapped fields.
+
+Tasks are read workspace-wide from the team endpoint. Each task appears once even when it lives in several lists. The list endpoint is not used. It cannot fan out from both folders and spaces, and it drops multi-listed tasks by default.
+
+### Coverage limits
+
+- **Time tracking**. The team endpoint does not return time spent. That field is not in the task rows. The archived flag, top level parent, custom item ID, group assignees, and sharing are returned and are in the task rows.
+- **Comments, time entries, goals, docs, and views**. These need a request per task or live under other endpoints and are not included.
+- **Custom field definitions**. Task rows carry custom field values. The definitions themselves are not a resource.
+- **Visibility**. Reads reflect what the token's account can see. Removed records and records hidden by permissions are not available as deletion events.
+
+## Modes
+
+All resources report their read mode in the connector settings. Use **full upsert** to refresh rows, or **full replace** to remove rows no longer returned.
+
+`tasks` supports incremental reads on `date_updated`. The cursor is a Unix millisecond number. The first run reads from the start of time, and later runs ask ClickUp for tasks updated since the last stored watermark, with a five minute overlap so edits made while a run is in flight are not missed. The filter is greater than or equal to the watermark, so overlap re-reads land as upserts and never duplicate rows. Incremental reads do not detect deleted tasks. Run a periodic full replace of `tasks` to remove them.
+
+## Behavior
+
+- **Auth**. Every request sends the personal API token in the `Authorization` header with no `Bearer` prefix. Authentication and permission errors fail the read.
+- **Pagination**. Teams, spaces, folders, and lists return one page. Tasks page by number starting at zero with 100 tasks per page, oldest first, so a run that stops midway resumes without skipping tasks. The walk stops on the first empty page.
+- **Fields**. Date fields arrive as Unix millisecond strings and land as integers. Task priority, assignees, watchers, tags, checklists, and custom fields land as JSON columns. The list, space, folder, and project references land as JSON columns too.
+- **Rate limiting**. Requests are paced at one and a half per second, below the 100 per minute limit for a personal token. The HTTP engine retries throttled requests and honors `Retry-After`.
+- **ClickUp only**. ClickUp API version `v2` is the only supported version.
+
+See [ClickUp API reference](https://developer.clickup.com/reference) and
+[rate limits](https://developer.clickup.com/docs/rate-limits) for service limits.

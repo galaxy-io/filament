@@ -83,7 +83,7 @@ Naming inside the file.
 |---|---|
 | `createXInput(…)` | Builds the request from an id or URL state so every caller hits the same cache entry. `createGetPipelineInput(id)`, `createGetConnectionInput(id)`, `createListPipelinesInput(search)`, `createListConnectionsInput(kind, search)`. |
 | `createXQueryKey(input?, transport?)` | Only when something invalidates it, and exported only when another file does. Called with no input it matches the whole family. |
-| `createXQueryOptions` | Only for `useQueries` or the host's `beforeLoad` probes (`createGetAuthConfigQueryOptions`, `createGetSessionQueryOptions`). |
+| `createXQueryOptions` | Only for `useQueries`, the host's `beforeLoad` probes (`createGetAuthConfigQueryOptions`, `createGetSessionQueryOptions`) and imperative `queryClient.fetchQuery` reads such as the webhook endpoint sync. |
 | `useXQuery({ input, options })` | Plain query. Resource defaults go before `...options`. |
 | `useSuspenseXQuery({ input })` | For pages. Takes no `enabled`. |
 | `useXInfiniteQuery` / `useSuspenseXInfiniteQuery` | Server pagination with `pageParamKey: "pagination"`. Pages flatten with `data.pages.flatMap((page) => page.items)` in a `useMemo`. |
@@ -129,6 +129,7 @@ export const useGetConnectionQueries = (
 - `useGetConnectionQueries(ids, options)` resolves several connections by id and returns `{ connections, isLoading }`. The `combine` is module level so its identity is stable. Each id shares the cache entry `useGetConnectionQuery` uses. Pass `{ retry: false }` where a stale id must fail fast, as the create-pipeline seed does. Options are spread, never set to `undefined`, so the client's retry policy holds otherwise.
 - `useListRunsInfiniteQuery` and its suspense twin pass `select: selectUniqueRunPages`, which drops a run already seen on an earlier page when polling shifts the cursor.
 - `useListActivePipelineRunsQuery(pipelineId)` and `useSuspenseListActivePipelineRunsQuery(pipelineId)` build their input privately (`status: [...ACTIVE_RUN_STATUSES]`, `ACTIVE_PIPELINE_RUNS_PAGE_SIZE`) and poll on the pipeline schedule's `nextFireAt`.
+- `useConnectionWebhookSpec(connection)` in `components/webhooks/hooks/` returns the connector spec's `webhook` block only when that connection receives webhooks. Every webhook surface (drawer, create flows, canvas, endpoint sync) branches on it, never on a connector name. Delivery URLs come from `GetWebhookDeliveryURL`, which answers before an endpoint exists.
 - `useCanManageTeam({ enabled })` in `api/queries/auth.ts` is a `select` on `ListMembers` that returns `canManage` as `boolean | undefined`. Compare with `=== true` or `=== false`, because `undefined` means not known yet.
 - `useRefreshObservabilityQueries()` in `api/queries/metrics.ts` returns a callback that invalidates timeseries, aggregate, runs, connections and pipelines for the current transport and resolves once they refetch.
 - `useTailRunsStream(runIds)` uses `experimental_streamedQuery` with `batchIterable` (150ms batches), a reducer capped at 2000 events and `gcTime: 0`. When the server closes the stream the query errors and nothing reconnects.
@@ -241,4 +242,5 @@ const handleSave = () => {
 - **`queryClient.ensureQueryData` ignores staleness.** It returns cached data whenever it exists. This is why `beforeLoad` only probes auth and nothing else loads there.
 - **One suspense hook on a key makes `isLoading` dead everywhere else on that key.** A plain query on a key that `useObservabilitySetup` suspends on is never loading, because the suspense hook already resolved it. Check whether a page already suspends on a key before writing skeleton code for it.
 - **`refetchOnWindowFocus` is on.** A screen that holds unsaved local state seeded from server data must not reset on refetch. Seed it once with `useState(createInitialState)` and reset by `key`, never by syncing in an effect. See [forms.md](./forms.md).
+- **A refetch can bring back `isLoading`.** A query that failed with no data (a 404 before the entity exists) returns to pending when a mutation invalidates it. A skeleton gated on `isLoading` then unmounts whatever it replaces, along with any local state such as a one-time key reveal. Gate a first-load skeleton on `isLoading && !isFetched` (`ConnectionDrawerWebhookSecrets`).
 - **An unfocused tab pauses retries.** TanStack waits for focus before retrying, so a retryable failure can look like an empty table. Non-retryable codes fail at once.

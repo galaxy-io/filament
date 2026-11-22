@@ -36,4 +36,9 @@ export interface IngestionV1RunInfo {
     executionStatus?: Filament.IngestionV1ExecutionStatus | undefined;
     /** resources this run reads. Empty means every resource its route selects. */
     resources?: string[] | undefined;
+    /**
+     * failed_resources names the resources that failed in this run. A completed
+     *  run with failed resources isolated them and committed the rest.
+     */
+    failedResources?: string[] | undefined;
 }

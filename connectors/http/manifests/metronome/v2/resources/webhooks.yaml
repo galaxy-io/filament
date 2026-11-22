@@ -1,0 +1,65 @@
+# Notifications Metronome pushes to a webhook destination, read by a
+# continuous pipeline. One delivery is one triggered notification.
+# https://docs.metronome.com/guides/platform-configuration/webhooks/webhook-types
+resources:
+  # System and offset notifications carry their fields at the top level. An
+  # offset notification has its policy's type plus offset_id and
+  # offset_duration.
+  - name: system_notifications_webhook
+    mode: webhook
+    events:
+      - contract.create
+      - contract.start
+      - contract.edit
+      - contract.end
+      - contract.archive
+      - commit.create
+      - commit.edit
+      - commit.archive
+      - commit.segment.start
+      - commit.segment.end
+      - credit.create
+      - credit.edit
+      - credit.archive
+      - credit.segment.start
+      - credit.segment.end
+      - subscription.create
+      - subscription.start
+      - subscription.end
+      - invoice.void
+    primary_key: [id]
+    fields:
+      id: string
+      type: string
+      timestamp: timestamptz?
+      environment_type: string?
+      customer_id: string?
+      contract_id: string?
+      commit_id: string?
+      credit_id: string?
+      subscription_id: string?
+      invoice_id: string?
+      invoice_type: string?
+      segment_id: string?
+      offset_id: string?
+      offset_duration: string?
+      customer_custom_fields: json?
+      contract_custom_fields: json?
+      raw: {path: $, type: json, mode: remainder}
+  # Every other notification nests its fields under properties: threshold
+  # alerts and their resolved notifications, invoice.finalized,
+  # invoice.billing_provider_error, integration.issue, marketplace and payment
+  # gating notifications, and any type Metronome adds later.
+  - name: notifications_webhook
+    mode: webhook
+    events: ["*"]
+    primary_key: [id]
+    fields:
+      id: string
+      type: string
+      customer_id: {path: properties.customer_id, type: string, nullable: true}
+      alert_id: {path: properties.alert_id, type: string, nullable: true}
+      invoice_id: {path: properties.invoice_id, type: string, nullable: true}
+      timestamp: {path: properties.timestamp, type: timestamptz, nullable: true}
+      properties: json?
+      raw: {path: $, type: json, mode: remainder}

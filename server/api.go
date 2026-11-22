@@ -12,6 +12,7 @@ import (
 	"github.com/galaxy-io/filament/api/metrics/v1/metricsv1connect"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/identity"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/webhooks"
 )
@@ -34,6 +35,8 @@ type Server struct {
 	compiler  *compile.Compiler
 	metrics   filament.MetricsStore
 	identity  identity.Authenticator
+	alchemy   *alchemy.Client
+	runtimes  runtimeCache
 	// defaultTenant scopes every request when identity is disabled.
 	defaultTenant filament.TenantID
 	log           filament.Logger

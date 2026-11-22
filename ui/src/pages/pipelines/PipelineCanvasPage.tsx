@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { styled } from "@linaria/react";
 import { match } from "ts-pattern";
 
+import { usePipelineCanvasAlchemyReturn } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasAlchemyReturn";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasFlow from "@/pages/pipelines/canvas/PipelineCanvasFlow";
 import PipelineCanvasPanelLayout from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelLayout";
@@ -19,6 +20,7 @@ const PipelineCanvasPageWrapper = styled.div`
 
 const PipelineCanvasPage: FC = () => {
   const { view } = usePipelineCanvasSelection();
+  usePipelineCanvasAlchemyReturn();
 
   return (
     <PipelineCanvasPageWrapper>

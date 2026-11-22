@@ -166,6 +166,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
 	a.deleteReplacedSecretRefs(ctx, stored.SecretRefs, next.SecretRefs)
+	if err := a.disableWebhookEndpointWhenOff(ctx, tenantID, stored, filament.NewConfig(cfg)); err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: a.connectionForResponse(ctx, next)}), nil
 }
 
@@ -243,8 +246,9 @@ func (a *Server) connectionForResponse(ctx context.Context, conn filament.Connec
 		if err != nil {
 			return out
 		}
-		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, filament.NewConfig(conn.Config)))
-		out.ExecutionModes = a.sourceExecutionModes(spec)
+		cfg := filament.NewConfig(conn.Config)
+		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, cfg))
+		out.ExecutionModes = a.connectionExecutionModes(spec, cfg)
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {

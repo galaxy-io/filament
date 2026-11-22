@@ -1,4 +1,4 @@
-import { Children, type FC, type PropsWithChildren } from "react";
+import { Children, type FC, isValidElement, type PropsWithChildren } from "react";
 
 import { styled } from "@linaria/react";
 
@@ -32,8 +32,8 @@ const KeyValueList: FC<PropsWithChildren<KeyValueListProps>> = ({
       overflow="hidden"
       fillWidth
     >
-      {Children.map(children, (child) => (
-        <ListItem>{child}</ListItem>
+      {Children.toArray(children).map((child, index) => (
+        <ListItem key={isValidElement(child) ? child.key : index}>{child}</ListItem>
       ))}
     </Box>
   );

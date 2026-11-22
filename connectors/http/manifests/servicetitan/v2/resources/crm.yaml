@@ -2,6 +2,7 @@ resources:
   - name: customers
     path: /crm/v2/tenant/{{ config.tenant_id }}/export/customers
     primary_key: [id]
+    after: [customer_contacts]
     fields:
       type: string?
       id: int64
@@ -41,6 +42,7 @@ resources:
   - name: locations
     path: /crm/v2/tenant/{{ config.tenant_id }}/export/locations
     primary_key: [id]
+    after: [location_contacts]
     fields:
       id: int64
       name: string?

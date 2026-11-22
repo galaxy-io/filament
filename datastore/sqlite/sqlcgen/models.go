@@ -61,6 +61,7 @@ type Pipeline struct {
 	CreatedAt           int64
 	UpdatedAt           int64
 	ExecutionMode       int64
+	FailOnError         int64
 }
 
 type PipelineResourceCheckpoint struct {
@@ -286,4 +287,6 @@ type WebhookEndpoint struct {
 	MaxBodyBytes         int64
 	CreatedAt            int64
 	UpdatedAt            int64
+	VerifierParams       string
+	Ingress              string
 }

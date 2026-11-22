@@ -52,8 +52,12 @@ func TestPipelineExecutionMigrationAndReopen(t *testing.T) {
 	}
 	store := New(db)
 	p, err := store.LoadPipeline(ctx, "t", "p")
-	if err != nil || p.ExecutionMode != ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED {
+	if err != nil || p.ExecutionMode != ingestionv1.ExecutionMode_EXECUTION_MODE_BOUNDED || !p.GetFailOnError() {
 		t.Fatalf("legacy migration: %v %v", p, err)
+	}
+	created, err := store.CreatePipeline(ctx, &ingestionv1.Pipeline{Id: "new", TenantId: "t", Name: "new"})
+	if err != nil || created.GetFailOnError() {
+		t.Fatalf("new pipeline failure setting: %v %v", created, err)
 	}
 	p.ExecutionMode = ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS
 	if _, err := store.UpdatePipeline(ctx, p); err != nil {

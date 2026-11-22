@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import { ArrowLeftIcon, ArrowRightIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
+import { ArrowLeftIcon, PlusIcon, WarningIcon } from "@phosphor-icons/react";
 
 import Button, { ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Chip, { ChipSize, ChipVariant } from "@galaxy-io/dls/chips/Chip";
@@ -11,6 +11,7 @@ import { useToast } from "@galaxy-io/dls/toast/useToast";
 
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
 import { useWebhookEndpointSync } from "@/components/webhooks/hooks/useWebhookEndpointSync";
 
 import {
@@ -44,6 +45,7 @@ const CreatePipelineModalFooter: FC = () => {
   const { mutate: createPipelineVersion } = useCreatePipelineVersionMutation();
   const { mutateAsync: createPipelineNotifier } = useCreatePipelineNotifierMutation();
   const syncWebhookEndpoint = useWebhookEndpointSync();
+  const { webhook } = useConnectionWebhookSpec(state.sourceConnection);
 
   const { isBackVisible, isLastStep, isNextDisabled, isSubmitting, hints } = state;
 
@@ -86,6 +88,7 @@ const CreatePipelineModalFooter: FC = () => {
           replication: state.replication,
           executionMode: state.executionMode,
           pipelineId,
+          webhook,
         });
 
         createPipelineVersion(versionRequest, {
@@ -127,6 +130,8 @@ const CreatePipelineModalFooter: FC = () => {
         <Button
           label={isSubmitting ? "Creating..." : "Create pipeline"}
           icon={PlusIcon}
+          hotKeys={["mod", "enter"]}
+          shouldBindHotKey
           isLoading={isSubmitting}
           isDisabled={isSubmitting || isNextDisabled}
           onClick={handleCreate}
@@ -137,10 +142,10 @@ const CreatePipelineModalFooter: FC = () => {
     return (
       <Button
         label="Next"
-        icon={ArrowRightIcon}
+        hotKeys={["mod", "enter"]}
+        shouldBindHotKey
         onClick={() => goNext()}
         isDisabled={isNextDisabled}
-        isIconTrailing
       />
     );
   };

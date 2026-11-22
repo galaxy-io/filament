@@ -2,6 +2,7 @@ resources:
   - name: jobs
     path: /jpm/v2/tenant/{{ config.tenant_id }}/export/jobs
     primary_key: [id]
+    after: [appointments, job_canceled_logs, job_history, job_notes]
     fields:
       id: int64
       total: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
@@ -98,6 +99,7 @@ resources:
   - name: projects
     path: /jpm/v2/tenant/{{ config.tenant_id }}/export/projects
     primary_key: [id]
+    after: [project_notes]
     fields:
       id: int64
       name: string?

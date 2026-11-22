@@ -11,6 +11,8 @@ import { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
 
 import {
   useCreatePipelineModalActions,
@@ -37,6 +39,7 @@ const CreatePipelineModalConnectionRow: FC<CreatePipelineModalConnectionRowProps
 }) => {
   const { sourceConnection, sinkConnections, executionMode } = useCreatePipelineModalState();
   const { selectSource, toggleSink } = useCreatePipelineModalActions();
+  const { webhook } = useConnectionWebhookSpec(connection);
 
   const isSource = kind === ConnectorKind.SOURCE;
   const isDisabled = !isCreatePipelineModalConnectionSelectable(connection, executionMode);
@@ -72,7 +75,11 @@ const CreatePipelineModalConnectionRow: FC<CreatePipelineModalConnectionRowProps
           />
         )}
       </RowControlWrapper>
-      <ConnectorTile connector={connection.connector} kind={connection.kind} />
+      <ConnectorTile
+        connector={connection.connector}
+        kind={connection.kind}
+        badge={getWebhookConnectorTileBadge(webhook)}
+      />
       <FlexItem minWidth={0} overflow="hidden">
         <Text lineClamp={1} variant={isDisabled ? TextVariant.DISABLED : TextVariant.PRIMARY}>
           {connection.name}

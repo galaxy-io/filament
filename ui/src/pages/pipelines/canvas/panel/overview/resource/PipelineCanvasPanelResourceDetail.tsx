@@ -18,7 +18,8 @@ import type { ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connect
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { isWebhookResource } from "@/components/webhooks/utils";
 import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryUrlCopyButton";
 
 import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
@@ -71,6 +72,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
   const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();
   const sourceConnection = usePipelineCanvasConnections().get(edge.source);
+  const { webhook } = useConnectionWebhookSpec(sourceConnection);
 
   const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
@@ -219,13 +221,13 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   </Text>
                 }
               />
-              {sourceConnection && isWebhookConnector(sourceConnection.connector) && (
+              {sourceConnection && webhook && isWebhookResource(webhook, resource) && (
                 <KeyValueListRow
                   label="Endpoint"
                   value={
                     <WebhookDeliveryUrlCopyButton
                       sourceConnectionId={sourceConnection.id}
-                      resource={resource}
+                      resource={webhook.routed ? "" : resource}
                     />
                   }
                 />
@@ -343,6 +345,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                       onChange={handleTransformChange}
                       resource={resource}
                       columns={selectedColumns}
+                      columnSelection={selectedColumnNames}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >

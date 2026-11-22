@@ -130,3 +130,16 @@ func (q *Queries) ResolveTenant(ctx context.Context, arg ResolveTenantParams) (s
 	err := row.Scan(&id)
 	return id, err
 }
+
+const tenantExternalID = `-- name: TenantExternalID :one
+SELECT coalesce(external_id, '') AS external_id
+FROM tenants
+WHERE id = ?1
+`
+
+func (q *Queries) TenantExternalID(ctx context.Context, tenantID string) (string, error) {
+	row := q.db.QueryRowContext(ctx, tenantExternalID, tenantID)
+	var external_id string
+	err := row.Scan(&external_id)
+	return external_id, err
+}

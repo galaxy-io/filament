@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -15,8 +16,16 @@ import (
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
 
-// Path is the public delivery route. Expose only this prefix to senders.
-const Path = "POST /hooks/{sourceID}/{resource}"
+// Path is the public delivery route prefix. Expose only this prefix to
+// senders. A delivery names its resource in the path, or is sent to the
+// endpoint's single URL and routed by its event type.
+const Path = "/hooks/"
+
+// routes are the delivery patterns the receiver serves.
+var routes = []string{
+	"POST /hooks/{sourceID}/{resource}",
+	"POST /hooks/{sourceID}",
+}
 
 // EndpointResolver returns an endpoint with its active signing keys.
 type EndpointResolver interface {
@@ -29,7 +38,7 @@ type Inbox interface {
 	Resolve(ctx context.Context, tenant, endpoint, providerID string, body []byte) (inbox.Receipt, error)
 }
 
-// Receiver serves the delivery route on the server's listener.
+// Receiver serves the delivery routes. The server gives it its own listener.
 type Receiver struct {
 	Endpoints EndpointResolver
 	Inbox     Inbox
@@ -39,14 +48,22 @@ type Receiver struct {
 	Metrics filament.Metrics
 }
 
-// Mount adds the delivery route to mux.
-func (h *Receiver) Mount(mux *http.ServeMux) { mux.Handle(Path, h) }
+// Mount adds the delivery routes to mux.
+func (h *Receiver) Mount(mux *http.ServeMux) {
+	for _, pattern := range routes {
+		mux.Handle(pattern, h)
+	}
+}
 
 // ServeHTTP authenticates the bounded body, then stores it before answering.
 // An enabled endpoint stores new deliveries for its configured resources while
 // a pipeline can read them. When every reading pipeline is stopped, a new
 // delivery gets 503 so the sender retries later instead of filling the inbox.
 // Any other authenticated request only resolves a retry of an earlier delivery.
+//
+// A delivery sent to the endpoint's single URL is routed by its event type
+// once it is authenticated. One whose type maps to no resource is
+// acknowledged and dropped.
 func (h *Receiver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	outcome := h.serve(w, r)
 	if h.Metrics != nil {
@@ -66,7 +83,7 @@ func (h *Receiver) serve(w http.ResponseWriter, r *http.Request) string {
 		}
 	}
 	sourceID, resource := r.PathValue("sourceID"), r.PathValue("resource")
-	if _, err := uuid.Parse(sourceID); err != nil || !ValidResourceName(resource) {
+	if _, err := uuid.Parse(sourceID); err != nil || (resource != "" && !ValidResourceName(resource)) {
 		http.NotFound(w, r)
 		return "not_found"
 	}
@@ -80,10 +97,12 @@ func (h *Receiver) serve(w http.ResponseWriter, r *http.Request) string {
 		return "unavailable"
 	}
 	endpoint := resolved.Endpoint
-	verifier, ok := LookupVerifier(endpoint.Verifier)
-	if !ok {
-		http.Error(w, "endpoint unavailable", http.StatusServiceUnavailable)
-		return "unavailable"
+	verifier := resolved.Verifier
+	if verifier == nil {
+		if verifier, err = BuildVerifier(endpoint.Verifier, endpoint.VerifierParams); err != nil {
+			http.Error(w, "endpoint unavailable", http.StatusServiceUnavailable)
+			return "unavailable"
+		}
 	}
 	limit := endpoint.MaxBodyBytes
 	if limit <= 0 || limit > HardMaxBody {
@@ -102,6 +121,21 @@ func (h *Receiver) serve(w http.ResponseWriter, r *http.Request) string {
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return "unauthorized"
+	}
+	if resource == "" {
+		route := endpoint.Ingress.Route
+		if route == nil {
+			http.NotFound(w, r)
+			return "not_found"
+		}
+		var ok bool
+		// The sender cannot fix an event no pipeline selected, so acknowledge
+		// it, and it neither retries nor disables the endpoint. A disabled
+		// endpoint answers as it would on a resource path.
+		if resource, ok = route.Resolve(r.Header, body); !ok || (endpoint.Enabled && !slices.Contains(endpoint.Resources, resource)) {
+			w.WriteHeader(successStatus(endpoint))
+			return "unrouted"
+		}
 	}
 	tenant := string(endpoint.Tenant)
 	if !endpoint.Accepts(resource) || !endpoint.Accepting {
@@ -123,11 +157,7 @@ func (h *Receiver) serve(w http.ResponseWriter, r *http.Request) string {
 func (h *Receiver) answer(w http.ResponseWriter, r *http.Request, endpoint Endpoint, err error, retryOnly bool) string {
 	switch {
 	case err == nil:
-		status := endpoint.SuccessStatus
-		if !validSuccessStatus(status) {
-			status = DefaultSuccessStatus
-		}
-		w.WriteHeader(status)
+		w.WriteHeader(successStatus(endpoint))
 		if retryOnly {
 			return "duplicate"
 		}
@@ -148,6 +178,13 @@ func (h *Receiver) answer(w http.ResponseWriter, r *http.Request, endpoint Endpo
 		http.Error(w, "inbox unavailable", http.StatusServiceUnavailable)
 		return "unavailable"
 	}
+}
+
+func successStatus(endpoint Endpoint) int {
+	if validSuccessStatus(endpoint.SuccessStatus) {
+		return endpoint.SuccessStatus
+	}
+	return DefaultSuccessStatus
 }
 
 func (h *Receiver) now() time.Time {

@@ -43,8 +43,27 @@ server:
     maxMessageBytes: 2097152
     # -- JetStream replicas for the webhook inbox.
     replicas: 1
-    # -- Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set.
+    # -- Public origin webhook senders reach, normally the webhook ingress host, e.g. `https://webhooks.example.com`. The UI shows full delivery URLs when set.
     publicBaseURL: ""
+    # -- Port the server serves `/hooks/` on, separate from the API port.
+    port: 8088
+    service:
+      # -- Webhook Service type.
+      type: ClusterIP
+      # -- Annotations for the webhook Service, e.g. cloud load balancer settings.
+      annotations: {}
+    ingress:
+      # -- Enable a separate Ingress that exposes only `/hooks/`.
+      enabled: false
+      # -- IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default.
+      className: ""
+      # -- Annotations for the webhook Ingress.
+      annotations: {}
+      # -- Hostnames served by the webhook Ingress.
+      hosts:
+        - webhooks.example.com
+      # -- Webhook Ingress TLS configuration, passed through verbatim.
+      tls: []
   # -- Minimum server log level. Valid values: INFO, DEBUG, TRACE.
   logLevel: INFO
 
@@ -241,7 +260,9 @@ persistence:
   # -- Persistence provider.
   type: postgres
 
-  # -- Run database migrations as a post-install/post-upgrade hook Job.
+  # -- Run database migrations as a hook Job: pre-install/pre-upgrade when
+  # `existingSecret` is set and the vendored PostgreSQL is off, otherwise
+  # post-install/post-upgrade.
   migrate: true
   # -- Migration Job resource requests and limits.
   migrateResources: {}
@@ -401,6 +422,15 @@ observability:
     # Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318).
     # Empty defaults to `grpc`.
     protocol: ""
+
+alchemy:
+  # -- Alchemy API that filament's server, control plane and workers call, stored in the ConfigMaps as
+  # `GALAXY_ALCHEMY_SERVER_URL`. Empty uses `galaxy.productUrls.alchemy`; both empty disables alchemy steps.
+  serverUrl: ""
+  # -- Arrow bytes batched into one alchemy call, stored as `ALCHEMY_BATCH_MAX_BYTES`. Zero takes the 16 MiB default; at most 64 MiB.
+  batchMaxBytes: 0
+  # -- Alchemy calls a run keeps in flight, stored as `ALCHEMY_MAX_IN_FLIGHT`. Zero takes the default of 4.
+  maxInFlight: 0
 
 # Vendored Bitnami PostgreSQL configuration.
 # It is strongly recommended to use an external PostgreSQL instance in production.

@@ -5,10 +5,13 @@ import Alert, { AlertVariant } from "@galaxy-io/dls/feedback/Alert";
 import CheckboxInput from "@galaxy-io/dls/inputs/CheckboxInput";
 import CopyInput from "@galaxy-io/dls/inputs/CopyInput";
 import Flex, { AlignItems, FlexDirection, JustifyContent } from "@galaxy-io/dls/layout/Flex";
-import Text from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
+
 import ConnectionFormHeader from "@/pages/connections/components/form/ConnectionFormHeader";
+import ConnectionFormWebhookDeliveryTargets from "@/pages/connections/components/form/ConnectionFormWebhookDeliveryTargets";
+import ConnectionFormWebhookSetupGuide from "@/pages/connections/components/form/ConnectionFormWebhookSetupGuide";
 import ConnectionFormWrapper from "@/pages/connections/components/form/ConnectionFormWrapper";
 import type { ConnectionFormSigningKeyReveal } from "@/pages/connections/components/form/types";
 
@@ -20,7 +23,7 @@ interface ConnectionFormSigningKeyModalProps {
 
 const ConnectionFormSigningKeyModal: FC<ConnectionFormSigningKeyModalProps> = ({
   isOpen,
-  reveal: { connection, signingKey, deliveryUrl },
+  reveal: { connection, webhook, signingKey, deliveryUrl },
   onDone,
 }) => {
   const [isStored, setIsStored] = useState(false);
@@ -34,6 +37,7 @@ const ConnectionFormSigningKeyModal: FC<ConnectionFormSigningKeyModalProps> = ({
           connectorName={connection.connector}
           connectorKind={connection.kind}
           title={`${connection.name} signing key`}
+          badge={getWebhookConnectorTileBadge(webhook)}
         />
       }
       footer={
@@ -49,24 +53,12 @@ const ConnectionFormSigningKeyModal: FC<ConnectionFormSigningKeyModalProps> = ({
       onClose={onDone}
     >
       <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={16}>
-        <Alert
-          variant={AlertVariant.WARNING}
-          header="Save this key now. It will not be shown again."
-        >
-          Add it to the sender that signs your deliveries.
+        <Alert variant={AlertVariant.WARNING} header="This key is shown only once">
+          Copy it into the sender before closing.
         </Alert>
         <CopyInput label="Signing key" value={signingKey} family={FontFamily.MONO} fillWidth />
-        {deliveryUrl ? (
-          <CopyInput
-            label="Delivery URL"
-            labelTooltip="Send each delivery to this URL followed by a resource name, such as /orders. Resources are named in the pipeline that reads this source."
-            value={deliveryUrl}
-            family={FontFamily.MONO}
-            fillWidth
-          />
-        ) : (
-          <Text>Delivery URL unavailable. Configure WEBHOOK_PUBLIC_BASE_URL.</Text>
-        )}
+        <ConnectionFormWebhookDeliveryTargets webhook={webhook} deliveryUrl={deliveryUrl} />
+        <ConnectionFormWebhookSetupGuide webhook={webhook} deliveryUrl={deliveryUrl} />
       </Flex>
     </ConnectionFormWrapper>
   );

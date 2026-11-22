@@ -9,3 +9,10 @@ export const ACTIVE_RUNS_REFETCH_INTERVAL = 3 * 1000;
 export const SCHEDULED_REFETCH_MAX_INTERVAL = 60 * 1000;
 
 export const ACTIVE_PIPELINE_RUNS_PAGE_SIZE = 8;
+
+export const ALCHEMY_BUILD_REFETCH_INTERVAL = 2 * 1000;
+
+export const ALCHEMY_QUERY_OPTIONS = {
+  retry: false,
+  staleTime: 30 * 1000,
+} as const;
