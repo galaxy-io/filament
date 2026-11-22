@@ -56,18 +56,24 @@ func parseLinkHeader(header, targetRel string) string {
 	for _, match := range linkRE.FindAllStringSubmatch(header, -1) {
 		urlPart := match[1]
 		params := match[2]
+		isTargetRel := false
+		hasResults := true
 		for _, param := range strings.Split(params, ";") {
 			kv := strings.SplitN(strings.TrimSpace(param), "=", 2)
 			if len(kv) != 2 {
 				continue
 			}
-			if strings.TrimSpace(kv[0]) != "rel" {
-				continue
+			k := strings.ToLower(strings.TrimSpace(kv[0]))
+			v := strings.Trim(strings.TrimSpace(kv[1]), `"`)
+			if k == "rel" && v == targetRel {
+				isTargetRel = true
 			}
-			val := strings.Trim(strings.TrimSpace(kv[1]), `"`)
-			if val == targetRel {
-				return urlPart
+			if k == "results" && strings.EqualFold(v, "false") {
+				hasResults = false
 			}
+		}
+		if isTargetRel && hasResults {
+			return urlPart
 		}
 	}
 	return ""

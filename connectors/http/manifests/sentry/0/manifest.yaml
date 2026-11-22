@@ -1,0 +1,208 @@
+version: 1
+name: sentry
+display_name: Sentry
+description: Application performance monitoring and error tracking platform where developers diagnose software exceptions, trace distributed transactions, and monitor release stability across services.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-sentry-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-sentry-light.svg
+api_version: "0"
+
+config:
+  auth_token:
+    type: secret
+    required: true
+    help: Sentry auth token (User Auth Token or Internal Integration Token) with org:read, project:read, member:read, and event:read scopes.
+  base_url:
+    type: string
+    default: https://sentry.io/api/0
+    pattern: "^(https://.*|http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(/.*)?)$"
+    help: Sentry API base URL, including the /api/0 path prefix. Defaults to https://sentry.io/api/0. For regional Sentry SaaS enter your region URL (e.g. https://us.sentry.io/api/0 or https://de.sentry.io/api/0). For self-hosted instances enter your host endpoint ending in /api/0.
+
+connection:
+  base_url: "{{ config.base_url }}"
+  auth:
+    bearer: config.auth_token
+  headers:
+    Accept: application/json
+    User-Agent: filament/1.0
+  rate_limit:
+    requests_per_second: 5
+    burst: 1
+    dynamic:
+      remaining_header: X-Sentry-Rate-Limit-Remaining
+      reset_header: X-Sentry-Rate-Limit-Reset
+      reset_format: unix_seconds
+    responses:
+      - status: 429
+        header: Retry-After
+
+defaults:
+  method: GET
+  query:
+    per_page: "100"
+  response:
+    records: $
+    pagination:
+      link: next
+
+resources:
+  - name: organizations
+    path: /organizations/
+    primary_key: [id]
+    fields:
+      id: string
+      slug: string
+      name: string
+      date_created: {path: dateCreated, type: timestamptz}
+      status: json
+      is_available: {path: isAvailable, type: bool, nullable: true}
+      features: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      organization_id: id
+      organization_slug: slug
+
+  - name: projects
+    path: /organizations/{organization_slug}/projects/
+    params:
+      organization_slug: parent.organization_slug
+    for_each: organizations
+    primary_key: [organization_id, id]
+    fields:
+      organization_id: {path: parent.organization_id, type: string}
+      organization_slug: {path: parent.organization_slug, type: string}
+      id: string
+      slug: string
+      name: string
+      platform: string?
+      date_created: {path: dateCreated, type: timestamptz}
+      is_bookmarked: {path: isBookmarked, type: bool, nullable: true}
+      is_member: {path: isMember, type: bool, nullable: true}
+      has_sessions: {path: hasSessions, type: bool, nullable: true}
+      has_profiles: {path: hasProfiles, type: bool, nullable: true}
+      has_replays: {path: hasReplays, type: bool, nullable: true}
+      team: json?
+      teams: json?
+      environments: json?
+      features: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      organization_slug: parent.organization_slug
+      project_id: id
+      project_slug: slug
+
+  - name: teams
+    path: /organizations/{organization_slug}/teams/
+    params:
+      organization_slug: parent.organization_slug
+    for_each: organizations
+    primary_key: [organization_id, id]
+    fields:
+      organization_id: {path: parent.organization_id, type: string}
+      organization_slug: {path: parent.organization_slug, type: string}
+      id: string
+      slug: string
+      name: string
+      date_created: {path: dateCreated, type: timestamptz, nullable: true}
+      is_member: {path: isMember, type: bool, nullable: true}
+      has_access: {path: hasAccess, type: bool, nullable: true}
+      member_count: {path: memberCount, type: int64, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: organization_members
+    path: /organizations/{organization_slug}/members/
+    params:
+      organization_slug: parent.organization_slug
+    for_each: organizations
+    primary_key: [organization_id, id]
+    fields:
+      organization_id: {path: parent.organization_id, type: string}
+      organization_slug: {path: parent.organization_slug, type: string}
+      id: string
+      email: string?
+      name: string?
+      org_role: {path: orgRole, type: string, nullable: true}
+      pending: bool?
+      expired: bool?
+      date_created: {path: dateCreated, type: timestamptz, nullable: true}
+      user: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: releases
+    path: /organizations/{organization_slug}/releases/
+    params:
+      organization_slug: parent.organization_slug
+    for_each: organizations
+    primary_key: [organization_id, version]
+    fields:
+      organization_id: {path: parent.organization_id, type: string}
+      organization_slug: {path: parent.organization_slug, type: string}
+      id: string?
+      version: string
+      short_version: {path: shortVersion, type: string, nullable: true}
+      status: string?
+      date_created: {path: dateCreated, type: timestamptz, nullable: true}
+      date_released: {path: dateReleased, type: timestamptz, nullable: true}
+      new_groups: {path: newGroups, type: int64, nullable: true}
+      commit_count: {path: commitCount, type: int64, nullable: true}
+      deploy_count: {path: deployCount, type: int64, nullable: true}
+      version_info: {path: versionInfo, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: issues
+    path: /organizations/{organization_slug}/issues/
+    params:
+      organization_slug: parent.organization_slug
+    for_each: organizations
+    query:
+      query: ""
+    primary_key: [organization_id, id]
+    fields:
+      organization_id: {path: parent.organization_id, type: string}
+      organization_slug: {path: parent.organization_slug, type: string}
+      id: string
+      short_id: {path: shortId, type: string, nullable: true}
+      title: string
+      culprit: string?
+      level: string?
+      status: string
+      is_public: {path: isPublic, type: bool, nullable: true}
+      platform: string?
+      project_id: {path: project.id, type: string, nullable: true}
+      project_name: {path: project.name, type: string, nullable: true}
+      project_slug: {path: project.slug, type: string, nullable: true}
+      type: string?
+      num_comments: {path: numComments, type: int64, nullable: true}
+      total_count: {path: totalCount, type: int64, nullable: true}
+      user_count: {path: userCount, type: int64, nullable: true}
+      first_seen: {path: firstSeen, type: timestamptz, nullable: true}
+      last_seen: {path: lastSeen, type: timestamptz, nullable: true}
+      permalink: string?
+      assigned_to: {path: assignedTo, type: json, nullable: true}
+      metadata: json?
+      status_details: {path: statusDetails, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      issue_id: id
+
+  - name: alert_rules
+    path: /projects/{organization_slug}/{project_slug}/rules/
+    params:
+      organization_slug: parent.organization_slug
+      project_slug: parent.project_slug
+    for_each: projects
+    primary_key: [project_id, id]
+    fields:
+      project_id: {path: parent.project_id, type: string}
+      project_slug: {path: parent.project_slug, type: string}
+      organization_slug: {path: parent.organization_slug, type: string}
+      id: string
+      name: string
+      action_match: {path: actionMatch, type: string, nullable: true}
+      filter_match: {path: filterMatch, type: string, nullable: true}
+      frequency: int64?
+      date_created: {path: dateCreated, type: timestamptz, nullable: true}
+      status: string?
+      conditions: json?
+      actions: json?
+      filters: json?
+      raw: {path: $, type: json, mode: remainder}

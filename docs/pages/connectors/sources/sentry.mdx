@@ -1,0 +1,65 @@
+---
+title: "Sentry source connector"
+sidebarTitle: "Sentry"
+description: "Read organizations, projects, teams, members, releases, issues, and alert rules from Sentry with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-sentry-dark.svg"
+---
+
+Connector ID `sentry`
+
+The Sentry source reads organizations, projects, teams, organization members, releases, issues, and alert rules from the Sentry REST API. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). This connector is in preview. It targets API version `0`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `auth_token` | Connection | | Required. Secret. Sentry auth token (User Auth Token or Internal Integration Token) with `org:read`, `project:read`, and `member:read` scopes. |
+| `base_url` | Connection | `https://sentry.io/api/0` | Optional. Sentry API base URL ending in `/api/0`. Use `https://sentry.io/api/0` or your regional domain or self-hosted endpoint. |
+
+Connection testing sends `GET /organizations/?per_page=1`.
+
+## Resources
+
+All resources are selected by default. Top-level resources list organizations. Child resources fan out across their respective parent entities.
+
+| Resource | Endpoint | Primary Key | Parent |
+|---|---|---|---|
+| `organizations` | `GET /organizations/` | `id` | |
+| `projects` | `GET /organizations/{organization_slug}/projects/` | `organization_id`, `id` | `organizations` |
+| `teams` | `GET /organizations/{organization_slug}/teams/` | `organization_id`, `id` | `organizations` |
+| `organization_members` | `GET /organizations/{organization_slug}/members/` | `organization_id`, `id` | `organizations` |
+| `releases` | `GET /organizations/{organization_slug}/releases/` | `organization_id`, `version` | `organizations` |
+| `issues` | `GET /organizations/{organization_slug}/issues/` | `organization_id`, `id` | `organizations` |
+| `alert_rules` | `GET /projects/{organization_slug}/{project_slug}/rules/` | `project_id`, `id` | `projects` |
+
+`organizations` lists all Sentry organizations accessible to the authenticated token.
+
+`projects` lists projects belonging to each organization, including platform types and feature flags.
+
+`teams` retrieves teams configured within each organization, their access permissions, and member counts.
+
+`organization_members` captures organization users, assigned roles, and pending invitations.
+
+`releases` lists deployed versions, commit and deploy counts, and release lifecycles.
+
+`issues` extracts grouped exceptions, resolution status, culprit locations, and user impact counts. An empty search query parameter is sent to capture both resolved and unresolved issues.
+
+`alert_rules` reads configured alert notification rules, trigger conditions, and actions for each project.
+
+## Modes
+
+All resources run in full read mode. Use **full upsert** to refresh rows or **full replace** to reconcile active records.
+
+## Limitations
+
+Individual raw events are excluded because high error volume can produce millions of rows per project. The `issues` resource provides aggregated exception metrics and lifecycle states.
+
+The `issues` resource uses full read mode. Sentry search filters support relative time windows rather than absolute timestamps, and issue status transitions can alter existing records without updating event timestamps.
+
+## Behavior
+
+- **Auth**. Every request sends an `Authorization: Bearer` header containing the configured token.
+- **Pagination**. Requests use standard RFC 5988 `Link` headers (`rel="next"`). The paginator checks the `results="false"` directive to stop pagination when collections end.
+- **Rate limiting**. Requests pace at 5 requests per second with adaptive backoff honoring `X-Sentry-Rate-Limit-Remaining` and `X-Sentry-Rate-Limit-Reset` headers. HTTP 429 responses back off using `Retry-After`.
+- **Trailing slashes**. All endpoint URLs preserve trailing slashes to avoid redirection errors.
+- Every resource includes a `raw` remainder column preserving unmapped upstream payload fields.
