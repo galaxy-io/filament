@@ -10,6 +10,13 @@ config:
     type: secret
     required: true
     help: SendGrid API key from Settings > API Keys (SG.…). Grant read permissions on Template Engine, Stats, Suppressions, and Marketing.
+  base_url:
+    type: enum
+    enum:
+      - https://api.sendgrid.com
+      - https://api.eu.sendgrid.com
+    default: https://api.sendgrid.com
+    help: SendGrid API host. Select https://api.eu.sendgrid.com for EU regional subusers pinned to European data residency.
   stats_start_date:
     type: string
     scope: pipeline
@@ -26,7 +33,7 @@ field_sets:
     # the numeric incremental comparator on start_time.
     created: int64
 connection:
-  base_url: https://api.sendgrid.com
+  base_url: "{{ config.base_url }}"
   auth:
     bearer: config.api_key
   headers:
@@ -93,7 +100,6 @@ resources:
       email: string?
       first_name: string?
       last_name: string?
-      alternate_emails: json?
       address_line_1: string?
       address_line_2: string?
       city: string?
@@ -101,12 +107,7 @@ resources:
       postal_code: string?
       country: string?
       phone_number: string?
-      whatsapp: string?
-      line: string?
-      facebook: string?
-      unique_name: string?
       list_ids: json?
-      segment_ids: json?
       custom_fields: json?
       created_at: timestamptz?
       updated_at: timestamptz?
@@ -127,22 +128,17 @@ resources:
       name: string
       status: string?
       categories: json?
-      # SendGrid's Single Sends list endpoint can return the literal string
-      # "now" as well as an ISO-8601 timestamp or null for send_at. Typed
-      # string? so "now" is preserved intact without failing timestamp parsing.
+      # SendGrid's list endpoint can return the literal string "now" in addition
+      # to ISO-8601 timestamps or null, so keep send_at as string? to avoid
+      # failing sink timestamp coercion.
       send_at: string?
+      is_abtest: bool?
       created_at: timestamptz?
       updated_at: timestamptz?
-      is_abtest: bool?
-      abtest: json?
       _metadata: json?
       raw: {path: $, type: json, mode: remainder}
 
   - name: bounces
-    # SendGrid's bounce response has no event ID and its official reference
-    # shows multiple bounce events sharing the same (email, created) pair with
-    # different reason strings. Keyless so distinct events at the same second
-    # are never collapsed by an upsert key.
     path: /v3/suppression/bounces
     response:
       records: $
@@ -151,7 +147,7 @@ resources:
           offset: query.offset
           limit: query.limit
           page_size: 500
-    primary_key: []
+    primary_key: [email]
     use_fields: [suppression_event]
     fields:
       reason: string?
@@ -175,7 +171,7 @@ resources:
           offset: query.offset
           limit: query.limit
           page_size: 500
-    primary_key: []
+    primary_key: [email]
     use_fields: [suppression_event]
     fields:
       reason: string?
@@ -199,7 +195,7 @@ resources:
           offset: query.offset
           limit: query.limit
           page_size: 500
-    primary_key: []
+    primary_key: [email]
     use_fields: [suppression_event]
     fields:
       ip: string?
@@ -222,7 +218,7 @@ resources:
           offset: query.offset
           limit: query.limit
           page_size: 500
-    primary_key: []
+    primary_key: [email]
     use_fields: [suppression_event]
     fields:
       raw: {path: $, type: json, mode: remainder}
@@ -244,7 +240,7 @@ resources:
           offset: query.offset
           limit: query.limit
           page_size: 500
-    primary_key: []
+    primary_key: [email]
     use_fields: [suppression_event]
     fields:
       reason: string?
@@ -286,7 +282,6 @@ discovery:
   default_resources:
     - templates
     - lists
-    - contacts
     - singlesends
     - bounces
     - blocks
