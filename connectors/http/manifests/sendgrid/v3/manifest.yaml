@@ -10,11 +10,6 @@ config:
     type: secret
     required: true
     help: SendGrid API key from Settings > API Keys (SG.…). Grant read permissions on Template Engine, Stats, Suppressions, and Marketing.
-  region:
-    type: enum
-    enum: [global, eu]
-    default: global
-    help: SendGrid regional API host (global for api.sendgrid.com, eu for api.eu.sendgrid.com).
   stats_start_date:
     type: string
     scope: pipeline
@@ -32,10 +27,6 @@ field_sets:
     created: int64
 connection:
   base_url: https://api.sendgrid.com
-  base_url_field: region
-  base_urls:
-    global: https://api.sendgrid.com
-    eu: https://api.eu.sendgrid.com
   auth:
     bearer: config.api_key
   headers:
@@ -53,9 +44,6 @@ connection:
       min_floor_rps: 1
 resources:
   # First top-level resource, so it doubles as the TestConnection probe.
-  # Templates are supported on both global (api.sendgrid.com) and EU regional
-  # subuser (api.eu.sendgrid.com) endpoints, unlike Marketing Campaigns which
-  # is global-only.
   - name: templates
     path: /v3/templates
     query:
@@ -75,151 +63,6 @@ resources:
       warnings: json?
       raw: {path: $, type: json, mode: remainder}
 
-  - name: bounces
-    path: /v3/suppression/bounces
-    response:
-      records: $
-      pagination:
-        offset:
-          offset: query.offset
-          limit: query.limit
-          page_size: 500
-    primary_key: [email, created]
-    use_fields: [suppression_event]
-    fields:
-      reason: string?
-      status: string?
-      raw: {path: $, type: json, mode: remainder}
-    incremental:
-      cursor_field: created
-      start_param: start_time
-      inject_into: query
-      initial: "0"
-      checkpoint_key: bounces_created
-      comparator: numeric
-      overlap_seconds: 300
-
-  - name: blocks
-    path: /v3/suppression/blocks
-    response:
-      records: $
-      pagination:
-        offset:
-          offset: query.offset
-          limit: query.limit
-          page_size: 500
-    primary_key: [email, created]
-    use_fields: [suppression_event]
-    fields:
-      reason: string?
-      status: string?
-      raw: {path: $, type: json, mode: remainder}
-    incremental:
-      cursor_field: created
-      start_param: start_time
-      inject_into: query
-      initial: "0"
-      checkpoint_key: blocks_created
-      comparator: numeric
-      overlap_seconds: 300
-
-  - name: spam_reports
-    path: /v3/suppression/spam_reports
-    response:
-      records: $
-      pagination:
-        offset:
-          offset: query.offset
-          limit: query.limit
-          page_size: 500
-    primary_key: [email, created]
-    use_fields: [suppression_event]
-    fields:
-      ip: string?
-      raw: {path: $, type: json, mode: remainder}
-    incremental:
-      cursor_field: created
-      start_param: start_time
-      inject_into: query
-      initial: "0"
-      checkpoint_key: spam_reports_created
-      comparator: numeric
-      overlap_seconds: 300
-
-  - name: unsubscribes
-    path: /v3/suppression/unsubscribes
-    response:
-      records: $
-      pagination:
-        offset:
-          offset: query.offset
-          limit: query.limit
-          page_size: 500
-    primary_key: [email, created]
-    use_fields: [suppression_event]
-    fields:
-      raw: {path: $, type: json, mode: remainder}
-    incremental:
-      cursor_field: created
-      start_param: start_time
-      inject_into: query
-      initial: "0"
-      checkpoint_key: unsubscribes_created
-      comparator: numeric
-      overlap_seconds: 300
-
-  - name: invalid_emails
-    path: /v3/suppression/invalid_emails
-    response:
-      records: $
-      pagination:
-        offset:
-          offset: query.offset
-          limit: query.limit
-          page_size: 500
-    primary_key: [email, created]
-    use_fields: [suppression_event]
-    fields:
-      reason: string?
-      raw: {path: $, type: json, mode: remainder}
-    incremental:
-      cursor_field: created
-      start_param: start_time
-      inject_into: query
-      initial: "0"
-      checkpoint_key: invalid_emails_created
-      comparator: numeric
-      overlap_seconds: 300
-
-  - name: global_stats
-    path: /v3/stats
-    query:
-      aggregated_by: day
-      start_date: "{{ config.stats_start_date }}"
-    response:
-      records: $
-      pagination:
-        offset:
-          offset: query.offset
-          limit: query.limit
-          page_size: 500
-    primary_key: [date]
-    fields:
-      date: string
-      stats: json?
-      raw: {path: $, type: json, mode: remainder}
-    incremental:
-      cursor_field: date
-      start_param: start_date
-      inject_into: query
-      checkpoint_key: global_stats_date
-      comparator: lex
-
-  # Marketing Campaigns resources (/v3/marketing/*) are supported on the global
-  # API host only (Twilio SendGrid does not offer Marketing Campaigns on EU
-  # regional subusers). They remain discoverable and selectable for global
-  # accounts while excluded from default_resources so EU connections run out of
-  # the box without unselecting them.
   - name: lists
     path: /v3/marketing/lists
     query:
@@ -294,10 +137,157 @@ resources:
       abtest: json?
       _metadata: json?
       raw: {path: $, type: json, mode: remainder}
+
+  - name: bounces
+    # SendGrid's bounce response has no event ID and its official reference
+    # shows multiple bounce events sharing the same (email, created) pair with
+    # different reason strings. Keyless so distinct events at the same second
+    # are never collapsed by an upsert key.
+    path: /v3/suppression/bounces
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: []
+    use_fields: [suppression_event]
+    fields:
+      reason: string?
+      status: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: bounces_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: blocks
+    path: /v3/suppression/blocks
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: []
+    use_fields: [suppression_event]
+    fields:
+      reason: string?
+      status: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: blocks_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: spam_reports
+    path: /v3/suppression/spam_reports
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: []
+    use_fields: [suppression_event]
+    fields:
+      ip: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: spam_reports_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: unsubscribes
+    path: /v3/suppression/unsubscribes
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: []
+    use_fields: [suppression_event]
+    fields:
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: unsubscribes_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: invalid_emails
+    path: /v3/suppression/invalid_emails
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: []
+    use_fields: [suppression_event]
+    fields:
+      reason: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: invalid_emails_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: global_stats
+    path: /v3/stats
+    query:
+      aggregated_by: day
+      start_date: "{{ config.stats_start_date }}"
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [date]
+    fields:
+      date: string
+      stats: json?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: date
+      start_param: start_date
+      inject_into: query
+      checkpoint_key: global_stats_date
+      comparator: lex
 discovery:
   mode: static
   default_resources:
     - templates
+    - lists
+    - contacts
+    - singlesends
     - bounces
     - blocks
     - spam_reports
