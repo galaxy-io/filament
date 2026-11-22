@@ -94,7 +94,7 @@ func (c *Connector) paginate(
 		if strictCursor {
 			// An empty final page may repeat or drop the cursor, so stop_on_empty
 			// ends the walk before the cursor envelope is validated.
-			if stopsOnEmptyPage(res, records) {
+			if stopsOnEmptyStrictPage(res, raw, records) {
 				return totalRecords, pageCount + 1, finishStrictEmptyPage(sink, progressResource, tokenMode, state.Cursor)
 			}
 			token, more, err = responseCursor(res, raw, seen)
@@ -205,6 +205,14 @@ func responseCursor(res manifest.Resource, raw []byte, seen map[string]bool) (st
 	}
 	seen[token] = true
 	return token, more, nil
+}
+
+// stopsOnEmptyStrictPage is stopsOnEmptyPage for strict cursor pages. Only an
+// empty records array counts: missing or null records are a malformed envelope
+// and must still fail the strict cursor check.
+func stopsOnEmptyStrictPage(res manifest.Resource, raw []byte, records []map[string]any) bool {
+	return stopsOnEmptyPage(res, records) &&
+		gjson.GetBytes(raw, strings.TrimPrefix(res.Response.RecordsPath, "$.")).IsArray()
 }
 
 // finishStrictEmptyPage ends a strict cursor walk on an empty page. In token

@@ -644,3 +644,29 @@ func TestStrictCursorStopOnEmptyIgnoresCursorOnEmptyPage(t *testing.T) {
 		})
 	}
 }
+
+// With strict and stop_on_empty, only an empty records array ends the walk. A
+// page with missing or null records is a malformed envelope and still fails
+// the strict cursor check instead of ending the walk quietly.
+func TestStrictCursorStopOnEmptyRejectsMissingRecords(t *testing.T) {
+	manifest := strings.Replace(scrollTestManifest, "        stop_on_empty: true\n",
+		"        more: has_more\n        strict: true\n        stop_on_empty: true\n", 1)
+	if manifest == scrollTestManifest {
+		t.Fatal("fixture did not add strict")
+	}
+	for name, last := range map[string]string{
+		"missing records": `{"scroll_param":"s2","has_more":true}`,
+		"null records":    `{"data":null,"scroll_param":"s2","has_more":true}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			api, _ := scrollAPI(t, map[string]string{
+				"":   `{"data":[{"id":"c1"}],"scroll_param":"s1","has_more":true}`,
+				"s1": last,
+			})
+			_, err := extractScroll(t, manifest, api.URL)
+			if err == nil || !strings.Contains(err.Error(), "invalid response cursor envelope") {
+				t.Fatalf("Extract err=%v, want invalid response cursor envelope", err)
+			}
+		})
+	}
+}
