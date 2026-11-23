@@ -14,8 +14,8 @@ class IngestionV1WorkerConfiguration(UniversalBaseModel):
     """
     WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
      a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
-     merge per key when a run overrides a pipeline; node_selector and tolerations
-     replace wholesale.
+     and annotations merge per key when a run overrides a pipeline; node_selector
+     and tolerations replace wholesale.
     """
 
     resources: typing.Optional[IngestionV1WorkerResources] = None
@@ -25,6 +25,11 @@ class IngestionV1WorkerConfiguration(UniversalBaseModel):
         pydantic.Field(alias="nodeSelector"),
     ] = None
     tolerations: typing.Optional[typing.List[IngestionV1WorkerToleration]] = None
+    annotations: typing.Optional[typing.Dict[str, str]] = pydantic.Field(default=None)
+    """
+    Annotations are set on the worker pod for cluster components that read
+     them. None are set by default.
+    """
 
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
