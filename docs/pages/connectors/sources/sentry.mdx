@@ -51,7 +51,7 @@ All resources run in full read mode. Use **full upsert** to refresh rows or **fu
 
 Individual raw events are excluded because high error volume can produce millions of rows per project. The `issues` resource provides aggregated exception metrics and lifecycle states.
 
-The `issues` resource uses full read mode. Sentry search filters support relative time windows rather than absolute timestamps, and issue status transitions can alter existing records without updating event timestamps.
+The `issues` resource uses full read mode. Issues are mutable entities whose lifecycle states, assignments, and resolution statuses change over time without advancing event timestamps. Full read reconciles active issue states without silent omissions.
 
 ## Behavior
 
