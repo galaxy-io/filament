@@ -307,22 +307,25 @@ type WorkerConfiguration struct {
 	Resources    WorkerResources
 	NodeSelector map[string]string
 	Tolerations  []WorkerToleration
+	// Annotations are set on the worker pod.
+	Annotations map[string]string
 }
 
 // IsZero reports whether nothing is set.
 func (w WorkerConfiguration) IsZero() bool {
-	return w.Resources.IsZero() && len(w.NodeSelector) == 0 && len(w.Tolerations) == 0
+	return w.Resources.IsZero() && len(w.NodeSelector) == 0 && len(w.Tolerations) == 0 && len(w.Annotations) == 0
 }
 
-// Merge overlays w onto base and returns the result. Resources merge per key;
-// node selector and tolerations replace wholesale when set, since merging
-// selector keys from two sources would produce a node set neither author asked
-// for.
+// Merge overlays w onto base and returns the result. Resources and
+// annotations merge per key; node selector and tolerations replace wholesale
+// when set, since merging selector keys from two sources would produce a node
+// set neither author asked for.
 func (w WorkerConfiguration) Merge(base WorkerConfiguration) WorkerConfiguration {
 	out := WorkerConfiguration{
 		Resources:    w.Resources.Merge(base.Resources),
 		NodeSelector: base.NodeSelector,
 		Tolerations:  base.Tolerations,
+		Annotations:  mergeStringMaps(w.Annotations, base.Annotations),
 	}
 	if len(w.NodeSelector) > 0 || len(w.Tolerations) > 0 {
 		out.NodeSelector = w.NodeSelector

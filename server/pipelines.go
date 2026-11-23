@@ -83,6 +83,7 @@ func defaultWorkerConfiguration() *ingestionv1.WorkerConfiguration {
 		},
 		NodeSelector: map[string]string{},
 		Tolerations:  []*ingestionv1.WorkerToleration{},
+		Annotations:  map[string]string{},
 	}
 }
 

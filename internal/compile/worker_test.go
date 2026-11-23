@@ -72,6 +72,17 @@ func TestValidateWorkerConfiguration(t *testing.T) {
 			}},
 		},
 		{
+			name: "annotations",
+			cfg: filament.WorkerConfiguration{
+				Annotations: map[string]string{"karpenter.sh/do-not-disrupt": "true", "note": "any value, with spaces"},
+			},
+		},
+		{
+			name: "bad annotation key",
+			cfg:  filament.WorkerConfiguration{Annotations: map[string]string{"not a key": "x"}},
+			want: ErrInvalid,
+		},
+		{
 			name: "bad selector key",
 			cfg:  filament.WorkerConfiguration{NodeSelector: map[string]string{"not a key": "x"}},
 			want: ErrInvalid,
@@ -122,16 +133,32 @@ func TestWorkerConfigurationFromProto(t *testing.T) {
 		Resources:    &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "500m"}, Limits: map[string]string{"memory": "2Gi"}},
 		NodeSelector: map[string]string{"tier": "workers"},
 		Tolerations:  []*ingestionv1.WorkerToleration{{Key: "spot", Operator: "Exists", Effect: "NoSchedule"}},
+		Annotations:  map[string]string{"karpenter.sh/do-not-disrupt": "true"},
 	})
 	want := filament.WorkerConfiguration{
 		Resources:    filament.WorkerResources{Requests: map[string]string{"cpu": "500m"}, Limits: map[string]string{"memory": "2Gi"}},
 		NodeSelector: map[string]string{"tier": "workers"},
 		Tolerations:  []filament.WorkerToleration{{Key: "spot", Operator: "Exists", Effect: "NoSchedule"}},
+		Annotations:  map[string]string{"karpenter.sh/do-not-disrupt": "true"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 	if !WorkerConfigurationFromProto(nil).IsZero() {
 		t.Fatal("nil proto must be the zero configuration")
+	}
+}
+
+// A run override adds to the pipeline's annotations key by key.
+func TestWorkerConfigurationMergesAnnotationsPerKey(t *testing.T) {
+	pipeline := filament.WorkerConfiguration{Annotations: map[string]string{"team": "data", "karpenter.sh/do-not-disrupt": "true"}}
+	override := filament.WorkerConfiguration{Annotations: map[string]string{"team": "billing"}}
+	got := override.Merge(pipeline).Annotations
+	want := map[string]string{"team": "billing", "karpenter.sh/do-not-disrupt": "true"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("merged annotations = %v, want %v", got, want)
+	}
+	if merged := (filament.WorkerConfiguration{}).Merge(filament.WorkerConfiguration{}); merged.Annotations != nil || !merged.IsZero() {
+		t.Fatalf("merging nothing must stay zero, got %+v", merged)
 	}
 }

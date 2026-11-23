@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
@@ -21,6 +23,7 @@ func WorkerConfigurationFromProto(cfg *ingestionv1.WorkerConfiguration) filament
 			Limits:   cloneNonEmpty(cfg.GetResources().GetLimits()),
 		},
 		NodeSelector: cloneNonEmpty(cfg.GetNodeSelector()),
+		Annotations:  cloneNonEmpty(cfg.GetAnnotations()),
 	}
 	for _, t := range cfg.GetTolerations() {
 		out.Tolerations = append(out.Tolerations, filament.WorkerToleration{
@@ -59,6 +62,9 @@ func ValidateWorkerConfiguration(cfg filament.WorkerConfiguration) error {
 		if err := validateWorkerToleration(t); err != nil {
 			return fmt.Errorf("%w: worker tolerations[%d]: %w", ErrInvalid, i, err)
 		}
+	}
+	if errs := apivalidation.ValidateAnnotations(cfg.Annotations, field.NewPath("annotations")); len(errs) > 0 {
+		return fmt.Errorf("%w: worker %s", ErrInvalid, errs.ToAggregate())
 	}
 	return nil
 }
