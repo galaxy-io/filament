@@ -1,0 +1,89 @@
+---
+title: "Chargebee source connector"
+sidebarTitle: "Chargebee"
+description: "Read customers, subscriptions, invoices, credit notes, transactions, and the product catalog from Chargebee Billing"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-chargebee-dark.svg"
+---
+
+Connector ID `chargebee`
+
+The Chargebee source reads customers, subscriptions, invoices, credit notes,
+transactions, items, item prices, and coupons from the Chargebee Billing API.
+It is built with an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It targets API version `v2`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `site` | Connection | | Required. Site name, the part before `.chargebee.com` in the dashboard URL, such as `acme` or `acme-test`. |
+| `api_key` | Connection | | Required. Secret. API key from **Settings > Configure Chargebee > API Keys and Events**. A read-only key with access to all resources is enough. |
+
+API keys belong to one site. A test site and a live site need separate
+connections, each with its own key.
+
+## Resources
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `customers` | `GET /api/v2/customers` | |
+| `subscriptions` | `GET /api/v2/subscriptions` | |
+| `invoices` | `GET /api/v2/invoices` | |
+| `credit_notes` | `GET /api/v2/credit_notes` | |
+| `transactions` | `GET /api/v2/transactions` | |
+| `items` | `GET /api/v2/items` | |
+| `item_prices` | `GET /api/v2/item_prices` | |
+| `coupons` | `GET /api/v2/coupons` | |
+
+Each row is one Chargebee object, keyed by `id`. Line items, discounts,
+taxes, subscription items, and linked payments stay as nested JSON on their
+parent row. Every resource keeps the full object in `raw`, minus the columns
+it already projects. `customers` is also the connection probe.
+
+`items` and `item_prices` belong to Product Catalog 2.0. Sites still on
+Product Catalog 1.0 use plans and addons, which this connector does not read.
+Payment sources, orders, quotes, usages, and events are not included.
+
+## Modes
+
+All resources support full and incremental reads. Every request sets
+`include_deleted=true`, so deleted records arrive as rows with
+`deleted: true` instead of disappearing from the destination.
+
+| | |
+|---|---|
+| Cursor field | `updated_at` (Unix epoch seconds, `int64`) |
+| Request parameter | `updated_at[after]` (query) |
+| Comparator | `numeric` |
+| Checkpoint key | `<resource>_updated_at`, such as `invoices_updated_at` |
+| Overlap | 60 seconds |
+
+Chargebee recommends syncing with `updated_at[after]` and
+`sort_by[asc]=updated_at`. Six resources use that order, so an interrupted
+run resumes safely from its last checkpoint. The credit notes and coupons
+APIs filter by `updated_at` but reject sorting by it. Those two commit their
+watermark only after a complete pass, and an interrupted run starts again
+from the previous watermark.
+
+`updated_at[after]` is exclusive. The overlap window re-reads the last 60
+seconds so records updated in the same second as the previous run are not
+missed. Re-read rows repeat their primary key, so use an upsert write mode.
+
+## Behavior
+
+- **Auth**: HTTP basic with the API key as the username and no password,
+  matching `curl -u {api_key}:`.
+- **Pagination**: each response carries an opaque `next_offset` token, sent
+  back unchanged as `offset`, with `limit=100` per page. A response without
+  `next_offset` ends the walk.
+- **Record shape**: Chargebee wraps each list entry under its object name,
+  such as `{"customer": {...}}`. Subscription entries also carry the customer
+  and card, which this connector reads only through their own resources.
+- **Rate limiting**: a static 2 requests per second limiter shared across all
+  resources, below the 150 requests per minute allowed for test sites and the
+  Starter plan. Chargebee returns HTTP 429 above its limit.
+- **Timestamps**: every Chargebee timestamp is a Unix epoch integer typed
+  `int64`, not `timestamptz`.
+- **Amounts**: money fields are integers in the currency's smallest unit,
+  such as cents or paise.

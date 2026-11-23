@@ -1,0 +1,418 @@
+version: 1
+name: chargebee
+display_name: Chargebee
+description: Billing and monetization platform that automates subscription billing, invoicing, payment collection, and revenue operations for recurring-revenue businesses.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-chargebee-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-chargebee-light.svg
+api_version: "v2"
+config:
+  site:
+    type: string
+    required: true
+    help: Your Chargebee site name, the part before .chargebee.com in your dashboard URL (for example 'acme' or 'acme-test').
+  api_key:
+    type: secret
+    required: true
+    help: Chargebee API key from Settings > Configure Chargebee > API Keys and Events. A read-only key with access to all resources is enough.
+# Deliberately absent: the Product Catalog 1.0 endpoints (/plans, /addons).
+# Sites created since 2021 use Product Catalog 2.0, where items and
+# item_prices replace them. Payment sources, orders, quotes, usages and events
+# are also out of scope for the first version.
+defaults:
+  method: GET
+  query:
+    # Chargebee's page size defaults to 10 and caps at 100 on every list API.
+    limit: "100"
+  response:
+    # Every list API returns {list: [{<object>: {...}}, ...], next_offset}.
+    # Each list entry wraps the record under its object name, so every
+    # resource sets records to list.#.<object>. next_offset is an opaque token
+    # (a JSON-encoded array such as ["1795395985374","4854"]) that is passed
+    # back unchanged as offset. It is absent on the last page, which ends the
+    # walk; Chargebee returns no has-more flag.
+    pagination:
+      cursor:
+        response: next_offset
+        request: query.offset
+# Timestamp typing rule: every Chargebee timestamp is a Unix epoch integer in
+# seconds, not RFC 3339. They are typed int64, as in the Stripe manifest, so the
+# raw value survives and incremental cursors can use the numeric comparator.
+#
+# Nullability rule: a missing path on a non-nullable field aborts the whole
+# extraction. Only id and updated_at, present on every sampled record and
+# required for keys and cursors, are non-nullable.
+field_sets:
+  chargebee_object:
+    id: string
+    updated_at: int64
+    resource_version: int64?
+connection:
+  base_url: "https://{{ config.site }}.chargebee.com"
+  auth:
+    # Chargebee takes the API key as the HTTP basic username with no password,
+    # the trailing colon in `curl -u {api_key}:`.
+    basic:
+      username: config.api_key
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  # Test sites and Starter live sites allow 150 requests per minute per site
+  # and return HTTP 429 above it. One limiter is shared across all resources,
+  # so hold below that ceiling.
+  rate_limit:
+    requests_per_second: 2
+resources:
+  # First top-level resource, so it doubles as the TestConnection probe.
+  - name: customers
+    path: /api/v2/customers
+    query:
+      sort_by[asc]: updated_at
+      include_deleted: "true"
+    response:
+      records: $.list.#.customer
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      first_name: string?
+      last_name: string?
+      email: string?
+      phone: string?
+      company: string?
+      auto_collection: string?
+      net_term_days: int64?
+      allow_direct_debit: bool?
+      taxability: string?
+      preferred_currency_code: string?
+      channel: string?
+      card_status: string?
+      primary_payment_source_id: string?
+      promotional_credits: int64?
+      refundable_credits: int64?
+      excess_payments: int64?
+      unbilled_charges: int64?
+      mrr: int64?
+      billing_address: json?
+      created_at: int64?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: customers_updated_at
+
+  - name: subscriptions
+    path: /api/v2/subscriptions
+    query:
+      sort_by[asc]: updated_at
+      include_deleted: "true"
+    response:
+      # Each list entry also carries the customer and card beside the
+      # subscription. Those are read by their own resources.
+      records: $.list.#.subscription
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      customer_id: string?
+      status: string?
+      currency_code: string?
+      billing_period: int64?
+      billing_period_unit: string?
+      auto_collection: string?
+      remaining_billing_cycles: int64?
+      mrr: int64?
+      due_invoices_count: int64?
+      subscription_items: json?
+      item_tiers: json?
+      coupons: json?
+      start_date: int64?
+      trial_start: int64?
+      trial_end: int64?
+      started_at: int64?
+      activated_at: int64?
+      current_term_start: int64?
+      current_term_end: int64?
+      next_billing_at: int64?
+      pause_date: int64?
+      resume_date: int64?
+      cancelled_at: int64?
+      cancel_reason: string?
+      cancel_reason_code: string?
+      created_at: int64?
+      channel: string?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: subscriptions_updated_at
+
+  - name: invoices
+    path: /api/v2/invoices
+    query:
+      sort_by[asc]: updated_at
+      include_deleted: "true"
+    response:
+      records: $.list.#.invoice
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      customer_id: string?
+      subscription_id: string?
+      status: string?
+      recurring: bool?
+      price_type: string?
+      currency_code: string?
+      exchange_rate: float64?
+      sub_total: int64?
+      tax: int64?
+      total: int64?
+      amount_paid: int64?
+      amount_adjusted: int64?
+      write_off_amount: int64?
+      credits_applied: int64?
+      amount_due: int64?
+      round_off_amount: int64?
+      date: int64?
+      due_date: int64?
+      net_term_days: int64?
+      paid_at: int64?
+      voided_at: int64?
+      generated_at: int64?
+      first_invoice: bool?
+      line_items: json?
+      discounts: json?
+      taxes: json?
+      linked_payments: json?
+      billing_address: json?
+      channel: string?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: invoices_updated_at
+
+  - name: credit_notes
+    path: /api/v2/credit_notes
+    query:
+      include_deleted: "true"
+    response:
+      records: $.list.#.credit_note
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      customer_id: string?
+      subscription_id: string?
+      reference_invoice_id: string?
+      type: string?
+      reason_code: string?
+      create_reason_code: string?
+      status: string?
+      price_type: string?
+      currency_code: string?
+      exchange_rate: float64?
+      sub_total: int64?
+      total: int64?
+      amount_allocated: int64?
+      amount_refunded: int64?
+      amount_available: int64?
+      round_off_amount: int64?
+      date: int64?
+      generated_at: int64?
+      refunded_at: int64?
+      voided_at: int64?
+      line_items: json?
+      discounts: json?
+      taxes: json?
+      allocations: json?
+      linked_refunds: json?
+      channel: string?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      # The credit notes list API filters by updated_at but rejects
+      # sort_by[asc]=updated_at, so records arrive in an order the cursor does
+      # not follow. Committing the watermark only after a complete pass keeps
+      # an interrupted run from skipping records below the new maximum.
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: credit_notes_updated_at
+      commit_on_complete: true
+
+  - name: transactions
+    path: /api/v2/transactions
+    query:
+      sort_by[asc]: updated_at
+      include_deleted: "true"
+    response:
+      records: $.list.#.transaction
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      customer_id: string?
+      subscription_id: string?
+      payment_source_id: string?
+      payment_method: string?
+      gateway: string?
+      gateway_account_id: string?
+      type: string?
+      status: string?
+      currency_code: string?
+      exchange_rate: float64?
+      amount: int64?
+      amount_unused: int64?
+      amount_capturable: int64?
+      base_currency_code: string?
+      date: int64?
+      settled_at: int64?
+      voided_at: int64?
+      reference_number: string?
+      id_at_gateway: string?
+      error_code: string?
+      error_text: string?
+      linked_invoices: json?
+      linked_credit_notes: json?
+      linked_refunds: json?
+      linked_payments: json?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: transactions_updated_at
+
+  - name: items
+    path: /api/v2/items
+    query:
+      sort_by[asc]: updated_at
+      include_deleted: "true"
+    response:
+      records: $.list.#.item
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      name: string?
+      external_name: string?
+      description: string?
+      status: string?
+      type: string?
+      item_family_id: string?
+      unit: string?
+      is_shippable: bool?
+      is_giftable: bool?
+      enabled_for_checkout: bool?
+      enabled_in_portal: bool?
+      metered: bool?
+      usage_calculation: string?
+      channel: string?
+      metadata: json?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: items_updated_at
+
+  - name: item_prices
+    path: /api/v2/item_prices
+    query:
+      sort_by[asc]: updated_at
+      include_deleted: "true"
+    response:
+      records: $.list.#.item_price
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      name: string?
+      external_name: string?
+      description: string?
+      item_id: string?
+      item_family_id: string?
+      item_type: string?
+      status: string?
+      pricing_model: string?
+      price: int64?
+      price_in_decimal: string?
+      currency_code: string?
+      period: int64?
+      period_unit: string?
+      trial_period: int64?
+      trial_period_unit: string?
+      billing_cycles: int64?
+      free_quantity: int64?
+      tiers: json?
+      is_taxable: bool?
+      channel: string?
+      metadata: json?
+      created_at: int64?
+      archived_at: int64?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: item_prices_updated_at
+
+  - name: coupons
+    path: /api/v2/coupons
+    query:
+      include_deleted: "true"
+    response:
+      records: $.list.#.coupon
+    primary_key: [id]
+    use_fields: [chargebee_object]
+    fields:
+      name: string?
+      invoice_name: string?
+      discount_type: string?
+      discount_percentage: float64?
+      discount_amount: int64?
+      currency_code: string?
+      duration_type: string?
+      duration_month: int64?
+      period: int64?
+      period_unit: string?
+      valid_till: int64?
+      max_redemptions: int64?
+      redemptions: int64?
+      status: string?
+      apply_on: string?
+      item_constraints: json?
+      metadata: json?
+      created_at: int64?
+      archived_at: int64?
+      deleted: bool?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      # Like credit notes, the coupons list API filters by updated_at but
+      # rejects sorting by it, so the watermark commits only after a full pass.
+      cursor_field: updated_at
+      start_param: updated_at[after]
+      inject_into: query
+      comparator: numeric
+      overlap_seconds: 60
+      checkpoint_key: coupons_updated_at
+      commit_on_complete: true
+discovery:
+  mode: static
