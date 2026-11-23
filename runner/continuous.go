@@ -47,7 +47,8 @@ type ContinuousConfig struct {
 	MaxEpochs int
 }
 
-// errShutdown ends an attempt whose worker was asked to stop during a read.
+// errShutdown ends an attempt whose worker was asked to stop during startup or
+// a read.
 var errShutdown = errors.New("worker shut down")
 
 // continuousStop records why an attempt is ending. The heartbeat sets stopping
@@ -71,10 +72,11 @@ func (s *continuousStop) watch(ctx, runCtx context.Context) (readCtx context.Con
 	}
 }
 
-// readError maps a failed read. One cut short by shutdown while the run was
-// healthy ends the attempt cleanly.
-func (s *continuousStop) readError(runCtx context.Context, err error) error {
-	if s.shutdown.Load() && runCtx.Err() == nil {
+// interrupted maps an error from startup or a read. A cancellation that
+// shutdown caused while the run was healthy ends the attempt cleanly. Any other
+// error, such as a schema block, stands.
+func (s *continuousStop) interrupted(runCtx context.Context, err error) error {
+	if s.shutdown.Load() && runCtx.Err() == nil && errors.Is(err, context.Canceled) {
 		return errShutdown
 	}
 	return err
@@ -83,8 +85,9 @@ func (s *continuousStop) readError(runCtx context.Context, err error) error {
 // RunContinuous executes native epochs. The shared emitter publishes activity;
 // runtime persistence, rather than event folding, owns continuous state.
 // Providers must honor cancellation. Forced cancellation abandons tentative work.
-// Cancelling ctx is a request to shut down: the read in progress stops and its
-// epoch is discarded, a commit in progress finishes, and the attempt ends clean.
+// Cancelling ctx is a request to shut down: startup or the read in progress
+// stops and its epoch is discarded, a commit in progress finishes, and the
+// attempt ends clean.
 func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := validateContinuous(cfg); err != nil {
 		return err
@@ -141,15 +144,15 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	opened = true // Close must also clean up a partially successful Open.
 	plan, err := prepareContinuousConnectors(readCtx, &cfg)
 	if err != nil {
-		return err
+		return stop.interrupted(runCtx, err)
 	}
 	spec = cfg.Spec
 	if err := prepareContinuousSchemas(readCtx, &cfg, state); err != nil {
-		return err
+		return stop.interrupted(runCtx, err)
 	}
 	session, err = openContinuousStream(readCtx, cfg, filament.StreamOpenOpts{Tenant: spec.Tenant, MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, MembershipRevision: state.MembershipRevision, Attempt: lease.Attempt})
 	if err != nil {
-		return err
+		return stop.interrupted(runCtx, err)
 	}
 	p, err = newContinuousPipeline(&cfg, plan.Ordering)
 	if err != nil {
@@ -159,23 +162,28 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	return runEpochs(runCtx, readCtx, cfg, p, session, cfg.Sink, state, lease, &stop, &activeEpoch)
 }
 
-// closeContinuousPipeline joins the pipeline. A read cut short by shutdown
-// discards its epoch as a failed read would, without failing the attempt. The
-// pipeline then reports only that interruption: the error it was closed with,
-// or the read's own cancellation when it was cut inside a barrier.
+// closeContinuousPipeline joins the pipeline, which is nil when startup ended
+// before it was built. Work cut short by shutdown discards its epoch as a
+// failed read would, without failing the attempt. The pipeline then reports
+// only that interruption: the error it was closed with, or the read's own
+// cancellation when it was cut inside a barrier.
 func closeContinuousPipeline(p *pipeline.Pipeline, result error) error {
-	if !errors.Is(result, errShutdown) {
-		if p != nil {
-			p.CloseIngest(result)
-			result = errors.Join(result, p.Wait())
+	interrupted := errors.Is(result, errShutdown)
+	if p == nil {
+		if interrupted {
+			return nil
 		}
 		return result
 	}
 	p.CloseIngest(result)
-	if err := p.Wait(); !errors.Is(err, errShutdown) && !errors.Is(err, context.Canceled) {
-		return err
+	err := p.Wait()
+	if !interrupted {
+		return errors.Join(result, err)
 	}
-	return nil
+	if errors.Is(err, errShutdown) || errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
 }
 
 func loadContinuousAttemptState(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken) (filament.StreamState, error) {
@@ -297,7 +305,7 @@ func runEpochs(runCtx, readCtx context.Context, cfg ContinuousConfig, p *pipelin
 		for len(coverage.Positions) == 0 {
 			coverage, err = session.Read(readCtx, records, cfg.Boundary)
 			if err != nil {
-				return stop.readError(runCtx, err)
+				return stop.interrupted(runCtx, err)
 			}
 			if len(coverage.Claims) > 0 {
 				return filament.ErrIncompleteCoverage
