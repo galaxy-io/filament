@@ -2,6 +2,7 @@ package iceberg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 
 type manyCommit struct {
 	err       error
+	closeErr  error
 	resources []string
 }
 
@@ -65,7 +67,7 @@ func runManyResources(t *testing.T, env *testEnv, ingestion filament.IngestionTy
 			t.Fatal(abortErr)
 		}
 	}
-	return manyCommit{err: err, resources: resources}
+	return manyCommit{err: err, closeErr: sink.Close(ctx), resources: resources}
 }
 
 func tableFiles(t *testing.T, env *testEnv, resource string) int {
@@ -91,6 +93,9 @@ func TestParallelCommitLandsEveryTable(t *testing.T) {
 			if commit.err != nil {
 				t.Fatal(commit.err)
 			}
+			if commit.closeErr != nil {
+				t.Fatalf("Close after a successful commit = %v", commit.closeErr)
+			}
 			for _, resource := range commit.resources {
 				if rows := tableRows(t, env, resource); rows != 2000 {
 					t.Fatalf("%s has %d rows, want 2000", resource, rows)
@@ -112,6 +117,10 @@ func TestParallelCommitFailureStopsNewCommits(t *testing.T) {
 			commit := runManyResources(t, env, filament.IngestionFullAppend, 20, "t07")
 			if commit.err == nil || !strings.Contains(commit.err.Error(), "t07") {
 				t.Fatalf("Commit error = %v, want the failure of t07", commit.err)
+			}
+			// A failed commit may still have landed, so the session closes uncertain.
+			if !errors.Is(commit.closeErr, errInjectedCommit) || !strings.Contains(commit.closeErr.Error(), "unproven") {
+				t.Fatalf("Close after a failed commit = %v, want unproven", commit.closeErr)
 			}
 			committed, untouched := 0, 0
 			for _, resource := range commit.resources {
