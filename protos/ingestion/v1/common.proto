@@ -25,12 +25,15 @@ message WorkerToleration {
 
 // WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
 // a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
-// merge per key when a run overrides a pipeline; node_selector and tolerations
-// replace wholesale.
+// and annotations merge per key when a run overrides a pipeline; node_selector
+// and tolerations replace wholesale.
 message WorkerConfiguration {
   WorkerResources resources = 1;
   map<string, string> node_selector = 2;
   repeated WorkerToleration tolerations = 3;
+  // Annotations are set on the worker pod for cluster components that read
+  // them. None are set by default.
+  map<string, string> annotations = 4;
 }
 
 // ConnectorKind distinguishes a source from a sink in the catalog.
