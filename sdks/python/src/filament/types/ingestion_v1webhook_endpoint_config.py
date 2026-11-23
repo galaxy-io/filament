@@ -63,8 +63,9 @@ class IngestionV1WebhookEndpointConfig(UniversalBaseModel):
 
     accepting: typing.Optional[bool] = pydantic.Field(default=None)
     """
-    Whether a pipeline that reads this source is running or paused. While
-     false, new deliveries get 503 so senders retry until a pipeline starts.
+    Whether a stream reads this source, in any state. A paused or stopped
+     pipeline still accepts and its deliveries wait in the inbox. While false,
+     new deliveries get 503 so senders retry until a pipeline first runs.
     """
 
     delivery_url: typing_extensions.Annotated[
