@@ -88,8 +88,9 @@ export type WebhookEndpointConfig = Message<"ingestion.v1.WebhookEndpointConfig"
   previousKeyExpiresAt: bigint;
 
   /**
-   * Whether a pipeline that reads this source is running or paused. While
-   * false, new deliveries get 503 so senders retry until a pipeline starts.
+   * Whether a stream reads this source, in any state. A paused or stopped
+   * pipeline still accepts and its deliveries wait in the inbox. While false,
+   * new deliveries get 503 so senders retry until a pipeline first runs.
    *
    * @generated from field: bool accepting = 13;
    */

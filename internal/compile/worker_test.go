@@ -3,6 +3,7 @@ package compile
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament"
@@ -72,6 +73,17 @@ func TestValidateWorkerConfiguration(t *testing.T) {
 			}},
 		},
 		{
+			name: "annotations",
+			cfg: filament.WorkerConfiguration{
+				Annotations: map[string]string{"karpenter.sh/do-not-disrupt": "true", "note": "any value, with spaces"},
+			},
+		},
+		{
+			name: "bad annotation key",
+			cfg:  filament.WorkerConfiguration{Annotations: map[string]string{"not a key": "x"}},
+			want: ErrInvalid,
+		},
+		{
 			name: "bad selector key",
 			cfg:  filament.WorkerConfiguration{NodeSelector: map[string]string{"not a key": "x"}},
 			want: ErrInvalid,
@@ -122,16 +134,56 @@ func TestWorkerConfigurationFromProto(t *testing.T) {
 		Resources:    &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "500m"}, Limits: map[string]string{"memory": "2Gi"}},
 		NodeSelector: map[string]string{"tier": "workers"},
 		Tolerations:  []*ingestionv1.WorkerToleration{{Key: "spot", Operator: "Exists", Effect: "NoSchedule"}},
+		Annotations:  map[string]string{"karpenter.sh/do-not-disrupt": "true"},
 	})
 	want := filament.WorkerConfiguration{
 		Resources:    filament.WorkerResources{Requests: map[string]string{"cpu": "500m"}, Limits: map[string]string{"memory": "2Gi"}},
 		NodeSelector: map[string]string{"tier": "workers"},
 		Tolerations:  []filament.WorkerToleration{{Key: "spot", Operator: "Exists", Effect: "NoSchedule"}},
+		Annotations:  map[string]string{"karpenter.sh/do-not-disrupt": "true"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 	if !WorkerConfigurationFromProto(nil).IsZero() {
 		t.Fatal("nil proto must be the zero configuration")
+	}
+}
+
+// A run override adds to the pipeline's annotations key by key.
+func TestWorkerConfigurationMergesAnnotationsPerKey(t *testing.T) {
+	pipeline := filament.WorkerConfiguration{Annotations: map[string]string{"team": "data", "karpenter.sh/do-not-disrupt": "true"}}
+	override := filament.WorkerConfiguration{Annotations: map[string]string{"team": "billing"}}
+	got := override.Merge(pipeline).Annotations
+	want := map[string]string{"team": "billing", "karpenter.sh/do-not-disrupt": "true"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("merged annotations = %v, want %v", got, want)
+	}
+	if merged := (filament.WorkerConfiguration{}).Merge(filament.WorkerConfiguration{}); merged.Annotations != nil || !merged.IsZero() {
+		t.Fatalf("merging nothing must stay zero, got %+v", merged)
+	}
+}
+
+// Each side can be valid alone and still merge into something Kubernetes
+// refuses, which must fail when the run is compiled.
+func TestResolveWorkerConfigurationValidatesTheMerge(t *testing.T) {
+	pipeline := &ingestionv1.Pipeline{WorkerConfiguration: &ingestionv1.WorkerConfiguration{
+		Resources:   &ingestionv1.WorkerResources{Limits: map[string]string{"cpu": "1"}},
+		Annotations: map[string]string{"team": "data"},
+	}}
+	got, err := resolveWorkerConfiguration(filament.WorkerConfiguration{Annotations: map[string]string{"karpenter.sh/do-not-disrupt": "true"}}, pipeline)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := map[string]string{"team": "data", "karpenter.sh/do-not-disrupt": "true"}; !reflect.DeepEqual(got.Annotations, want) {
+		t.Fatalf("resolved annotations = %v, want %v", got.Annotations, want)
+	}
+	if _, err := resolveWorkerConfiguration(resources(map[string]string{"cpu": "2"}, nil), pipeline); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("request above the pipeline's limit: %v, want %v", err, ErrInvalid)
+	}
+	half := strings.Repeat("x", 200<<10)
+	pipeline.WorkerConfiguration.Annotations = map[string]string{"a": half}
+	if _, err := resolveWorkerConfiguration(filament.WorkerConfiguration{Annotations: map[string]string{"b": half}}, pipeline); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("annotations past the size limit together: %v, want %v", err, ErrInvalid)
 	}
 }

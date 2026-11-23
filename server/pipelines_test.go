@@ -32,8 +32,8 @@ func TestCreatePipelinePersistsDefaultWorkerConfiguration(t *testing.T) {
 		t.Fatalf("CreatePipeline: %v", err)
 	}
 	want := defaultWorkerConfiguration()
-	if want.NodeSelector == nil || want.Tolerations == nil {
-		t.Fatalf("default worker configuration must include empty node selector and tolerations: %+v", want)
+	if want.NodeSelector == nil || want.Tolerations == nil || want.Annotations == nil {
+		t.Fatalf("default worker configuration must include empty node selector, tolerations and annotations: %+v", want)
 	}
 	if got := res.Msg.GetPipeline().GetWorkerConfiguration(); !proto.Equal(got, want) {
 		t.Fatalf("response worker configuration = %+v, want %+v", got, want)
@@ -58,6 +58,7 @@ func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 			Resources:    &ingestionv1.WorkerResources{Requests: map[string]string{"cpu": "750m"}},
 			NodeSelector: map[string]string{"pool": "batch"},
 			Tolerations:  []*ingestionv1.WorkerToleration{{Key: "dedicated", Value: "batch"}},
+			Annotations:  map[string]string{"karpenter.sh/do-not-disrupt": "true"},
 		},
 	}))
 	if err != nil {
@@ -75,8 +76,16 @@ func TestCreatePipelineMergesWorkerConfigurationWithDefaults(t *testing.T) {
 		},
 		NodeSelector: map[string]string{"pool": "batch"},
 		Tolerations:  []*ingestionv1.WorkerToleration{{Key: "dedicated", Value: "batch"}},
+		Annotations:  map[string]string{"karpenter.sh/do-not-disrupt": "true"},
 	}) {
 		t.Fatalf("merged worker configuration = %+v", got)
+	}
+	stored, err := store.LoadPipeline(ctx, filament.DefaultTenantID, res.Msg.GetPipeline().GetId())
+	if err != nil {
+		t.Fatalf("LoadPipeline: %v", err)
+	}
+	if !proto.Equal(stored.GetWorkerConfiguration(), got) {
+		t.Fatalf("stored worker configuration = %+v, want %+v", stored.GetWorkerConfiguration(), got)
 	}
 }
 

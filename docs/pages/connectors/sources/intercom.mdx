@@ -1,0 +1,94 @@
+---
+title: "Intercom source connector"
+sidebarTitle: "Intercom"
+description: "Read contacts, conversations, and workspace reference data from Intercom with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-intercom-dark.svg"
+---
+
+Connector ID `intercom`
+
+The Intercom source reads contacts, conversations, admins, teams, tags,
+segments, data attributes, and ticket types and states. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It pins Intercom API version `2.18` through the
+`Intercom-Version` header.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `access_token` | Connection | | Required. Secret. Access token of an Intercom app. |
+| `region` | Connection | `us` | `us`, `eu`, or `au`, matching the workspace's hosting region. |
+
+Create an app in the Intercom **Developer Hub** and copy its access token from
+**Configure → Authentication**. The app needs read access to admins, users and
+companies, conversations, tags, and tickets. Conversation reads only return
+conversations the installing teammate can see. See
+[Intercom authentication](https://developers.intercom.com/docs/build-an-integration/learn-more/authentication).
+
+US connections use `https://api.intercom.io`, EU connections use
+`https://api.eu.intercom.io`, and Australian connections use
+`https://api.au.intercom.io`. Connection testing calls `GET /admins`.
+
+## Resources
+
+Admins, contacts, conversations, tags, teams, and segments are selected by
+default. All other resources are optional.
+
+| Resource | Endpoint |
+|---|---|
+| `admins` | `GET /admins` |
+| `contacts` | `GET /contacts` |
+| `conversations` | `GET /conversations` |
+| `tags` | `GET /tags` |
+| `teams` | `GET /teams` |
+| `segments` | `GET /segments` |
+| `company_segments` | `GET /segments?type=company` |
+| `data_attributes` | `GET /data_attributes?include_archived=true` |
+| `ticket_types` | `GET /ticket_types` |
+| `ticket_states` | `GET /ticket_states` |
+
+Each row represents one API record keyed by its Intercom `id`. Data attributes
+are keyed by `model` and `full_name`, because Intercom's built-in attributes have
+no `id`. Intercom
+timestamps are Unix seconds and are written as timestamps. Custom attributes,
+locations, nested tags and companies, conversation sources, statistics, and SLA
+data remain JSON columns. Every resource includes a `raw` column for unmapped
+fields.
+
+Contacts are requested with `escape_identity=false`, so names and emails are
+returned as entered rather than HTML-escaped.
+
+### Coverage limits
+
+- **Nested lists**. Tags, companies, and notes embedded in a contact are capped
+  at 10 entries by Intercom. The full lists are not read as separate tables.
+- **Conversation parts and tickets**. Conversation messages require one request
+  per conversation, and tickets can only be listed through search. Neither is
+  read in this version.
+- **Companies**. Companies are not read in this version. Company segments
+  are read.
+- **Other APIs**. Activity logs, articles and help center content, news, calls,
+  and deleted records are not read.
+- **HTML escaping**. Segment names are returned HTML-escaped by Intercom, with
+  no option to disable it.
+
+## Modes
+
+All resources perform full reads. Incremental reads are not advertised yet.
+`GET /contacts` and `GET /conversations` have no updated-since filter.
+
+Use **full upsert** to refresh rows, or **full replace** to remove rows no longer
+returned.
+
+## Behavior
+
+- **Auth**. Every request sends the token as a Bearer credential to the selected
+  regional API host with `Intercom-Version: 2.18`. Authentication and permission
+  errors fail the read.
+- **Pagination**. Contacts and conversations follow `pages.next.starting_after`,
+  150 records per page. Other resources return all records in one response.
+- **Rate limiting**. Requests are paced at ten per second and follow Intercom's
+  `X-RateLimit-Remaining` and `X-RateLimit-Reset` headers. Private apps share
+  10,000 calls per minute per workspace. See
+  [rate limiting](https://developers.intercom.com/docs/references/rest-api/errors/rate-limiting).

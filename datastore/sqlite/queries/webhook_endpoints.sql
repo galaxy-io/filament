@@ -10,7 +10,7 @@ SELECT e.source_connection_id, e.tenant_id, e.config_revision, e.enabled,
     SELECT 1 FROM replication_streams s
     JOIN pipelines sp ON sp.id = s.pipeline_id AND sp.tenant_id = s.tenant_id AND sp.is_deleted = 0
     WHERE s.source_connection_id = e.source_connection_id AND s.tenant_id = e.tenant_id
-      AND s.status = 0 AND s.desired_state <> 'stopped'
+      AND s.status = 0
   ) AS accepting
 FROM webhook_endpoints e
 JOIN connections c ON c.id = e.source_connection_id AND c.tenant_id = e.tenant_id

@@ -7687,7 +7687,7 @@
           "accepting": {
             "type": "boolean",
             "title": "accepting",
-            "description": "Whether a pipeline that reads this source is running or paused. While\n false, new deliveries get 503 so senders retry until a pipeline starts."
+            "description": "Whether a stream reads this source, in any state. A paused or stopped\n pipeline still accepts and its deliveries wait in the inbox. While false,\n new deliveries get 503 so senders retry until a pipeline first runs."
           },
           "deliveryUrl": {
             "type": "string",
@@ -7806,11 +7806,20 @@
               "$ref": "#/components/schemas/ingestion.v1.WorkerToleration"
             },
             "title": "tolerations"
+          },
+          "annotations": {
+            "type": "object",
+            "title": "annotations",
+            "additionalProperties": {
+              "type": "string",
+              "title": "value"
+            },
+            "description": "Annotations are set on the worker pod for cluster components that read\n them. None are set by default."
           }
         },
         "title": "WorkerConfiguration",
         "additionalProperties": false,
-        "description": "WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of\n a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources\n merge per key when a run overrides a pipeline; node_selector and tolerations\n replace wholesale."
+        "description": "WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of\n a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources\n and annotations merge per key when a run overrides a pipeline; node_selector\n and tolerations replace wholesale."
       },
       "ingestion.v1.WorkerResources": {
         "type": "object",

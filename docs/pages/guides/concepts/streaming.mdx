@@ -199,6 +199,12 @@ exits. The stream stays enabled, so the next pass starts a fresh attempt on
 the current image from the last committed position, with no backoff. Streams
 move to the new release one at a time rather than all at once.
 
+A worker that is asked to shut down restarts the same way, for example when
+its node is drained. It stops reading, lets a commit already in progress
+finish, and discards the epoch it was still reading. It ends with the reason
+`worker shut down`, and the next pass starts a fresh attempt from the last
+committed position, with no backoff.
+
 When inspecting a continuous run, look at its desired and observed execution
 states, reason, and last committed time alongside the logical run status.
 Committed totals come from saved epochs. A quiet feed can remain running

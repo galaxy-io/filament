@@ -535,13 +535,16 @@ func (x *WorkerToleration) GetEffect() string {
 
 // WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
 // a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
-// merge per key when a run overrides a pipeline; node_selector and tolerations
-// replace wholesale.
+// and annotations merge per key when a run overrides a pipeline; node_selector
+// and tolerations replace wholesale.
 type WorkerConfiguration struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Resources     *WorkerResources       `protobuf:"bytes,1,opt,name=resources,proto3" json:"resources,omitempty"`
-	NodeSelector  map[string]string      `protobuf:"bytes,2,rep,name=node_selector,json=nodeSelector,proto3" json:"node_selector,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Tolerations   []*WorkerToleration    `protobuf:"bytes,3,rep,name=tolerations,proto3" json:"tolerations,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Resources    *WorkerResources       `protobuf:"bytes,1,opt,name=resources,proto3" json:"resources,omitempty"`
+	NodeSelector map[string]string      `protobuf:"bytes,2,rep,name=node_selector,json=nodeSelector,proto3" json:"node_selector,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Tolerations  []*WorkerToleration    `protobuf:"bytes,3,rep,name=tolerations,proto3" json:"tolerations,omitempty"`
+	// Annotations are set on the worker pod for cluster components that read
+	// them. None are set by default.
+	Annotations   map[string]string `protobuf:"bytes,4,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -593,6 +596,13 @@ func (x *WorkerConfiguration) GetNodeSelector() map[string]string {
 func (x *WorkerConfiguration) GetTolerations() []*WorkerToleration {
 	if x != nil {
 		return x.Tolerations
+	}
+	return nil
+}
+
+func (x *WorkerConfiguration) GetAnnotations() map[string]string {
+	if x != nil {
+		return x.Annotations
 	}
 	return nil
 }
@@ -886,12 +896,16 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1a\n" +
 	"\boperator\x18\x02 \x01(\tR\boperator\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\tR\x05value\x12\x16\n" +
-	"\x06effect\x18\x04 \x01(\tR\x06effect\"\xaf\x02\n" +
+	"\x06effect\x18\x04 \x01(\tR\x06effect\"\xc5\x03\n" +
 	"\x13WorkerConfiguration\x12;\n" +
 	"\tresources\x18\x01 \x01(\v2\x1d.ingestion.v1.WorkerResourcesR\tresources\x12X\n" +
 	"\rnode_selector\x18\x02 \x03(\v23.ingestion.v1.WorkerConfiguration.NodeSelectorEntryR\fnodeSelector\x12@\n" +
-	"\vtolerations\x18\x03 \x03(\v2\x1e.ingestion.v1.WorkerTolerationR\vtolerations\x1a?\n" +
+	"\vtolerations\x18\x03 \x03(\v2\x1e.ingestion.v1.WorkerTolerationR\vtolerations\x12T\n" +
+	"\vannotations\x18\x04 \x03(\v22.ingestion.v1.WorkerConfiguration.AnnotationsEntryR\vannotations\x1a?\n" +
 	"\x11NodeSelectorEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a>\n" +
+	"\x10AnnotationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9a\x03\n" +
 	"\vConfigField\x12\x12\n" +
@@ -969,7 +983,7 @@ func file_ingestion_v1_common_proto_rawDescGZIP() []byte {
 }
 
 var file_ingestion_v1_common_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_ingestion_v1_common_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_ingestion_v1_common_proto_goTypes = []any{
 	(ConnectorKind)(0),          // 0: ingestion.v1.ConnectorKind
 	(FieldType)(0),              // 1: ingestion.v1.FieldType
@@ -988,7 +1002,8 @@ var file_ingestion_v1_common_proto_goTypes = []any{
 	nil,                         // 14: ingestion.v1.WorkerResources.RequestsEntry
 	nil,                         // 15: ingestion.v1.WorkerResources.LimitsEntry
 	nil,                         // 16: ingestion.v1.WorkerConfiguration.NodeSelectorEntry
-	(*structpb.Value)(nil),      // 17: google.protobuf.Value
+	nil,                         // 17: ingestion.v1.WorkerConfiguration.AnnotationsEntry
+	(*structpb.Value)(nil),      // 18: google.protobuf.Value
 }
 var file_ingestion_v1_common_proto_depIdxs = []int32{
 	14, // 0: ingestion.v1.WorkerResources.requests:type_name -> ingestion.v1.WorkerResources.RequestsEntry
@@ -996,18 +1011,19 @@ var file_ingestion_v1_common_proto_depIdxs = []int32{
 	7,  // 2: ingestion.v1.WorkerConfiguration.resources:type_name -> ingestion.v1.WorkerResources
 	16, // 3: ingestion.v1.WorkerConfiguration.node_selector:type_name -> ingestion.v1.WorkerConfiguration.NodeSelectorEntry
 	8,  // 4: ingestion.v1.WorkerConfiguration.tolerations:type_name -> ingestion.v1.WorkerToleration
-	1,  // 5: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
-	17, // 6: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
-	11, // 7: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
-	6,  // 8: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
-	10, // 9: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
-	12, // 10: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
-	10, // 11: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	17, // 5: ingestion.v1.WorkerConfiguration.annotations:type_name -> ingestion.v1.WorkerConfiguration.AnnotationsEntry
+	1,  // 6: ingestion.v1.ConfigField.type:type_name -> ingestion.v1.FieldType
+	18, // 7: ingestion.v1.ConfigField.default:type_name -> google.protobuf.Value
+	11, // 8: ingestion.v1.ConfigField.enum:type_name -> ingestion.v1.EnumOption
+	6,  // 9: ingestion.v1.ConfigField.scope:type_name -> ingestion.v1.FieldScope
+	10, // 10: ingestion.v1.ConfigField.fields:type_name -> ingestion.v1.ConfigField
+	12, // 11: ingestion.v1.ConfigField.visible_when:type_name -> ingestion.v1.FieldCondition
+	10, // 12: ingestion.v1.ConfigSchema.fields:type_name -> ingestion.v1.ConfigField
+	13, // [13:13] is the sub-list for method output_type
+	13, // [13:13] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_ingestion_v1_common_proto_init() }
@@ -1021,7 +1037,7 @@ func file_ingestion_v1_common_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ingestion_v1_common_proto_rawDesc), len(file_ingestion_v1_common_proto_rawDesc)),
 			NumEnums:      7,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

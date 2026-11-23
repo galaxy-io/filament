@@ -38,7 +38,7 @@ type Inbox interface {
 	Resolve(ctx context.Context, tenant, endpoint, providerID string, body []byte) (inbox.Receipt, error)
 }
 
-// Receiver serves the delivery route on the server's listener.
+// Receiver serves the delivery routes. The server gives it its own listener.
 type Receiver struct {
 	Endpoints EndpointResolver
 	Inbox     Inbox
@@ -56,9 +56,9 @@ func (h *Receiver) Mount(mux *http.ServeMux) {
 }
 
 // ServeHTTP authenticates the bounded body, then stores it before answering.
-// An enabled endpoint stores new deliveries for its configured resources while
-// a pipeline can read them. When every reading pipeline is stopped, a new
-// delivery gets 503 so the sender retries later instead of filling the inbox.
+// An enabled endpoint stores new deliveries for its configured resources once
+// a stream reads its source, whatever state that stream is in. With no stream
+// to resume, a new delivery gets 503 so the sender keeps it and retries.
 // Any other authenticated request only resolves a retry of an earlier delivery.
 //
 // A delivery sent to the endpoint's single URL is routed by its event type

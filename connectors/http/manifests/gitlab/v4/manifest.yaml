@@ -1,0 +1,310 @@
+version: 1
+name: gitlab
+display_name: GitLab
+description: DevSecOps platform that enables organizations to plan, build, secure, and deploy software in a single application.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gitlab-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-gitlab-light.svg
+api_version: v4
+config:
+  auth_method:
+    type: enum
+    enum: [private_token, oauth_token]
+    enum_labels:
+      private_token: Personal / Project Access Token (PRIVATE-TOKEN)
+      oauth_token: OAuth Bearer Token
+    default: private_token
+    help: Authentication method to use with the GitLab API.
+  token:
+    type: secret
+    required: true
+    help: GitLab personal access token, project access token, or OAuth token with read_api scope.
+  base_url:
+    type: string
+    default: https://gitlab.com/api/v4
+    pattern: "^(https://.*|http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(/.*)?)$"
+    help: GitLab API base URL (default https://gitlab.com/api/v4, or your self-hosted instance endpoint).
+connection:
+  base_url: "{{ config.base_url }}"
+  auth:
+    select:
+      field: auth_method
+      cases:
+        private_token:
+          auth:
+            header:
+              name: PRIVATE-TOKEN
+              value: config.token
+        oauth_token:
+          auth:
+            bearer: config.token
+  headers:
+    Accept: application/json
+    User-Agent: filament/1.0
+  rate_limit:
+    requests_per_second: 5
+    dynamic:
+      remaining_header: RateLimit-Remaining
+      reset_header: RateLimit-Reset
+      reset_format: unix_seconds
+    responses:
+      - status: 429
+        header: Retry-After
+defaults:
+  method: GET
+  query:
+    per_page: "100"
+  response:
+    records: $
+    pagination:
+      link: next
+resources:
+  - name: projects
+    path: /projects
+    query:
+      membership: "true"
+      order_by: id
+      sort: asc
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      path: string
+      description: string?
+      default_branch: string?
+      visibility: string
+      ssh_url_to_repo: string?
+      http_url_to_repo: string?
+      web_url: string
+      readme_url: string?
+      path_with_namespace: string
+      name_with_namespace: string
+      created_at: timestamptz?
+      last_activity_at: timestamptz?
+      archived: bool?
+      open_issues_count: int64?
+      star_count: int64?
+      forks_count: int64?
+      namespace: json?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      project_id: id
+
+  - name: groups
+    path: /groups
+    query:
+      min_access_level: "10"
+      order_by: id
+      sort: asc
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      path: string
+      description: string?
+      visibility: string
+      web_url: string
+      full_name: string
+      full_path: string
+      parent_id: int64?
+      avatar_url: string?
+      created_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      group_id: id
+
+  - name: group_members
+    path: /groups/{group_id}/members
+    params:
+      group_id: parent.group_id
+    for_each: groups
+    primary_key: [group_id, id]
+    fields:
+      group_id: {path: parent.group_id, type: int64}
+      id: int64
+      username: string
+      name: string
+      state: string
+      avatar_url: string?
+      web_url: string
+      access_level: int64
+      expires_at: string?
+      membership_state: string?
+      created_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: project_members
+    path: /projects/{project_id}/members
+    params:
+      project_id: parent.project_id
+    for_each: projects
+    primary_key: [project_id, id]
+    fields:
+      project_id: {path: parent.project_id, type: int64}
+      id: int64
+      username: string
+      name: string
+      state: string
+      avatar_url: string?
+      web_url: string
+      access_level: int64
+      expires_at: string?
+      created_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: issues
+    path: /projects/{project_id}/issues
+    params:
+      project_id: parent.project_id
+    for_each: projects
+    query:
+      scope: all
+      order_by: updated_at
+      sort: asc
+    primary_key: [project_id, id]
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_after
+      inject_into: query
+      checkpoint_key: issues_updated_at
+      comparator: time
+      overlap_seconds: 300
+    fields:
+      project_id: {path: parent.project_id, type: int64}
+      id: int64
+      iid: int64
+      title: string
+      description: string?
+      state: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      closed_at: timestamptz?
+      labels: json?
+      milestone: json?
+      assignees: json?
+      author: json?
+      user_notes_count: int64?
+      upvotes: int64?
+      downvotes: int64?
+      due_date: string?
+      confidential: bool
+      web_url: string
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: merge_requests
+    path: /projects/{project_id}/merge_requests
+    params:
+      project_id: parent.project_id
+    for_each: projects
+    query:
+      scope: all
+      order_by: updated_at
+      sort: asc
+    primary_key: [project_id, id]
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_after
+      inject_into: query
+      checkpoint_key: merge_requests_updated_at
+      comparator: time
+      overlap_seconds: 300
+    fields:
+      project_id: {path: parent.project_id, type: int64}
+      id: int64
+      iid: int64
+      title: string
+      description: string?
+      state: string
+      created_at: timestamptz
+      updated_at: timestamptz
+      merged_at: timestamptz?
+      closed_at: timestamptz?
+      target_branch: string
+      source_branch: string
+      upvotes: int64?
+      downvotes: int64?
+      author: json?
+      assignees: json?
+      reviewers: json?
+      source_project_id: int64?
+      target_project_id: int64?
+      labels: json?
+      draft: bool?
+      work_in_progress: bool?
+      milestone: json?
+      detailed_merge_status: string?
+      web_url: string
+      has_conflicts: bool?
+      user_notes_count: int64?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: pipelines
+    path: /projects/{project_id}/pipelines
+    params:
+      project_id: parent.project_id
+    for_each: projects
+    query:
+      order_by: updated_at
+      sort: asc
+    primary_key: [project_id, id]
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_after
+      inject_into: query
+      checkpoint_key: pipelines_updated_at
+      comparator: time
+      overlap_seconds: 300
+    fields:
+      project_id: {path: parent.project_id, type: int64}
+      id: int64
+      iid: int64?
+      ref: string
+      sha: string
+      status: string
+      source: string?
+      created_at: timestamptz
+      updated_at: timestamptz
+      web_url: string
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: commits
+    path: /projects/{project_id}/repository/commits
+    params:
+      project_id: parent.project_id
+    for_each: projects
+    query:
+      order: default
+    primary_key: [project_id, id]
+    fields:
+      project_id: {path: parent.project_id, type: int64}
+      id: string
+      short_id: string
+      title: string
+      message: string
+      author_name: string
+      author_email: string
+      authored_date: timestamptz
+      committer_name: string
+      committer_email: string
+      committed_date: timestamptz
+      created_at: timestamptz
+      web_url: string
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: branches
+    path: /projects/{project_id}/repository/branches
+    params:
+      project_id: parent.project_id
+    for_each: projects
+    primary_key: [project_id, name]
+    fields:
+      project_id: {path: parent.project_id, type: int64}
+      name: string
+      merged: bool
+      protected: bool
+      default: bool
+      developers_can_push: bool?
+      developers_can_merge: bool?
+      can_push: bool?
+      web_url: string
+      commit: json?
+      raw: {path: $, type: json, mode: remainder}
