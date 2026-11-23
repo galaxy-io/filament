@@ -40,9 +40,9 @@ type Sink struct {
 	commitBytes map[string]int64 // bytes appended outside receipts; see CommitBytes
 }
 
-// New returns an unconfigured sink.
 var _ filament.CommitBytesReporter = (*Sink)(nil)
 
+// New returns an unconfigured sink.
 func New() *Sink { return &Sink{state: stateNew, enc: make(map[string]*resourceEncoder)} }
 
 var (
