@@ -17,7 +17,8 @@ const isEmpty = (configuration: WorkerConfiguration | undefined) =>
   (Object.keys(configuration.resources?.requests ?? {}).length === 0 &&
     Object.keys(configuration.resources?.limits ?? {}).length === 0 &&
     Object.keys(configuration.nodeSelector).length === 0 &&
-    configuration.tolerations.length === 0);
+    configuration.tolerations.length === 0 &&
+    Object.keys(configuration.annotations).length === 0);
 
 export const formatWorkerConfiguration = (
   configuration: WorkerConfiguration | undefined,
@@ -35,6 +36,7 @@ export const formatWorkerConfiguration = (
       },
       nodeSelector: json.nodeSelector ?? {},
       tolerations: json.tolerations ?? [],
+      annotations: json.annotations ?? {},
     },
     null,
     2,
