@@ -31,6 +31,7 @@ table-level atomic commits. See the Iceberg sink for that.
 | `part_size_mib` | Pipeline | `16` | Starting multipart request size in MiB, from 5 through 5120. Parts double in size every 1,000 parts, so any value reaches the 5 TiB S3 object limit within 10,000 parts |
 | `max_file_size_mib` | Pipeline | `1024` | Target object size in MiB, from 5 through 1048576. A resource that grows past it continues in the next numbered object |
 | `upload_concurrency` | Pipeline | `8` | Concurrent S3 upload operations across resources, from 1 through 32. Each holds up to one part in memory |
+| `abort_stale_uploads_after` | Pipeline | `24h` | Age after which the sink aborts its own incomplete multipart uploads under `prefix`, such as uploads left by a crashed worker. At least `1h`, or `0` to disable. See [incomplete multipart uploads](#incomplete-multipart-uploads) |
 
 A `prefix` left empty is defaulted server-side to the normalized source
 connection name.
@@ -43,7 +44,9 @@ chain, including EC2 instance profiles and container or workload roles. Choose
 `TestConnection` performs a read-only `HeadBucket` request. On AWS this
 requires `s3:ListBucket`; it does not prove that the identity can write. Runs
 also need object-write and multipart-upload permissions for the configured
-prefix.
+prefix. The stale upload sweep also uses `s3:ListBucketMultipartUploads` and
+`s3:AbortMultipartUpload`. Without them the sweep logs a warning and the run
+continues.
 
 ## Supported write modes
 
@@ -241,9 +244,50 @@ The write becomes valid only when `_SUCCESS.json` is uploaded last.
 resource partitions, but no `_SUCCESS.json` is published, so the write is not
 valid. Query engines still read those objects. If partial data matters, remove
 them by their run ID for bounded output or write ID for continuous output
-before retrying. Configure an S3 lifecycle
-rule to expire incomplete multipart uploads. Multipart uploads do not resume across worker
-attempts. Resource progress is saved only after commit succeeds.
+before retrying. Multipart uploads do not resume across worker attempts.
+Resource progress is saved only after commit succeeds.
+
+### Incomplete multipart uploads
+
+A worker that stops without running `Abort`, such as a killed pod or a node
+failure, leaves its open multipart uploads behind. S3 keeps them and bills for
+their parts until they are removed. They never appear as objects, so bucket
+listings do not show them.
+
+The sink removes these itself. When it opens, it lists the bucket's incomplete
+multipart uploads and aborts those under `prefix` that are named like its own
+objects and started more than `abort_stale_uploads_after` ago. It sweeps a
+prefix at most once an hour per worker, so continuous runs do not list at every
+boundary. A failed sweep logs a warning and never fails the run.
+
+The sweep cannot tell a stale upload from a live one, only how old it is. Set
+`abort_stale_uploads_after` longer than your longest bounded run, or a sweep
+from another run on the same prefix can abort an upload that is still in use.
+Continuous runs are not affected because each boundary starts new uploads.
+
+A pipeline that crashes and never runs again is never swept. For that case, add
+a bucket lifecycle rule as a backstop.
+
+```json lifecycle.json
+{
+  "Rules": [
+    {
+      "ID": "abort-incomplete-multipart-uploads",
+      "Status": "Enabled",
+      "Filter": { "Prefix": "" },
+      "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 7 }
+    }
+  ]
+}
+```
+
+```bash
+aws s3api put-bucket-lifecycle-configuration \
+  --bucket my-bucket --lifecycle-configuration file://lifecycle.json
+```
+
+`put-bucket-lifecycle-configuration` replaces the bucket's existing rules, so
+merge this rule into any you already have.
 
 See [Continuous streaming runs](/pages/guides/concepts/streaming) for boundary
 defaults, setup costs, and checkpoint recovery. A replay after publication can

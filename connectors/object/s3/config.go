@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
@@ -39,6 +40,7 @@ type sinkConfig struct {
 	partSize        int64
 	maxFileSize     int64
 	uploadWorkers   int
+	staleUploadAge  time.Duration // 0 disables the stale upload sweep
 	fileFormat      encoder.FileFormat
 	compression     encoder.Compression
 }
@@ -135,6 +137,9 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 	} else if ok {
 		out.uploadWorkers = value
 	}
+	if out.staleUploadAge, err = staleUploadAge(cfg); err != nil {
+		return sinkConfig{}, err
+	}
 	out.pathStyle = out.endpoint != ""
 	if cfg.Has("path_style") {
 		out.pathStyle = cfg.Bool("path_style")
@@ -153,4 +158,21 @@ func intInRange(cfg filament.Config, name string, low, high int) (value int, ok 
 		return 0, false, fmt.Errorf("s3 sink: %s must be between %d and %d", name, low, high)
 	}
 	return value, true, nil
+}
+
+// staleUploadAge reads abort_stale_uploads_after. 0 disables the sweep; any
+// other value must be at least minStaleUploadAge so a sweep cannot abort the
+// uploads of a run that is still writing.
+func staleUploadAge(cfg filament.Config) (time.Duration, error) {
+	if !cfg.Has("abort_stale_uploads_after") {
+		return defaultStaleUploadAge, nil
+	}
+	age := cfg.Duration("abort_stale_uploads_after")
+	if age == 0 && fmt.Sprint(cfg.Raw()["abort_stale_uploads_after"]) == "0" {
+		return 0, nil
+	}
+	if age < minStaleUploadAge {
+		return 0, fmt.Errorf("s3 sink: abort_stale_uploads_after must be a duration of at least %s, or 0 to disable", minStaleUploadAge)
+	}
+	return age, nil
 }

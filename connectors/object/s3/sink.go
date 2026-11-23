@@ -92,7 +92,11 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if err != nil {
 		return err
 	}
-	return s.open(ctx, run, cfg, store)
+	if err := s.open(ctx, run, cfg, store); err != nil {
+		return err
+	}
+	sweepOnOpen(ctx, store, cfg, string(run.Run))
+	return nil
 }
 
 func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, store multipartStore) error {

@@ -45,6 +45,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 			{Name: "part_size_mib", Type: filament.FieldInt, Default: defaultPartSizeMiB, Scope: filament.ScopePipeline, Help: "Starting multipart request size in MiB; 5 through 5120. Parts double every 1,000 parts so large objects stay within the 10,000-part limit; buffers allocate lazily."},
 			{Name: "max_file_size_mib", Type: filament.FieldInt, Default: defaultFileSizeMiB, Scope: filament.ScopePipeline, Help: "Target size of each object in MiB; 5 through 1048576. A resource that grows past it continues in a new numbered object. Objects can exceed it by up to one batch."},
 			{Name: "upload_concurrency", Type: filament.FieldInt, Default: defaultUploadWorkers, Scope: filament.ScopePipeline, Help: "Concurrent S3 upload operations across resources; 1 through 32. Each holds up to one part in memory."},
+			{Name: "abort_stale_uploads_after", Type: filament.FieldDuration, Default: "24h", Scope: filament.ScopePipeline, Help: "Abort incomplete multipart uploads under the prefix that are older than this, such as uploads left by a crashed worker. Set it longer than your longest run. 0 disables the sweep."},
 		}},
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{

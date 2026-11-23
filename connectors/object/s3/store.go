@@ -31,4 +31,7 @@ type multipartStore interface {
 	CompleteMultipart(ctx context.Context, bucket, key, uploadID string, parts []completedPart, crc32c uint32) error
 	AbortMultipart(ctx context.Context, bucket, key, uploadID string) error
 	PutObject(ctx context.Context, bucket, key string, metadata objectMetadata, body io.ReadSeeker, size int64, crc32c uint32) error
+	// ListMultipartUploads reports every incomplete multipart upload whose key
+	// starts with prefix.
+	ListMultipartUploads(ctx context.Context, bucket, prefix string) ([]pendingUpload, error)
 }

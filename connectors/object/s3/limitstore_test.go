@@ -158,6 +158,16 @@ func (s *limitStore) CompleteMultipart(ctx context.Context, _, key, uploadID str
 	return nil
 }
 
+func (s *limitStore) ListMultipartUploads(context.Context, string, string) ([]pendingUpload, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]pendingUpload, 0, len(s.uploads))
+	for id, upload := range s.uploads {
+		out = append(out, pendingUpload{key: upload.key, uploadID: id})
+	}
+	return out, nil
+}
+
 func (s *limitStore) AbortMultipart(_ context.Context, _, _, uploadID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

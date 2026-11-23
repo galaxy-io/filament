@@ -155,6 +155,27 @@ func (s *awsStore) AbortMultipart(ctx context.Context, bucket, key, uploadID str
 	return err
 }
 
+func (s *awsStore) ListMultipartUploads(ctx context.Context, bucket, prefix string) ([]pendingUpload, error) {
+	input := &s3.ListMultipartUploadsInput{Bucket: aws.String(bucket), Prefix: aws.String(prefix)}
+	var out []pendingUpload
+	for {
+		page, err := s.client.ListMultipartUploads(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+		for _, upload := range page.Uploads {
+			if upload.Key == nil || upload.UploadId == nil || upload.Initiated == nil {
+				continue
+			}
+			out = append(out, pendingUpload{key: *upload.Key, uploadID: *upload.UploadId, initiated: *upload.Initiated})
+		}
+		if !aws.ToBool(page.IsTruncated) {
+			return out, nil
+		}
+		input.KeyMarker, input.UploadIdMarker = page.NextKeyMarker, page.NextUploadIdMarker
+	}
+}
+
 func (s *awsStore) PutObject(ctx context.Context, bucket, key string, metadata objectMetadata, body io.ReadSeeker, size int64, crc32c uint32) error {
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(metadata.contentType),
