@@ -90,7 +90,7 @@ func (s *Store) LoadWebhookEndpointForTenant(ctx context.Context, tenant filamen
 	if err != nil {
 		return webhooks.Endpoint{}, fmt.Errorf("load webhook endpoint: %w", err)
 	}
-	return endpointFromRow(row), nil
+	return endpointFromRow(row)
 }
 
 // PutWebhookEndpoint persists receiver configuration under an optimistic
@@ -133,7 +133,9 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	if mutation.ExpectedRevision == 0 {
 		n, err = q.InsertWebhookEndpoint(ctx, sqlcgen.InsertWebhookEndpointParams{
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
-			Verifier: mutation.Verifier, PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
+			Verifier: mutation.Verifier, VerifierParams: webhooks.StoredVerifierParams(mutation.VerifierParams),
+			Ingress:    webhooks.StoredIngress(mutation.Ingress),
+			PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
 			SecretRefs: mutation.SecretRefs, PreviousKeyExpiresAt: expires, Resources: resources,
 			SuccessStatus: successStatus, MaxBodyBytes: mutation.MaxBodyBytes,
 		})
@@ -143,7 +145,9 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 			SourceConnectionID: mutation.SourceID, TenantID: string(mutation.Tenant),
 			ExpectedRevision: mutation.ExpectedRevision, NextRevision: mutation.ExpectedRevision + 1,
 			UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}, Verifier: mutation.Verifier,
-			PipelineID: pipeline, RouteKey: route, Enabled: mutation.Enabled,
+			VerifierParams: webhooks.StoredVerifierParams(mutation.VerifierParams),
+			Ingress:        webhooks.StoredIngress(mutation.Ingress),
+			PipelineID:     pipeline, RouteKey: route, Enabled: mutation.Enabled,
 			SecretRefs: mutation.SecretRefs, PreviousKeyExpiresAt: expires, Resources: resources,
 			SuccessStatus: successStatus, MaxBodyBytes: mutation.MaxBodyBytes,
 		})
@@ -167,7 +171,10 @@ func (s *Store) PutWebhookEndpoint(ctx context.Context, mutation webhooks.Endpoi
 	if err != nil {
 		return webhooks.Endpoint{}, err
 	}
-	endpoint := endpointFromRow(row)
+	endpoint, err := endpointFromRow(row)
+	if err != nil {
+		return webhooks.Endpoint{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return webhooks.Endpoint{}, err
 	}
@@ -212,10 +219,15 @@ func routeReads(row *sqlcgen.GetWebhookEndpointBySourceRow) bool {
 	return true
 }
 
-func endpointFromRow(row *sqlcgen.GetWebhookEndpointBySourceRow) webhooks.Endpoint {
+func endpointFromRow(row *sqlcgen.GetWebhookEndpointBySourceRow) (webhooks.Endpoint, error) {
+	ingress, err := webhooks.ParseIngress(row.Ingress)
+	if err != nil {
+		return webhooks.Endpoint{}, err
+	}
 	endpoint := webhooks.Endpoint{
-		Tenant: filament.TenantID(row.TenantID), SourceID: row.SourceConnectionID,
-		Verifier: row.Verifier, Enabled: row.Enabled, Revision: row.ConfigRevision,
+		Ingress: ingress,
+		Tenant:  filament.TenantID(row.TenantID), SourceID: row.SourceConnectionID,
+		Verifier: row.Verifier, VerifierParams: row.VerifierParams, Enabled: row.Enabled, Revision: row.ConfigRevision,
 		PipelineID: row.PipelineID.String, RouteKey: row.RouteKey.String,
 		RouteReady: routeReads(row), Accepting: row.Accepting, Resources: row.Resources,
 		SecretRefs: row.SecretRefs, MaxBodyBytes: row.MaxBodyBytes,
@@ -224,5 +236,43 @@ func endpointFromRow(row *sqlcgen.GetWebhookEndpointBySourceRow) webhooks.Endpoi
 	if row.PreviousKeyExpiresAt.Valid {
 		endpoint.PreviousKeyExpiresAt = row.PreviousKeyExpiresAt.Time
 	}
-	return endpoint
+	return endpoint, nil
+}
+
+// ListWebhookEndpointVerifications returns what each live endpoint copied
+// from its source connector's webhook spec.
+func (s *Store) ListWebhookEndpointVerifications(ctx context.Context) ([]webhooks.EndpointVerification, error) {
+	rows, err := s.q.ListWebhookEndpointVerifications(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list webhook endpoint verifications: %w", err)
+	}
+	out := make([]webhooks.EndpointVerification, 0, len(rows))
+	for _, row := range rows {
+		ingress, err := webhooks.ParseIngress(row.Ingress)
+		if err != nil {
+			return nil, fmt.Errorf("webhook endpoint %q: %w", row.SourceConnectionID, err)
+		}
+		out = append(out, webhooks.EndpointVerification{
+			Tenant: filament.TenantID(row.TenantID), SourceID: row.SourceConnectionID, Connector: row.Connector,
+			Revision: row.ConfigRevision, Verifier: row.Verifier, VerifierParams: row.VerifierParams, Ingress: ingress,
+		})
+	}
+	return out, nil
+}
+
+// UpdateWebhookEndpointVerification rewrites an endpoint's verification at
+// the revision it was read at.
+func (s *Store) UpdateWebhookEndpointVerification(ctx context.Context, v webhooks.EndpointVerification) error {
+	n, err := s.q.UpdateWebhookEndpointVerification(ctx, sqlcgen.UpdateWebhookEndpointVerificationParams{
+		SourceConnectionID: v.SourceID, TenantID: string(v.Tenant), ExpectedRevision: v.Revision,
+		UpdatedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true}, Verifier: v.Verifier,
+		VerifierParams: webhooks.StoredVerifierParams(v.VerifierParams), Ingress: webhooks.StoredIngress(v.Ingress),
+	})
+	if err != nil {
+		return fmt.Errorf("update webhook endpoint verification: %w", err)
+	}
+	if n != 1 {
+		return filament.ErrVersionConflict
+	}
+	return nil
 }

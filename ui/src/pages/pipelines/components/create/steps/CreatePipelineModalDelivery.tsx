@@ -2,16 +2,17 @@ import type { FC } from "react";
 
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 
-import { ConnectorKind, ExecutionMode } from "@/gen/ingestion/v1/common_pb";
+import { ConnectorKind, ExecutionMode, ReplicationMode } from "@/gen/ingestion/v1/common_pb";
 
 import { useCreatePipelineModalState } from "@/pages/pipelines/components/create/CreatePipelineModalProvider";
 import CreatePipelineModalDeliveryConnection from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryConnection";
+import CreatePipelineModalDeliveryFailure from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryFailure";
 import CreatePipelineModalDeliveryNotifications from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryNotifications";
 import CreatePipelineModalDeliverySchedule from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliverySchedule";
 import CreatePipelineModalDeliveryWorker from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalDeliveryWorker";
 
 const CreatePipelineModalDelivery: FC = () => {
-  const { sourceConnection, sinks, executionMode } = useCreatePipelineModalState();
+  const { sourceConnection, sinks, executionMode, replication } = useCreatePipelineModalState();
 
   return (
     <Flex alignItems={AlignItems.STRETCH} direction={FlexDirection.COLUMN} gap={12} fillWidth>
@@ -30,6 +31,9 @@ const CreatePipelineModalDelivery: FC = () => {
         />
       ))}
       {executionMode !== ExecutionMode.CONTINUOUS && <CreatePipelineModalDeliverySchedule />}
+      {executionMode !== ExecutionMode.CONTINUOUS && replication !== ReplicationMode.CDC && (
+        <CreatePipelineModalDeliveryFailure />
+      )}
       <CreatePipelineModalDeliveryNotifications />
       <CreatePipelineModalDeliveryWorker />
     </Flex>

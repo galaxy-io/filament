@@ -57,11 +57,13 @@ message ListTransformFunctionsResponse {
 
 // ValidateTransformRequest compiles a transform against one resource's
 // schema, read from the source connection, exactly as a run would. The
-// transform is the same JSON object an edge carries.
+// transform is the same JSON object an edge carries, and columns is the
+// edge's column selection for the resource, empty when it reads every column.
 message ValidateTransformRequest {
   string source_connection_id = 1;
   string resource = 2;
   google.protobuf.Struct transform = 3;
+  repeated string columns = 4;
 }
 
 // TransformExpressionType is the logical type of one compiled sub-expression.
@@ -84,4 +86,6 @@ message ValidateTransformResponse {
   repeated ValidationError issues = 2;
   repeated ResourceColumn output_columns = 3;
   repeated TransformExpressionType expression_types = 4;
+  // output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract.
+  bytes output_arrow_schema = 5;
 }

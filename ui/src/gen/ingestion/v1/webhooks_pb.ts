@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/webhooks.proto.
  */
 export const file_ingestion_v1_webhooks: GenFile = /*@__PURE__*/
-  fileDesc("Chtpbmdlc3Rpb24vdjEvd2ViaG9va3MucHJvdG8SDGluZ2VzdGlvbi52MSLQAgoVV2ViaG9va0VuZHBvaW50Q29uZmlnEhwKFHNvdXJjZV9jb25uZWN0aW9uX2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEhEKCXJvdXRlX2tleRgDIAEoCRIRCglyZXNvdXJjZXMYBCADKAkSDwoHZW5hYmxlZBgFIAEoCBIQCghyZXZpc2lvbhgGIAEoAxIWCg5zdWNjZXNzX3N0YXR1cxgHIAEoBRIWCg5tYXhfYm9keV9ieXRlcxgIIAEoAxIaChJoYXNfc2lnbmluZ19zZWNyZXQYCSABKAgSEwoLcm91dGVfcmVhZHkYCiABKAgSEAoIdmVyaWZpZXIYCyABKAkSHwoXcHJldmlvdXNfa2V5X2V4cGlyZXNfYXQYDCABKAMSEQoJYWNjZXB0aW5nGA0gASgIEhQKDGRlbGl2ZXJ5X3VybBgOIAEoCSLBAQoZUHV0V2ViaG9va0VuZHBvaW50UmVxdWVzdBI1CghlbmRwb2ludBgBIAEoCzIjLmluZ2VzdGlvbi52MS5XZWJob29rRW5kcG9pbnRDb25maWcSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMSFwoPaW1wb3J0ZWRfc2VjcmV0GAMgASgJEhMKC21pbnRfc2VjcmV0GAQgASgIEiQKHGV4cGVjdGVkX3BpcGVsaW5lX3ZlcnNpb25faWQYBSABKAkiagoaUHV0V2ViaG9va0VuZHBvaW50UmVzcG9uc2USNQoIZW5kcG9pbnQYASABKAsyIy5pbmdlc3Rpb24udjEuV2ViaG9va0VuZHBvaW50Q29uZmlnEhUKDW1pbnRlZF9zZWNyZXQYAiABKAkiOQoZR2V0V2ViaG9va0VuZHBvaW50UmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCSJTChpHZXRXZWJob29rRW5kcG9pbnRSZXNwb25zZRI1CghlbmRwb2ludBgBIAEoCzIjLmluZ2VzdGlvbi52MS5XZWJob29rRW5kcG9pbnRDb25maWdiBnByb3RvMw");
+  fileDesc("Chtpbmdlc3Rpb24vdjEvd2ViaG9va3MucHJvdG8SDGluZ2VzdGlvbi52MSLQAgoVV2ViaG9va0VuZHBvaW50Q29uZmlnEhwKFHNvdXJjZV9jb25uZWN0aW9uX2lkGAEgASgJEhMKC3BpcGVsaW5lX2lkGAIgASgJEhEKCXJvdXRlX2tleRgDIAEoCRIRCglyZXNvdXJjZXMYBCADKAkSDwoHZW5hYmxlZBgFIAEoCBIQCghyZXZpc2lvbhgGIAEoAxIWCg5zdWNjZXNzX3N0YXR1cxgHIAEoBRIWCg5tYXhfYm9keV9ieXRlcxgIIAEoAxIaChJoYXNfc2lnbmluZ19zZWNyZXQYCSABKAgSEwoLcm91dGVfcmVhZHkYCiABKAgSEAoIdmVyaWZpZXIYCyABKAkSHwoXcHJldmlvdXNfa2V5X2V4cGlyZXNfYXQYDCABKAMSEQoJYWNjZXB0aW5nGA0gASgIEhQKDGRlbGl2ZXJ5X3VybBgOIAEoCSLBAQoZUHV0V2ViaG9va0VuZHBvaW50UmVxdWVzdBI1CghlbmRwb2ludBgBIAEoCzIjLmluZ2VzdGlvbi52MS5XZWJob29rRW5kcG9pbnRDb25maWcSGQoRZXhwZWN0ZWRfcmV2aXNpb24YAiABKAMSFwoPaW1wb3J0ZWRfc2VjcmV0GAMgASgJEhMKC21pbnRfc2VjcmV0GAQgASgIEiQKHGV4cGVjdGVkX3BpcGVsaW5lX3ZlcnNpb25faWQYBSABKAkiagoaUHV0V2ViaG9va0VuZHBvaW50UmVzcG9uc2USNQoIZW5kcG9pbnQYASABKAsyIy5pbmdlc3Rpb24udjEuV2ViaG9va0VuZHBvaW50Q29uZmlnEhUKDW1pbnRlZF9zZWNyZXQYAiABKAkiOQoZR2V0V2ViaG9va0VuZHBvaW50UmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCSJTChpHZXRXZWJob29rRW5kcG9pbnRSZXNwb25zZRI1CghlbmRwb2ludBgBIAEoCzIjLmluZ2VzdGlvbi52MS5XZWJob29rRW5kcG9pbnRDb25maWciPAocR2V0V2ViaG9va0RlbGl2ZXJ5VVJMUmVxdWVzdBIcChRzb3VyY2VfY29ubmVjdGlvbl9pZBgBIAEoCSI1Ch1HZXRXZWJob29rRGVsaXZlcnlVUkxSZXNwb25zZRIUCgxkZWxpdmVyeV91cmwYASABKAliBnByb3RvMw");
 
 /**
  * WebhookEndpointConfig is tenant-owned receiver configuration. Signing keys
@@ -215,4 +215,45 @@ export type GetWebhookEndpointResponse = Message<"ingestion.v1.GetWebhookEndpoin
  */
 export const GetWebhookEndpointResponseSchema: GenMessage<GetWebhookEndpointResponse> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_webhooks, 4);
+
+/**
+ * The delivery URL belongs to the source connection, so it is known before the
+ * endpoint exists. A provider that creates the signing secret needs the URL
+ * first, and the endpoint needs that secret.
+ *
+ * @generated from message ingestion.v1.GetWebhookDeliveryURLRequest
+ */
+export type GetWebhookDeliveryURLRequest = Message<"ingestion.v1.GetWebhookDeliveryURLRequest"> & {
+  /**
+   * @generated from field: string source_connection_id = 1;
+   */
+  sourceConnectionId: string;
+};
+
+/**
+ * Describes the message ingestion.v1.GetWebhookDeliveryURLRequest.
+ * Use `create(GetWebhookDeliveryURLRequestSchema)` to create a new message.
+ */
+export const GetWebhookDeliveryURLRequestSchema: GenMessage<GetWebhookDeliveryURLRequest> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_webhooks, 5);
+
+/**
+ * @generated from message ingestion.v1.GetWebhookDeliveryURLResponse
+ */
+export type GetWebhookDeliveryURLResponse = Message<"ingestion.v1.GetWebhookDeliveryURLResponse"> & {
+  /**
+   * <public base URL>/hooks/<source_connection_id>, without the resource.
+   * Empty when the server has no public base URL configured.
+   *
+   * @generated from field: string delivery_url = 1;
+   */
+  deliveryUrl: string;
+};
+
+/**
+ * Describes the message ingestion.v1.GetWebhookDeliveryURLResponse.
+ * Use `create(GetWebhookDeliveryURLResponseSchema)` to create a new message.
+ */
+export const GetWebhookDeliveryURLResponseSchema: GenMessage<GetWebhookDeliveryURLResponse> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_webhooks, 6);
 

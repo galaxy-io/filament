@@ -16,7 +16,8 @@ import { useValidateTransformQuery } from "@/api/queries/transforms";
 
 export const usePipelineTransformFieldsIssues = (): Map<TransformStep["id"], string[]> => {
   const { steps } = usePipelineTransformFieldsState();
-  const { resource, sourceConnectionId, grammarVersion } = usePipelineTransformFieldsEnvironment();
+  const { resource, columnSelection, sourceConnectionId, grammarVersion } =
+    usePipelineTransformFieldsEnvironment();
   const definition = useMemo(
     () => serializeTransformDefinition(resource, steps, grammarVersion),
     [grammarVersion, resource, steps],
@@ -26,6 +27,7 @@ export const usePipelineTransformFieldsIssues = (): Map<TransformStep["id"], str
       sourceConnectionId,
       resource,
       transform: definition,
+      columns: columnSelection,
     }),
     options: { enabled: sourceConnectionId !== "" && definition !== undefined },
   });

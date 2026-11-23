@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ingestion.v1;
 
+import "ingestion/v1/alchemy.proto";
 import "ingestion/v1/capabilities.proto";
 import "ingestion/v1/connections.proto";
 import "ingestion/v1/connectors.proto";
@@ -33,6 +34,7 @@ service IngestionService {
   // Tenant-owned webhook endpoint configuration. Delivery uses a separate HTTP path.
   rpc GetWebhookEndpoint(GetWebhookEndpointRequest) returns (GetWebhookEndpointResponse);
   rpc PutWebhookEndpoint(PutWebhookEndpointRequest) returns (PutWebhookEndpointResponse);
+  rpc GetWebhookDeliveryURL(GetWebhookDeliveryURLRequest) returns (GetWebhookDeliveryURLResponse);
 
   // Pipeline options and validation are resolved for the complete graph.
   rpc ValidatePipeline(ValidatePipelineRequest) returns (ValidatePipelineResponse);
@@ -40,6 +42,8 @@ service IngestionService {
   // Transformations; the function catalog and per-resource compile check a builder needs.
   rpc ListTransformFunctions(ListTransformFunctionsRequest) returns (ListTransformFunctionsResponse);
   rpc ValidateTransform(ValidateTransformRequest) returns (ValidateTransformResponse);
+  rpc ListAlchemyFunctions(ListAlchemyFunctionsRequest) returns (ListAlchemyFunctionsResponse);
+  rpc GetAlchemyFunction(GetAlchemyFunctionRequest) returns (GetAlchemyFunctionResponse);
 
   // Pipelines; the persisted node graph.
   rpc CreatePipeline(CreatePipelineRequest) returns (CreatePipelineResponse);

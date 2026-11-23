@@ -61,7 +61,8 @@ func PlanResources(ctx context.Context, src filament.Source, resources, selector
 	}
 	planned := make([]string, 0, len(discovered.Resources))
 	for _, resource := range discovered.Resources {
-		if resource.Selectable {
+		// Webhook resources run continuously and never join a bounded run.
+		if resource.Selectable && resource.Metadata[filament.ResourceMetaIngress] != filament.ResourceIngressWebhook {
 			planned = append(planned, resource.Name)
 		}
 	}

@@ -10,6 +10,8 @@ import (
 
 	"github.com/galaxy-io/filament"
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
+	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/integrations/alchemy"
 	"github.com/galaxy-io/filament/internal/compile"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/transform"
@@ -67,9 +69,6 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	if resource == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("resource is required"))
 	}
-	if req.Msg.GetTransform() == nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("transform is required"))
-	}
 	ctx, cancel := context.WithTimeout(ctx, resourceColumnsRPCTimeout)
 	defer cancel()
 
@@ -97,7 +96,15 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	case inspection.Schema == nil:
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("connector %q does not provide resource schemas", conn.Connector))
 	}
-	schema := *inspections[0].Schema
+	srcSpec, err := a.worker.SourceSpec(ctx, conn.Connector)
+	if err != nil {
+		return nil, connectorError(err)
+	}
+	cdc := filament.ReplicationFor(srcSpec, filament.NewConfig(config)) == filament.ReplicationCDC
+	schema := rowmodel.InputFor(*inspections[0].Schema, req.Msg.GetColumns(), cdc)
+	if req.Msg.GetTransform() == nil {
+		return transformResult(nil, nil, schema)
+	}
 
 	// A Struct is JSON, and JSON is yaml, so the transform takes the same
 	// path a hand-written one does.
@@ -108,20 +115,11 @@ func (a *Server) ValidateTransform(ctx context.Context, req *connect.Request[ing
 	def, err := transform.Parse(raw)
 	if err != nil {
 		// Nothing compiled, but the builder still needs the source columns.
-		return transformIssues(err, nil, outputColumns(schema))
+		return transformResult(err, nil, schema)
 	}
-	_, analysis, err := transform.Analyze(def, schema)
-	if err != nil {
-		// The steps that did compile still leave a schema; a builder needs it
-		// for the steps after the broken one.
-		return transformIssues(err, analysis.Types, outputColumns(analysis.Layout))
-	}
-	resp := &ingestionv1.ValidateTransformResponse{
-		Valid:           true,
-		OutputColumns:   outputColumns(analysis.Layout),
-		ExpressionTypes: expressionTypes(analysis.Types),
-	}
-	return connect.NewResponse(resp), nil
+	_, analysis, err := transform.Analyze(def, schema, transform.WithContracts(a.contracts(ctx, tenant, def)))
+	// The steps that did compile still leave a schema; a builder needs it for the steps after a broken one.
+	return transformResult(err, analysis.Types, analysis.Layout)
 }
 
 func outputColumns(out rowmodel.Schema) []*ingestionv1.ResourceColumn {
@@ -134,19 +132,27 @@ func outputColumns(out rowmodel.Schema) []*ingestionv1.ResourceColumn {
 	return cols
 }
 
-// transformIssues renders a parse or compile failure as a response, with the
-// types of whatever did compile and the columns the steps still produce.
-// Anything that is not a path-addressed transform problem is an argument error.
-func transformIssues(err error, types []transform.ExpressionType, columns []*ingestionv1.ResourceColumn) (*connect.Response[ingestionv1.ValidateTransformResponse], error) {
+// transformResult renders a validation; anything but a path-addressed transform issue is an argument error.
+func transformResult(err error, types []transform.ExpressionType, layout rowmodel.Schema) (*connect.Response[ingestionv1.ValidateTransformResponse], error) {
 	var errs *transform.Errors
-	if !errors.As(err, &errs) {
+	if err != nil && !errors.As(err, &errs) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	resp := &ingestionv1.ValidateTransformResponse{
-		Issues:          make([]*ingestionv1.ValidationError, 0, len(errs.Issues)),
-		OutputColumns:   columns,
-		ExpressionTypes: expressionTypes(types),
+	// Keeping filament.logical metadata lets a json or uuid column round-trip through a function.
+	arrowSchema, aerr := alchemy.EncodeSchema(arrowbatch.Schema(layout))
+	if aerr != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode output schema: %w", aerr))
 	}
+	resp := &ingestionv1.ValidateTransformResponse{
+		Valid:             err == nil,
+		OutputColumns:     outputColumns(layout),
+		ExpressionTypes:   expressionTypes(types),
+		OutputArrowSchema: arrowSchema,
+	}
+	if errs == nil {
+		return connect.NewResponse(resp), nil
+	}
+	resp.Issues = make([]*ingestionv1.ValidationError, 0, len(errs.Issues))
 	for _, iss := range errs.Issues {
 		resp.Issues = append(resp.Issues, &ingestionv1.ValidationError{Field: iss.Path, Message: iss.Message})
 	}

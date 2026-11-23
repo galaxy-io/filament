@@ -11,6 +11,8 @@ type record struct {
 	Op       rowmodel.Operation
 	Data     []byte
 	Key      []string
+	// Stream identifies the source event of a row read from a stream.
+	Stream *rowmodel.StreamMeta
 }
 
 type recordSink interface {

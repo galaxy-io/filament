@@ -18,10 +18,11 @@ const (
 	maxCacheEntries    = 10_000
 )
 
-// Resolved is an endpoint with its signing keys already read.
+// Resolved is an endpoint with its signing keys read and its verifier built.
 type Resolved struct {
 	Endpoint Endpoint
 	Keys     [][]byte
+	Verifier Verifier
 }
 
 // EndpointCache keeps recently used endpoints and their keys in memory, so a
@@ -29,8 +30,9 @@ type Resolved struct {
 // for one endpoint share a single load, and unknown IDs are remembered briefly.
 //
 // A cached entry can trail a configuration change by at most TTL. That is
-// safe: a replaced key keeps verifying for PreviousKeyGrace, and deliveries
-// carry no routing, so a stale entry never misroutes one.
+// safe: a replaced key keeps verifying for PreviousKeyGrace, and a delivery
+// routed by a stale event map lands in a resource the endpoint accepted a
+// moment ago, or is acknowledged and dropped as unrouted.
 //
 // A shared load is detached from the request that started it and bounded by
 // LoadTimeout. Each caller still stops waiting when its own request ends, so
@@ -105,6 +107,10 @@ func (c *EndpointCache) load(ctx context.Context, sourceID string) (Resolved, er
 	if endpoint.SourceID != sourceID || endpoint.Tenant == "" {
 		return Resolved{}, filament.ErrNotFound
 	}
+	verifier, err := BuildVerifier(endpoint.Verifier, endpoint.VerifierParams)
+	if err != nil {
+		return Resolved{}, err
+	}
 	refs := endpoint.ActiveKeyRefs(c.now())
 	if len(refs) == 0 {
 		return Resolved{}, errors.New("webhook endpoint has no signing key")
@@ -120,7 +126,7 @@ func (c *EndpointCache) load(ctx context.Context, sourceID string) (Resolved, er
 		}
 		keys = append(keys, secret.Value)
 	}
-	return Resolved{Endpoint: endpoint, Keys: keys}, nil
+	return Resolved{Endpoint: endpoint, Keys: keys, Verifier: verifier}, nil
 }
 
 func (c *EndpointCache) store(sourceID string, entry cacheEntry) {

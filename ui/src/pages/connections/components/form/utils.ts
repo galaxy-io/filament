@@ -1,9 +1,14 @@
+import type { JsonValue } from "@bufbuild/protobuf";
+
 import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
 import type { ValidationError } from "@/gen/ingestion/v1/connectors_pb";
 
 import { getFieldDefaults } from "@/components/fields/utils";
+import { getWebhookIngestion } from "@/components/webhooks/utils";
 
+import { CONNECTION_FORM_INGESTION_ORDER } from "@/pages/connections/components/form/constants";
 import {
+  type ConnectionFormIngestion,
   ConnectionFormPhase,
   type ConnectionFormState,
 } from "@/pages/connections/components/form/types";
@@ -38,3 +43,7 @@ export const getConnectionFormConfig = (
     ),
   };
 };
+
+export const getConnectionFormIngestion = (value: JsonValue): ConnectionFormIngestion | null =>
+  CONNECTION_FORM_INGESTION_ORDER.find((ingestion) => ingestion === getWebhookIngestion(value)) ??
+  null;

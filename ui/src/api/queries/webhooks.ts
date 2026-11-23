@@ -14,6 +14,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import { IngestionService } from "@/gen/ingestion/v1/service_pb";
 import {
+  type GetWebhookDeliveryURLRequest,
+  GetWebhookDeliveryURLRequestSchema,
+  type GetWebhookDeliveryURLResponse,
   type GetWebhookEndpointRequest,
   GetWebhookEndpointRequestSchema,
   type GetWebhookEndpointResponse,
@@ -88,5 +91,24 @@ export const usePutWebhookEndpointMutation = (
       });
       return options.onSettled?.(...args);
     },
+  });
+};
+
+export const createGetWebhookDeliveryURLInput = (sourceConnectionId: Connection["id"]) =>
+  create(GetWebhookDeliveryURLRequestSchema, { sourceConnectionId });
+
+export const useGetWebhookDeliveryURLQuery = ({
+  input,
+  options = {},
+}: {
+  input: GetWebhookDeliveryURLRequest;
+  options?: UseQueryOptions<
+    typeof IngestionService.method.getWebhookDeliveryURL.output,
+    GetWebhookDeliveryURLResponse
+  >;
+}) => {
+  return useQuery(IngestionService.method.getWebhookDeliveryURL, input, {
+    staleTime: Number.POSITIVE_INFINITY,
+    ...options,
   });
 };

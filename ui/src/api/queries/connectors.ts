@@ -2,6 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import type { Transport } from "@connectrpc/connect";
 import {
   createConnectQueryKey,
+  createQueryOptions,
   type UseMutationOptions,
   type UseQueryOptions,
   useMutation,
@@ -10,12 +11,14 @@ import {
 } from "@connectrpc/connect-query";
 import { useIsFetching } from "@tanstack/react-query";
 
+import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import {
   type DiscoverResourcesRequest,
   DiscoverResourcesRequestSchema,
   type DiscoverResourcesResponse,
   type GetConnectorRequest,
+  GetConnectorRequestSchema,
   type GetConnectorResponse,
   type GetResourceColumnsRequest,
   type GetResourceColumnsResponse,
@@ -39,6 +42,20 @@ export const useListConnectorsQuery = ({
     ...options,
   });
 };
+
+export const createGetConnectorInput = (connector: Connection["connector"], kind?: ConnectorKind) =>
+  create(GetConnectorRequestSchema, { connector, kind });
+
+export const createGetConnectorQueryOptions = ({
+  input,
+  transport,
+}: {
+  input: GetConnectorRequest;
+  transport: Transport;
+}) => ({
+  ...createQueryOptions(IngestionService.method.getConnector, input, { transport }),
+  staleTime: Number.POSITIVE_INFINITY,
+});
 
 export const useGetConnectorQuery = ({
   input,

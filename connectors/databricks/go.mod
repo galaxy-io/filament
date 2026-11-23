@@ -3,7 +3,7 @@ module github.com/galaxy-io/filament/connectors/databricks
 go 1.26.4
 
 require (
-	github.com/apache/arrow-go/v18 v18.7.0
+	github.com/apache/arrow-go/v18 v18.8.0
 	github.com/databricks/zerobus-sdk/go v1.7.0
 	github.com/galaxy-io/filament v0.0.0
 	golang.org/x/oauth2 v0.36.0
@@ -18,7 +18,7 @@ require (
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	golang.org/x/exp v0.0.0-20260718201538-764159d718ef // indirect
 	golang.org/x/sys v0.48.0 // indirect
-	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af // indirect
+	google.golang.org/protobuf v1.36.12 // indirect
 )
 
 replace github.com/galaxy-io/filament => ../..
