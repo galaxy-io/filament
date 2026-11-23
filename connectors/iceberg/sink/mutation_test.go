@@ -30,12 +30,21 @@ func TestMutationsChangeExactlyTheirKeys(t *testing.T) {
 		keys []rowmodel.Field
 		key  func(tenant, id int) []any
 	}{
-		{"int64", []rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalInt64}},
-			func(tenant, id int) []any { return []any{int64(tenant*100 + id)} }},
-		{"string", []rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalString}},
-			func(tenant, id int) []any { return []any{fmt.Sprint(tenant*100 + id)} }},
-		{"uuid", []rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalUUID}},
-			func(tenant, id int) []any { return []any{uuid(tenant*100 + id)} }},
+		{
+			"int64",
+			[]rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalInt64}},
+			func(tenant, id int) []any { return []any{int64(tenant*100 + id)} },
+		},
+		{
+			"string",
+			[]rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalString}},
+			func(tenant, id int) []any { return []any{fmt.Sprint(tenant*100 + id)} },
+		},
+		{
+			"uuid",
+			[]rowmodel.Field{{Name: "id", Logical: rowmodel.LogicalUUID}},
+			func(tenant, id int) []any { return []any{uuid(tenant*100 + id)} },
+		},
 		{"string-int64", []rowmodel.Field{
 			{Name: "tenant", Logical: rowmodel.LogicalString}, {Name: "id", Logical: rowmodel.LogicalInt64},
 		}, func(tenant, id int) []any { return []any{fmt.Sprintf("t%d", tenant), int64(id)} }},
@@ -71,8 +80,10 @@ func TestMutationsChangeExactlyTheirKeys(t *testing.T) {
 
 				// Upsert: one key twice (last wins), one once, one new.
 				upsert := []mutationRow{
-					{tc.key(1, 5), "first", rowmodel.OpInsert}, {tc.key(1, 5), "second", rowmodel.OpInsert},
-					{tc.key(2, 6), "upserted", rowmodel.OpInsert}, {tc.key(7, 5), "new", rowmodel.OpInsert},
+					{tc.key(1, 5), "first", rowmodel.OpInsert},
+					{tc.key(1, 5), "second", rowmodel.OpInsert},
+					{tc.key(2, 6), "upserted", rowmodel.OpInsert},
+					{tc.key(7, 5), "new", rowmodel.OpInsert},
 				}
 				env.run(t, policy(filament.IngestionIncrementalUpsert), applyRows(t, env.schema, upsert, false))
 				want[name(1, 5)], want[name(2, 6)], want[name(7, 5)] = "second", "upserted", "new"
@@ -80,8 +91,10 @@ func TestMutationsChangeExactlyTheirKeys(t *testing.T) {
 
 				// Merge: delete one, update one, delete then reinsert one.
 				merge := []mutationRow{
-					{tc.key(0, 5), "", rowmodel.OpDelete}, {tc.key(2, 7), "merged", rowmodel.OpUpdate},
-					{tc.key(1, 9), "", rowmodel.OpDelete}, {tc.key(1, 9), "back", rowmodel.OpInsert},
+					{tc.key(0, 5), "", rowmodel.OpDelete},
+					{tc.key(2, 7), "merged", rowmodel.OpUpdate},
+					{tc.key(1, 9), "", rowmodel.OpDelete},
+					{tc.key(1, 9), "back", rowmodel.OpInsert},
 				}
 				env.run(t, policy(filament.IngestionCDCMerge), applyRows(t, env.schema, merge, true))
 				delete(want, name(0, 5))

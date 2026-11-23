@@ -2,7 +2,9 @@ package iceberg
 
 import (
 	"context"
+	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -123,4 +125,54 @@ func TestAppendAbortDeletesWrittenFiles(t *testing.T) {
 		t.Fatalf("aborted run left %d rows", rows)
 	}
 	_ = run.sink.Close(context.Background())
+}
+
+// TestFailedWriteClosesClean fails a write, which never reaches the catalog,
+// and checks that the session still aborts and closes without error.
+func TestFailedWriteClosesClean(t *testing.T) {
+	env := newTestEnv(t)
+	run := openAppendRun(t, env)
+	run.apply(t, 1)
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	batch := idBatch(t, 1000, 1000)
+	_, err := run.sink.Apply(cancelled, batch, filament.ApplyOptions{Policy: run.policy})
+	batch.Release()
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Apply on a cancelled context = %v", err)
+	}
+	if err := run.sink.Abort(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := run.sink.Close(context.Background()); err != nil {
+		t.Fatalf("Close after a failed write = %v, want clean", err)
+	}
+	if rows := tableRows(t, env, "events"); rows != 0 {
+		t.Fatalf("failed write left %d rows", rows)
+	}
+}
+
+// TestAbortSurvivesAFailedDataFileDelete removes the written files out from
+// under the sink, so Abort cannot delete them, and checks that Abort and Close
+// still succeed: an unreferenced data file says nothing about the table.
+func TestAbortSurvivesAFailedDataFileDelete(t *testing.T) {
+	rotateEveryBatch(t)
+	env := newTestEnv(t)
+	run := openAppendRun(t, env)
+	run.apply(t, 4)
+	written := parquetFiles(t, env)
+	if len(written) == 0 {
+		t.Fatal("no data files written before Abort")
+	}
+	for _, file := range written {
+		if err := os.Remove(file); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := run.sink.Abort(context.Background()); err != nil {
+		t.Fatalf("Abort with undeletable data files = %v", err)
+	}
+	if err := run.sink.Close(context.Background()); err != nil {
+		t.Fatalf("Close after that Abort = %v, want clean", err)
+	}
 }
