@@ -7687,7 +7687,7 @@
           "accepting": {
             "type": "boolean",
             "title": "accepting",
-            "description": "Whether a pipeline that reads this source is running or paused. While\n false, new deliveries get 503 so senders retry until a pipeline starts."
+            "description": "Whether a stream reads this source, in any state. A paused or stopped\n pipeline still accepts and its deliveries wait in the inbox. While false,\n new deliveries get 503 so senders retry until a pipeline first runs."
           },
           "deliveryUrl": {
             "type": "string",

@@ -54,8 +54,9 @@ type Endpoint struct {
 	PipelineID string
 	RouteKey   string
 	RouteReady bool
-	// Accepting is true while a pipeline that reads this source is running or
-	// paused. When every reader is stopped, new deliveries wait with the sender.
+	// Accepting is true once a stream reads this source, whether it is
+	// running, paused or stopped. Receiving does not depend on processing.
+	// With no stream to resume, new deliveries wait with the sender.
 	Accepting            bool
 	Resources            []string
 	SecretRefs           []string
