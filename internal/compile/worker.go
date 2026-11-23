@@ -36,6 +36,18 @@ func WorkerConfigurationFromProto(cfg *ingestionv1.WorkerConfiguration) filament
 	return out
 }
 
+// resolveWorkerConfiguration overlays a run's override on the pipeline's
+// configuration and validates the result. Each side is validated when it is
+// written, but only the merge can put a request above a limit or push the
+// annotations past the size Kubernetes accepts.
+func resolveWorkerConfiguration(override filament.WorkerConfiguration, pipeline *ingestionv1.Pipeline) (filament.WorkerConfiguration, error) {
+	resolved := override.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
+	if err := ValidateWorkerConfiguration(resolved); err != nil {
+		return filament.WorkerConfiguration{}, err
+	}
+	return resolved, nil
+}
+
 func cloneNonEmpty(m map[string]string) map[string]string {
 	if len(m) == 0 {
 		return nil
