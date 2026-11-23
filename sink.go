@@ -45,6 +45,15 @@ type Schematized interface {
 	EnsureSchema(ctx context.Context, resource string, schema RecordSchema) error
 }
 
+// CommitBytesReporter is the optional sink contract for bytes a sink writes
+// during Commit that no WriteReceipt reported, such as a file format's trailer
+// or output an encoder held back. After a successful Commit the runner adds
+// them to the resource and run byte totals. CommitBytes reports the boundary
+// that just committed, keyed by resource.
+type CommitBytesReporter interface {
+	CommitBytes() map[string]int64
+}
+
 // SinkSpec is a sink's self-description: identity, config schema, and
 // capabilities. It powers the catalog.
 type SinkSpec struct {

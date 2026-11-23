@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/galaxy-io/filament"
@@ -94,7 +95,8 @@ func (s *Sink) rollFile(ctx context.Context, session *multipartSession, layout o
 	return nil
 }
 
-// appendTrailer finalizes the encoder's stream into key. The caller holds
+// appendTrailer finalizes the encoder's stream into key and counts the bytes
+// it appends as commit bytes, since no receipt reports them. The caller holds
 // resourceEncoder.mu.
 func (s *Sink) appendTrailer(ctx context.Context, session *multipartSession, resource, key string, resourceEncoder *resourceEncoder) error {
 	buffer := session.takeEncodedBuffer()
@@ -107,7 +109,25 @@ func (s *Sink) appendTrailer(ctx context.Context, session *multipartSession, res
 	if len(encoded) == 0 {
 		return nil
 	}
-	return session.Append(ctx, resource, key, encoded, 0, crc)
+	if err := session.Append(ctx, resource, key, encoded, 0, crc); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	if s.commitBytes == nil {
+		s.commitBytes = make(map[string]int64)
+	}
+	s.commitBytes[resource] += int64(len(encoded))
+	s.mu.Unlock()
+	return nil
+}
+
+// CommitBytes reports the bytes this boundary wrote that no receipt carried:
+// every object's format trailer, and the output a gzip or Parquet encoder held
+// back until its file was finalized.
+func (s *Sink) CommitBytes() map[string]int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return maps.Clone(s.commitBytes)
 }
 
 func (s *Sink) beginApply() (*multipartSession, string, object.Layout, error) {
