@@ -22,6 +22,7 @@ import { ResourceCursorConfigSchema } from "@/gen/ingestion/v1/pipelines_pb";
 
 import ConnectorTile from "@/components/connections/ConnectorTile";
 import { ConnectorTileSize } from "@/components/connections/types";
+import { WEBHOOK_RESOURCE_PLACEHOLDER } from "@/components/webhooks/constants";
 
 import { PIPELINE_CANVAS_NODE_SINK_HANDLE_ID } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
@@ -119,7 +120,8 @@ interface PipelineCanvasRoutesDraftRowProps {
 }
 
 const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ draftState }) => {
-  const { draft, resource, resourceNames, sinks, sourceNodeId } = draftState;
+  const { draft, resource, resourceNames, resourceError, isWebhook, sinks, sourceNodeId } =
+    draftState;
   const { edges } = usePipelineCanvasState();
   const connectionByNodeId = usePipelineCanvasConnections();
   const sourceConnection = sourceNodeId ? connectionByNodeId.get(sourceNodeId) : undefined;
@@ -204,7 +206,9 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
     writeMode,
     cursor: cursor !== "" ? cursor : undefined,
   });
-  const issues = status?.isBlocking ? [status.message] : [];
+  const issues = [resourceError, status?.isBlocking ? status.message : undefined].filter(
+    (issue) => issue !== undefined,
+  );
   const warnings = status && !status.isBlocking ? [status.message] : [];
 
   const readModeSelectOptions = getReadModeSelectOptions(readModeOptions, readMode);
@@ -283,7 +287,7 @@ const PipelineCanvasRoutesDraftRow: FC<PipelineCanvasRoutesDraftRowProps> = ({ d
                     ariaLabel="Resource"
                     value={resource}
                     onChange={draftState.setResource}
-                    placeholder="orders.>"
+                    placeholder={isWebhook ? WEBHOOK_RESOURCE_PLACEHOLDER : "orders.>"}
                     size={InputSize.MEDIUM}
                     isDisabled={draft.isResourceLocked}
                     autoFocus

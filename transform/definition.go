@@ -27,7 +27,7 @@ type Resource struct {
 	Steps []Step `yaml:"steps"`
 }
 
-// Step is one of rename, drop, or compute; the grammar allows exactly one
+// Step is one of rename, drop, compute, or alchemy; the grammar allows exactly one
 // per step. Where belongs to compute alone and limits which rows it
 // rewrites. No step removes rows. Entries of one compute are independent of
 // each other, so their order carries no meaning; columns a compute creates
@@ -37,6 +37,13 @@ type Step struct {
 	Drop    []string          `yaml:"drop,omitempty"`
 	Compute map[string]Expr   `yaml:"compute,omitempty"`
 	Where   *Expr             `yaml:"where,omitempty"`
+	Alchemy *AlchemyStep      `yaml:"alchemy,omitempty"`
+}
+
+// AlchemyStep runs a pinned alchemy function version over the batch.
+type AlchemyStep struct {
+	Function string `yaml:"function"`
+	Version  int64  `yaml:"version"`
 }
 
 // Expr is a column reference, a literal, or a function call, and exactly one

@@ -20,6 +20,8 @@ export interface IngestionV1ConnectorSpec {
     /** Concrete registration selected by a source catalog alias; empty otherwise. */
     aliasTarget?: string | undefined;
     isPreview?: boolean | undefined;
-    /** Ingress verifier for sources that receive webhooks. Empty otherwise. */
+    /** Deprecated: read webhook.verifier. */
     webhookVerifier?: string | undefined;
+    /** Set for sources that receive provider webhooks. */
+    webhook?: Filament.IngestionV1WebhookSpec | undefined;
 }

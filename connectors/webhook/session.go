@@ -40,10 +40,11 @@ func (s *Source) OpenMessageStream(ctx context.Context, opts filament.StreamOpen
 }
 
 func (s *Source) open(ctx context.Context, opts filament.StreamOpenOpts, write stream.WriteFunc) (filament.StreamSession, error) {
-	if s.inbox == nil {
-		return nil, errors.New("webhook: source is not configured")
+	i, err := s.Inbox(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return stream.Open(ctx, stream.Config{Inbox: s.inbox, Batch: s.batch, Codecs: s, Write: write}, opts)
+	return stream.Open(ctx, stream.Config{Inbox: i, Batch: s.batch, Codecs: s, Write: write}, opts)
 }
 
 // writeEnvelopes emits each delivery with its raw body in a payload column.

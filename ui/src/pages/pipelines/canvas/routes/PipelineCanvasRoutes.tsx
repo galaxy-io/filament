@@ -19,7 +19,7 @@ const PipelineCanvasRoutes: FC = () => {
     <Flex direction={FlexDirection.COLUMN} height="100%">
       <PipelineCanvasRoutesToolbar
         onSearch={setSearch}
-        canAddRoute={draft.canOpen}
+        canAddRoute={draft.canAddRoute}
         onAddRoute={() => draft.open()}
       />
       <Divider />

@@ -43,6 +43,7 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: workerConfiguration, ExecutionMode: execution,
+		FailOnError: proto.Bool(req.Msg.GetFailOnError()),
 	}
 	var schedule *filament.ScheduleState
 	if config := req.Msg.GetSchedule(); config != nil {
@@ -130,13 +131,17 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if !validation.GetValid() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline graph is invalid: %s", pipelineValidationMessage(validation)))
 	}
-	if pipeline.GetExecutionMode() == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
-		for _, edge := range edges {
-			if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
-			}
+	// Validation resolved each edge's execution mode. A pipeline can hold both
+	// when its source splits execution per resource.
+	bounded := make([]*ingestionv1.PipelineEdge, 0, len(edges))
+	for i, edge := range edges {
+		if validation.GetEdges()[i].GetEffectiveExecutionMode() != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
+			bounded = append(bounded, edge)
+		} else if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
 		}
-	} else if err := a.normalizeEdgeModes(ctx, tenant, nodes, edges); err != nil {
+	}
+	if err := a.normalizeEdgeModes(ctx, tenant, nodes, bounded); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	a.defaultSinkSchemas(ctx, tenant, nodes, edges)
@@ -397,6 +402,7 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: req.Msg.GetPipelineId(), TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: req.Msg.GetWorkerConfiguration(), ExecutionMode: req.Msg.GetExecutionMode(),
+		FailOnError: req.Msg.FailOnError,
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {

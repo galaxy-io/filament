@@ -29,6 +29,7 @@ import (
 	"github.com/galaxy-io/filament/cmd/internal/uiconfig"
 	ctlpg "github.com/galaxy-io/filament/datastore/postgres"
 	"github.com/galaxy-io/filament/eventbus"
+	authn "github.com/galaxy-io/filament/identity"
 	"github.com/galaxy-io/filament/internal/modules/orchestrator"
 	"github.com/galaxy-io/filament/server"
 	"github.com/galaxy-io/filament/ui"
@@ -90,10 +91,11 @@ func run(ctx context.Context, migrateOnly bool) error {
 		Addr: addr, Handler: otelhttp.NewHandler(mux, "server"),
 		ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second,
 	}
-	errCh := make(chan error, 1)
+	errCh := make(chan error, 2)
 	go func() { errCh <- srv.ListenAndServe() }()
 	started := false
-	shutdown := serverShutdown(srv, healthState, serverLog, &started)
+	servers := []*http.Server{srv}
+	shutdown := serverShutdown(&servers, healthState, serverLog, &started)
 	defer func() { _ = shutdown() }()
 
 	eventBus, closeBus, err := boot.Bus()
@@ -107,31 +109,24 @@ func run(ctx context.Context, migrateOnly bool) error {
 		return err
 	}
 	orch := orchestrator.New()
-	apiOpts := []server.Option{
-		server.WithSecrets(deps.Secrets),
-		server.WithMetricsStore(metricStore),
-		server.WithLogger(deps.Log),
-		server.WithDefaultTenant(filament.TenantID(defaultTenantID())),
-	}
-	if identityProvider != nil {
-		apiOpts = append(apiOpts, server.WithIdentity(identityProvider))
-	}
 	webhooks, closeWebhooks, err := webhooksFromEnv(ctx, deps.Store, deps.Secrets, deps.Metrics)
 	if err != nil {
 		return err
 	}
 	if webhooks != nil {
 		defer closeWebhooks()
-		apiOpts = append(apiOpts, webhooks.apiOption())
 	}
-	api := server.New(deps.Worker, deps.Store, orch, eventBus, apiOpts...)
+	api := server.New(deps.Worker, deps.Store, orch, eventBus, serverOptions(deps, metricStore, identityProvider, webhooks)...)
 	h, err := boot.Mount(ctx, deps, eventBus, orch)
 	if err != nil {
 		return err
 	}
 	defer func() { logHostClose(h.Close(), serverLog) }()
 
-	mountRoutes(mux, api, webhooks, uiConfig)
+	mountRoutes(mux, api, uiConfig)
+	if webhooks != nil {
+		servers = append(servers, webhooks.listen(ctx, api, healthState, errCh))
+	}
 	healthState.MarkStarted()
 	started = true
 	serverLog.Info("server started",
@@ -152,13 +147,31 @@ func run(ctx context.Context, migrateOnly bool) error {
 	}
 }
 
-// mountRoutes serves the API, the webhook receiver when it is enabled, and
-// the UI rendered with uiConfig.
-func mountRoutes(mux *http.ServeMux, api *server.Server, webhooks *webhookReceiver, uiConfig ui.Config) {
-	api.Mount(mux)
-	if webhooks != nil {
-		webhooks.receiver.Mount(mux)
+// serverOptions configures the API. A nil identity provider leaves it
+// unauthenticated and nil webhooks leave endpoint configuration off.
+func serverOptions(deps boot.Deps, metricStore filament.MetricsStore, identityProvider authn.Authenticator, webhooks *webhookReceiver) []server.Option {
+	opts := []server.Option{
+		server.WithSecrets(deps.Secrets),
+		server.WithMetricsStore(metricStore),
+		server.WithLogger(deps.Log),
+		server.WithDefaultTenant(filament.TenantID(defaultTenantID())),
+		server.WithAlchemy(deps.Alchemy.Client),
 	}
+	if identityProvider != nil {
+		opts = append(opts, server.WithIdentity(identityProvider))
+	}
+	if webhooks != nil {
+		opts = append(opts, webhooks.apiOption())
+	}
+	return opts
+}
+
+// mountRoutes serves the API and the UI rendered with uiConfig. Deliveries
+// sent to this listener get 404 so senders retry instead of the UI answering
+// 200. The receiver listens on WEBHOOK_ADDR.
+func mountRoutes(mux *http.ServeMux, api *server.Server, uiConfig ui.Config) {
+	api.Mount(mux)
+	mux.Handle("/hooks/", http.NotFoundHandler())
 	mux.Handle("/", ui.Handler(uiConfig))
 }
 
@@ -214,7 +227,7 @@ func serverAddress() string {
 	return ":8080"
 }
 
-func serverShutdown(srv *http.Server, healthState *health.State, log filament.Logger, started *bool) func() error {
+func serverShutdown(servers *[]*http.Server, healthState *health.State, log filament.Logger, started *bool) func() error {
 	var once sync.Once
 	var shutdownErr error
 	return func() error {
@@ -222,7 +235,9 @@ func serverShutdown(srv *http.Server, healthState *health.State, log filament.Lo
 			healthState.MarkStopping()
 			shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			shutdownErr = srv.Shutdown(shutCtx)
+			for _, srv := range *servers {
+				shutdownErr = errors.Join(shutdownErr, srv.Shutdown(shutCtx))
+			}
 			if shutdownErr != nil {
 				log.Error("server shutdown failed", shutdownErr,
 					filament.Field{Key: "event.name", Value: "server.shutdown_failed"})

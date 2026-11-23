@@ -18,7 +18,7 @@ const WebhookEndpointErrorLayout: FC<WebhookEndpointErrorLayoutProps> = ({ error
         <ErrorLayout
           size={ErrorLayoutSize.SMALL}
           header="Webhooks unavailable"
-          description="Webhook endpoints need PostgreSQL. This server does not support them."
+          description="This server needs PostgreSQL to run webhook endpoints."
         />
       </Box>
     );
@@ -29,7 +29,7 @@ const WebhookEndpointErrorLayout: FC<WebhookEndpointErrorLayoutProps> = ({ error
       <ErrorLayout
         size={ErrorLayoutSize.SMALL}
         header="Failed to load endpoint"
-        description="The webhook endpoint for this source could not be loaded."
+        description="The webhook endpoint could not be loaded."
         detail={error?.message}
       />
     </Box>

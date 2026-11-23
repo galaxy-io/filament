@@ -63,7 +63,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		if err != nil {
 			return nil, err
 		}
-		key := fmt.Sprintf("route/%s/%s", edge.GetFromNode(), edge.GetToNode())
+		key := routeKey(edge.GetFromNode(), edge.GetToNode())
 		group := byKey[key]
 		if group == nil {
 			group = &routeGroup{

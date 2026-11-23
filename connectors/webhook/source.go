@@ -5,8 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
-	"slices"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/rowmodel"
@@ -19,39 +17,36 @@ import (
 // PositionCodec identifies webhook inbox sequence positions.
 const PositionCodec = inbox.PositionCodec
 
-// Attacher connects to the managed inbox. The returned close releases the
-// connection. The receiver provisions the stream, so an attacher never creates it.
-type Attacher func(context.Context) (*inbox.Inbox, func(), error)
-
 // Source reads accepted deliveries from the managed webhook inbox.
 type Source struct {
-	attach Attacher
-	inbox  *inbox.Inbox
-	close  func()
-	batch  stream.Batch
+	stream.Link
+	batch stream.Batch
 }
 
-// New returns a source that attaches to the inbox when configured.
-func New(attach Attacher) *Source { return &Source{attach: attach, batch: stream.DefaultBatch()} }
+// New returns a source that attaches to the inbox the process supplies.
+func New() *Source { return &Source{batch: stream.DefaultBatch()} }
 
 // NewWithInbox uses an already open inbox, for local execution and tests.
-func NewWithInbox(i *inbox.Inbox) *Source { return &Source{inbox: i, batch: stream.DefaultBatch()} }
+func NewWithInbox(i *inbox.Inbox) *Source {
+	s := New()
+	s.SetWebhookInbox(stream.Shared(i), nil)
+	return s
+}
 
 // Spec describes the webhook source connector and its stream capabilities.
 func (*Source) Spec() filament.ConnectorSpec {
 	return filament.ConnectorSpec{
 		Name: "webhook", DisplayName: "Webhook", Version: "1",
-		Description:     "Receive signed webhook deliveries through Filament's durable inbox.",
-		DarkLogoURL:     "https://cdn.getgalaxy.io/sources/source-icon-webhook-dark.svg",
-		LightLogoURL:    "https://cdn.getgalaxy.io/sources/source-icon-webhook-light.svg",
-		WebhookVerifier: webhooks.GenericHMAC,
+		Description:  "Receive signed webhook deliveries through Filament's durable inbox.",
+		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-webhook-dark.svg",
+		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-webhook-light.svg",
 		Stream: &filament.StreamCapabilities{
 			Input:    filament.InputMessages,
 			Ordering: []filament.Ordering{filament.OrderingNone},
 			Delivery: filament.DeliveryReplayableAtLeastOnce,
 		},
-		Config:    filament.ConfigSchema{Fields: stream.BatchFields()},
-		Resources: filament.ResourceCapabilities{WebhookEndpointBacked: true},
+		Config:  filament.ConfigSchema{Fields: stream.BatchFields()},
+		Webhook: &filament.WebhookSpec{Verifier: webhooks.GenericHMAC, DynamicResources: true},
 	}
 }
 
@@ -68,26 +63,16 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 		return err
 	}
 	s.batch = batch
-	if s.inbox != nil {
-		return nil
-	}
-	if s.attach == nil {
-		return errors.New("webhook: no inbox is configured for this process")
-	}
-	s.inbox, s.close, err = s.attach(ctx)
+	_, err = s.Inbox(ctx)
 	return err
 }
 
 // TestConnection verifies that the source can attach to the inbox.
 func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error {
-	if s.inbox != nil {
-		return s.Validate(cfg)
-	}
-	temp := New(s.attach)
-	if err := temp.Configure(ctx, cfg); err != nil {
+	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	return temp.Teardown(ctx)
+	return s.Probe(ctx)
 }
 
 // Extract rejects batch extraction because this source requires a continuous run.
@@ -97,43 +82,18 @@ func (*Source) Extract(context.Context, filament.RecordSink, filament.ExtractOpt
 
 // Teardown releases the inbox connection owned by this source.
 func (s *Source) Teardown(context.Context) error {
-	if s.close != nil {
-		s.close()
-		s.close = nil
-		s.inbox = nil
-	}
+	s.Close()
 	return nil
 }
 
 // PlanReplicationStream binds fixed resources to an inbox consumer.
 func (*Source) PlanReplicationStream(req filament.ReplicationStreamPlanningRequest) (filament.ReplicationStreamPlan, error) {
-	if req.SourceConnectionID == "" || req.ReplicationStreamID == "" || len(req.Resources) == 0 {
-		return filament.ReplicationStreamPlan{}, errors.New("webhook: source, stream, and fixed resources are required")
-	}
-	resources := slices.Clone(req.Resources)
-	slices.Sort(resources)
-	for n, resource := range resources {
-		if !webhooks.ValidResourceName(resource) || (n > 0 && resources[n-1] == resource) {
-			return filament.ReplicationStreamPlan{}, fmt.Errorf("webhook: invalid or repeated resource %q", resource)
-		}
-	}
-	return filament.ReplicationStreamPlan{
-		Resources:    resources,
-		ConsumerName: "webhook-" + req.ReplicationStreamID,
-		ContinuityConfig: map[string]any{
-			"source_connection_id": req.SourceConnectionID,
-			"inbox_stream":         inbox.DefaultStream,
-		},
-	}, nil
+	return stream.Plan(req)
 }
 
 // BindReplicationStream verifies the admitted consumer identity.
 func (*Source) BindReplicationStream(config map[string]any, admitted filament.ReplicationStream) (map[string]any, error) {
-	if admitted.ID == "" || admitted.SourceConnectionID == "" ||
-		admitted.ConsumerName != "webhook-"+admitted.ID {
-		return nil, errors.New("webhook: admitted consumer identity mismatch")
-	}
-	return maps.Clone(config), nil
+	return stream.Bind(config, admitted)
 }
 
 // Lookup returns the position codec used by webhook inbox sequences.

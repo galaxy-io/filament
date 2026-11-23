@@ -34,7 +34,12 @@ func NATSContainer(t testing.TB) *NATS {
 			ExposedPorts: []string{"4222/tcp"},
 			// Waiting on the log alone can win a Docker Desktop race where the
 			// process is ready but the host-port binding is not inspectable yet.
-			WaitingFor: wait.ForListeningPort("4222/tcp").WithStartupTimeout(time.Minute),
+			// The port alone can win Docker's userland proxy, which accepts
+			// before the server listens and then closes with EOF.
+			WaitingFor: wait.ForAll(
+				wait.ForLog("Server is ready"),
+				wait.ForListeningPort("4222/tcp"),
+			).WithStartupTimeout(time.Minute),
 		},
 		Started: true,
 	})

@@ -11,19 +11,26 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 
 import type { ConnectorSpec } from "@/gen/ingestion/v1/connectors_pb";
 
+import ConnectorTileBadgeMark from "@/components/connections/ConnectorTileBadgeMark";
 import ConnectorTileFrame from "@/components/connections/ConnectorTileFrame";
 import {
   CONNECTOR_TILE_SIZE_TO_LOGO_HEIGHT_MAP,
   CONNECTOR_TILE_SIZE_TO_TEXT_SIZE_MAP,
 } from "@/components/connections/constants";
 import { useConnectorLogoURL } from "@/components/connections/hooks/useConnectorLogoURL";
-import { ConnectorTileSize } from "@/components/connections/types";
+import { type ConnectorTileBadge, ConnectorTileSize } from "@/components/connections/types";
 
 const ConnectorLogo = styled.img<{ $height: number }>`
   display: block;
   width: ${({ $height }) => $height}px;
   height: ${({ $height }) => $height}px;
   object-fit: contain;
+`;
+
+const ConnectorLogoTileBadged = styled.span`
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
 `;
 
 const ConnectorLogoTileButton = styled.button`
@@ -43,6 +50,7 @@ interface ConnectorLogoTileProps {
   onClick?: (e: MouseEvent) => void;
   isDeleted?: boolean;
   isLoading?: boolean;
+  badge?: ConnectorTileBadge;
 }
 
 const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
@@ -54,6 +62,7 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
   onClick,
   isDeleted = false,
   isLoading = false,
+  badge,
 }) => {
   const { logoURL, handleLogoError } = useConnectorLogoURL(darkLogoUrl, lightLogoUrl);
 
@@ -81,8 +90,13 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
     );
   };
 
-  const tile = (
-    <ConnectorTileFrame $size={size} $isClickable={!!onClick} $isDeleted={isDeleted}>
+  const frame = (
+    <ConnectorTileFrame
+      $size={size}
+      $isClickable={!!onClick}
+      $isDeleted={isDeleted}
+      $hasBadge={!!badge}
+    >
       {logoURL ? (
         <ConnectorLogo
           src={logoURL}
@@ -94,6 +108,15 @@ const ConnectorLogoTile: FC<ConnectorLogoTileProps> = ({
         renderFallback()
       )}
     </ConnectorTileFrame>
+  );
+
+  const tile = badge ? (
+    <ConnectorLogoTileBadged>
+      {frame}
+      <ConnectorTileBadgeMark badge={badge} size={size} />
+    </ConnectorLogoTileBadged>
+  ) : (
+    frame
   );
 
   if (!onClick) {

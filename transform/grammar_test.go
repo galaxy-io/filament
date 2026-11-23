@@ -60,7 +60,8 @@ func TestValidateGrammarAcceptsEveryStepShape(t *testing.T) {
 	doc := `{"version":1,"resources":{"r":{"steps":[
 		{"rename":{"a":"b"}},
 		{"drop":["c"]},
-		{"compute":{"x":{"concat":[{"col":"a"},"!"]}},"where":{"and":[{"is_null":{"col":"a"}},{"gt":[{"col":"n"},1]}]}}
+		{"compute":{"x":{"concat":[{"col":"a"},"!"]}},"where":{"and":[{"is_null":{"col":"a"}},{"gt":[{"col":"n"},1]}]}},
+		{"alchemy":{"function":"fn_1","version":3}}
 	]}}}`
 	if err := validateGrammar([]byte(doc)); err != nil {
 		t.Fatalf("validateGrammar() = %v", err)

@@ -25,6 +25,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 	if err != nil {
 		return nil, err
 	}
+	if graph.Edges, err = c.executionEdges(ctx, graph.Edges, nodes, connections, filament.ExecutionContinuous); err != nil {
+		return nil, err
+	}
 	if err := normalizeContinuousEdges(graph.Edges); err != nil {
 		return nil, err
 	}
@@ -62,6 +65,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if err := filament.ValidateContinuous(sourceSpec, sinkSpec); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
+		group.key = ContinuousRouteKey(sourceSpec, group.key)
 		if len(group.transforms) > 0 {
 			return nil, fmt.Errorf("%w: continuous execution does not apply transforms", ErrInvalid)
 		}

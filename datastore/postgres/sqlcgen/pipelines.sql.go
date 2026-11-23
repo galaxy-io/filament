@@ -51,8 +51,8 @@ func (q *Queries) CountPipelines(ctx context.Context, arg CountPipelinesParams) 
 }
 
 const createPipeline = `-- name: CreatePipeline :one
-INSERT INTO pipelines (id, tenant_id, name, description, execution_mode, worker_configuration, updated_at)
-VALUES ($1, $2, $3, $4, COALESCE(NULLIF($5::integer, 0), 1), COALESCE($6::jsonb, '{}'::jsonb), now())
+INSERT INTO pipelines (id, tenant_id, name, description, execution_mode, worker_configuration, fail_on_error, updated_at)
+VALUES ($1, $2, $3, $4, COALESCE(NULLIF($5::integer, 0), 1), COALESCE($6::jsonb, '{}'::jsonb), $7, now())
 RETURNING created_at
 `
 
@@ -63,6 +63,7 @@ type CreatePipelineParams struct {
 	Description         string
 	ExecutionMode       int32
 	WorkerConfiguration []byte
+	FailOnError         bool
 }
 
 func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) (pgtype.Timestamptz, error) {
@@ -73,6 +74,7 @@ func (q *Queries) CreatePipeline(ctx context.Context, arg CreatePipelineParams) 
 		arg.Description,
 		arg.ExecutionMode,
 		arg.WorkerConfiguration,
+		arg.FailOnError,
 	)
 	var created_at pgtype.Timestamptz
 	err := row.Scan(&created_at)
@@ -145,7 +147,7 @@ func (q *Queries) DeletePipeline(ctx context.Context, arg DeletePipelineParams) 
 }
 
 const getPipeline = `-- name: GetPipeline :one
-SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration,
+SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration, fail_on_error,
        created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines WHERE tenant_id = $1 AND id = $2
@@ -164,6 +166,7 @@ type GetPipelineRow struct {
 	CurrentVersionID    pgtype.Text
 	ExecutionMode       int32
 	WorkerConfiguration []byte
+	FailOnError         bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	DeletedAt           pgtype.Timestamptz
@@ -183,6 +186,7 @@ func (q *Queries) GetPipeline(ctx context.Context, arg GetPipelineParams) (*GetP
 		&i.CurrentVersionID,
 		&i.ExecutionMode,
 		&i.WorkerConfiguration,
+		&i.FailOnError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
@@ -313,7 +317,7 @@ func (q *Queries) ListPipelineVersions(ctx context.Context, arg ListPipelineVers
 }
 
 const listPipelines = `-- name: ListPipelines :many
-SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration,
+SELECT id, tenant_id, name, description, current_version_id, execution_mode, worker_configuration, fail_on_error,
        created_at, updated_at, deleted_at,
        created_by_user_id, updated_by_user_id, deleted_by_user_id
 FROM pipelines
@@ -355,6 +359,7 @@ type ListPipelinesRow struct {
 	CurrentVersionID    pgtype.Text
 	ExecutionMode       int32
 	WorkerConfiguration []byte
+	FailOnError         bool
 	CreatedAt           pgtype.Timestamptz
 	UpdatedAt           pgtype.Timestamptz
 	DeletedAt           pgtype.Timestamptz
@@ -388,6 +393,7 @@ func (q *Queries) ListPipelines(ctx context.Context, arg ListPipelinesParams) ([
 			&i.CurrentVersionID,
 			&i.ExecutionMode,
 			&i.WorkerConfiguration,
+			&i.FailOnError,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
@@ -409,8 +415,9 @@ const updatePipeline = `-- name: UpdatePipeline :execrows
 UPDATE pipelines SET name = $1, description = $2,
   execution_mode = COALESCE(NULLIF($3::integer, 0), execution_mode),
   worker_configuration = COALESCE($4::jsonb, worker_configuration),
+  fail_on_error = COALESCE($5::boolean, fail_on_error),
   updated_at = now()
-WHERE tenant_id = $5 AND id = $6 AND NOT is_deleted
+WHERE tenant_id = $6 AND id = $7 AND NOT is_deleted
 `
 
 type UpdatePipelineParams struct {
@@ -418,6 +425,7 @@ type UpdatePipelineParams struct {
 	Description         string
 	ExecutionMode       int32
 	WorkerConfiguration []byte
+	FailOnError         pgtype.Bool
 	TenantID            string
 	PipelineID          string
 }
@@ -428,6 +436,7 @@ func (q *Queries) UpdatePipeline(ctx context.Context, arg UpdatePipelineParams) 
 		arg.Description,
 		arg.ExecutionMode,
 		arg.WorkerConfiguration,
+		arg.FailOnError,
 		arg.TenantID,
 		arg.PipelineID,
 	)

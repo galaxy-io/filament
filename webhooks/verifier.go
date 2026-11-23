@@ -4,7 +4,9 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -25,26 +27,67 @@ type Verifier interface {
 	Verify(header http.Header, body []byte, keys [][]byte, now time.Time) (deliveryID string, err error)
 }
 
-var verifiers sync.Map
+// Profile builds a verifier from its parameters. A connector names a profile
+// and supplies the parameters as data, so the receiver needs no connector
+// code to authenticate a provider's deliveries. Empty params select the
+// profile's defaults. A profile rejects parameters it does not understand.
+type Profile func(params json.RawMessage) (Verifier, error)
 
-// RegisterVerifier makes a verifier selectable by name. It panics on a
-// duplicate name or a nil verifier, like connector registration.
-func RegisterVerifier(name string, v Verifier) {
-	if name == "" || v == nil {
+var profiles sync.Map
+
+// RegisterProfile makes a parameterized verifier selectable by name. It
+// panics on a duplicate name or a nil profile, like connector registration.
+func RegisterProfile(name string, p Profile) {
+	if name == "" || p == nil {
 		panic("webhooks: verifier name and implementation are required")
 	}
-	if _, loaded := verifiers.LoadOrStore(name, v); loaded {
+	if _, loaded := profiles.LoadOrStore(name, p); loaded {
 		panic("webhooks: duplicate verifier " + name)
 	}
 }
 
-// LookupVerifier returns the verifier registered under name.
-func LookupVerifier(name string) (Verifier, bool) {
-	v, ok := verifiers.Load(name)
-	if !ok {
-		return nil, false
+// RegisterVerifier makes a verifier that takes no parameters selectable by name.
+func RegisterVerifier(name string, v Verifier) {
+	if v == nil {
+		panic("webhooks: verifier name and implementation are required")
 	}
-	return v.(Verifier), true
+	RegisterProfile(name, func(params json.RawMessage) (Verifier, error) {
+		if !emptyParams(params) {
+			return nil, fmt.Errorf("verifier %q takes no parameters", name)
+		}
+		return v, nil
+	})
+}
+
+// BuildVerifier returns the verifier name selects, configured by params.
+func BuildVerifier(name string, params json.RawMessage) (Verifier, error) {
+	p, ok := profiles.Load(name)
+	if !ok {
+		return nil, fmt.Errorf("unknown verifier %q", name)
+	}
+	return p.(Profile)(params)
+}
+
+func emptyParams(params json.RawMessage) bool {
+	trimmed := strings.TrimSpace(string(params))
+	if trimmed == "" || trimmed == "null" {
+		return true
+	}
+	var obj map[string]json.RawMessage
+	return json.Unmarshal([]byte(trimmed), &obj) == nil && obj != nil && len(obj) == 0
+}
+
+// decodeParams strictly decodes a profile's parameters into dst.
+func decodeParams(params json.RawMessage, dst any) error {
+	if emptyParams(params) {
+		return nil
+	}
+	dec := json.NewDecoder(strings.NewReader(string(params)))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		return fmt.Errorf("parameters: %w", err)
+	}
+	return nil
 }
 
 func init() { RegisterVerifier(GenericHMAC, genericHMAC{}) }

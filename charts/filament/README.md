@@ -121,11 +121,19 @@ encryption to protect resolved connection credentials in transit.
 | server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
 | server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
 | server.webhooks.enabled | bool | `false` | Enable signed webhook ingestion on the server. |
+| server.webhooks.ingress.annotations | object | `{}` | Annotations for the webhook Ingress. |
+| server.webhooks.ingress.className | string | `""` | IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default. |
+| server.webhooks.ingress.enabled | bool | `false` | Enable a separate Ingress that exposes only `/hooks/`. |
+| server.webhooks.ingress.hosts | list | `["webhooks.example.com"]` | Hostnames served by the webhook Ingress. |
+| server.webhooks.ingress.tls | list | `[]` | Webhook Ingress TLS configuration, passed through verbatim. |
 | server.webhooks.maxBytes | int | `1073741824` | Durable JetStream inbox capacity in bytes. |
 | server.webhooks.maxInFlight | int | `64` | Maximum concurrent webhook requests per server replica. |
 | server.webhooks.maxMessageBytes | int | `2097152` | Largest stored webhook message in bytes, including its envelope. |
-| server.webhooks.publicBaseURL | string | `""` | Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set. |
+| server.webhooks.port | int | `8088` | Port the server serves `/hooks/` on, separate from the API port. |
+| server.webhooks.publicBaseURL | string | `""` | Public origin webhook senders reach, normally the webhook ingress host, e.g. `https://webhooks.example.com`. The UI shows full delivery URLs when set. |
 | server.webhooks.replicas | int | `1` | JetStream replicas for the webhook inbox. |
+| server.webhooks.service.annotations | object | `{}` | Annotations for the webhook Service, e.g. cloud load balancer settings. |
+| server.webhooks.service.type | string | `"ClusterIP"` | Webhook Service type. |
 
 ## Control plane parameters
 
@@ -245,6 +253,14 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 |-----|------|---------|-------------|
 | observability.otel.endpoint | string | `""` | OTLP endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
 | observability.otel.protocol | string | `""` | OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`. Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318). Empty defaults to `grpc`. |
+
+## Alchemy parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| alchemy.batchMaxBytes | int | `0` | Arrow bytes batched into one alchemy call, stored as `ALCHEMY_BATCH_MAX_BYTES`. Zero takes the 16 MiB default; at most 64 MiB. |
+| alchemy.maxInFlight | int | `0` | Alchemy calls a run keeps in flight, stored as `ALCHEMY_MAX_IN_FLIGHT`. Zero takes the default of 4. |
+| alchemy.serverUrl | string | `""` | Alchemy API that filament's server, control plane and workers call, stored in the ConfigMaps as `GALAXY_ALCHEMY_SERVER_URL`. Empty uses `galaxy.productUrls.alchemy`; both empty disables alchemy steps. |
 
 ## Vendored PostgreSQL parameters
 

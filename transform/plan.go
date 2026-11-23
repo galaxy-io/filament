@@ -29,6 +29,11 @@ func newPlan(in, out rowmodel.Schema, ops []op) *Plan {
 	return &Plan{in: in.Clone(), out: out, arrowOut: arrowbatch.Schema(out), ops: ops}
 }
 
+// Invokes reports whether Apply calls an alchemy function.
+func (p *Plan) Invokes() bool {
+	return slices.ContainsFunc(p.ops, func(o op) bool { _, ok := o.(alchemyOp); return ok })
+}
+
 // Schema is the schema of every record Apply returns.
 func (p *Plan) Schema() rowmodel.Schema { return p.out.Clone() }
 

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -23,31 +24,32 @@ func (e *resourceError) Unwrap() error { return e.err }
 // schemas for each named resource. It is a no-op when the sink isn't
 // schema-aware. A transform is applied to the source schema before the CDC and
 // audit shaping, so the DDL matches what the pipeline writes.
-func ensureSchemas(ctx context.Context, snk filament.Sink, spec filament.RunSpec, schemas map[string]rowmodel.Schema, def *transform.Definition) error {
+func ensureSchemas(ctx context.Context, snk filament.Sink, spec filament.RunSpec, schemas map[string]rowmodel.Schema, def *transform.Definition, contracts transform.Contracts) error {
 	sch, ok := snk.(filament.Schematized)
 	if !ok {
 		return nil
 	}
 	for _, res := range spec.Resources {
-		if err := ensureSchema(ctx, sch, spec, schemas[res], def, res); err != nil {
+		if err := ensureSchema(ctx, sch, spec, schemas[res], def, contracts, res); err != nil {
 			return &resourceError{resource: res, err: err}
 		}
 	}
 	return nil
 }
 
-func ensureSchema(ctx context.Context, sch filament.Schematized, spec filament.RunSpec, schema rowmodel.Schema, def *transform.Definition, res string) error {
+func ensureSchema(ctx context.Context, sch filament.Schematized, spec filament.RunSpec, schema rowmodel.Schema, def *transform.Definition, contracts transform.Contracts, res string) error {
+	ingestionType := filament.TypeFor(spec.IngestionTypes, res)
 	if def != nil {
 		if schema.Resource == "" {
 			schema.Resource = res
 		}
-		plan, err := transform.Compile(def, schema)
+		// The source has already narrowed schema to the selection.
+		plan, err := transform.Compile(def, rowmodel.InputFor(schema, nil, filament.IsCDCIngestion(ingestionType)), transform.WithContracts(contracts))
 		if err != nil {
 			return fmt.Errorf("transform for %q: %w", res, err)
 		}
 		schema = plan.Schema()
 	}
-	ingestionType := filament.TypeFor(spec.IngestionTypes, res)
 	schema, err := auditSchema(schema, filament.IsCDCIngestion(ingestionType), ingestionType == filament.IngestionCDCAppend)
 	if err != nil {
 		return fmt.Errorf("schema for %q: %w", res, err)
@@ -94,4 +96,22 @@ func loadSinkSchemas(ctx context.Context, src filament.Source, snk filament.Sink
 		out[resource] = schema
 	}
 	return out, nil
+}
+
+// resolveContracts fetches, once per run, the contracts the run's resources reference, failing on the first that cannot run.
+func resolveContracts(ctx context.Context, tenant filament.TenantID, fns transform.FunctionService, def *transform.Definition, resources []string) (transform.Contracts, error) {
+	refs := def.Functions(resources...)
+	if len(refs) == 0 {
+		return nil, nil
+	}
+	if fns == nil {
+		return nil, errors.New("the transform calls alchemy functions, but alchemy is not configured on this worker")
+	}
+	contracts := fns.Resolve(ctx, tenant, refs)
+	for _, ref := range refs {
+		if _, err := contracts.Contract(ref); err != nil {
+			return nil, err
+		}
+	}
+	return contracts, nil
 }
