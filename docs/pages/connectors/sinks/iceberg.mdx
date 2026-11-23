@@ -27,8 +27,9 @@ catalog. Rows remain staged until their resource commits.
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
 | `table.update_mode` | Connection | `merge-on-read` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
-| `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before spilling to temp files |
+| `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before upsert, delete, and merge runs spill to temp files |
 | `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
+| `commit_concurrency` | Pipeline | `8` | Append and replace tables committed at once, from 1 through 64. Upsert, delete, and merge tables commit one at a time |
 
 A `namespace` left empty is defaulted server-side to the normalized source
 connection name.
@@ -102,9 +103,15 @@ recreated; commits fail on the type mismatch rather than rewriting the column.
 
 ## Write mechanics and atomicity
 
-The sink buffers each resource's Arrow batches and spills them to a compressed
-temporary file after `stage_buffer_limit_mb`. At commit, it writes the buffered
-rows to Parquet and updates the Iceberg table.
+Append and replace write each resource's batches to Parquet data files in the
+table's location while the run is in progress, and commit adds those files to
+the table in one snapshot. Every 15 minutes the writer finishes its current file and
+reloads the table, so long runs pick up fresh storage credentials from the
+catalog.
+
+Upsert, delete, and merge buffer each resource's Arrow batches and
+spill them to a compressed temporary file after `stage_buffer_limit_mb`. At
+commit, they write the buffered rows to Parquet and update the Iceberg table.
 
 `EnsureSchema` is outside the stage. It may create the namespace or table, or
 commit add-only schema evolution, before extraction begins. Those catalog
@@ -116,14 +123,16 @@ Buffering validates operations against the bound mode:
 - replace rejects deletes
 - upsert, delete, and merge require key fields
 
-At commit, the sink converts batches to the table's Arrow schema and streams
-them to the Parquet writer. It reloads each table from the catalog first so it
-uses current storage credentials, then opens one Iceberg transaction:
+At commit, the sink reloads each table from the catalog so it uses current
+storage credentials, then opens one Iceberg transaction:
 
-- **append** adds Arrow record batches in 8,192-row chunks.
-- **replace** overwrites the table with the run's records. A replace run that
+- **append** adds the data files written during the run.
+- **replace** removes every data file of the current snapshot and adds the
+  files written during the run, in one overwrite snapshot. A replace run that
   produced **zero records still overwrites the table to empty**. An empty
-  source empties the destination.
+  source empties the destination. Under the table's default serializable
+  isolation, a data file another writer commits during the replace makes the
+  commit fail rather than survive it.
 - **upsert, delete, and merge** keep the latest operation for each key, then
   update or delete matching rows. The table's write mode decides how.
   `write.merge.mode` governs upsert and merge, and `write.delete.mode` governs
@@ -144,14 +153,28 @@ creates them. For a table that already exists, compact its delete files,
 then set `write.merge.mode` and `write.delete.mode` to `copy-on-write` on the
 table.
 
-Buffered rows are invisible until their resource transaction commits. A run
-with several resources commits them sequentially, so a later resource can fail
-after an earlier one is already visible. Repeating `Commit` on the same open
-sink skips resources it already committed, but the engine does not provide one
-atomic transaction or exactly-once boundary across the route.
+Written files and buffered rows are invisible until their resource transaction
+commits. Each table commits in its own transaction. At commit the sink checks
+every resource first, then commits up to `commit_concurrency` append and replace
+tables at once, then upsert, delete, and merge tables one at a time, since those
+rewrite existing data files. Each commit costs several catalog and storage round
+trips, so committing tables in parallel shortens the commit of a run with many
+tables.
+
+If one table fails to commit, the sink starts no further commits, lets those
+already in flight finish, and fails the run. Tables that committed before the
+failure stay visible, so a later table can fail after an earlier one is
+already visible. The engine does not provide one atomic transaction or
+exactly-once boundary across the route.
+
+A catalog that serializes writes, such as the SQL catalog on SQLite, needs a
+busy timeout in its connection string or `commit_concurrency` set to `1`.
 
 ## Failure behavior
 
-`Abort` discards in-memory buffers and temporary spill files. It does not undo
+`Abort` discards in-memory buffers and temporary spill files, and deletes data
+files an append or replace wrote before commit. If a commit was attempted, its files are
+kept, because the catalog may have accepted the commit before reporting an
+error. `Abort` does not undo
 namespace/table creation, schema evolution from `EnsureSchema`, or any resource
 transaction that committed before a later resource failed.

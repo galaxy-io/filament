@@ -12,7 +12,6 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
-	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Apply validates the batch against the run's write policy and buffers it
@@ -21,7 +20,7 @@ func (s *Sink) Apply(ctx context.Context, b *arrowbatch.Batch, opts filament.App
 	return s.applyWrite(ctx, b, opts)
 }
 
-func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
+func (s *Sink) applyBatch(ctx context.Context, b *arrowbatch.Batch, opts filament.ApplyOptions) (filament.WriteReceipt, error) {
 	s.mu.Lock()
 	it := s.tables[b.Resource]
 	if it == nil {
@@ -37,6 +36,7 @@ func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (fila
 		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: write policy %q requires primary key for resource %q", policy.Capability.Mode, b.Resource)
 	}
 	st := s.active
+	cat := s.cat
 	s.mu.Unlock()
 
 	if err := policy.ValidateBatch(b.Resource, b); err != nil {
@@ -50,15 +50,24 @@ func (s *Sink) applyBatch(b *arrowbatch.Batch, opts filament.ApplyOptions) (fila
 		rb = newRecordBuf(s.stageBufLimitBytes)
 		st.buf[b.Resource] = rb
 	}
-	if err := rb.setPolicy(policy); err != nil {
-		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-	}
-	if err := rb.append(b, nbytes); err != nil {
-		st.mu.Unlock()
-		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
-	}
 	st.mu.Unlock()
+
+	rb.mu.Lock()
+	defer rb.mu.Unlock()
+	if err := rb.setPolicy(policy); err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+	}
+	var err error
+	if mode := policy.Capability.Mode; mode == filament.WriteAppend || mode == filament.WriteReplace {
+		// Append and replace write data files now; Commit only attaches them.
+		ident := it.tbl.Identifier()
+		err = rb.appendFile(ctx, b, nbytes, func() *streamedFiles { return newStreamedFiles(cat, ident) })
+	} else {
+		err = rb.append(b, nbytes)
+	}
+	if err != nil {
+		return filament.WriteReceipt{}, fmt.Errorf("iceberg sink: buffer %s: %w", b.Resource, err)
+	}
 
 	return filament.WriteReceipt{
 		URI:      it.tbl.Location(),
@@ -83,39 +92,28 @@ func (s *Sink) writeBuffer(ctx context.Context, it *iceTable, rb *recordBuf, mod
 	it.tbl = tbl
 	it.schema = tbl.Schema()
 
-	arrowSchema, err := table.SchemaToArrowSchema(it.schema, nil, false, false)
-	if err != nil {
-		return fmt.Errorf("build arrow schema: %w", err)
-	}
-
+	var updated *table.Table
 	switch mode {
 	case writeModeUpsert, writeModeDelete, writeModeMerge:
-		return s.writeMutationBuffer(ctx, it, rb, mode, arrowSchema)
-	}
-
-	batches, errPtr := conformedBatches(rb, arrowSchema)
-	rdr := array.ReaderFromIter(arrowSchema, batches)
-	defer rdr.Release()
-
-	txn := it.tbl.NewTransaction()
-	switch mode {
-	case writeModeAppend:
-		if err := txn.Append(ctx, rdr, nil); err != nil {
-			return fmt.Errorf("append: %w", err)
+		arrowSchema, err := table.SchemaToArrowSchema(it.schema, nil, false, false)
+		if err != nil {
+			return fmt.Errorf("build arrow schema: %w", err)
 		}
+		return s.writeMutationBuffer(ctx, it, rb, mode, arrowSchema)
 	case writeModeReplace:
-		if err := txn.Overwrite(ctx, rdr, nil); err != nil {
+		// A replace that received no rows has no files and empties the table.
+		if updated, err = rb.files.commitReplace(ctx, it.tbl); err != nil {
 			return fmt.Errorf("replace: %w", err)
+		}
+	case writeModeAppend:
+		if rb.files == nil {
+			return nil
+		}
+		if updated, err = rb.files.commitAppend(ctx, it.tbl); err != nil {
+			return fmt.Errorf("append: %w", err)
 		}
 	default:
 		return fmt.Errorf("unsupported write mode %q", mode)
-	}
-	if *errPtr != nil {
-		return fmt.Errorf("read buffer: %w", *errPtr)
-	}
-	updated, err := txn.Commit(ctx)
-	if err != nil {
-		return fmt.Errorf("commit transaction: %w", err)
 	}
 	it.tbl = updated
 	it.schema = updated.Schema()
@@ -305,34 +303,3 @@ func borrowed(batches []arrow.RecordBatch) iter.Seq2[arrow.RecordBatch, error] {
 		}
 	}
 }
-
-// conformedBatches returns an iterator yielding each buffered batch in the
-// table's Arrow schema. Any streaming error is surfaced through the returned
-// pointer (the iter.Seq2 stops on the first error). Caller checks *err after
-// the reader drains.
-//
-//nolint:gocritic // *error is the iterator out-param, read after the seq drains
-func conformedBatches(rb *recordBuf, schema *arrow.Schema) (iter.Seq2[arrow.RecordBatch, error], *error) {
-	var streamErr error
-	seq := func(yield func(arrow.RecordBatch, error) bool) {
-		streamErr = rb.stream(func(rows arrow.RecordBatch, _ []rowmodel.Operation) error {
-			rec, err := conform(rows, schema)
-			if err != nil {
-				return err
-			}
-			if !yield(rec, nil) {
-				rec.Release()
-				return errStopIteration
-			}
-			return nil
-		})
-		if streamErr == errStopIteration {
-			streamErr = nil
-		}
-	}
-	return seq, &streamErr
-}
-
-// errStopIteration unwinds rb.stream when the consumer stops early; it is never
-// surfaced as a real error.
-var errStopIteration = fmt.Errorf("stop iteration")

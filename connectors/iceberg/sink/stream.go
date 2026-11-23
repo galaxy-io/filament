@@ -3,6 +3,7 @@ package iceberg
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
@@ -44,7 +45,7 @@ func (s *Sink) applyWrite(ctx context.Context, b *arrowbatch.Batch, opts filamen
 		s.lifecycle.Fail(sinkstate.ErrState)
 		return filament.WriteReceipt{}, sinkstate.ErrState
 	}
-	r, err := s.applyBatch(b, opts)
+	r, err := s.applyBatch(ctx, b, opts)
 	if err != nil {
 		s.lifecycle.Fail(err)
 		return filament.WriteReceipt{}, err
@@ -69,8 +70,10 @@ func (s *Sink) Commit(ctx context.Context) error {
 	return nil
 }
 
-// Abort releases pending buffers. It cannot undo earlier table commits.
-func (s *Sink) Abort(_ context.Context) error {
+// Abort releases pending buffers and deletes data files written for uncommitted
+// appends. It cannot undo earlier table commits. A data file it fails to delete
+// is unreferenced by any table, so that is logged and does not fail the abort.
+func (s *Sink) Abort(ctx context.Context) error {
 	if err := s.lifecycle.CheckAbort(); err != nil {
 		return err
 	}
@@ -79,16 +82,19 @@ func (s *Sink) Abort(_ context.Context) error {
 	}
 	st := s.active
 	st.mu.Lock()
-	for _, rb := range st.buf {
-		rb.close()
+	for resource, rb := range st.buf {
+		if err := rb.close(ctx); err != nil {
+			slog.WarnContext(ctx, "iceberg sink left uncommitted data files behind", "component", "iceberg", "event.name", "iceberg.abort.cleanup_failed", "run_id", s.run, "resource", resource, "error", err)
+		}
 	}
 	st.mu.Unlock()
 	s.active = nil
 	return s.lifecycle.MarkAborted()
 }
 
-// Close is called after all Apply calls have joined. Failed sessions
-// conservatively retain uncertainty about effects of catalog requests.
+// Close is called after all Apply calls have joined. Only a failed table commit
+// leaves the destination uncertain. A failed write never reached the catalog,
+// so its session closes clean and the error it returned stands on its own.
 func (s *Sink) Close(ctx context.Context) error {
 	if closed, err := s.lifecycle.Closed(); closed {
 		return err
@@ -97,8 +103,8 @@ func (s *Sink) Close(ctx context.Context) error {
 	if s.active != nil {
 		err = s.Abort(ctx)
 	}
-	if failure := s.lifecycle.Failure(); failure != nil {
-		err = errors.Join(err, errors.New("iceberg epoch: destination quiescence is unproven"), failure)
+	if s.uncertain != nil {
+		err = errors.Join(err, errors.New("iceberg epoch: destination quiescence is unproven"), s.uncertain)
 	}
 	if closer, ok := s.cat.(interface{ Close() error }); ok {
 		err = errors.Join(err, closer.Close())

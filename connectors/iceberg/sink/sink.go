@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -24,6 +25,8 @@ const (
 	defaultCommitInterval     = time.Minute
 	defaultNamespace          = "default"
 	writeMergeModeKey         = "write.merge.mode"
+	defaultCommitConcurrency  = 8
+	maxCommitConcurrency      = 64
 )
 
 type writeMode string
@@ -42,11 +45,15 @@ type Sink struct {
 	policies  map[string]filament.WritePolicy
 	lifecycle sinkstate.Lifecycle
 	active    *stage
+	// uncertain is a failed table commit. It may still have reached the
+	// catalog, so the session cannot prove what the destination holds.
+	uncertain error
 
 	tableLocationRoot  string
 	tableUpdateMode    string
 	namespace          string
 	stageBufLimitBytes int64
+	commitConcurrency  int
 	ingestionTypes     map[string]filament.IngestionType
 	writeModes         map[string]writeMode
 	run                filament.RunID
@@ -122,6 +129,14 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
 		s.stageBufLimitBytes = int64(mb) << 20
 	}
+	s.commitConcurrency = defaultCommitConcurrency
+	if cfg.Has("commit_concurrency") {
+		n := cfg.Int("commit_concurrency")
+		if n < 1 || n > maxCommitConcurrency {
+			return fmt.Errorf("iceberg sink: commit_concurrency must be between 1 and %d", maxCommitConcurrency)
+		}
+		s.commitConcurrency = n
+	}
 	setup, err := icebergcatalog.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: %w", err)
@@ -146,12 +161,26 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 
 // ── internals ─────────────────────────────────────────────────────────────────
 
-// promoteStage commits each resource once. A partial failure poisons the session;
-// Abort releases remaining buffers without reverting committed tables.
+// commitJob is one resource's pending table commit.
+type commitJob struct {
+	resource string
+	it       *iceTable
+	rb       *recordBuf
+	mode     writeMode
+}
+
+// promoteStage commits each resource once, each in its own table transaction.
+// Every resource is validated before any commits. Append and replace commits
+// are cheap now that their files are written during the run, so they run
+// commitConcurrency at a time; upsert, delete, and merge rewrite existing data
+// files and run one at a time so their memory does not stack. A failure starts
+// no further commits, lets those in flight finish, and poisons the session;
+// Abort releases the remaining buffers without reverting committed tables.
 func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
+	var streamed, rewrites []commitJob
 	for _, resource := range s.stageResources(st) {
 		if st.committed[resource] {
 			continue
@@ -182,15 +211,66 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		if err := rb.validate(mode); err != nil {
 			return fmt.Errorf("iceberg sink: validate %s: %w", resource, err)
 		}
-		if err := s.writeBuffer(ctx, it, rb, mode); err != nil {
-			return fmt.Errorf("iceberg sink: commit %s: %w", resource, err)
+		job := commitJob{resource: resource, it: it, rb: rb, mode: mode}
+		if mode == writeModeAppend || mode == writeModeReplace {
+			streamed = append(streamed, job)
+		} else {
+			rewrites = append(rewrites, job)
 		}
-		st.committed[resource] = true
 	}
+	if err := s.commitJobs(ctx, st, streamed, s.commitConcurrency); err != nil {
+		s.uncertain = err
+		return err
+	}
+	if err := s.commitJobs(ctx, st, rewrites, 1); err != nil {
+		s.uncertain = err
+		return err
+	}
+	// Every resource committed, so close deletes no data files; it only frees
+	// buffers and temp files, and a failure there does not undo the commit.
 	for _, rb := range st.buf {
-		rb.close()
+		_ = rb.close(ctx)
 	}
 	return nil
+}
+
+// commitJobs commits jobs with up to workers in flight. After the first
+// failure it starts no more, waits for those in flight, and returns the
+// failure. A commit is never cancelled midway: its outcome would be unknown.
+func (s *Sink) commitJobs(ctx context.Context, st *stage, jobs []commitJob, workers int) error {
+	var (
+		mu    sync.Mutex
+		first error
+		wg    sync.WaitGroup
+	)
+	failed := func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return first != nil
+	}
+	slots := make(chan struct{}, max(1, workers))
+	for _, job := range jobs {
+		slots <- struct{}{}
+		if failed() {
+			<-slots
+			break
+		}
+		wg.Go(func() {
+			defer func() { <-slots }()
+			err := s.writeBuffer(ctx, job.it, job.rb, job.mode)
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				if first == nil {
+					first = fmt.Errorf("iceberg sink: commit %s: %w", job.resource, err)
+				}
+				return
+			}
+			st.committed[job.resource] = true
+		})
+	}
+	wg.Wait()
+	return first
 }
 
 func (s *Sink) stageResources(st *stage) []string {
@@ -207,6 +287,9 @@ func (s *Sink) stageResources(st *stage) []string {
 			out = append(out, resource)
 		}
 	}
+	// A fixed order makes which tables a failed commit left untouched
+	// reproducible.
+	slices.Sort(out)
 	return out
 }
 

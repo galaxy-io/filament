@@ -52,7 +52,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	// Pass 1: last (batch, row) per key, and one literal tuple per distinct key.
 	type pos struct{ batch, row int }
 	last := map[string]pos{}
-	var expr iceberg.BooleanExpression
+	var tuples [][]any
 	bi := 0
 	err := rb.stream(func(rows arrow.RecordBatch, _ []rowmodel.Operation) error {
 		for i := range int(rows.NumRows()) {
@@ -66,15 +66,7 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 					}
 					lits[n] = lit
 				}
-				term, err := keyExpr(it, keys, lits)
-				if err != nil {
-					return err
-				}
-				if expr == nil {
-					expr = term
-				} else {
-					expr = iceberg.NewOr(expr, term)
-				}
+				tuples = append(tuples, lits)
 			}
 			last[k] = pos{bi, i}
 		}
@@ -86,6 +78,12 @@ func foldMutations(ctx context.Context, it *iceTable, rb *recordBuf, keys []stri
 	}
 	if len(last) == 0 {
 		return &mutation{}, nil
+	}
+	var expr iceberg.BooleanExpression
+	if deleteTarget == nil {
+		if expr, err = keysExpr(it, keys, tuples); err != nil {
+			return nil, err
+		}
 	}
 
 	// Pass 2: keep each key's last row unless it is a delete, then conform the
@@ -169,6 +167,134 @@ func keyOf(rows arrow.RecordBatch, keyIdx []int, i int) string {
 		b.WriteString(rows.Column(k).ValueStr(i))
 	}
 	return b.String()
+}
+
+// keysExpr builds the filter selecting exactly the given distinct key tuples.
+// A single-column key is one set predicate. A composite key picks the column
+// with the most distinct values as the set column and groups the tuples by
+// their other columns, giving one term per group:
+//
+//	other = values AND set_column IN (...)
+//
+// Each term matches exactly its group's tuples, so the OR of terms matches the
+// changed keys and nothing else. Keys such as (tenant_id, id) or
+// (order_id, line_number) collapse to a few terms; only keys whose every column
+// is high-cardinality approach one term per tuple. Terms are joined in a
+// balanced tree so nesting depth stays logarithmic.
+func keysExpr(it *iceTable, keys []string, tuples [][]any) (iceberg.BooleanExpression, error) {
+	if len(keys) == 1 {
+		values := make([]any, len(tuples))
+		for i, tuple := range tuples {
+			values[i] = tuple[0]
+		}
+		return keyInExpr(it, keys[0], values)
+	}
+
+	setCol, most := 0, -1
+	for c := range keys {
+		distinct := make(map[string]struct{}, len(tuples))
+		for _, tuple := range tuples {
+			distinct[literalKey(tuple[c])] = struct{}{}
+		}
+		if len(distinct) > most {
+			setCol, most = c, len(distinct)
+		}
+	}
+	otherKeys := make([]string, 0, len(keys)-1)
+	for c, key := range keys {
+		if c != setCol {
+			otherKeys = append(otherKeys, key)
+		}
+	}
+
+	type group struct {
+		others []any
+		values []any
+	}
+	var groups []*group
+	byOthers := map[string]*group{}
+	for _, tuple := range tuples {
+		others := make([]any, 0, len(keys)-1)
+		var id strings.Builder
+		for c, value := range tuple {
+			if c == setCol {
+				continue
+			}
+			others = append(others, value)
+			id.WriteString(literalKey(value))
+			id.WriteByte(0x1f)
+		}
+		g := byOthers[id.String()]
+		if g == nil {
+			g = &group{others: others}
+			byOthers[id.String()] = g
+			groups = append(groups, g)
+		}
+		g.values = append(g.values, tuple[setCol])
+	}
+
+	terms := make([]iceberg.BooleanExpression, len(groups))
+	for i, g := range groups {
+		equal, err := keyExpr(it, otherKeys, g.others)
+		if err != nil {
+			return nil, err
+		}
+		in, err := keyInExpr(it, keys[setCol], g.values)
+		if err != nil {
+			return nil, err
+		}
+		terms[i] = iceberg.NewAnd(equal, in)
+	}
+	return balancedOr(terms), nil
+}
+
+// balancedOr joins terms in a balanced tree rather than a left-deep chain.
+func balancedOr(terms []iceberg.BooleanExpression) iceberg.BooleanExpression {
+	if len(terms) == 1 {
+		return terms[0]
+	}
+	mid := len(terms) / 2
+	return iceberg.NewOr(balancedOr(terms[:mid]), balancedOr(terms[mid:]))
+}
+
+// literalKey renders a key literal for grouping. Values come from keyLiteral,
+// so the type prefix keeps 1 and "1" apart and []byte compares by content.
+func literalKey(value any) string {
+	if raw, ok := value.([]byte); ok {
+		return "[]byte:" + string(raw)
+	}
+	return fmt.Sprintf("%T:%v", value, value)
+}
+
+// keyInExpr builds one set-membership predicate over a single key column's
+// distinct values. Engines test it with a hash lookup per row, where an OR of
+// equalities costs one comparison per key per row.
+func keyInExpr(it *iceTable, key string, values []any) (iceberg.BooleanExpression, error) {
+	field, ok := it.schema.FindFieldByName(key)
+	if !ok {
+		return nil, fmt.Errorf("primary key %q is not in iceberg schema", key)
+	}
+	isUUID := field.Type.Equals(iceberg.PrimitiveTypes.UUID)
+	lits := make([]iceberg.Literal, len(values))
+	for i, value := range values {
+		if isUUID {
+			text, ok := value.(string)
+			if !ok {
+				return nil, fmt.Errorf("primary key %q: expected uuid text, got %T", key, value)
+			}
+			u, err := uuid.Parse(text)
+			if err != nil {
+				return nil, fmt.Errorf("primary key %q: %w", key, err)
+			}
+			value = u
+		}
+		lit, err := newKeyLiteral(key, value)
+		if err != nil {
+			return nil, err
+		}
+		lits[i] = lit
+	}
+	return iceberg.SetPredicate(iceberg.OpIn, iceberg.Reference(key), lits), nil
 }
 
 // keyExpr builds the equality over one row's key columns; a uuid key column in
