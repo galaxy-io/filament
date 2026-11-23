@@ -32,8 +32,9 @@ type pendingUpload struct {
 
 // objectName matches the objects this sink writes, <write id>.<file number>
 // followed by the format extension, so the sweep leaves other writers'
-// uploads under the same prefix alone.
-var objectName = regexp.MustCompile(`^[^/]+\.\d{4,}(\.[a-z0-9]+)+$`)
+// uploads under the same prefix alone. A write ID is a run or boundary UUID,
+// or a local CLI run's cli-<base 36 time>.
+var objectName = regexp.MustCompile(`^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|cli-[0-9a-z]+)\.\d{4,}(?:\.[a-z0-9]+)+$`)
 
 type sweepScope struct{ endpoint, bucket, prefix string }
 
@@ -47,12 +48,14 @@ var sweeps = struct {
 var sweepClock = time.Now
 
 // sweepStaleUploads aborts incomplete multipart uploads of this sink's objects
-// under the configured prefix that started before the stale age. A worker that
+// under the configured prefix that started before the stale age. Without a
+// prefix the sink would reach every pipeline writing to the bucket, so it does
+// not sweep at all. A worker that
 // dies without running Abort leaves its uploads open, and S3 keeps and bills
 // them until they are removed. The sweep runs at most once per sweepInterval
 // for a bucket prefix in this process. It returns the uploads it aborted.
 func sweepStaleUploads(ctx context.Context, store multipartStore, cfg sinkConfig) (int, error) {
-	if cfg.staleUploadAge <= 0 {
+	if cfg.staleUploadAge <= 0 || cfg.prefix == "" {
 		return 0, nil
 	}
 	now := sweepClock()
@@ -68,10 +71,7 @@ func sweepStaleUploads(ctx context.Context, store multipartStore, cfg sinkConfig
 
 	ctx, cancel := context.WithTimeout(ctx, sweepTimeout)
 	defer cancel()
-	prefix := cfg.prefix
-	if prefix != "" {
-		prefix += "/"
-	}
+	prefix := cfg.prefix + "/"
 	// The whole bucket is listed and filtered here: MinIO matches a listing
 	// prefix only against complete keys, so a prefix finds nothing there.
 	// Incomplete uploads are few, so the listing stays small.
