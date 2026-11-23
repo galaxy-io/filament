@@ -4,5 +4,6 @@ export const PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT = `{
     "limits": { "cpu": "1000m", "memory": "512Mi" }
   },
   "nodeSelector": {},
-  "tolerations": []
+  "tolerations": [],
+  "annotations": {}
 }`;

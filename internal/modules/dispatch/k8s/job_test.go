@@ -195,12 +195,22 @@ func TestJobForSpecPlacement(t *testing.T) {
 	if pod := job.Spec.Template.Spec; pod.NodeSelector != nil || pod.Tolerations != nil {
 		t.Fatalf("unplaced run must leave placement off the Job, got selector=%v tolerations=%v", pod.NodeSelector, pod.Tolerations)
 	}
+	if got := job.Spec.Template.Annotations; got != nil {
+		t.Fatalf("a run with no annotations must set none on the pod, got %v", got)
+	}
 
 	spec.WorkerConfiguration.NodeSelector = map[string]string{"tier": "workers"}
 	spec.WorkerConfiguration.Tolerations = []filament.WorkerToleration{{Key: "dedicated", Operator: "Equal", Value: "filament", Effect: "NoSchedule"}}
+	spec.WorkerConfiguration.Annotations = map[string]string{"karpenter.sh/do-not-disrupt": "true"}
 	job, err = m.jobForSpec(spec)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got := job.Spec.Template.Annotations; !maps.Equal(got, spec.WorkerConfiguration.Annotations) {
+		t.Fatalf("pod annotations = %v", got)
+	}
+	if job.Annotations != nil {
+		t.Fatalf("annotations belong on the pod, not the Job, got %v", job.Annotations)
 	}
 	pod := job.Spec.Template.Spec
 	if !maps.Equal(pod.NodeSelector, spec.WorkerConfiguration.NodeSelector) {

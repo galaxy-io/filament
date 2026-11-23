@@ -70,6 +70,10 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	}
 	options.Execution = execution
 	options.IsolateResourceFailures = isolatesResourceFailures(pipeline, overrides.FailOnError, execution)
+	worker, err := resolveWorkerConfiguration(workerCfg, pipeline)
+	if err != nil {
+		return nil, err
+	}
 	if options.Execution == filament.ExecutionContinuous {
 		if scheduleID != "" {
 			return nil, fmt.Errorf("%w: continuous execution cannot use cron schedules", ErrInvalid)
@@ -77,7 +81,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		if len(resources) > 0 {
 			return nil, fmt.Errorf("%w: continuous runs read every routed resource", ErrInvalid)
 		}
-		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, workerCfg, resync)
+		return c.compileContinuous(ctx, tenant, pipeline, version, token, options, worker, resync)
 	}
 	nodes, connections, err := c.loadGraphConnections(ctx, tenant, version.GetGraph())
 	if err != nil {
@@ -91,7 +95,6 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	if err != nil {
 		return nil, err
 	}
-	worker := workerCfg.Merge(WorkerConfigurationFromProto(pipeline.GetWorkerConfiguration()))
 	compiled := make([]CompiledRun, 0, len(groups))
 	for _, group := range groups {
 		key := group.key
