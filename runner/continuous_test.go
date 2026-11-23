@@ -80,6 +80,12 @@ type continuousTestSource struct {
 	idle               bool
 	idleWait           time.Duration
 	started            sync.Once
+	// records, when set, is how many reads return a record before reads block.
+	records, produced int
+	// openBlocks holds OpenStream until its context ends.
+	openBlocks bool
+	// readErr replaces the context error a blocked read returns.
+	readErr error
 	filament.Source
 	store  *continuousTestStore
 	writer arrowbatch.RowWriter
@@ -98,8 +104,13 @@ func (*continuousTestSource) Spec() filament.ConnectorSpec {
 
 func (*continuousTestSource) Configure(context.Context, filament.Config) error { return nil }
 func (*continuousTestSource) Teardown(context.Context) error                   { return nil }
-func (s *continuousTestSource) OpenStream(_ context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
+func (s *continuousTestSource) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
 	s.sourceConnectionID = opts.SourceConnectionID
+	if s.openBlocks {
+		close(s.opened)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	return s, nil
 }
 func (s *continuousTestSource) Close(context.Context) error { return nil }
@@ -113,11 +124,19 @@ func (s *continuousTestSource) Read(ctx context.Context, out filament.StreamReco
 			return filament.Coverage{}, nil
 		}
 	}
-	if s.block {
-		close(s.opened)
+	if s.block || (s.records > 0 && s.produced >= s.records) {
+		s.started.Do(func() {
+			if s.opened != nil {
+				close(s.opened)
+			}
+		})
 		<-ctx.Done()
+		if s.readErr != nil {
+			return filament.Coverage{}, s.readErr
+		}
 		return filament.Coverage{}, ctx.Err()
 	}
+	s.produced++
 	if s.writer == nil {
 		var err error
 		s.writer, err = out.Builder("events", 0, rowmodel.Schema{Resource: "events", Fields: []rowmodel.Field{{Name: "value", Logical: rowmodel.LogicalString}}})
@@ -326,6 +345,53 @@ func TestContinuousShutdownStopsReadAndEndsClean(t *testing.T) {
 	}
 }
 
+func TestContinuousShutdownDuringStartupEndsClean(t *testing.T) {
+	cfg, store, src, sink := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.openBlocks = true
+	src.opened = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if sink.commits != 0 {
+		t.Fatal("interrupted startup wrote to the sink")
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != filament.AttemptReasonShutdown {
+		t.Fatalf("shutdown ended %s %q, want clean worker shut down", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
+// A read that fails on its own while the worker shuts down keeps its error.
+func TestContinuousShutdownKeepsUnrelatedReadError(t *testing.T) {
+	cfg, store, src, _ := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.block = true
+	src.opened = make(chan struct{})
+	src.readErr = errors.New("source failed")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	cancel()
+	if err := <-done; !errors.Is(err, src.readErr) {
+		t.Fatalf("RunContinuous = %v, want the source failure", err)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || !strings.Contains(store.state.Attempt.Reason, "source failed") {
+		t.Fatalf("ended %s %q, want clean with the source failure", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
 // blockingCommitSink holds Commit open so a test can act while it is in progress.
 type blockingCommitSink struct {
 	continuousTestSink
@@ -344,6 +410,9 @@ func (s *blockingCommitSink) Commit(ctx context.Context) error {
 func TestContinuousShutdownFinishesCommitInProgress(t *testing.T) {
 	cfg, store, src, _ := continuousFixture(t)
 	cfg.MaxEpochs = 0
+	// Shutdown is recorded asynchronously, so the loop may start another epoch
+	// after the commit is released. Its read blocks, and shutdown interrupts it.
+	src.records = 1
 	sink := &blockingCommitSink{started: make(chan struct{}), release: make(chan struct{})}
 	cfg.Sink = sink
 	ctx, cancel := context.WithCancel(context.Background())
@@ -371,12 +440,14 @@ func TestContinuousShutdownFinishesCommitInProgress(t *testing.T) {
 func TestContinuousDrainDeadlineStopsAtCleanup(t *testing.T) {
 	cfg, store, src, sink := continuousFixture(t)
 	cfg.MaxEpochs = 0
-	cfg.DrainTimeout = 400 * time.Millisecond
+	// The read ends a second before the deadline, cleanup spans the deadline,
+	// and cleanup finishes well inside its own budget.
+	cfg.DrainTimeout = 2 * time.Second
 	src.opened = make(chan struct{})
 	src.idle = true
-	src.idleWait = 350 * time.Millisecond
-	sink.closeDelay = 250 * time.Millisecond
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	src.idleWait = time.Second
+	sink.closeDelay = 1300 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- RunContinuous(ctx, cfg) }()
