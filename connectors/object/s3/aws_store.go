@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"hash/crc32"
 	"io"
 	"sync"
 
@@ -101,9 +102,12 @@ func (s *awsStore) HeadBucket(ctx context.Context, bucket string) error {
 func (s *awsStore) CreateMultipart(ctx context.Context, bucket, key string, metadata objectMetadata) (string, error) {
 	input := &s3.CreateMultipartUploadInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), ContentType: aws.String(metadata.contentType),
-		// A full-object CRC32C equals the CRC32C of the whole stream, which is
-		// what the manifest publishes, so S3 can check it at completion.
-		ChecksumAlgorithm: types.ChecksumAlgorithmCrc32c, ChecksumType: types.ChecksumTypeFullObject,
+		// CRC32C defaults to a composite checksum: S3 verifies every part and
+		// combines their checksums at completion. Full-object CRC32C is not
+		// requested because some S3-compatible stores, such as Cloudflare R2,
+		// support CRC32C only as composite. The manifest's full-object CRC32C
+		// is computed locally from the same bytes.
+		ChecksumAlgorithm: types.ChecksumAlgorithmCrc32c,
 	}
 	if metadata.contentEncoding != "" {
 		input.ContentEncoding = aws.String(metadata.contentEncoding)
@@ -130,7 +134,10 @@ func (s *awsStore) UploadPart(ctx context.Context, bucket, key, uploadID string,
 	return aws.ToString(out.ETag), nil
 }
 
-func (s *awsStore) CompleteMultipart(ctx context.Context, bucket, key, uploadID string, parts []completedPart, crc32c uint32) error {
+// CompleteMultipart completes an upload whose parts S3 has already verified.
+// The full-object crc32c is not sent; the composite checksum S3 reports is
+// checked against the one the part checksums produce instead.
+func (s *awsStore) CompleteMultipart(ctx context.Context, bucket, key, uploadID string, parts []completedPart, _ uint32) error {
 	awsParts := make([]types.CompletedPart, len(parts))
 	for i, part := range parts {
 		awsParts[i] = types.CompletedPart{
@@ -140,12 +147,27 @@ func (s *awsStore) CompleteMultipart(ctx context.Context, bucket, key, uploadID 
 	out, err := s.client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
 		Bucket: aws.String(bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
 		MultipartUpload: &types.CompletedMultipartUpload{Parts: awsParts},
-		ChecksumType:    types.ChecksumTypeFullObject, ChecksumCRC32C: crc32cHeader(crc32c),
 	})
 	if err != nil {
 		return err
 	}
-	return checkEcho("object", crc32c, out.ChecksumCRC32C)
+	if echoed := aws.ToString(out.ChecksumCRC32C); echoed != "" {
+		if want := compositeCRC32C(parts); echoed != want {
+			return fmt.Errorf("object composite CRC32C mismatch: parts give %s, store reports %s", want, echoed)
+		}
+	}
+	return nil
+}
+
+// compositeCRC32C is the checksum S3 reports for a composite CRC32C upload:
+// the CRC32C of the parts' big-endian checksums in order, base64 encoded,
+// followed by the part count.
+func compositeCRC32C(parts []completedPart) string {
+	raw := make([]byte, 0, 4*len(parts))
+	for _, part := range parts {
+		raw = binary.BigEndian.AppendUint32(raw, part.crc32c)
+	}
+	return fmt.Sprintf("%s-%d", aws.ToString(crc32cHeader(crc32.Checksum(raw, crc32cTable))), len(parts))
 }
 
 func (s *awsStore) AbortMultipart(ctx context.Context, bucket, key, uploadID string) error {

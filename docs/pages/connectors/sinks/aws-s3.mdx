@@ -194,12 +194,14 @@ and ignore writes without it.
 Version 1 manifests had one `key`, `uri`, and `crc32c` per resource. Version 2
 moves them into `files` because a resource can span several objects.
 
-S3 verifies every manifest checksum. Each part is sent with its CRC32C, each
-multipart object is completed with a full-object CRC32C, and each single object
-is uploaded with its CRC32C. S3 rejects any write whose stored bytes do not
-match, and the run fails before `_SUCCESS.json` is published. The CRC32C S3
-reports for an object therefore equals the manifest value. An S3-compatible
-endpoint must support CRC32C full-object checksums, which MinIO does. Query engines cannot apply that rule and
+S3 verifies every byte the manifest describes. Each part and each single
+object is uploaded with its CRC32C, and S3 rejects any write whose stored bytes
+do not match. Multipart objects use composite CRC32C checksums, which Filament
+checks at completion against the part checksums it sent. A failed check fails
+the run before `_SUCCESS.json` is published. S3 reports a composite checksum,
+such as `AbCdEf==-3`, for a multipart object, so compare a downloaded file with
+the manifest's `crc32c` by computing its CRC32C. An S3-compatible endpoint must
+support CRC32C checksums, as AWS S3, MinIO, and Cloudflare R2 do. Query engines cannot apply that rule and
 read every object under the table location. See failure behavior below.
 
 ## Write mechanics and atomicity
