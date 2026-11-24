@@ -354,7 +354,9 @@ incremental:
   value_date_format: epoch_millis # optional wire format for time watermarks
 ```
 
-The cursor must be projected, non-nullable, and compatible with its comparator.
+The cursor must be projected and compatible with its comparator. A nullable
+cursor is allowed: full reads accept a null cursor value, while an
+incremental run fails on a record whose cursor is missing or null.
 `initial` can set a documented first-run lower bound. `overlap_seconds` applies
 to `time` or `numeric`, not `lex`. Do not collide with pagination injection.
 Checkpoint keys default to the cursor field and must be unique across resources.

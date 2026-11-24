@@ -417,16 +417,16 @@ func (m *Manifest) validateSemantics() error {
 			if err := validateIncrementalInitial(*r.Incremental); err != nil {
 				_ = agg.Addf(path+".incremental.initial", "%v", err)
 			}
+			// A nullable cursor is allowed. A full read projects a null
+			// cursor as nil, while an incremental run fails on a record
+			// whose cursor is missing or null (ObserveChecked), so
+			// rejecting nullable cursors here would only hide valid full
+			// reads behind a load-time error.
 			cursor, found := IncrementalCursorField(*r)
 			if !found {
 				_ = agg.Addf(path+".incremental.cursor_field", "field %q must be declared and projected in fields", r.Incremental.CursorField)
-			} else {
-				if cursor.Nullable {
-					_ = agg.Addf(path+".incremental.cursor_field", "field %q must be non-nullable", cursor.Name)
-				}
-				if !incrementalTypeCompatible(r.Incremental.Comparator, cursor.Type) {
-					_ = agg.Addf(path+".incremental.comparator", "comparator %q is incompatible with cursor field %q type %q", comparatorName(r.Incremental.Comparator), cursor.Name, cursor.Type)
-				}
+			} else if !incrementalTypeCompatible(r.Incremental.Comparator, cursor.Type) {
+				_ = agg.Addf(path+".incremental.comparator", "comparator %q is incompatible with cursor field %q type %q", comparatorName(r.Incremental.Comparator), cursor.Name, cursor.Type)
 			}
 			if paginationInjectionCollides(r.Pagination, *r.Incremental) {
 				_ = agg.Addf(path+".incremental.start_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, r.Incremental.StartParam)

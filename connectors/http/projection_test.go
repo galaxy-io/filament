@@ -82,6 +82,36 @@ func TestProjectionJSONStringKeepsStructuredValueInStringColumn(t *testing.T) {
 	}
 }
 
+// A null value in a nullable timestamp field projects to nil; the same
+// null in a non-nullable timestamp field is an error. Incremental cursor
+// fields rely on this: a full read must accept a null cursor, while an
+// incremental run still fails on it at the tracker.
+func TestProjectionNullNullableTimestamp(t *testing.T) {
+	res := manifest.Resource{Fields: manifest.FieldList{
+		{Name: "id", Path: "id", Type: "string"},
+		{Name: "sent", Path: "sent", Type: "timestamptz", Nullable: true},
+		{Name: "strict", Path: "strict", Type: "timestamptz"},
+	}}
+	records, err := response.New(manifest.ResponseSpec{Root: "array"}).Records([]byte(`[{"id":"a","sent":null,"strict":"2026-01-05T00:00:00Z"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, _, err := projectRecord(res, records[0], nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row["sent"] != nil {
+		t.Fatalf("sent = %v, want nil", row["sent"])
+	}
+	records, err = response.New(manifest.ResponseSpec{Root: "array"}).Records([]byte(`[{"id":"b","sent":"2026-01-05T00:00:00Z","strict":null}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := projectRecord(res, records[0], nil); err == nil || !strings.Contains(err.Error(), "strict") {
+		t.Fatalf("err = %v, want a project error for strict", err)
+	}
+}
+
 func TestProjectionValuesTuplesAndExactDecimals(t *testing.T) {
 	const data = `version: 1
 name: typed

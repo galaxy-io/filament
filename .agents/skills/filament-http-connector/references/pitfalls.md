@@ -125,7 +125,9 @@ automatically require changing every one of these files.
 - Unknown properties and invalid strategy shapes fail validation. `fields` is a
   mapping, not a list. Auth and pagination use one strategy key.
 - Resource keys must refer to projected fields. Incremental cursor fields must
-  be projected, non-nullable, and compatible with their comparator.
+  be projected and compatible with their comparator. A nullable cursor is
+  allowed: full reads accept a null cursor value, while an incremental run
+  fails on a record whose cursor is missing or null.
 - `mode: remainder` and `shape` are JSON-only and mutually exclusive.
 - Parent chains must be acyclic. Checkpoint keys must be unique. Pagination and
   incremental injection must not target the same request field.

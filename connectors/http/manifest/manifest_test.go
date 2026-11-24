@@ -353,12 +353,20 @@ resources:
 	}
 }
 
+func TestParseAcceptsNullableIncrementalCursor(t *testing.T) {
+	// A nullable cursor is allowed: full reads accept null cursor values,
+	// while an incremental run fails on a record whose cursor is missing
+	// or null (ObserveChecked). The validator must not reject it at load.
+	if _, err := Parse([]byte("version: 1\nname: test\ndisplay_name: Test\ndescription: Test nullable incremental cursor manifest.\ndark_logo_url: https://cdn.example.com/test-dark.svg\nlight_logo_url: https://cdn.example.com/test-light.svg\nconnection:\n  base_url: https://example.com\nresources:\n  - name: items\n    path: /items\n    fields:\n      updated_at: timestamptz?\n    incremental:\n      cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time\n")); err != nil {
+		t.Fatalf("parse error = %v, want nil", err)
+	}
+}
+
 func TestParseRejectsInvalidIncrementalContracts(t *testing.T) {
 	tests := []struct {
 		name, field, pagination, incremental, want string
 	}{
 		{name: "unprojected cursor", field: "id: string", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "must be declared and projected"},
-		{name: "nullable cursor", field: "updated_at: timestamptz?", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "must be non-nullable"},
 		{name: "incompatible comparator", field: "updated_at: json", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "is incompatible"},
 		{name: "pagination collision", field: "updated_at: timestamptz", pagination: "pagination:\n      cursor:\n        response: next\n        request: query.since", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time", want: "conflicts with the pagination injection"},
 		{name: "bad date layout", field: "updated_at: timestamptz", incremental: "cursor_field: updated_at\n      start_param: since\n      inject_into: query\n      comparator: time\n      value_date_format: YYYY-MM-DD", want: "renders the same value for every watermark"},

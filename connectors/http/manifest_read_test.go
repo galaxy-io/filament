@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -161,6 +162,71 @@ func TestStatementPaginationCommitsOnlyCompleteScan(t *testing.T) {
 			plan, err := source.PlanResume(t.Context(), []string{"items"}, prev)
 			if err != nil || len(plan) != 0 {
 				t.Fatalf("resume plan=%v err=%v", plan, err)
+			}
+		})
+	}
+}
+
+func TestNullableCursorSurvivesFullReadButFailsIncremental(t *testing.T) {
+	const nullableCursorManifest = `
+version: 1
+name: nullable-cursor
+display_name: Nullable Cursor
+description: Nullable cursor fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    primary_key: [id]
+    fields:
+      id: string
+      updated: timestamptz?
+    response:
+      records: $.items
+    incremental:
+      cursor_field: updated
+      start_param: since
+      inject_into: query
+      comparator: time
+      initial: '2026-01-01T00:00:00Z'
+      overlap_seconds: 86400
+`
+	for _, mode := range []string{"full", "incremental"} {
+		t.Run(mode, func(t *testing.T) {
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, `{"items":[{"id":"a","updated":"2026-01-05T00:00:00Z"},{"id":"b","updated":null}]}`)
+			}))
+			defer api.Close()
+			source := NewManifest([]byte(strings.Replace(nullableCursorManifest, "base_url: https://example.com", "base_url: "+api.URL, 1)))
+			if err := source.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+				t.Fatal(err)
+			}
+			defer source.Teardown(t.Context())
+			opts := extractOptions{Resources: []string{"items"}, IncrementalResources: map[string]bool{"items": mode == "incremental"}}
+			sink := &scanSink{}
+			err := source.connector.Extract(t.Context(), sink, opts)
+			if mode == "full" {
+				if err != nil {
+					t.Fatalf("extract: %v", err)
+				}
+				if len(sink.records) != 2 {
+					t.Fatalf("records = %d, want 2", len(sink.records))
+				}
+				var row map[string]any
+				if err := json.Unmarshal(sink.records[1].Data, &row); err != nil {
+					t.Fatalf("unmarshal record: %v", err)
+				}
+				if row["updated"] != nil {
+					t.Fatalf("null cursor row updated = %v, want nil", row["updated"])
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), "cursor field") {
+				t.Fatalf("err = %v, want a cursor field error", err)
 			}
 		})
 	}
