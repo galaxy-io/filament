@@ -48,7 +48,7 @@ All resources report their read mode in the connector settings. Use **full upser
 
 `messages` supports incremental reads on `date_sent` and `calls` on `start_time`. The cursor is an RFC 2822 date. The first run reads from 2000-01-01, and later runs ask Twilio for records on or after the last stored watermark, with a one day overlap so edits made while a run is in flight are not missed. The filter is greater than or equal to the watermark, so overlap re-reads land as upserts and never duplicate rows. The Messages docs describe the bare date form generically, so the one day overlap is what guarantees the watermark day is re-read. Twilio has no filter on the update time, so a record edited after its event date is only re-read when it falls inside the overlap day. Incremental reads do not detect deleted messages or calls. Run a periodic full replace to remove them.
 
-Messages that have not been sent yet have no `date_sent`, and calls that never started have no `start_time`. A row with a missing cursor fails the incremental run. Incremental reads therefore cover sent and received messages and started calls only.
+Messages that have not been sent yet have no `date_sent`, and calls that never started have no `start_time`. Full reads accept those rows with a null cursor. A row with a missing cursor fails the incremental run. Incremental reads therefore cover sent and received messages and started calls only.
 
 `incoming_phone_numbers` is a full read. Twilio offers no date filter for it.
 

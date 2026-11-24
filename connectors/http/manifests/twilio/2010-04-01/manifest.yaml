@@ -39,7 +39,7 @@ resources:
       account_sid: string
       api_version: string
       date_created: timestamptz
-      date_sent: timestamptz
+      date_sent: timestamptz?
       date_updated: timestamptz
       status: string
       direction: string
@@ -80,7 +80,7 @@ resources:
       parent_call_sid: string?
       date_created: timestamptz
       date_updated: timestamptz
-      start_time: timestamptz
+      start_time: timestamptz?
       end_time: timestamptz?
       status: string
       direction: string
