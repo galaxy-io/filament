@@ -205,7 +205,7 @@ var updateModes = []string{table.WriteModeMergeOnRead, table.WriteModeCopyOnWrit
 
 func TestCreatePropertiesFollowUpdateMode(t *testing.T) {
 	for mode, want := range map[string]string{
-		"":                         table.WriteModeMergeOnRead,
+		"":                         table.WriteModeCopyOnWrite,
 		table.WriteModeMergeOnRead: table.WriteModeMergeOnRead,
 		table.WriteModeCopyOnWrite: table.WriteModeCopyOnWrite,
 	} {

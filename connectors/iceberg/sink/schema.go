@@ -75,7 +75,7 @@ func evolveSchema(ctx context.Context, tbl *icetable.Table, schema rowmodel.Sche
 // mode sets both write.merge.mode and write.delete.mode; empty is merge-on-read.
 func createProperties(updateMode string) iceberg.Properties {
 	if updateMode == "" {
-		updateMode = icetable.WriteModeMergeOnRead
+		updateMode = icetable.WriteModeCopyOnWrite
 	}
 	return iceberg.Properties{
 		"write.format.default":                       "parquet",

@@ -11,8 +11,8 @@ func TestResolveTableUpdateMode(t *testing.T) {
 		table map[string]any
 		want  string
 	}{
-		{table: nil, want: UpdateModeMergeOnRead},
-		{table: map[string]any{"update_mode": ""}, want: UpdateModeMergeOnRead},
+		{table: nil, want: UpdateModeCopyOnWrite},
+		{table: map[string]any{"update_mode": ""}, want: UpdateModeCopyOnWrite},
 		{table: map[string]any{"update_mode": UpdateModeCopyOnWrite}, want: UpdateModeCopyOnWrite},
 	} {
 		setup, err := Resolve(genericConfig(tc.table))

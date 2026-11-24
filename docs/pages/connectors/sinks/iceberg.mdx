@@ -25,7 +25,7 @@ catalog. Rows remain staged until their resource commits.
 | `catalog` | Connection | — | Required. Catalog connection object. See below. |
 | `catalog.provider` | Connection | — | Required. `generic`, `rest`, `polaris`, or `lakekeeper`. |
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
-| `table.update_mode` | Connection | `merge-on-read` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
+| `table.update_mode` | Connection | `copy-on-write` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before upsert, delete, and merge runs spill to temp files |
 | `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
@@ -147,9 +147,7 @@ storage credentials, then opens one Iceberg transaction:
   would bring the deleted rows back.
 
 Query engines must read equality deletes to see `merge-on-read` tables
-correctly. Trino and Spark read them. Check any other engine before pointing it
-at these tables, or set `table.update_mode` to `copy-on-write` before the sink
-creates them. For a table that already exists, compact its delete files,
+correctly. Trino and Spark read them. Check any other engine before setting `table.update_mode` to `merge-on-read`. For a table that already exists, compact its delete files,
 then set `write.merge.mode` and `write.delete.mode` to `copy-on-write` on the
 table.
 

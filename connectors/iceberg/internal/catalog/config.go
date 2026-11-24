@@ -89,7 +89,7 @@ func tableConfigField() filament.ConfigField {
 		}, {
 			Name:    "update_mode",
 			Type:    filament.FieldEnum,
-			Default: UpdateModeMergeOnRead,
+			Default: UpdateModeCopyOnWrite,
 			Help:    "How new tables apply updates and deletes. Use copy-on-write when a query engine cannot read equality deletes.",
 			Enum: []filament.EnumOption{
 				{Value: UpdateModeMergeOnRead, Label: "Merge-on-read"},
@@ -119,7 +119,7 @@ func Resolve(cfg filament.Config) (Setup, error) {
 	updateMode := tableCfg.String("update_mode")
 	switch updateMode {
 	case "":
-		updateMode = UpdateModeMergeOnRead
+		updateMode = UpdateModeCopyOnWrite
 	case UpdateModeMergeOnRead, UpdateModeCopyOnWrite:
 	default:
 		return Setup{}, fmt.Errorf("unsupported table update mode %q", updateMode)
