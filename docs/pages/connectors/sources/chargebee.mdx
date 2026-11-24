@@ -47,9 +47,14 @@ Payment sources, orders, quotes, usages, and events are not included.
 
 ## Modes
 
-All resources support full and incremental reads. Every request sets
-`include_deleted=true`, so deleted records arrive as rows with
-`deleted: true` instead of disappearing from the destination.
+Coupons support full reads only. Every other resource supports full and
+incremental reads.
+
+Every request sets `include_deleted=true`, so deleted customers,
+subscriptions, invoices, credit notes, transactions, and coupons arrive as
+rows with `deleted: true` instead of disappearing from the destination.
+Items and item prices mark deletion differently: a deleted one keeps
+arriving with `status: deleted`.
 
 | | |
 |---|---|
@@ -57,18 +62,28 @@ All resources support full and incremental reads. Every request sets
 | Request parameter | `updated_at[after]` (query) |
 | Comparator | `numeric` |
 | Checkpoint key | `<resource>_updated_at`, such as `invoices_updated_at` |
-| Overlap | 60 seconds |
+| Initial lower bound | `1475020800` (2016-09-28) |
+| Overlap | 600 seconds |
 
 Chargebee recommends syncing with `updated_at[after]` and
 `sort_by[asc]=updated_at`. Six resources use that order, so an interrupted
-run resumes safely from its last checkpoint. The credit notes and coupons
-APIs filter by `updated_at` but reject sorting by it. Those two commit their
+run resumes safely from its last checkpoint. The credit notes API filters
+by `updated_at` but rejects sorting by it, so credit notes commit their
 watermark only after a complete pass, and an interrupted run starts again
 from the previous watermark.
 
-`updated_at[after]` is exclusive. The overlap window re-reads the last 60
-seconds so records updated in the same second as the previous run are not
-missed. Re-read rows repeat their primary key, so use an upsert write mode.
+Chargebee list APIs are eventually consistent, so a record can appear in the
+list a little after its `updated_at`. Each incremental run re-reads the last
+600 seconds to catch those late records. Re-read rows repeat their primary
+key, so use an upsert write mode.
+
+Coupons are read in full on every run. Redeeming a coupon changes its
+`redemptions` count without changing `updated_at`, so an `updated_at`
+watermark would miss redemptions.
+
+Chargebee sets `updated_at` only on records changed after 2016-09-28.
+Incremental reads start from that date, so a record that has not changed
+since then is not returned by an incremental read.
 
 ## Behavior
 
@@ -79,11 +94,14 @@ missed. Re-read rows repeat their primary key, so use an upsert write mode.
   `next_offset` ends the walk.
 - **Record shape**: Chargebee wraps each list entry under its object name,
   such as `{"customer": {...}}`. Subscription entries also carry the customer
-  and card, which this connector reads only through their own resources.
+  and card. This connector reads customers through their own resource and
+  does not read cards.
 - **Rate limiting**: a static 2 requests per second limiter shared across all
   resources, below the 150 requests per minute allowed for test sites and the
   Starter plan. Chargebee returns HTTP 429 above its limit.
 - **Timestamps**: every Chargebee timestamp is a Unix epoch integer typed
   `int64`, not `timestamptz`.
 - **Amounts**: money fields are integers in the currency's smallest unit,
-  such as cents or paise.
+  such as cents or paise. The exception is `price_in_decimal` on item prices,
+  a decimal string in the currency's major unit, such as `"10.50"`. Chargebee
+  sets it only on sites with multi-decimal pricing.

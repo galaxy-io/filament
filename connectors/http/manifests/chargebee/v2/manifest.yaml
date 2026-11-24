@@ -39,8 +39,11 @@ defaults:
 # raw value survives and incremental cursors can use the numeric comparator.
 #
 # Nullability rule: a missing path on a non-nullable field aborts the whole
-# extraction. Only id and updated_at, present on every sampled record and
-# required for keys and cursors, are non-nullable.
+# extraction, so only id and the incremental cursor updated_at are
+# non-nullable. Chargebee sets updated_at only on records changed after
+# 2016-09-28. Incremental reads therefore start from that date (initial
+# below), which makes the API filter out records without updated_at. Coupons
+# are read in full only, so they declare updated_at as nullable themselves.
 field_sets:
   chargebee_object:
     id: string
@@ -96,11 +99,15 @@ resources:
       deleted: bool?
       raw: {path: $, type: json, mode: remainder}
     incremental:
+      # Chargebee list APIs are eventually consistent, so each run re-reads
+      # the last 10 minutes. Re-read rows upsert by id. initial is
+      # 2016-09-28, the date Chargebee started setting updated_at.
       cursor_field: updated_at
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: customers_updated_at
 
   - name: subscriptions
@@ -149,7 +156,8 @@ resources:
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: subscriptions_updated_at
 
   - name: invoices
@@ -198,7 +206,8 @@ resources:
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: invoices_updated_at
 
   - name: credit_notes
@@ -247,7 +256,8 @@ resources:
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: credit_notes_updated_at
       commit_on_complete: true
 
@@ -293,7 +303,8 @@ resources:
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: transactions_updated_at
 
   - name: items
@@ -328,7 +339,8 @@ resources:
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: items_updated_at
 
   - name: item_prices
@@ -371,7 +383,8 @@ resources:
       start_param: updated_at[after]
       inject_into: query
       comparator: numeric
-      overlap_seconds: 60
+      initial: "1475020800"
+      overlap_seconds: 600
       checkpoint_key: item_prices_updated_at
 
   - name: coupons
@@ -381,8 +394,10 @@ resources:
     response:
       records: $.list.#.coupon
     primary_key: [id]
-    use_fields: [chargebee_object]
     fields:
+      id: string
+      updated_at: int64?
+      resource_version: int64?
       name: string?
       invoice_name: string?
       discount_type: string?
@@ -399,20 +414,10 @@ resources:
       status: string?
       apply_on: string?
       item_constraints: json?
-      metadata: json?
+      metadata: {path: meta_data, type: json, nullable: true}
       created_at: int64?
       archived_at: int64?
       deleted: bool?
       raw: {path: $, type: json, mode: remainder}
-    incremental:
-      # Like credit notes, the coupons list API filters by updated_at but
-      # rejects sorting by it, so the watermark commits only after a full pass.
-      cursor_field: updated_at
-      start_param: updated_at[after]
-      inject_into: query
-      comparator: numeric
-      overlap_seconds: 60
-      checkpoint_key: coupons_updated_at
-      commit_on_complete: true
 discovery:
   mode: static
