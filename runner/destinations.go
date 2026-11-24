@@ -28,6 +28,7 @@ func prepareSinkResources(ctx context.Context, src filament.Source, snk filament
 	out.WritePolicies = make(map[string]filament.WritePolicy)
 	out.IngestionTypes = make(map[string]filament.IngestionType)
 	out.CursorConfigs = make(map[string]filament.ResourceCursorConfig)
+	out.SinkConfigs = make(map[string]map[string]any)
 	if policy, ok := policies[""]; ok {
 		policy.DestinationResource = ""
 		out.WritePolicies[""] = policy
@@ -68,6 +69,9 @@ func prepareSinkResources(ctx context.Context, src filament.Source, snk filament
 		}
 		if cursor, ok := spec.CursorConfigs[resource]; ok {
 			out.CursorConfigs[destination] = cursor
+		}
+		if config, ok := spec.SinkConfigs[resource]; ok {
+			out.SinkConfigs[destination] = config
 		}
 	}
 	spec.WritePolicies = policies

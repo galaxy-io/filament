@@ -134,6 +134,7 @@ const createResourceRows = ({
       isColumnSelectable: selectableResources.has(resource.name) || storedColumns !== undefined,
       partitions,
       selectedPartitions,
+      sinkConfig: state.resourceSinkConfigs[sinkId]?.[resource.name] ?? {},
       status:
         !hasReadLevers || !isSelected
           ? undefined

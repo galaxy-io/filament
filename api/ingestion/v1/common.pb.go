@@ -363,6 +363,8 @@ const (
 	FieldScope_FIELD_SCOPE_UNSPECIFIED FieldScope = 0
 	FieldScope_FIELD_SCOPE_CONNECTION  FieldScope = 1
 	FieldScope_FIELD_SCOPE_PIPELINE    FieldScope = 2
+	// FIELD_SCOPE_RESOURCE fields are set per resource on a pipeline edge.
+	FieldScope_FIELD_SCOPE_RESOURCE FieldScope = 3
 )
 
 // Enum value maps for FieldScope.
@@ -371,11 +373,13 @@ var (
 		0: "FIELD_SCOPE_UNSPECIFIED",
 		1: "FIELD_SCOPE_CONNECTION",
 		2: "FIELD_SCOPE_PIPELINE",
+		3: "FIELD_SCOPE_RESOURCE",
 	}
 	FieldScope_value = map[string]int32{
 		"FIELD_SCOPE_UNSPECIFIED": 0,
 		"FIELD_SCOPE_CONNECTION":  1,
 		"FIELD_SCOPE_PIPELINE":    2,
+		"FIELD_SCOPE_RESOURCE":    3,
 	}
 )
 
@@ -962,12 +966,13 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x12WRITE_MODE_REPLACE\x10\x02\x12\x15\n" +
 	"\x11WRITE_MODE_UPSERT\x10\x03\x12\x14\n" +
 	"\x10WRITE_MODE_MERGE\x10\x04\x12\x15\n" +
-	"\x11WRITE_MODE_DELETE\x10\x05*_\n" +
+	"\x11WRITE_MODE_DELETE\x10\x05*y\n" +
 	"\n" +
 	"FieldScope\x12\x1b\n" +
 	"\x17FIELD_SCOPE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16FIELD_SCOPE_CONNECTION\x10\x01\x12\x18\n" +
-	"\x14FIELD_SCOPE_PIPELINE\x10\x02B\xac\x01\n" +
+	"\x14FIELD_SCOPE_PIPELINE\x10\x02\x12\x18\n" +
+	"\x14FIELD_SCOPE_RESOURCE\x10\x03B\xac\x01\n" +
 	"\x10com.ingestion.v1B\vCommonProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (

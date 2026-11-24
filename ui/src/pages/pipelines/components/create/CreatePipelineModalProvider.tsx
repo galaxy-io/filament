@@ -31,6 +31,7 @@ import {
   type SetResourcePartitionsAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
+  type SetResourceSinkConfigAction,
   type SetResourceWriteModeAction,
   type SetScheduleAction,
   type SetSinkWriteModeAction,
@@ -111,6 +112,8 @@ export const useCreatePipelineModalActions = () => {
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_PARTITIONS, payload }),
       setResourceWriteMode: (payload: SetResourceWriteModeAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE, payload }),
+      setResourceSinkConfig: (payload: SetResourceSinkConfigAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_SINK_CONFIG, payload }),
       setSinkWriteMode: (payload: SetSinkWriteModeAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE, payload }),
       setNodeConfig: (payload: SetNodeConfigAction["payload"]) =>
