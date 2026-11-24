@@ -220,13 +220,13 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		}
 	}
 	if err := s.commitJobs(ctx, st, streamed, s.commitConcurrency); err != nil {
-		if isUncertainCommit(err) || len(st.committed) > 0 {
+		if s.uncertain == nil && len(st.committed) > 0 {
 			s.uncertain = err
 		}
 		return err
 	}
 	if err := s.commitJobs(ctx, st, rewrites, 1); err != nil {
-		if isUncertainCommit(err) || len(st.committed) > 0 {
+		if s.uncertain == nil && len(st.committed) > 0 {
 			s.uncertain = err
 		}
 		return err
@@ -242,6 +242,7 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 // commitJobs commits jobs with up to workers in flight. After the first
 // failure it starts no more, waits for those in flight, and returns the
 // failure. A commit is never cancelled midway: its outcome would be unknown.
+// Any job whose commit may still have landed marks the session uncertain.
 func (s *Sink) commitJobs(ctx context.Context, st *stage, jobs []commitJob, workers int) error {
 	var (
 		mu    sync.Mutex
@@ -266,8 +267,13 @@ func (s *Sink) commitJobs(ctx context.Context, st *stage, jobs []commitJob, work
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
+				err = fmt.Errorf("iceberg sink: commit %s: %w", job.resource, err)
 				if first == nil {
-					first = fmt.Errorf("iceberg sink: commit %s: %w", job.resource, err)
+					first = err
+				}
+				// A commit that may have landed counts even behind an earlier failure.
+				if isUncertainCommit(err) {
+					s.uncertain = err
 				}
 				return
 			}
