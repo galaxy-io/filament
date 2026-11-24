@@ -10,7 +10,7 @@ func TestResolveFields(t *testing.T) {
 	resolved, err := Resolve(filament.NewConfig(map[string]any{
 		"host": "2001:db8::1", "username": "loader", "password": "p@ss:/word",
 		"database_name": "app", "tls_mode": "true",
-	}))
+	}), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestResolveMySQLURL(t *testing.T) {
 	resolved, err := Resolve(filament.NewConfig(map[string]any{
 		"connection_method": "url",
 		"dsn":               "mysql://user%40example.com:p%40ss%2Fword@[2001:db8::1]:3307/app%2Fdata?tls=true&parseTime=true",
-	}))
+	}), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestResolveMariaDBURLUsesDefaultPort(t *testing.T) {
 	resolved, err := Resolve(filament.NewConfig(map[string]any{
 		"connection_method": "url",
 		"dsn":               "mariadb://loader:secret@db.example.com/app?tls=preferred",
-	}))
+	}), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestResolveMariaDBURLUsesDefaultPort(t *testing.T) {
 func TestResolveLegacyDSN(t *testing.T) {
 	resolved, err := Resolve(filament.NewConfig(map[string]any{
 		"dsn": "legacy:secret@tcp(localhost:3307)/app?tls=false",
-	}))
+	}), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestResolveLegacyDSN(t *testing.T) {
 func TestResolveNativeDSNWithMySQLUsername(t *testing.T) {
 	resolved, err := Resolve(filament.NewConfig(map[string]any{
 		"dsn": "mysql:secret@tcp(localhost:3307)/app",
-	}))
+	}), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestResolveNativeDSNWithMySQLUsername(t *testing.T) {
 func TestResolveRejectsInvalidPort(t *testing.T) {
 	_, err := Resolve(filament.NewConfig(map[string]any{
 		"host": "localhost", "port": 70000, "username": "loader", "password": "secret", "database_name": "app",
-	}))
+	}), "")
 	if err == nil {
 		t.Fatal("invalid port accepted")
 	}
@@ -93,7 +93,7 @@ func TestResolveRejectsURLWithoutHost(t *testing.T) {
 	_, err := Resolve(filament.NewConfig(map[string]any{
 		"connection_method": "url",
 		"dsn":               "mysql:///app",
-	}))
+	}), "")
 	if err == nil {
 		t.Fatal("URL without a host accepted")
 	}

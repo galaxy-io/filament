@@ -195,16 +195,18 @@ func configFieldsToProto(configFields []filament.ConfigField) []*ingestionv1.Con
 	fields := make([]*ingestionv1.ConfigField, 0, len(configFields))
 	for _, field := range configFields {
 		fields = append(fields, &ingestionv1.ConfigField{
-			Name:        field.Name,
-			Type:        FieldTypeToProto(field.Type),
-			Required:    field.Required,
-			Default:     ValueToProto(field.Default),
-			Enum:        enumOptionsToProto(field.Enum),
-			Help:        field.Help,
-			Scope:       FieldScopeToProto(field.Scope),
-			Secret:      field.Secret || field.Type == filament.FieldSecret,
-			Fields:      configFieldsToProto(field.Fields),
-			VisibleWhen: fieldConditionToProto(field.VisibleWhen),
+			Name:           field.Name,
+			Type:           FieldTypeToProto(field.Type),
+			Required:       field.Required,
+			Default:        ValueToProto(field.Default),
+			Enum:           enumOptionsToProto(field.Enum),
+			Help:           field.Help,
+			Scope:          FieldScopeToProto(field.Scope),
+			Secret:         field.Secret || field.Type == filament.FieldSecret,
+			Fields:         configFieldsToProto(field.Fields),
+			VisibleWhen:    fieldConditionToProto(field.VisibleWhen),
+			ReadOnly:       field.ReadOnly,
+			PublicKeyField: field.PublicKeyField,
 		})
 	}
 	return fields
@@ -233,16 +235,18 @@ func configFieldsFromProto(configFields []*ingestionv1.ConfigField) ([]filament.
 			defaultValue = field.GetDefault().AsInterface()
 		}
 		fields = append(fields, filament.ConfigField{
-			Name:        field.GetName(),
-			Type:        fieldType,
-			Required:    field.GetRequired(),
-			Default:     defaultValue,
-			Enum:        enumOptionsFromProto(field.GetEnum()),
-			Help:        field.GetHelp(),
-			Scope:       scope,
-			Secret:      field.GetSecret(),
-			Fields:      nested,
-			VisibleWhen: fieldConditionFromProto(field.GetVisibleWhen()),
+			Name:           field.GetName(),
+			Type:           fieldType,
+			Required:       field.GetRequired(),
+			Default:        defaultValue,
+			Enum:           enumOptionsFromProto(field.GetEnum()),
+			Help:           field.GetHelp(),
+			Scope:          scope,
+			Secret:         field.GetSecret(),
+			Fields:         nested,
+			VisibleWhen:    fieldConditionFromProto(field.GetVisibleWhen()),
+			ReadOnly:       field.GetReadOnly(),
+			PublicKeyField: field.GetPublicKeyField(),
 		})
 	}
 	return fields, nil

@@ -704,6 +704,10 @@ func (s *Source) replicationConn(ctx context.Context) (*pgconn.PgConn, error) {
 	if cfg.RuntimeParams == nil {
 		cfg.RuntimeParams = map[string]string{}
 	}
+	if s.tunnel != nil {
+		cfg.DialFunc = s.tunnel.DialContext
+		cfg.LookupFunc = s.tunnel.LookupHost
+	}
 	cfg.RuntimeParams["replication"] = "database"
 	// pgoutput renders tuples with the walsender's output functions; the parsers
 	// in types.go read ISO dates and hex bytea, so pin both for the session.

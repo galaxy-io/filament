@@ -627,9 +627,16 @@ type ConfigField struct {
 	// means the object is intentionally free-form.
 	Fields []*ConfigField `protobuf:"bytes,9,rep,name=fields,proto3" json:"fields,omitempty"`
 	// visible_when conditionally includes this field based on a sibling field.
-	VisibleWhen   *FieldCondition `protobuf:"bytes,10,opt,name=visible_when,json=visibleWhen,proto3" json:"visible_when,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	VisibleWhen *FieldCondition `protobuf:"bytes,10,opt,name=visible_when,json=visibleWhen,proto3" json:"visible_when,omitempty"`
+	// read_only marks a value the server or the platform sets. A form shows it
+	// without an input.
+	ReadOnly bool `protobuf:"varint,11,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	// public_key_field makes a secret field an SSH private key and names the
+	// sibling that receives its public half. The server generates the key when
+	// none is supplied.
+	PublicKeyField string `protobuf:"bytes,12,opt,name=public_key_field,json=publicKeyField,proto3" json:"public_key_field,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ConfigField) Reset() {
@@ -730,6 +737,20 @@ func (x *ConfigField) GetVisibleWhen() *FieldCondition {
 		return x.VisibleWhen
 	}
 	return nil
+}
+
+func (x *ConfigField) GetReadOnly() bool {
+	if x != nil {
+		return x.ReadOnly
+	}
+	return false
+}
+
+func (x *ConfigField) GetPublicKeyField() string {
+	if x != nil {
+		return x.PublicKeyField
+	}
+	return ""
 }
 
 // EnumOption is one ordered choice for an enum or list config field.
@@ -911,7 +932,7 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a>\n" +
 	"\x10AnnotationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9a\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x03\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.ingestion.v1.FieldTypeR\x04type\x12\x1a\n" +
@@ -923,7 +944,9 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x06secret\x18\b \x01(\bR\x06secret\x121\n" +
 	"\x06fields\x18\t \x03(\v2\x19.ingestion.v1.ConfigFieldR\x06fields\x12?\n" +
 	"\fvisible_when\x18\n" +
-	" \x01(\v2\x1c.ingestion.v1.FieldConditionR\vvisibleWhen\"8\n" +
+	" \x01(\v2\x1c.ingestion.v1.FieldConditionR\vvisibleWhen\x12\x1b\n" +
+	"\tread_only\x18\v \x01(\bR\breadOnly\x12(\n" +
+	"\x10public_key_field\x18\f \x01(\tR\x0epublicKeyField\"8\n" +
 	"\n" +
 	"EnumOption\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +

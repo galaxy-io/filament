@@ -10,6 +10,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/internal/tunnel"
 	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
 	"github.com/galaxy-io/filament/internal/sinkstate"
 	"github.com/galaxy-io/filament/rowmodel"
@@ -24,12 +25,14 @@ import (
 // filament.Schematized; the engine only runs schema discovery for sinks that do.
 type Sink struct {
 	sinkstate.SingleWrite
-	evolution schema.Policy
-	db        *sql.DB
-	run       filament.RunID
-	database  string
-	policies  map[string]filament.WritePolicy
-	written   atomic.Int64
+	evolution         schema.Policy
+	db                *sql.DB
+	tunnel            *tunnel.Tunnel
+	reverseTunnelHost string
+	run               filament.RunID
+	database          string
+	policies          map[string]filament.WritePolicy
+	written           atomic.Int64
 
 	// tables is populated entirely during the engine's pre-extract EnsureSchema pass
 	// (sequential), then only read by concurrent Write calls — no lock needed.
@@ -89,7 +92,7 @@ func (t *Sink) Validate(cfg filament.Config) error {
 	if _, err := schemaPolicy(cfg.String("schema_evolution")); err != nil {
 		return err
 	}
-	if _, err := mysqlconnection.Resolve(cfg); err != nil {
+	if _, err := mysqlconnection.Resolve(cfg, t.reverseTunnelHost); err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
 	return nil
@@ -99,7 +102,7 @@ func (t *Sink) Validate(cfg filament.Config) error {
 // clears the database name so validating a new destination does not require
 // that Open's CREATE DATABASE step has already run.
 func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	resolved, err := mysqlconnection.Resolve(cfg)
+	resolved, err := mysqlconnection.Resolve(cfg, t.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
@@ -120,7 +123,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 		return err
 	}
 	t.evolution = policy
-	resolved, err := mysqlconnection.Resolve(cfg)
+	resolved, err := mysqlconnection.Resolve(cfg, t.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("mysql sink: connection config: %w", err)
 	}
@@ -132,6 +135,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if t.database == "" {
 		return fmt.Errorf("mysql sink: dsn has no database and \"database\" is unset")
 	}
+	t.tunnel = resolved.Tunnel
 	t.run = run.Run
 	t.policies = run.WritePolicies
 	t.written.Store(0)
@@ -146,6 +150,7 @@ func (t *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	_, err = bdb.ExecContext(ctx, "CREATE DATABASE IF NOT EXISTS "+quoteIdent(t.database))
 	_ = bdb.Close()
 	if err != nil {
+		t.release()
 		return fmt.Errorf("mysql sink: create database %q: %w", t.database, err)
 	}
 
@@ -198,7 +203,16 @@ func (t *Sink) release() {
 		_ = t.db.Close()
 		t.db = nil
 	}
+	_ = t.tunnel.Close()
+	t.tunnel = nil
 }
 
 // Close releases session resources without reverting durable writes.
 func (t *Sink) Close(ctx context.Context) error { t.release(); return nil }
+
+var _ filament.ReverseTunnelUser = (*Sink)(nil)
+
+// UseReverseTunnelHost sets where this deployment's reverse SSH tunnels listen.
+func (t *Sink) UseReverseTunnelHost(host string) {
+	t.reverseTunnelHost = host
+}

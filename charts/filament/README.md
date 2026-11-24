@@ -212,6 +212,12 @@ encryption to protect resolved connection credentials in transit.
 | secrets.prefix | string | `""` | Root name external secret stores give every secret, stored in the ConfigMap as `SECRETS_PREFIX`. Defaults to `filament`: AWS names secrets `filament/<tenant>/...` and GCP `filament-<hash>`, and a prefix replaces that word. The separator is added for you. Unused by datastore. |
 | secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; external provider names are stored in the ConfigMap as `SECRET_PROVIDER`. |
 
+## SSH parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| ssh.reverse.host | string | `""` | Host where reverse SSH tunnels listen, stored in the worker ConfigMap as `SSH_REVERSE_TUNNEL_HOST`. Setting it adds the reverse SSH tunnel method to database connections, which dial this host on the port entered for the connection. Empty leaves the method out. |
+
 ## Event bus parameters
 
 | Key | Type | Default | Description |
