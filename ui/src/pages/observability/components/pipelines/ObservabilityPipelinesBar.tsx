@@ -7,8 +7,6 @@ import { t } from "@galaxy-io/dls/theme/tokens/t";
 import type { RoleColor } from "@galaxy-io/dls/theme/tokens/types";
 import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
-import { PIPELINE_RUN_STATUS_TO_HUE_MAP } from "@/components/runs/constants";
-
 import {
   OBSERVABILITY_PIPELINES_BAR_HEIGHT,
   OBSERVABILITY_PIPELINES_BAR_WIDTH,
@@ -42,8 +40,8 @@ const ObservabilityPipelinesBar: FC<ObservabilityPipelinesBarProps> = ({ cell })
       <ObservabilityPipelinesBarFrame>
         {createObservabilityPipelinesBarSegments(cell).map((segment) => (
           <ObservabilityPipelinesBarSegment
-            key={segment.status}
-            $hue={PIPELINE_RUN_STATUS_TO_HUE_MAP[segment.status]}
+            key={segment.key}
+            $hue={segment.hue}
             $height={segment.height}
           />
         ))}

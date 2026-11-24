@@ -57,56 +57,59 @@ const ObservabilityFailuresDetails: FC<ObservabilityFailuresDetailsProps> = ({ e
     >
       <FlexItem grow={1} minHeight={0}>
         <ScrollArea>
-          {entries.map(({ pipeline }, index) => (
-            <Fragment key={pipeline.id}>
-              {index > 0 && <Divider />}
-              <Box padding={[12, 16]} fillWidth>
-                <Grid
-                  columns="auto minmax(0, 1fr)"
-                  gap={[8, 8]}
-                  alignItems={GridAlignItems.CENTER}
-                  fillWidth
-                >
-                  <PipelineRunStatusSwatch status={RunStatus.FAILED} />
-                  <Flex alignItems={AlignItems.CENTER} gap={8} fillWidth>
-                    <FlexItem grow={1} minWidth={0}>
-                      <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
-                    </FlexItem>
-                    {pipeline.lastRun && (
-                      <Tooltip body={formatTimestamp(pipeline.lastRun.requestedAt)}>
-                        <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
-                          {formatRelativeTime(pipeline.lastRun.requestedAt)}
-                        </Text>
-                      </Tooltip>
+          {entries.map(({ pipeline }, index) => {
+            const reason = pipeline.lastRun?.error || pipeline.lastRun?.executionStatus?.reason;
+            return (
+              <Fragment key={pipeline.id}>
+                {index > 0 && <Divider />}
+                <Box padding={[12, 16]} fillWidth>
+                  <Grid
+                    columns="auto minmax(0, 1fr)"
+                    gap={[8, 8]}
+                    alignItems={GridAlignItems.CENTER}
+                    fillWidth
+                  >
+                    <PipelineRunStatusSwatch status={RunStatus.FAILED} />
+                    <Flex alignItems={AlignItems.CENTER} gap={8} fillWidth>
+                      <FlexItem grow={1} minWidth={0}>
+                        <PipelineName pipelineId={pipeline.id} pipeline={pipeline} />
+                      </FlexItem>
+                      {pipeline.lastRun && (
+                        <Tooltip body={formatTimestamp(pipeline.lastRun.requestedAt)}>
+                          <Text size={TextSize.BODY_SM} variant={TextVariant.TERTIARY}>
+                            {formatRelativeTime(pipeline.lastRun.requestedAt)}
+                          </Text>
+                        </Tooltip>
+                      )}
+                      <Button
+                        label="View run"
+                        size={ButtonSize.SMALL}
+                        variant={ButtonVariant.TERTIARY}
+                        icon={ArrowRightIcon}
+                        isIconTrailing
+                        onClick={() => handleViewRun(pipeline)}
+                      />
+                    </Flex>
+                    {reason && (
+                      <>
+                        <Box />
+                        <Box
+                          variant={BoxVariant.SECONDARY}
+                          radius={Radius.MD}
+                          padding={[8, 12]}
+                          fillWidth
+                        >
+                          <Text size={TextSize.CAPTION} family={FontFamily.MONO} isSelectable>
+                            {reason}
+                          </Text>
+                        </Box>
+                      </>
                     )}
-                    <Button
-                      label="View run"
-                      size={ButtonSize.SMALL}
-                      variant={ButtonVariant.TERTIARY}
-                      icon={ArrowRightIcon}
-                      isIconTrailing
-                      onClick={() => handleViewRun(pipeline)}
-                    />
-                  </Flex>
-                  {pipeline.lastRun?.error && (
-                    <>
-                      <Box />
-                      <Box
-                        variant={BoxVariant.SECONDARY}
-                        radius={Radius.MD}
-                        padding={[8, 12]}
-                        fillWidth
-                      >
-                        <Text size={TextSize.CAPTION} family={FontFamily.MONO} isSelectable>
-                          {pipeline.lastRun.error}
-                        </Text>
-                      </Box>
-                    </>
-                  )}
-                </Grid>
-              </Box>
-            </Fragment>
-          ))}
+                  </Grid>
+                </Box>
+              </Fragment>
+            );
+          })}
         </ScrollArea>
       </FlexItem>
     </Flex>
