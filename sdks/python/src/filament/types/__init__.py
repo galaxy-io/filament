@@ -112,6 +112,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1resource_columns import IngestionV1ResourceColumns
     from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
     from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
+    from .ingestion_v1resource_sink_config import IngestionV1ResourceSinkConfig
     from .ingestion_v1resource_validation import IngestionV1ResourceValidation
     from .ingestion_v1run_event import IngestionV1RunEvent
     from .ingestion_v1run_event_fields import IngestionV1RunEventFields
@@ -262,6 +263,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ResourceColumns": ".ingestion_v1resource_columns",
     "IngestionV1ResourceCursorConfig": ".ingestion_v1resource_cursor_config",
     "IngestionV1ResourcePartitionSelection": ".ingestion_v1resource_partition_selection",
+    "IngestionV1ResourceSinkConfig": ".ingestion_v1resource_sink_config",
     "IngestionV1ResourceValidation": ".ingestion_v1resource_validation",
     "IngestionV1RunEvent": ".ingestion_v1run_event",
     "IngestionV1RunEventFields": ".ingestion_v1run_event_fields",
@@ -436,6 +438,7 @@ __all__ = [
     "IngestionV1ResourceColumns",
     "IngestionV1ResourceCursorConfig",
     "IngestionV1ResourcePartitionSelection",
+    "IngestionV1ResourceSinkConfig",
     "IngestionV1ResourceValidation",
     "IngestionV1RunEvent",
     "IngestionV1RunEventFields",
