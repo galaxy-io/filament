@@ -165,6 +165,7 @@
               "pages/connectors/sources/attio",
               "pages/connectors/sources/clickup",
               "pages/connectors/sources/fhir",
+              "pages/connectors/sources/freshdesk",
               "pages/connectors/sources/github",
               "pages/connectors/sources/gitlab",
               "pages/connectors/sources/gong",

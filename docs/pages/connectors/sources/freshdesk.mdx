@@ -1,0 +1,52 @@
+---
+title: "Freshdesk source connector"
+sidebarTitle: "Freshdesk"
+description: "Read tickets, contacts, companies, agents, groups, and ticket conversations from Freshdesk with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-freshdesk-dark.svg"
+---
+
+Connector ID `freshdesk`
+
+The Freshdesk source reads tickets, contacts, companies, agents, groups, and ticket conversations from the Freshdesk REST API v2. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). This connector is in preview. It has not yet been tested against a live account. It targets API version `v2`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `domain` | Connection | | Required. Freshdesk subdomain, such as `mycompany` for `mycompany.freshdesk.com`. |
+| `api_key` | Connection | | Required. Secret. API key from your Freshdesk profile settings. |
+
+Connection testing calls `GET /api/v2/tickets?per_page=100&include=description&order_by=updated_at&order_type=asc`. Requests target `https://{domain}.freshdesk.com/api/v2`.
+
+Find your API key under your Freshdesk profile settings. See [Freshdesk's API documentation](https://developers.freshdesk.com/api/) for the full endpoint reference.
+
+## Resources
+
+All resources except `conversations` are selected by default. Selecting `conversations` fans out across parent tickets, one request per ticket. Ticket fields, satisfaction ratings, time entries, and surveys are not read by this connector.
+
+IDs are integers. Optional fields are nullable, timestamps include time zones, and the `raw` column keeps fields that aren't mapped to their own columns.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `tickets` | `GET /api/v2/tickets` | |
+| `contacts` | `GET /api/v2/contacts` | |
+| `companies` | `GET /api/v2/companies` | |
+| `agents` | `GET /api/v2/agents` | |
+| `groups` | `GET /api/v2/groups` | |
+| `conversations` | `GET /api/v2/tickets/{ticket_id}/conversations` | `tickets` |
+
+## Modes
+
+Tickets, contacts, and companies perform incremental reads on `updated_at` using the `updated_since` query parameter. The first read sends `updated_since=1970-01-01T00:00:00Z` so the full history is read. Each later run resumes from the latest `updated_at` seen, with a 60-second overlap. Agents, groups, and conversations perform full reads. Use **full upsert** to refresh rows.
+
+When using full replace, remember the ticket list cap.
+
+- **Ticket list cap**. The ticket list returns at most 300 pages of 100 tickets (30,000 tickets) per query. On accounts with more tickets, an incremental run advances its checkpoint through the history over successive runs instead of returning everything at once.
+
+## Behavior
+
+- **Auth**. Every request sends HTTP Basic Authentication with the API key as the username and `X` as the password.
+- **Pagination**. Endpoints use page-based pagination with `per_page=100`, following the `Link` response header (`rel="next"`) until no next page is returned.
+- **Rate limiting**. Freshdesk rate limits vary by plan. Trial accounts allow 50 calls per minute, Growth 100, Pro 400, and Enterprise 700, with tighter per-endpoint caps. The connector paces requests at 0.5 requests per second with a burst allowance of 2 so trial accounts do not experience throttling.
+- **Ticket descriptions**. Accounts created after 30 November 2018 omit the ticket body from list responses unless `include=description` is sent. The connector always sends it, so `description` is populated. Each include costs extra API credits.
+- **Conversations**. Conversations are replies and private notes on a ticket. They are not selected by default because reading them costs one request per ticket.
