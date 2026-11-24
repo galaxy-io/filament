@@ -1,6 +1,7 @@
 package compile
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -12,39 +13,118 @@ import (
 )
 
 // routeGroup is the set of edges that share a source node and sink node, and
-// so collapse into a single run. Each resource carries its own read and write
-// mode; the "" entries are the route default set by an all-resources edge.
+// so collapse into a single run.
 type routeGroup struct {
-	key           string
-	source        *ingestionv1.PipelineNode
-	sink          *ingestionv1.PipelineNode
-	from          string
-	to            string
-	readModes     map[string]filament.ReadMode
-	writeModes    map[string]filament.WriteMode
-	all           bool
-	resources     map[string]bool
-	selectors     map[string]bool
-	cursorConfigs map[string]filament.ResourceCursorConfig
-	columns       map[string][]string // resource → selected source columns
-	partitions    map[string][]string // resource → partitions to backfill
-	sinkConfigs   map[string]map[string]any
-	transforms    map[string]any // resource → steps, merged across the route's edges
-	destinations  map[string]string
+	key    string
+	source *ingestionv1.PipelineNode
+	sink   *ingestionv1.PipelineNode
+	from   string
+	to     string
+	// tables holds what the route declares for each resource. The "" entry is
+	// the route default set by an all-resources edge.
+	tables map[string]*routeTable
 }
 
-// selectEdges keeps the edges that read one of resources. An edge with no
-// resource reads everything, so a subset run leaves it out.
-func selectEdges(edges []*ingestionv1.PipelineEdge, resources []string) []*ingestionv1.PipelineEdge {
-	return slices.DeleteFunc(slices.Clone(edges), func(edge *ingestionv1.PipelineEdge) bool {
-		return !slices.Contains(resources, edge.GetResource())
-	})
+// routeTable is what a route declares for one resource. An all-resources edge
+// can declare settings for a resource no edge names.
+type routeTable struct {
+	named       bool // an edge names this resource
+	readMode    filament.ReadMode
+	writeMode   filament.WriteMode
+	selector    string
+	destination string
+	cursor      declared[filament.ResourceCursorConfig]
+	columns     declared[[]string] // selected source columns
+	partitions  declared[[]string] // partitions to backfill
+	sinkConfig  declared[map[string]any]
+	transform   declared[any] // steps
+}
+
+// declared is a setting an edge may leave out.
+type declared[T any] struct {
+	value T
+	set   bool
+}
+
+func declare[T any](value T) declared[T] {
+	return declared[T]{value: value, set: true}
+}
+
+// table returns the route's entry for resource, adding it when new.
+func (g *routeGroup) table(resource string) *routeTable {
+	table := g.tables[resource]
+	if table == nil {
+		table = &routeTable{}
+		g.tables[resource] = table
+	}
+	return table
+}
+
+// all reports whether an all-resources edge is on the route.
+func (g *routeGroup) all() bool {
+	table := g.tables[""]
+	return table != nil && table.named
+}
+
+// narrow returns the route reading only the named resources, each with
+// everything the route declares for it. An all-resources edge reads
+// everything, so it names none of them.
+func (g *routeGroup) narrow(resources []string) *routeGroup {
+	narrowed := *g
+	narrowed.tables = map[string]*routeTable{}
+	for _, resource := range resources {
+		if table := g.tables[resource]; table != nil && table.named {
+			narrowed.tables[resource] = table
+		}
+	}
+	return &narrowed
+}
+
+// settings returns one setting for every resource that declares it, in the
+// shape a run request carries.
+func settings[T any](g *routeGroup, setting func(*routeTable) declared[T]) map[string]T {
+	out := map[string]T{}
+	for resource, table := range g.tables {
+		if value := setting(table); value.set {
+			out[resource] = value.value
+		}
+	}
+	return out
+}
+
+func (g *routeGroup) cursorConfigs() map[string]filament.ResourceCursorConfig {
+	return settings(g, func(t *routeTable) declared[filament.ResourceCursorConfig] { return t.cursor })
+}
+
+func (g *routeGroup) columns() map[string][]string {
+	return settings(g, func(t *routeTable) declared[[]string] { return t.columns })
+}
+
+func (g *routeGroup) partitions() map[string][]string {
+	return settings(g, func(t *routeTable) declared[[]string] { return t.partitions })
+}
+
+func (g *routeGroup) sinkConfigs() map[string]map[string]any {
+	return settings(g, func(t *routeTable) declared[map[string]any] { return t.sinkConfig })
+}
+
+func (g *routeGroup) transforms() map[string]any {
+	return settings(g, func(t *routeTable) declared[any] { return t.transform })
+}
+
+func (g *routeGroup) destinations() map[string]string {
+	out := map[string]string{}
+	for resource, table := range g.tables {
+		if table.destination != "" {
+			out[resource] = table.destination
+		}
+	}
+	return out
 }
 
 // groupEdges collapses edges into per-route groups, preserving first-seen order.
-// An edge with no resource marks its group as "all resources". Two edges naming
-// the same resource (or two all-resources edges) with different read or write
-// modes conflict.
+// Two edges naming the same resource (or two all-resources edges) with
+// different read or write modes conflict.
 func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode) ([]*routeGroup, error) {
 	if err := ValidateDestinations(edges); err != nil {
 		return nil, err
@@ -68,81 +148,33 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 		key := routeKey(edge.GetFromNode(), edge.GetToNode())
 		group := byKey[key]
 		if group == nil {
-			group = &routeGroup{
-				key:           key,
-				source:        source,
-				sink:          sink,
-				from:          edge.GetFromNode(),
-				to:            edge.GetToNode(),
-				readModes:     map[string]filament.ReadMode{},
-				writeModes:    map[string]filament.WriteMode{},
-				resources:     map[string]bool{},
-				selectors:     map[string]bool{},
-				cursorConfigs: map[string]filament.ResourceCursorConfig{},
-				columns:       map[string][]string{},
-				partitions:    map[string][]string{},
-				sinkConfigs:   map[string]map[string]any{},
-				transforms:    map[string]any{},
-				destinations:  map[string]string{},
-			}
+			group = &routeGroup{key: key, source: source, sink: sink, from: edge.GetFromNode(), to: edge.GetToNode(), tables: map[string]*routeTable{}}
 			byKey[key] = group
 			ordered = append(ordered, group)
 		}
-		for _, cursor := range edge.GetCursors() {
-			config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
-			if previous, exists := group.cursorConfigs[cursor.GetResource()]; exists && previous != config {
-				return nil, fmt.Errorf("%w: conflicting cursor configuration for resource %q", ErrInvalid, cursor.GetResource())
-			}
-			group.cursorConfigs[cursor.GetResource()] = config
-		}
-		for _, selection := range edge.GetColumns() {
-			columns := slices.Sorted(slices.Values(selection.GetColumns()))
-			if previous, exists := group.columns[selection.GetResource()]; exists && !slices.Equal(previous, columns) {
-				return nil, fmt.Errorf("%w: conflicting column selection for resource %q", ErrInvalid, selection.GetResource())
-			}
-			group.columns[selection.GetResource()] = columns
-		}
-		for _, selection := range edge.GetPartitions() {
-			// An empty selection backfills no partition, so it stays distinct from none.
-			partitions := append([]string{}, slices.Sorted(slices.Values(selection.GetPartitions()))...)
-			if previous, exists := group.partitions[selection.GetResource()]; exists && !slices.Equal(previous, partitions) {
-				return nil, fmt.Errorf("%w: conflicting partition selection for resource %q", ErrInvalid, selection.GetResource())
-			}
-			group.partitions[selection.GetResource()] = partitions
-		}
-		if err := mergeSinkConfigs(group, edge); err != nil {
+		if err := mergeSettings(group, edge); err != nil {
 			return nil, err
 		}
 		resource := edge.GetResource()
-		if err := mergeTransform(group, edge); err != nil {
-			return nil, err
-		}
+		table := group.table(resource)
 		if label := edge.GetDestinationResource(); label != "" {
-			group.destinations[resource] = label
+			table.destination = label
 		}
-		if previous, exists := group.readModes[resource]; exists && previous != readMode {
+		if table.named && table.readMode != readMode {
 			if resource == "" {
 				return nil, fmt.Errorf("%w: conflicting read modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 			}
 			return nil, fmt.Errorf("%w: conflicting read modes for resource %q", ErrInvalid, resource)
 		}
-		group.readModes[resource] = readMode
-		if previous, exists := group.writeModes[resource]; exists && previous != writeMode {
+		if table.named && table.writeMode != writeMode {
 			if resource == "" {
 				return nil, fmt.Errorf("%w: conflicting write modes for route %s -> %s", ErrInvalid, edge.GetFromNode(), edge.GetToNode())
 			}
 			return nil, fmt.Errorf("%w: conflicting write modes for resource %q", ErrInvalid, resource)
 		}
-		group.writeModes[resource] = writeMode
-		if resource == "" {
-			group.all = true
-			continue
-		}
-		group.resources[resource] = true
-		if selector := edge.GetSelector(); selector != "" {
-			group.selectors[selector] = true
-		} else {
-			group.selectors[resource] = true
+		table.named, table.readMode, table.writeMode = true, readMode, writeMode
+		if resource != "" {
+			table.selector = cmp.Or(edge.GetSelector(), resource)
 		}
 	}
 	return ordered, nil
@@ -152,26 +184,55 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 // CDC and continuous routes plan a single write for the whole stream.
 func (g *routeGroup) routeWriteMode() (filament.WriteMode, error) {
 	var mode filament.WriteMode
-	for _, candidate := range g.writeModes {
-		if mode != "" && candidate != mode {
+	for _, table := range g.tables {
+		if !table.named {
+			continue
+		}
+		if mode != "" && table.writeMode != mode {
 			return "", fmt.Errorf("%w: all resources on route %s -> %s must use the same write mode", ErrInvalid, g.from, g.to)
 		}
-		mode = candidate
+		mode = table.writeMode
 	}
 	return mode, nil
 }
 
-// mergeSinkConfigs folds an edge's per-resource sink config into its route.
-// Two edges may not give one resource different config.
-func mergeSinkConfigs(group *routeGroup, edge *ingestionv1.PipelineEdge) error {
+// mergeSettings folds what an edge declares per resource into its route. Two
+// edges may not give one resource different settings.
+func mergeSettings(group *routeGroup, edge *ingestionv1.PipelineEdge) error {
+	for _, cursor := range edge.GetCursors() {
+		config := filament.ResourceCursorConfig{Field: cursor.GetField(), LookbackSeconds: cursor.GetLookbackSeconds()}
+		table := group.table(cursor.GetResource())
+		if table.cursor.set && table.cursor.value != config {
+			return fmt.Errorf("%w: conflicting cursor configuration for resource %q", ErrInvalid, cursor.GetResource())
+		}
+		table.cursor = declare(config)
+	}
+	for _, selection := range edge.GetColumns() {
+		columns := slices.Sorted(slices.Values(selection.GetColumns()))
+		table := group.table(selection.GetResource())
+		if table.columns.set && !slices.Equal(table.columns.value, columns) {
+			return fmt.Errorf("%w: conflicting column selection for resource %q", ErrInvalid, selection.GetResource())
+		}
+		table.columns = declare(columns)
+	}
+	for _, selection := range edge.GetPartitions() {
+		// An empty selection backfills no partition, so it stays distinct from none.
+		partitions := append([]string{}, slices.Sorted(slices.Values(selection.GetPartitions()))...)
+		table := group.table(selection.GetResource())
+		if table.partitions.set && !slices.Equal(table.partitions.value, partitions) {
+			return fmt.Errorf("%w: conflicting partition selection for resource %q", ErrInvalid, selection.GetResource())
+		}
+		table.partitions = declare(partitions)
+	}
 	for _, sinkConfig := range edge.GetSinkConfigs() {
 		config := sinkConfig.GetConfig().AsMap()
-		if previous, exists := group.sinkConfigs[sinkConfig.GetResource()]; exists && !reflect.DeepEqual(previous, config) {
+		table := group.table(sinkConfig.GetResource())
+		if table.sinkConfig.set && !reflect.DeepEqual(table.sinkConfig.value, config) {
 			return fmt.Errorf("%w: conflicting sink config for resource %q", ErrInvalid, sinkConfig.GetResource())
 		}
-		group.sinkConfigs[sinkConfig.GetResource()] = config
+		table.sinkConfig = declare(config)
 	}
-	return nil
+	return mergeTransform(group, edge)
 }
 
 // mergeTransform folds an edge's transform into its route. The definition is
@@ -187,10 +248,11 @@ func mergeTransform(group *routeGroup, edge *ingestionv1.PipelineEdge) error {
 		return fmt.Errorf("%w: %v", ErrInvalid, err)
 	}
 	for resource, steps := range resources {
-		if _, exists := group.transforms[resource]; exists {
+		table := group.table(resource)
+		if table.transform.set {
 			return fmt.Errorf("%w: resource %q is transformed by more than one edge", ErrInvalid, resource)
 		}
-		group.transforms[resource] = steps
+		table.transform = declare(steps)
 	}
 	return nil
 }
@@ -226,10 +288,11 @@ func TransformResources(edge *ingestionv1.PipelineEdge) (map[string]any, error) 
 // transformDefinition renders a route's merged transforms as the JSON
 // definition a run request carries, or "" when the route has none.
 func transformDefinition(group *routeGroup) (string, error) {
-	if len(group.transforms) == 0 {
+	transforms := group.transforms()
+	if len(transforms) == 0 {
 		return "", nil
 	}
-	raw, err := json.Marshal(map[string]any{"version": transform.GrammarVersion(), "resources": group.transforms})
+	raw, err := json.Marshal(map[string]any{"version": transform.GrammarVersion(), "resources": transforms})
 	if err != nil {
 		return "", fmt.Errorf("transform: %w", err)
 	}

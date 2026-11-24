@@ -59,18 +59,18 @@ func (c *Compiler) executionEdges(ctx context.Context, edges []*ingestionv1.Pipe
 }
 
 // boundedGroups groups the edges that run bounded into routes and checks
-// resync against them. It returns the kept edges for subsetting.
-func (c *Compiler) boundedGroups(ctx context.Context, edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, connections map[string]filament.Connection, resync []string) ([]*routeGroup, []*ingestionv1.PipelineEdge, error) {
+// resync against them.
+func (c *Compiler) boundedGroups(ctx context.Context, edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, connections map[string]filament.Connection, resync []string) ([]*routeGroup, error) {
 	edges, err := c.executionEdges(ctx, edges, nodes, connections, filament.ExecutionBounded)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	groups, err := groupEdges(edges, nodes)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if err := validateResync(groups, resync); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return groups, edges, nil
+	return groups, nil
 }
