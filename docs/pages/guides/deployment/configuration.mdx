@@ -40,6 +40,10 @@ Set it on every worker. A reverse tunnel is opened from inside the database's
 network to a server you run, and Filament connects to the port that tunnel
 opens. Filament does not run that server or register keys on it.
 
+The port is not an access control. Any connection can name any port on the
+host, the same as it can in the ordinary host and port fields. Restrict which
+workloads reach each port with network policy.
+
 ### Connector allowlist
 
 | Variable | Default | Description |

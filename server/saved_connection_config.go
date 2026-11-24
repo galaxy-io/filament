@@ -91,6 +91,7 @@ func comparableConnectionConfig(schema filament.ConfigSchema, cfg map[string]any
 	// Removing secrets is a side effect of extraction; an extraction error
 	// only means a malformed secret value, which is ignored here either way.
 	_, _ = extractSecretFields(schema.Fields, out, "", true)
+	removeReadOnlyFields(schema.Fields, out)
 	for key, value := range out {
 		if text, ok := value.(string); ok && text == "" {
 			delete(out, key) // blank means unset, as cfg.String reads it
@@ -99,6 +100,20 @@ func comparableConnectionConfig(schema filament.ConfigSchema, cfg map[string]any
 		out[key] = normalizeConfigValue(value)
 	}
 	return out
+}
+
+// removeReadOnlyFields drops the fields the server sets, which a caller cannot
+// have changed and may leave out.
+func removeReadOnlyFields(schema []filament.ConfigField, cfg map[string]any) {
+	for _, field := range schema {
+		if field.ReadOnly {
+			delete(cfg, field.Name)
+			continue
+		}
+		if nested, ok := cfg[field.Name].(map[string]any); ok {
+			removeReadOnlyFields(field.Fields, nested)
+		}
+	}
 }
 
 // pipelineFieldsAndDefaults reports which top-level fields are pipeline

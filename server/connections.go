@@ -113,12 +113,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	cfg, refs, err := submittedConnectionConfig(schema, in.GetConfig(), in.GetSecretRefs(), stored.Config)
+	cfg, refs, err := submittedConnectionConfig(schema, in.GetConfig(), in.GetSecretRefs(), &stored)
 	if err != nil {
 		return nil, err
-	}
-	if err := checkUpdatedSecretRefs(schema, stored, cfg, refs); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -175,13 +172,22 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 }
 
 // submittedConnectionConfig returns the config and secret refs a request
-// carries, canonical and with their key pairs settled. stored is the config
-// the connection holds today, or nil for a new one.
-func submittedConnectionConfig(schema filament.ConfigSchema, config *structpb.Struct, secretRefs map[string]string, stored map[string]any) (map[string]any, map[string]string, error) {
+// carries, canonical and with their key pairs settled. stored is the
+// connection being updated, or nil for a new one. Key pairs settle after the
+// saved-secret check, so a generated key whose ref that check drops is
+// replaced with a new pair, which the caller could not have supplied again.
+func submittedConnectionConfig(schema filament.ConfigSchema, config *structpb.Struct, secretRefs map[string]string, stored *filament.Connection) (map[string]any, map[string]string, error) {
 	cfg := convert.StructMap(config)
 	refs := cloneStrings(secretRefs)
 	canonicalizeConnectionConfig(schema, cfg, refs)
-	if err := prepareKeyPairs(schema.Fields, cfg, refs, stored, ""); err != nil {
+	var saved map[string]any
+	if stored != nil {
+		if err := checkUpdatedSecretRefs(schema, *stored, cfg, refs); err != nil {
+			return nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		saved = stored.Config
+	}
+	if _, err := prepareKeyPairs(schema.Fields, cfg, refs, saved, ""); err != nil {
 		return nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return cfg, refs, nil

@@ -14,8 +14,10 @@ import (
 
 // prepareKeyPairs settles every key-pair field before the config is validated
 // and stored. A supplied private key shows its own public half, a stored key
-// keeps the half already shown, and a field with neither gets a new pair.
-func prepareKeyPairs(schema []filament.ConfigField, cfg map[string]any, refs map[string]string, stored map[string]any, parent string) error {
+// keeps the half already shown, and a field with neither gets a new pair. It
+// reports whether it generated one, which no bastion can have authorized yet.
+func prepareKeyPairs(schema []filament.ConfigField, cfg map[string]any, refs map[string]string, stored map[string]any, parent string) (bool, error) {
+	generated := false
 	for _, field := range schema {
 		path := joinConfigPath(parent, field.Name)
 		if field.PublicKeyField == "" {
@@ -24,9 +26,11 @@ func prepareKeyPairs(schema []filament.ConfigField, cfg map[string]any, refs map
 				continue
 			}
 			storedNested, _ := stored[field.Name].(map[string]any)
-			if err := prepareKeyPairs(field.Fields, nested, refs, storedNested, path); err != nil {
-				return err
+			nestedGenerated, err := prepareKeyPairs(field.Fields, nested, refs, storedNested, path)
+			if err != nil {
+				return false, err
 			}
+			generated = generated || nestedGenerated
 			continue
 		}
 		if !fieldIsVisible(field, filament.NewConfig(cfg)) {
@@ -37,7 +41,7 @@ func prepareKeyPairs(schema []filament.ConfigField, cfg map[string]any, refs map
 		case strings.TrimSpace(private) != "":
 			public, err := sshPublicKey(private)
 			if err != nil {
-				return fmt.Errorf("%s: %w", path, err)
+				return false, fmt.Errorf("%s: %w", path, err)
 			}
 			cfg[field.PublicKeyField] = public
 		case refs[path] != "":
@@ -48,12 +52,13 @@ func prepareKeyPairs(schema []filament.ConfigField, cfg map[string]any, refs map
 		default:
 			private, public, err := generateSSHKey()
 			if err != nil {
-				return fmt.Errorf("%s: %w", path, err)
+				return false, fmt.Errorf("%s: %w", path, err)
 			}
 			cfg[field.Name], cfg[field.PublicKeyField] = private, public
+			generated = true
 		}
 	}
-	return nil
+	return generated, nil
 }
 
 // generateSSHKey returns a new ed25519 key as an OpenSSH private key and the
