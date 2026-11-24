@@ -11,6 +11,7 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
 import { ReadMode } from "@/gen/ingestion/v1/common_pb";
+import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 import BaseHeader, { BaseHeaderSize } from "@/components/BaseHeader";
 
@@ -26,6 +27,7 @@ import PipelineResourceColumnsChip from "@/pages/pipelines/components/resource/P
 import PipelineResourceColumnsTable from "@/pages/pipelines/components/resource/PipelineResourceColumnsTable";
 import PipelineResourcePartitionsChip from "@/pages/pipelines/components/resource/PipelineResourcePartitionsChip";
 import PipelineResourcePartitionsTable from "@/pages/pipelines/components/resource/PipelineResourcePartitionsTable";
+import { removeStalePartitionEntries } from "@/pages/pipelines/components/resource/utils";
 
 interface CreatePipelineModalResourcesColumnsPaneProps {
   row: CreatePipelineModalResourceRow;
@@ -37,11 +39,20 @@ const CreatePipelineModalResourcesColumnsPane: FC<CreatePipelineModalResourcesCo
   onClose,
 }) => {
   const { activeSinkId } = useCreatePipelineModalState();
-  const { setResourceColumns, setResourcePartitions } = useCreatePipelineModalActions();
+  const { setResourceColumns, setResourcePartitions, setResourceSinkConfig } =
+    useCreatePipelineModalActions();
 
   const [search, setSearch] = useState("");
   const [partitionSearch, setPartitionSearch] = useState("");
   const hasPartitions = row.partitions.length > 0 && row.readMode !== ReadMode.INCREMENTAL;
+
+  const handleColumnsChange = (columns: ResourceColumn["name"][]) => {
+    setResourceColumns({ sinkId: activeSinkId, resource: row.name, columns });
+    const config = removeStalePartitionEntries(row.sinkConfig, [...columns, ...row.lockedColumns]);
+    if (config !== row.sinkConfig) {
+      setResourceSinkConfig({ sinkId: activeSinkId, resource: row.name, config });
+    }
+  };
 
   return (
     <Box width={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_WIDTH} height="100%">
@@ -88,9 +99,7 @@ const CreatePipelineModalResourcesColumnsPane: FC<CreatePipelineModalResourcesCo
                     locked={row.lockedColumns}
                     isDisabled={!row.isSelected || !row.isColumnSelectable}
                     search={search}
-                    onChange={(columns) =>
-                      setResourceColumns({ sinkId: activeSinkId, resource: row.name, columns })
-                    }
+                    onChange={handleColumnsChange}
                   />
                 </Flex>
               </CreatePipelineModalResourcesPaneSection>

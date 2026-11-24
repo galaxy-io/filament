@@ -19,6 +19,8 @@ import {
 } from "@/pages/pipelines/components/create/constants";
 import {
   LOGICAL_TYPE_TO_PARTITION_TRANSFORMS_MAP,
+  PIPELINE_RESOURCE_PARTITION_BY_FIELD,
+  PIPELINE_RESOURCE_PARTITION_ENTRY,
   PIPELINE_RESOURCE_PARTITION_IDENTITY,
   PIPELINE_RESOURCE_PARTITION_TIME_ENTRY,
   READ_MODE_TO_WRITE_MODES_MAP,
@@ -152,6 +154,26 @@ export const getPartitionByOptions = (columns: ResourceColumn[]): SelectOption[]
       return { id: entry, label: entry, group: column.name };
     }),
   );
+
+export const getPartitionColumn = (entry: string): ResourceColumn["name"] | undefined => {
+  const match = PIPELINE_RESOURCE_PARTITION_ENTRY.exec(entry);
+  return match?.[1] ?? match?.[2];
+};
+
+export const removeStalePartitionEntries = (
+  config: PipelineResourceSinkConfig,
+  columns: ResourceColumn["name"][],
+): PipelineResourceSinkConfig => {
+  const entries = config[PIPELINE_RESOURCE_PARTITION_BY_FIELD];
+  if (!Array.isArray(entries)) return config;
+  const kept = entries.filter((entry) => {
+    const column = typeof entry === "string" ? getPartitionColumn(entry) : undefined;
+    return column !== undefined && columns.includes(column);
+  });
+  if (kept.length === entries.length) return config;
+  const { [PIPELINE_RESOURCE_PARTITION_BY_FIELD]: _removed, ...rest } = config;
+  return kept.length > 0 ? { ...rest, [PIPELINE_RESOURCE_PARTITION_BY_FIELD]: kept } : rest;
+};
 
 export const getPartitionTimeColumn = (entry: string): ResourceColumn["name"] | undefined =>
   PIPELINE_RESOURCE_PARTITION_TIME_ENTRY.exec(entry)?.[1];

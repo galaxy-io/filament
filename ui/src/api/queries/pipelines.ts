@@ -116,7 +116,12 @@ export const useSuspenseListPipelinesInfiniteQuery = ({
 };
 
 export const createGetPipelineInput = (id: Pipeline["id"]) =>
-  create(GetPipelineRequestSchema, { id, includeVersions: true, includeSchedule: true });
+  create(GetPipelineRequestSchema, {
+    id,
+    includeVersions: true,
+    includeSchedule: true,
+    includeLastRun: true,
+  });
 
 export const createGetPipelineQueryOptions = ({
   input,

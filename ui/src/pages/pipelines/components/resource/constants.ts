@@ -20,6 +20,9 @@ export const PIPELINE_RESOURCE_PARTITION_IDENTITY = "identity";
 
 export const PIPELINE_RESOURCE_PARTITION_TIME_ENTRY = /^(?:hour|day|month|year)\((.+)\)$/;
 
+export const PIPELINE_RESOURCE_PARTITION_ENTRY =
+  /^(?:(?:identity|void|year|month|day|hour|bucket\[\d+\]|truncate\[\d+\])\(([^()\s]+)\)|([^()\s]+))$/;
+
 const PARTITION_KEYED_TRANSFORMS: string[] = [PIPELINE_RESOURCE_PARTITION_IDENTITY, "bucket[16]"];
 
 export const LOGICAL_TYPE_TO_PARTITION_TRANSFORMS_MAP: Record<string, string[]> = {

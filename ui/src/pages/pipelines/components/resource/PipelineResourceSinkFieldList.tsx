@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import { type FC, useState } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
@@ -12,6 +12,7 @@ import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 import { PIPELINE_RESOURCE_PARTITION_BY_FIELD } from "@/pages/pipelines/components/resource/constants";
 import {
   getPartitionByOptions,
+  getPartitionColumn,
   getPartitionTimeColumn,
 } from "@/pages/pipelines/components/resource/utils";
 
@@ -56,8 +57,23 @@ const PipelineResourceSinkFieldList: FC<PipelineResourceSinkFieldListProps> = ({
       .map((entry) => ({ id: entry, label: entry })),
   ];
 
+  const [error, setError] = useState<string>();
+  const isPartitionField = field.name === PIPELINE_RESOURCE_PARTITION_BY_FIELD;
+
   const handleChange = (entries: string[]) => {
+    setError(undefined);
     onChange(entries.length > 0 ? entries : undefined);
+  };
+
+  const handleCreate = (entry: string) => {
+    const column = getPartitionColumn(entry);
+    const isKnownColumn =
+      columns.length === 0 || columns.some((candidate) => candidate.name === column);
+    if (isPartitionField && (column === undefined || !isKnownColumn)) {
+      setError("Use a column or transform(column), such as day(created_at)");
+      return;
+    }
+    handleChange([...selected, entry]);
   };
 
   return (
@@ -66,7 +82,8 @@ const PipelineResourceSinkFieldList: FC<PipelineResourceSinkFieldListProps> = ({
         options={options}
         value={selected}
         onChange={handleChange}
-        onCreate={(entry) => handleChange([...selected, entry])}
+        onCreate={handleCreate}
+        error={error}
         label={isCompact ? undefined : label}
         labelTooltip={isCompact ? undefined : field.help || undefined}
         variant={isCompact ? MultiSelectInputVariant.BASE : MultiSelectInputVariant.TERTIARY}
