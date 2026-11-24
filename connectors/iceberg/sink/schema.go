@@ -123,10 +123,12 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	}
 	if fields := s.partitions[resource]; len(fields) > 0 {
 		spec, err := partitionSpec(iceSchema, fields)
-		if err != nil {
+		if err == nil {
+			createOpts = append(createOpts, catalog.WithPartitionSpec(&spec))
+		} else if exists, existsErr := cat.CheckTableExists(ctx, ident); existsErr != nil || !exists {
+			// An existing table keeps its own partitioning, so only a new one needs the spec.
 			return fmt.Errorf("iceberg sink: partition %s: %w", resource, err)
 		}
-		createOpts = append(createOpts, catalog.WithPartitionSpec(&spec))
 	}
 	tbl, err := cat.CreateTable(ctx, ident, iceSchema, createOpts...)
 	if errors.Is(err, catalog.ErrTableAlreadyExists) {
