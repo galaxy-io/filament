@@ -2,6 +2,7 @@ import type { FC, ReactNode } from "react";
 
 import type { JsonValue } from "@bufbuild/protobuf";
 
+import Divider from "@galaxy-io/dls/layout/Divider";
 import Flex, { AlignItems, FlexDirection } from "@galaxy-io/dls/layout/Flex";
 import FlexItem from "@galaxy-io/dls/layout/FlexItem";
 import Text, { TextSize, TextVariant, TextWeight } from "@galaxy-io/dls/text/Text";
@@ -39,7 +40,8 @@ interface CreatePipelineModalResourcesColumnsPaneFooterRow {
 const CreatePipelineModalResourcesColumnsPaneFooter: FC<
   CreatePipelineModalResourcesColumnsPaneFooterProps
 > = ({ row }) => {
-  const { activeSinkId, sinkConnections, nodeConfigs } = useCreatePipelineModalState();
+  const { activeSinkId, sinkConnections, nodeConfigs, hasReadLevers } =
+    useCreatePipelineModalState();
   const { setResourceSinkConfig } = useCreatePipelineModalActions();
   const sinkFields = usePipelineResourceSinkFields(
     sinkConnections.find((connection) => connection.id === activeSinkId),
@@ -56,9 +58,13 @@ const CreatePipelineModalResourcesColumnsPaneFooter: FC<
   };
 
   const rows: CreatePipelineModalResourcesColumnsPaneFooterRow[] = [
-    { label: "Read mode", cell: <CreatePipelineModalResourcesReadModeCell row={row} /> },
-    { label: "Cursor", cell: <CreatePipelineModalResourcesCursorCell row={row} /> },
-    { label: "Write mode", cell: <CreatePipelineModalResourcesWriteModeCell row={row} /> },
+    ...(hasReadLevers
+      ? [
+          { label: "Read mode", cell: <CreatePipelineModalResourcesReadModeCell row={row} /> },
+          { label: "Cursor", cell: <CreatePipelineModalResourcesCursorCell row={row} /> },
+          { label: "Write mode", cell: <CreatePipelineModalResourcesWriteModeCell row={row} /> },
+        ]
+      : []),
     ...sinkFields.fields.map((field) => ({
       label: formatFieldLabel(field.name),
       tooltip: field.help || undefined,
@@ -77,37 +83,42 @@ const CreatePipelineModalResourcesColumnsPaneFooter: FC<
     })),
   ];
 
+  if (rows.length === 0) return null;
+
   return (
-    <Flex
-      direction={FlexDirection.COLUMN}
-      alignItems={AlignItems.STRETCH}
-      gap={8}
-      padding={[12, 16]}
-    >
-      {rows.map(({ label, tooltip, cell }) => (
-        <Flex
-          key={label}
-          alignItems={AlignItems.CENTER}
-          gap={12}
-          minHeight={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_FIELD_HEIGHT}
-        >
-          <FlexItem shrink={0} basis={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_LABEL_WIDTH}>
-            <Tooltip body={tooltip}>
-              <Text
-                size={TextSize.BODY_SM}
-                weight={TextWeight.MEDIUM}
-                variant={TextVariant.SECONDARY}
-              >
-                {label}
-              </Text>
-            </Tooltip>
-          </FlexItem>
-          <Flex alignItems={AlignItems.CENTER} grow={1} basis={0} minWidth={0}>
-            {cell}
+    <>
+      <Divider />
+      <Flex
+        direction={FlexDirection.COLUMN}
+        alignItems={AlignItems.STRETCH}
+        gap={8}
+        padding={[12, 16]}
+      >
+        {rows.map(({ label, tooltip, cell }) => (
+          <Flex
+            key={label}
+            alignItems={AlignItems.CENTER}
+            gap={12}
+            minHeight={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_FIELD_HEIGHT}
+          >
+            <FlexItem shrink={0} basis={CREATE_PIPELINE_MODAL_RESOURCES_COLUMNS_PANE_LABEL_WIDTH}>
+              <Tooltip body={tooltip}>
+                <Text
+                  size={TextSize.BODY_SM}
+                  weight={TextWeight.MEDIUM}
+                  variant={TextVariant.SECONDARY}
+                >
+                  {label}
+                </Text>
+              </Tooltip>
+            </FlexItem>
+            <Flex alignItems={AlignItems.CENTER} grow={1} basis={0} minWidth={0}>
+              {cell}
+            </Flex>
           </Flex>
-        </Flex>
-      ))}
-    </Flex>
+        ))}
+      </Flex>
+    </>
   );
 };
 

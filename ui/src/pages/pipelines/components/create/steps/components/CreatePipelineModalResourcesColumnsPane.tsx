@@ -36,7 +36,7 @@ const CreatePipelineModalResourcesColumnsPane: FC<CreatePipelineModalResourcesCo
   row,
   onClose,
 }) => {
-  const { activeSinkId, hasReadLevers } = useCreatePipelineModalState();
+  const { activeSinkId } = useCreatePipelineModalState();
   const { setResourceColumns, setResourcePartitions } = useCreatePipelineModalActions();
 
   const [search, setSearch] = useState("");
@@ -137,12 +137,7 @@ const CreatePipelineModalResourcesColumnsPane: FC<CreatePipelineModalResourcesCo
             </Flex>
           </ScrollArea>
         </FlexItem>
-        {hasReadLevers && (
-          <>
-            <Divider />
-            <CreatePipelineModalResourcesColumnsPaneFooter row={row} />
-          </>
-        )}
+        <CreatePipelineModalResourcesColumnsPaneFooter row={row} />
       </Flex>
     </Box>
   );
