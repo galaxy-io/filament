@@ -181,3 +181,23 @@ kept, because the catalog may have accepted the commit before reporting an
 error. `Abort` does not undo
 namespace/table creation, schema evolution from `EnsureSchema`, or any resource
 transaction that committed before a later resource failed.
+
+## Table maintenance
+
+The sink does not expire snapshots, remove orphan files, or compact data
+files. The catalog or another engine has to do that work.
+
+- **Snapshots** grow with every commit. At the default `commit_interval` a
+  continuous run adds up to 1,440 a day to each table that keeps receiving
+  rows. A replace keeps the previous copy of the table on storage until its
+  snapshot expires.
+- **Small files** build up because each commit adds at least one file to every
+  table it writes. A longer `commit_interval` writes fewer, larger files.
+- **Equality deletes** collect in a `merge-on-read` table until something
+  compacts them, and reads slow down as they grow.
+- **Unreferenced files** are normal while a run is in progress. Append and
+  replace files are written before their commit, which can be the whole run.
+  A killed worker, a commit whose outcome is unclear, and a retried upsert,
+  delete, or merge commit also leave files that no snapshot references. An
+  orphan sweep must only remove files older than the longest run. Three days
+  is the usual default.

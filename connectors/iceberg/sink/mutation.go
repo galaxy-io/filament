@@ -221,8 +221,9 @@ func keysExpr(it *iceTable, keys []string, tuples [][]any) (iceberg.BooleanExpre
 				continue
 			}
 			others = append(others, value)
-			id.WriteString(literalKey(value))
-			id.WriteByte(0x1f)
+			// Length-prefixed, so one value cannot run into the next.
+			part := literalKey(value)
+			fmt.Fprintf(&id, "%d:%s", len(part), part)
 		}
 		g := byOthers[id.String()]
 		if g == nil {
