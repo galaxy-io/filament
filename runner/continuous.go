@@ -47,9 +47,47 @@ type ContinuousConfig struct {
 	MaxEpochs int
 }
 
+// errShutdown ends an attempt whose worker was asked to stop during startup or
+// a read.
+var errShutdown = errors.New("worker shut down")
+
+// continuousStop records why an attempt is ending. The heartbeat sets stopping
+// and yielded, shutdown sets stopping and shutdown, and cleanup sets closing.
+type continuousStop struct {
+	stopping, yielded, shutdown, closing atomic.Bool
+}
+
+// watch returns the context for startup and source reads. Shutdown cancels it
+// and leaves runCtx alone, so a commit in progress finishes.
+func (s *continuousStop) watch(ctx, runCtx context.Context) (readCtx context.Context, release func()) {
+	readCtx, stopReading := context.WithCancel(runCtx)
+	unwatch := context.AfterFunc(ctx, func() {
+		s.shutdown.Store(true)
+		s.stopping.Store(true)
+		stopReading()
+	})
+	return readCtx, func() {
+		unwatch()
+		stopReading()
+	}
+}
+
+// interrupted maps an error from startup or a read. A cancellation that
+// shutdown caused while the run was healthy ends the attempt cleanly. Any other
+// error, such as a schema block, stands.
+func (s *continuousStop) interrupted(runCtx context.Context, err error) error {
+	if s.shutdown.Load() && runCtx.Err() == nil && errors.Is(err, context.Canceled) {
+		return errShutdown
+	}
+	return err
+}
+
 // RunContinuous executes native epochs. The shared emitter publishes activity;
 // runtime persistence, rather than event folding, owns continuous state.
 // Providers must honor cancellation. Forced cancellation abandons tentative work.
+// Cancelling ctx is a request to shut down: startup or the read in progress
+// stops and its epoch is discarded, a commit in progress finishes, and the
+// attempt ends clean.
 func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err := validateContinuous(cfg); err != nil {
 		return err
@@ -70,10 +108,12 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	if err != nil {
 		return err
 	}
-	runCtx, cancel := context.WithCancelCause(observeSchemaEvents(ctx, cfg.events))
+	runCtx, cancel := context.WithCancelCause(observeSchemaEvents(context.WithoutCancel(ctx), cfg.events))
 	defer cancel(nil)
-	var stopping, yielded atomic.Bool
-	hb, err := startContinuousHeartbeat(ctx, cfg, lease, &stopping, &yielded, cancel)
+	var stop continuousStop
+	readCtx, release := stop.watch(ctx, runCtx)
+	defer release()
+	hb, err := startContinuousHeartbeat(ctx, cfg, lease, &stop, cancel)
 	if err != nil {
 		return err
 	}
@@ -84,10 +124,8 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 	defer func() {
 		c, done := context.WithTimeout(context.WithoutCancel(ctx), cfg.DrainTimeout)
 		defer done()
-		if p != nil {
-			p.CloseIngest(result)
-			result = errors.Join(result, p.Wait())
-		}
+		stop.closing.Store(true)
+		result = closeContinuousPipeline(p, result)
 		var closeErr error
 		if activeEpoch != nil {
 			closeErr = cfg.Sink.Abort(c)
@@ -99,29 +137,53 @@ func RunContinuous(ctx context.Context, cfg ContinuousConfig) (result error) {
 			closeErr = errors.Join(closeErr, cfg.Sink.Close(c))
 		}
 		closeErr = errors.Join(closeErr, cfg.Source.Teardown(c))
-		result = finishContinuousAttempt(c, cfg, lease, result, errors.Join(closeErr, hb.Stop(c)), yielded.Load())
+		result = finishContinuousAttempt(c, cfg, lease, result, closeErr, hb.Stop(c), &stop)
 	}()
 	cleanupInstalled = true
 	emitContinuousStarted(cfg)
 	opened = true // Close must also clean up a partially successful Open.
-	plan, err := prepareContinuousConnectors(runCtx, &cfg)
+	plan, err := prepareContinuousConnectors(readCtx, &cfg)
 	if err != nil {
-		return err
+		return stop.interrupted(runCtx, err)
 	}
 	spec = cfg.Spec
-	if err := prepareContinuousSchemas(runCtx, &cfg, state); err != nil {
-		return err
+	if err := prepareContinuousSchemas(readCtx, &cfg, state); err != nil {
+		return stop.interrupted(runCtx, err)
 	}
-	session, err = openContinuousStream(runCtx, cfg, filament.StreamOpenOpts{Tenant: spec.Tenant, MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, MembershipRevision: state.MembershipRevision, Attempt: lease.Attempt})
+	session, err = openContinuousStream(readCtx, cfg, filament.StreamOpenOpts{Tenant: spec.Tenant, MessageSchemaPolicy: cfg.messagePolicy, MessageSchemas: schema.CloneMessageLayouts(cfg.messageSchemas), ReportResourceError: continuousResourceErrorReporter(cfg, lease), SourceConnectionID: spec.SourceConnectionID, CheckAuthority: func(c context.Context) error { return cfg.Store.RenewLease(c, lease, cfg.LeaseTTL) }, Resources: spec.Resources, CommittedPositions: state.CommittedPositions.Clone(), Membership: state.Membership, MembershipRevision: state.MembershipRevision, Attempt: lease.Attempt})
 	if err != nil {
-		return err
+		return stop.interrupted(runCtx, err)
 	}
 	p, err = newContinuousPipeline(&cfg, plan.Ordering)
 	if err != nil {
 		return err
 	}
 	p.Start(runCtx)
-	return runEpochs(runCtx, cfg, p, session, cfg.Sink, state, lease, &stopping, &activeEpoch)
+	return runEpochs(runCtx, readCtx, cfg, p, session, cfg.Sink, state, lease, &stop, &activeEpoch)
+}
+
+// closeContinuousPipeline joins the pipeline, which is nil when startup ended
+// before it was built. Work cut short by shutdown discards its epoch as a
+// failed read would, without failing the attempt. The pipeline then reports
+// only that interruption: the error it was closed with, or the read's own
+// cancellation when it was cut inside a barrier.
+func closeContinuousPipeline(p *pipeline.Pipeline, result error) error {
+	interrupted := errors.Is(result, errShutdown)
+	if p == nil {
+		if interrupted {
+			return nil
+		}
+		return result
+	}
+	p.CloseIngest(result)
+	err := p.Wait()
+	if !interrupted {
+		return errors.Join(result, err)
+	}
+	if errors.Is(err, errShutdown) || errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
 }
 
 func loadContinuousAttemptState(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken) (filament.StreamState, error) {
@@ -143,7 +205,8 @@ func loadContinuousAttemptState(ctx context.Context, cfg ContinuousConfig, lease
 // startContinuousHeartbeat renews ownership and observes pause, stop and yield
 // independently of source reads and sink writes. Only the heartbeat task owns
 // drainStart. A yield drains like a stop but records that this attempt yielded for an upgrade.
-func startContinuousHeartbeat(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken, stopping, yielded *atomic.Bool, cancel context.CancelCauseFunc) (*streamkit.Heartbeat, error) {
+// The drain deadline bounds the epoch loop. Cleanup runs under its own deadline.
+func startContinuousHeartbeat(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken, stop *continuousStop, cancel context.CancelCauseFunc) (*streamkit.Heartbeat, error) {
 	request := filament.StreamStateRequest{Tenant: lease.Tenant, Stream: filament.StreamRef{ID: lease.Attempt.StreamID, Generation: lease.Attempt.Generation}}
 	var drainStart time.Time
 	return streamkit.StartHeartbeat(context.WithoutCancel(ctx), min(cfg.LeaseTTL/3, time.Second), func(parent context.Context) error {
@@ -155,14 +218,14 @@ func startContinuousHeartbeat(ctx context.Context, cfg ContinuousConfig, lease f
 			current, err = cfg.Store.LoadStreamState(c, request)
 			yield := err == nil && current.Attempt != nil && current.Attempt.Lease == lease && current.Attempt.YieldRequested
 			if yield {
-				yielded.Store(true)
+				stop.yielded.Store(true)
 			}
-			if err == nil && (yield || current.Desired != filament.StreamEnabled) {
-				stopping.Store(true)
+			if err == nil && (yield || stop.shutdown.Load() || current.Desired != filament.StreamEnabled) {
+				stop.stopping.Store(true)
 				if drainStart.IsZero() {
 					drainStart = time.Now()
 				}
-				if time.Since(drainStart) >= cfg.DrainTimeout {
+				if !stop.closing.Load() && time.Since(drainStart) >= cfg.DrainTimeout {
 					err = context.DeadlineExceeded
 				}
 			}
@@ -200,12 +263,13 @@ func validateContinuous(cfg ContinuousConfig) error {
 		cfg.Codecs == nil,
 		cfg.MaxEpochs < 0,
 		cfg.LeaseTTL < 30*time.Millisecond || cfg.LeaseTTL > 24*time.Hour,
-		cfg.DrainTimeout <= 0,
-		cfg.Boundary.MaxWait <= 0,
+		cfg.DrainTimeout <= 0:
+		return errors.New("continuous runner: store, codecs, lease and drain limits required")
+	case cfg.Boundary.MaxWait <= 0,
 		cfg.Boundary.MaxRecords <= 0,
 		cfg.Boundary.MaxBytes < 0,
 		cfg.Boundary.MaxAge < 0:
-		return errors.New("continuous runner: store, codecs, lease, drain and boundary limits required")
+		return fmt.Errorf("continuous runner: epoch boundary needs positive MaxWait and MaxRecords and non-negative MaxBytes and MaxAge, got %+v", cfg.Boundary)
 	}
 	for _, r := range spec.Resources {
 		if _, ok := cfg.Schemas[r]; cfg.Schemas != nil && !ok {
@@ -215,7 +279,7 @@ func validateContinuous(cfg ContinuousConfig) error {
 	return nil
 }
 
-func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipeline, session filament.StreamSession, dst filament.Sink, state filament.StreamState, lease filament.LeaseToken, stopping *atomic.Bool, activeEpoch **filament.EpochRef) error {
+func runEpochs(runCtx, readCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipeline, session filament.StreamSession, dst filament.Sink, state filament.StreamState, lease filament.LeaseToken, stop *continuousStop, activeEpoch **filament.EpochRef) error {
 	spec := cfg.Spec
 	var err error
 	records := p.Records().(filament.StreamRecordSink)
@@ -224,7 +288,7 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 		epoch = state.LastEpoch.Epoch + 1
 	}
 	for count := 0; cfg.MaxEpochs == 0 || count < cfg.MaxEpochs; count++ {
-		if stopping.Load() {
+		if stop.stopping.Load() {
 			return nil
 		}
 		if err := context.Cause(runCtx); err != nil {
@@ -240,14 +304,14 @@ func runEpochs(runCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipelin
 		*activeEpoch = &ref
 		var coverage filament.Coverage
 		for len(coverage.Positions) == 0 {
-			coverage, err = session.Read(runCtx, records, cfg.Boundary)
+			coverage, err = session.Read(readCtx, records, cfg.Boundary)
 			if err != nil {
-				return err
+				return stop.interrupted(runCtx, err)
 			}
 			if len(coverage.Claims) > 0 {
 				return filament.ErrIncompleteCoverage
 			}
-			if stopping.Load() && len(coverage.Positions) == 0 {
+			if stop.stopping.Load() && len(coverage.Positions) == 0 {
 				return nil
 			}
 		}
@@ -442,15 +506,30 @@ func startContinuousEvents(ctx context.Context, cfg *ContinuousConfig) func(erro
 	}
 }
 
-func finishContinuousAttempt(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken, result, cleanupErr error, yielded bool) error {
+// finishContinuousAttempt records how the attempt ended. A heartbeat that
+// failed already stopped the run and says nothing about closure. One that is
+// still running leaves closure unproven.
+func finishContinuousAttempt(ctx context.Context, cfg ContinuousConfig, lease filament.LeaseToken, result, cleanupErr, heartbeatErr error, stop *continuousStop) error {
+	if errors.Is(heartbeatErr, streamkit.ErrHeartbeatRunning) {
+		cleanupErr = errors.Join(cleanupErr, heartbeatErr)
+		heartbeatErr = nil
+	}
 	termination := filament.AttemptClean
 	if cleanupErr != nil {
 		termination = filament.AttemptUnproven
 	}
 	reason := continuousReason(result)
-	if reason == "" && yielded {
+	switch {
+	case reason != "":
+	case stop.yielded.Load():
 		reason = filament.AttemptReasonUpgrade
+	case stop.shutdown.Load():
+		reason = filament.AttemptReasonShutdown
 	}
 	endErr := cfg.Store.EndAttempt(ctx, filament.EndAttemptRequest{Lease: lease, Termination: termination, Reason: reason})
-	return errors.Join(result, cleanupErr, endErr)
+	err := errors.Join(result, cleanupErr, endErr)
+	if err == nil {
+		return nil
+	}
+	return errors.Join(err, heartbeatErr)
 }

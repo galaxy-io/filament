@@ -195,6 +195,30 @@ func keyLiteral(col arrow.Array, i int) (any, error) {
 	}
 }
 
+// newKeyLiteral wraps a key value from keyLiteral as an Iceberg literal.
+func newKeyLiteral(key string, value any) (iceberg.Literal, error) {
+	switch v := value.(type) {
+	case bool:
+		return iceberg.NewLiteral(v), nil
+	case int32:
+		return iceberg.NewLiteral(v), nil
+	case int64:
+		return iceberg.NewLiteral(v), nil
+	case float32:
+		return iceberg.NewLiteral(v), nil
+	case float64:
+		return iceberg.NewLiteral(v), nil
+	case string:
+		return iceberg.NewLiteral(v), nil
+	case []byte:
+		return iceberg.NewLiteral(v), nil
+	case uuid.UUID:
+		return iceberg.NewLiteral(v), nil
+	default:
+		return nil, fmt.Errorf("unsupported iceberg key literal %T for %q", value, key)
+	}
+}
+
 func equalExpr(key string, value any) (iceberg.BooleanExpression, error) {
 	ref := iceberg.Reference(key)
 	switch v := value.(type) {
