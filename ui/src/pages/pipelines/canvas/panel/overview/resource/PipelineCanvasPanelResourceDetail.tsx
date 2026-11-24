@@ -26,7 +26,7 @@ import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryU
 import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
-import { usePipelineCanvasEdgeSaved } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeSaved";
+import { usePipelineCanvasEdgeLocked } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeLocked";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasPanelResourceColumnsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceColumnsSection";
@@ -190,7 +190,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
       partitions: createResourcePartitionSelections({ resource, selected: next, partitions }),
     });
 
-  const isSavedEdge = usePipelineCanvasEdgeSaved(edge);
+  const isLockedEdge = usePipelineCanvasEdgeLocked(edge);
   const sinkFields = usePipelineResourceSinkFields(sinkConnection, sinkConfig ?? {});
   const sinkFieldValues =
     edge.data?.sinkConfigs?.find((candidate) => candidate.resource === resource)?.config ?? {};
@@ -332,7 +332,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                     columns={columns ?? NO_COLUMNS}
                     resourceName={resource}
                     isDisabled={isReadOnly || isLoading}
-                    isReadOnly={isSavedEdge}
+                    isReadOnly={isLockedEdge}
                     onChange={(value) => handleSinkFieldChange(field, value)}
                   />
                 ))}

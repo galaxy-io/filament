@@ -20,6 +20,7 @@ import {
 import {
   LOGICAL_TYPE_TO_PARTITION_TRANSFORMS_MAP,
   PIPELINE_RESOURCE_PARTITION_IDENTITY,
+  PIPELINE_RESOURCE_PARTITION_TIME_ENTRY,
   READ_MODE_TO_WRITE_MODES_MAP,
 } from "@/pages/pipelines/components/resource/constants";
 import {
@@ -151,6 +152,9 @@ export const getPartitionByOptions = (columns: ResourceColumn[]): SelectOption[]
       return { id: entry, label: entry, group: column.name };
     }),
   );
+
+export const getPartitionTimeColumn = (entry: string): ResourceColumn["name"] | undefined =>
+  PIPELINE_RESOURCE_PARTITION_TIME_ENTRY.exec(entry)?.[1];
 
 export const createResourceSinkConfigs = ({
   resource,

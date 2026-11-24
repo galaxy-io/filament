@@ -75,7 +75,7 @@ const CreatePipelineModalResourcesColumnsPaneFooter: FC<
           resourceName={row.displayName}
           isCompact
           pipelineValue={sinkFields.pipelineValues[field.name]}
-          columns={row.columns}
+          columns={row.columns.filter((column) => row.selectedColumns.includes(column.name))}
           isDisabled={!row.isSelected}
           onChange={(value) => handleSinkFieldChange(field, value)}
         />

@@ -86,7 +86,7 @@ const CreatePipelineModalResourcesColumnsPane: FC<CreatePipelineModalResourcesCo
                     columns={row.columns}
                     selected={row.selectedColumns}
                     locked={row.lockedColumns}
-                    isDisabled={!row.isSelected}
+                    isDisabled={!row.isSelected || !row.isColumnSelectable}
                     search={search}
                     onChange={(columns) =>
                       setResourceColumns({ sinkId: activeSinkId, resource: row.name, columns })

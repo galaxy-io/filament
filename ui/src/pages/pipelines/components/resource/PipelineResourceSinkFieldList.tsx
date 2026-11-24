@@ -10,7 +10,10 @@ import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
 import type { ResourceColumn } from "@/gen/ingestion/v1/connectors_pb";
 
 import { PIPELINE_RESOURCE_PARTITION_BY_FIELD } from "@/pages/pipelines/components/resource/constants";
-import { getPartitionByOptions } from "@/pages/pipelines/components/resource/utils";
+import {
+  getPartitionByOptions,
+  getPartitionTimeColumn,
+} from "@/pages/pipelines/components/resource/utils";
 
 interface PipelineResourceSinkFieldListProps {
   field: ConfigField;
@@ -40,8 +43,14 @@ const PipelineResourceSinkFieldList: FC<PipelineResourceSinkFieldListProps> = ({
     : [];
   const suggested =
     field.name === PIPELINE_RESOURCE_PARTITION_BY_FIELD ? getPartitionByOptions(columns) : [];
+  const timeColumns = selected.map(getPartitionTimeColumn);
   const options: SelectOption[] = [
-    ...suggested,
+    ...suggested.map((option) => {
+      const column = getPartitionTimeColumn(option.id);
+      return column && timeColumns.includes(column) && !selected.includes(option.id)
+        ? { ...option, isDisabled: true, disabledReason: "One time transform per column" }
+        : option;
+    }),
     ...selected
       .filter((entry) => !suggested.some((option) => option.id === entry))
       .map((entry) => ({ id: entry, label: entry })),
