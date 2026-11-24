@@ -58,7 +58,7 @@ resources:
       raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: date_sent
-      start_param: DateSentAfter
+      start_param: "DateSent>"
       inject_into: query
       initial: "2000-01-01"
       checkpoint_key: messages_date_sent
@@ -104,7 +104,7 @@ resources:
       raw: {path: $, type: json, mode: remainder}
     incremental:
       cursor_field: start_time
-      start_param: StartTimeAfter
+      start_param: "StartTime>"
       inject_into: query
       initial: "2000-01-01"
       checkpoint_key: calls_start_time
