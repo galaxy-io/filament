@@ -167,6 +167,7 @@
               "pages/connectors/sources/fhir",
               "pages/connectors/sources/github",
               "pages/connectors/sources/gitlab",
+              "pages/connectors/sources/google-search-console",
               "pages/connectors/sources/gong",
               "pages/connectors/sources/granola",
               "pages/connectors/sources/heyreach",

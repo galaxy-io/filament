@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
@@ -10,7 +11,8 @@ import (
 // Grammar (informal):
 //
 //	template       := (text | placeholder)*
-//	placeholder    := "{{" ws ref ws ("|" ws "default" ws stringlit ws)? "}}"
+//	placeholder    := "{{" ws ref ws (filter)* "}}"
+//	filter         := "|" ws ("default" ws stringlit | "url_encode") ws
 //	ref            := identifier ("." key)?
 //	key            := segment ("." segment)*
 //	segment        := [A-Za-z0-9_-]+
@@ -44,6 +46,7 @@ type refChunk struct {
 	key        string // "" when ref is just `{{ scope }}`
 	hasDefault bool
 	defaultV   string
+	urlEncode  bool
 	raw        string // original text for error messages
 }
 
@@ -53,14 +56,18 @@ func (r refChunk) render(scope Scope) (string, error) {
 			errs.ErrTemplateSyntax, r.raw)
 	}
 	v, ok := scope.lookup(r.scope, r.key)
-	if ok {
-		return v, nil
+	if !ok {
+		if r.hasDefault {
+			v = r.defaultV
+		} else {
+			return "", fmt.Errorf("%w: %s.%s (in %q)",
+				errs.ErrTemplateMissingKey, r.scope, r.key, r.raw)
+		}
 	}
-	if r.hasDefault {
-		return r.defaultV, nil
+	if r.urlEncode {
+		v = strings.ReplaceAll(url.QueryEscape(v), "+", "%20")
 	}
-	return "", fmt.Errorf("%w: %s.%s (in %q)",
-		errs.ErrTemplateMissingKey, r.scope, r.key, r.raw)
+	return v, nil
 }
 
 // Parse tokenizes s into a reusable Parsed. Returns the first syntax error;
@@ -185,26 +192,32 @@ func (p *parser) parsePlaceholder() (refChunk, error) {
 
 	var hasDefault bool
 	var defaultV string
-	if p.peek() == '|' {
+	var urlEncode bool
+	for p.peek() == '|' {
 		p.pos++
 		p.skipWS()
 		fname := p.readIdent()
-		if fname != "default" {
+		switch fname {
+		case "default":
+			p.skipWS()
+			if p.peek() != '"' {
+				return refChunk{}, p.errf(start,
+					"`default` filter requires a quoted string")
+			}
+			s, err := p.readString(start)
+			if err != nil {
+				return refChunk{}, err
+			}
+			hasDefault = true
+			defaultV = s
+			p.skipWS()
+		case "url_encode":
+			urlEncode = true
+			p.skipWS()
+		default:
 			return refChunk{}, p.errf(start,
-				"unknown filter %q (only `default` is supported)", fname)
+				"unknown filter %q (only `default` and `url_encode` are supported)", fname)
 		}
-		p.skipWS()
-		if p.peek() != '"' {
-			return refChunk{}, p.errf(start,
-				"`default` filter requires a quoted string")
-		}
-		s, err := p.readString(start)
-		if err != nil {
-			return refChunk{}, err
-		}
-		hasDefault = true
-		defaultV = s
-		p.skipWS()
 	}
 
 	if !p.consume("}}") {
@@ -216,6 +229,7 @@ func (p *parser) parsePlaceholder() (refChunk, error) {
 		key:        key,
 		hasDefault: hasDefault,
 		defaultV:   defaultV,
+		urlEncode:  urlEncode,
 		raw:        p.src[start:end],
 	}, nil
 }
