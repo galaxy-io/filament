@@ -1,0 +1,161 @@
+version: 1
+name: twilio
+display_name: Twilio
+description: Cloud communications platform for sending SMS messages, making phone calls, and managing phone numbers through programmable APIs.
+dark_logo_url: https://upload.wikimedia.org/wikipedia/commons/7/7e/Twilio-logo-red.svg
+light_logo_url: https://upload.wikimedia.org/wikipedia/commons/7/7e/Twilio-logo-red.svg
+api_version: "2010-04-01"
+config:
+  account_sid:
+    type: string
+    required: true
+    help: Account SID from the Twilio Console. It is the Basic-auth username and the account in every request path.
+  auth_token:
+    type: secret
+    required: true
+    help: Auth Token from the Twilio Console. It is the Basic-auth password and reads what its account can see.
+connection:
+  base_url: https://api.twilio.com
+  auth:
+    basic:
+      username: config.account_sid
+      password: config.auth_token
+  headers: {Accept: application/json}
+  timeout_seconds: 60
+defaults:
+  method: GET
+  response:
+    strict_records: true
+resources:
+  - name: messages
+    path: "/2010-04-01/Accounts/{{ config.account_sid }}/Messages.json"
+    query: {PageSize: "1000"}
+    response:
+      records: $.messages
+      pagination: {next_url: next_page_uri}
+    primary_key: [sid]
+    fields:
+      sid: string
+      account_sid: string
+      api_version: string
+      date_created: timestamptz
+      date_sent: timestamptz
+      date_updated: timestamptz
+      status: string
+      direction: string
+      from: string
+      to: string
+      messaging_service_sid: string?
+      num_segments: int64?
+      num_media: int64?
+      price: float64?
+      price_unit: string?
+      error_code: int64?
+      error_message: string?
+      body: string?
+      uri: string
+      subresource_uris: json
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: date_sent
+      start_param: DateSentAfter
+      inject_into: query
+      initial: "2000-01-01"
+      checkpoint_key: messages_date_sent
+      comparator: time
+      value_date_format: "2006-01-02"
+      overlap_seconds: 86400
+
+  - name: calls
+    path: "/2010-04-01/Accounts/{{ config.account_sid }}/Calls.json"
+    query: {PageSize: "1000"}
+    response:
+      records: $.calls
+      pagination: {next_url: next_page_uri}
+    primary_key: [sid]
+    fields:
+      sid: string
+      account_sid: string
+      api_version: string
+      parent_call_sid: string?
+      date_created: timestamptz
+      date_updated: timestamptz
+      start_time: timestamptz
+      end_time: timestamptz?
+      status: string
+      direction: string
+      from: string
+      to: string
+      from_formatted: string?
+      to_formatted: string?
+      duration: int64?
+      price: float64?
+      price_unit: string?
+      phone_number_sid: string?
+      answered_by: string?
+      caller_name: string?
+      queue_time: int64?
+      forwarded_from: string?
+      group_sid: string?
+      trunk_sid: string?
+      stir_verstat: string?
+      uri: string
+      subresource_uris: json
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: start_time
+      start_param: StartTimeAfter
+      inject_into: query
+      initial: "2000-01-01"
+      checkpoint_key: calls_start_time
+      comparator: time
+      value_date_format: "2006-01-02"
+      overlap_seconds: 86400
+
+  - name: incoming_phone_numbers
+    path: "/2010-04-01/Accounts/{{ config.account_sid }}/IncomingPhoneNumbers.json"
+    query: {PageSize: "1000"}
+    response:
+      records: $.incoming_phone_numbers
+      pagination: {next_url: next_page_uri}
+    primary_key: [sid]
+    fields:
+      sid: string
+      account_sid: string
+      api_version: string
+      beta: bool
+      friendly_name: string
+      phone_number: string
+      status: string
+      type: string?
+      date_created: timestamptz
+      date_updated: timestamptz
+      voice_url: string?
+      voice_method: string?
+      voice_fallback_url: string?
+      voice_fallback_method: string?
+      sms_url: string?
+      sms_method: string?
+      sms_fallback_url: string?
+      sms_fallback_method: string?
+      voice_application_sid: string?
+      sms_application_sid: string?
+      trunk_sid: string?
+      voice_caller_id_lookup: bool
+      voice_receive_mode: string?
+      capabilities: json
+      status_callback: string?
+      status_callback_method: string?
+      address_requirements: string?
+      address_sid: string?
+      emergency_status: string?
+      emergency_address_sid: string?
+      emergency_address_status: string?
+      identity_sid: string?
+      origin: string?
+      bundle_sid: string?
+      uri: string
+      raw: {path: $, type: json, mode: remainder}
+discovery:
+  mode: static
+  default_resources: [messages, calls, incoming_phone_numbers]

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "twilio",
+  "default_version": "2010-04-01",
+  "versions": {
+    "2010-04-01": {
+      "is_preview": true
+    }
+  }
+}
