@@ -56,7 +56,7 @@ func (r refChunk) render(scope Scope) (string, error) {
 			errs.ErrTemplateSyntax, r.raw)
 	}
 	v, ok := scope.lookup(r.scope, r.key)
-	if !ok {
+	if !ok || (v == "" && r.hasDefault) {
 		if r.hasDefault {
 			v = r.defaultV
 		} else {

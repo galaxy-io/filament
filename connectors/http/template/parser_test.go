@@ -41,6 +41,14 @@ func TestParseAndRender(t *testing.T) {
 			want: "https://custom.com",
 		},
 		{
+			name:     "default filter with empty string value",
+			template: "{{ config.start_date | default \"2026-01-01\" }}",
+			scope: Scope{
+				Config: map[string]string{"start_date": ""},
+			},
+			want: "2026-01-01",
+		},
+		{
 			name:     "url_encode filter with URL-prefix",
 			template: "/webmasters/v3/sites/{{ parent.site_url | url_encode }}/sitemaps",
 			scope: Scope{
