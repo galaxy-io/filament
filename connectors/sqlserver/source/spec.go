@@ -7,9 +7,9 @@ import (
 
 // Spec describes the source's configuration, modes and write policies.
 func (s *Source) Spec() filament.ConnectorSpec {
-	name, display, description, logo := "sqlserver", "Microsoft SQL Server", "Microsoft's relational database, self-managed on premises or on a VM, read as full snapshots.", "mssql"
+	name, display, description, logo := "sqlserver", "Microsoft SQL Server", "Microsoft's relational database, self-managed on premises or on a VM, read as full snapshots or incremental watermarks.", "mssql"
 	if s.profile == connection.AzureSQL {
-		name, display, description, logo = "azuresql", "Azure SQL", "Azure SQL Database and Azure SQL Managed Instance, read as full snapshots.", "azure"
+		name, display, description, logo = "azuresql", "Azure SQL", "Azure SQL Database and Azure SQL Managed Instance, read as full snapshots or incremental watermarks.", "azure"
 	}
 	return filament.ConnectorSpec{
 		Name:         name,
@@ -19,11 +19,13 @@ func (s *Source) Spec() filament.ConnectorSpec {
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-" + logo + "-light.svg",
 		Version:      "1",
 		IsPreview:    true,
-		Modes:        []filament.ReadMode{filament.ModeFull},
+		Modes:        []filament.ReadMode{filament.ModeFull, filament.ModeIncremental},
 		SourcePolicies: filament.SourcePolicies(
 			filament.IngestionFullReplace,
 			filament.IngestionFullUpsert,
 			filament.IngestionFullAppend,
+			filament.IngestionIncrementalAppend,
+			filament.IngestionIncrementalUpsert,
 		),
 		Config: filament.ConfigSchema{Fields: append(s.profile.Fields(), []filament.ConfigField{
 			{Name: "schema", Type: filament.FieldString, Default: defaultSchema, Scope: filament.ScopePipeline, Help: "Schema to read tables from"},
@@ -35,6 +37,6 @@ func (s *Source) Spec() filament.ConnectorSpec {
 				{Value: isolationReadCommitted, Label: "Read committed"},
 			}, Scope: filament.ScopePipeline, Help: "Transaction isolation for table reads. Snapshot needs ALLOW_SNAPSHOT_ISOLATION on the database"},
 		}...)},
-		Resources: filament.ResourceCapabilities{Discoverable: true},
+		Resources: filament.ResourceCapabilities{Discoverable: true, PerResourceCursor: true},
 	}
 }

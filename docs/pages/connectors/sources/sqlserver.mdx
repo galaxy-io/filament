@@ -1,14 +1,15 @@
 ---
 title: "Microsoft SQL Server source connector"
 sidebarTitle: "SQL Server"
-description: "Keyset snapshot reads from SQL Server 2017+"
+description: "Keyset snapshot and incremental watermark reads from SQL Server 2017+"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-mssql-dark.svg"
 ---
 
 Connector ID `sqlserver`
 
 The SQL Server source reads from self-managed SQL Server 2017 and later, on
-premises or on a VM, with resumable keyset snapshots. It is in preview.
+premises or on a VM, with resumable keyset snapshots and incremental watermark
+reads. It is in preview.
 
 For Azure SQL Database and Azure SQL Managed Instance use the
 [Azure SQL source](/pages/connectors/sources/azuresql). It runs the same reader
@@ -93,6 +94,35 @@ keeps one of them. Non-Unicode text is decoded by its column's collation.
 Well-known binary has no spatial reference ID. To keep it, add a computed
 column such as `location.STSrid` to the table.
 
+## Incremental reads
+
+Incremental resources need a primary key without `sql_variant` columns and a
+non-null cursor column, which is a `datetime`, `datetime2`, `smalldatetime`,
+`datetimeoffset` or `rowversion` column. Conventional names such as
+`updated_at` and `ModifiedDate` are recommended automatically, then a
+`rowversion` column. A cursor can also be selected per pipeline resource.
+
+The first incremental run captures the current `(cursor, primary key...)`
+high watermark, then performs a resumable primary-key backfill. Later runs
+read the rows after the watermark up to a high watermark taken when the run
+starts.
+
+A `rowversion` cursor is exact. The server advances it on every insert and
+update, and a run never reads past `MIN_ACTIVE_ROWVERSION()` taken before its
+read starts, so a transaction still open then cannot later commit below the
+watermark. A `rowversion` cursor takes no lookback.
+
+A timestamp cursor depends on the application to advance it on every change.
+A transaction that commits after the high watermark was read, with an older
+timestamp, is missed unless a lookback covers it. Configure a positive
+per-resource lookback to re-read a recent window, and use incremental upsert
+with it, since those rows are read again. An index beginning with the cursor
+and followed by the primary key keeps incremental reads from sorting.
+
+```sql
+CREATE INDEX users_incremental ON dbo.users (updated_at, id);
+```
+
 ## Permissions
 
 The login needs `SELECT` on the tables it reads and permission to see their
@@ -100,5 +130,4 @@ metadata, which `SELECT` grants.
 
 ## Roadmap
 
-Incremental reads, change data capture and partition selection for snapshots
-are planned.
+Change data capture and partition selection for snapshots are planned.

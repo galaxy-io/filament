@@ -227,11 +227,27 @@ func (s *Source) Extract(ctx context.Context, sink arrowbatch.Inlet, opts filame
 	return s.runJobs(ctx, opts.Parallelism, jobs)
 }
 
-// ExtractFrom reads each table by its checkpoint's shards, or from a fresh
-// plan when it has none.
+// ExtractFrom reads each table by its checkpoint: an incremental plan by its
+// watermark, a keyset or incremental-backfill plan by its shards, and anything
+// else from a fresh plan.
 func (s *Source) ExtractFrom(ctx context.Context, sink arrowbatch.Inlet, opts filament.ExtractOpts, prev map[string]filament.Checkpoint) error {
-	var jobs []job
+	var incremental, rest []string
 	for _, name := range opts.Resources {
+		if plan, ok := checkpoint.ParseKeyset(prev[name]); ok && plan.Mode == checkpoint.ModeIncremental {
+			incremental = append(incremental, name)
+		} else {
+			rest = append(rest, name)
+		}
+	}
+	var jobs []job
+	for _, name := range incremental {
+		j, err := s.incrementalJob(ctx, sink, name, prev[name], opts.Limit)
+		if err != nil {
+			return err
+		}
+		jobs = append(jobs, j)
+	}
+	for _, name := range rest {
 		var plan *checkpoint.KeysetCheckpoint
 		if ks, ok := checkpoint.ParseKeyset(prev[name]); ok && len(ks.Cols) > 0 {
 			plan = &ks
@@ -389,6 +405,7 @@ func isBinaryDecl(decl string) bool {
 	return strings.HasPrefix(decl, "binary") || strings.HasPrefix(decl, "varbinary") || isRowversion(decl)
 }
 
+// isRowversion reports a rowversion column, which the catalog names timestamp.
 func isRowversion(decl string) bool { return decl == "timestamp" || decl == "rowversion" }
 
 // keyValue selects a key column in the form its checkpoint text takes, as

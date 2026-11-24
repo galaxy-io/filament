@@ -1,5 +1,5 @@
 // Package sqlserver implements filament.Source for Microsoft SQL Server 2017
-// and later, and Azure SQL: full snapshots read by primary key.
+// and later, and Azure SQL: full snapshots and incremental watermark reads.
 //
 // # Reading
 //
@@ -53,6 +53,10 @@ type Source struct {
 	isolation sql.IsolationLevel
 
 	maxConns int
+
+	// Per-resource incremental settings, set by PlanIncremental.
+	cursorColumns   map[string]string
+	cursorLookbacks map[string]int
 }
 
 // New returns an unconfigured source for a self-managed SQL Server.
