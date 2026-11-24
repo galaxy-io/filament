@@ -10,6 +10,7 @@ require (
 	github.com/galaxy-io/filament/connectors/bigquery v0.0.0
 	github.com/galaxy-io/filament/connectors/databricks v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0-00010101000000-000000000000
+	github.com/galaxy-io/filament/connectors/kinesis v0.0.0
 	github.com/galaxy-io/filament/connectors/motherduck v0.0.0
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/redshift v0.0.0
@@ -90,6 +91,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/kinesis v1.52.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.109.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.41.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.7.1 // indirect
@@ -312,6 +314,8 @@ replace github.com/galaxy-io/filament/connectors/databricks => ../connectors/dat
 replace github.com/galaxy-io/filament/connectors/motherduck => ../connectors/motherduck
 
 replace github.com/galaxy-io/filament/connectors/iceberg => ../connectors/iceberg
+
+replace github.com/galaxy-io/filament/connectors/kinesis => ../connectors/kinesis
 
 replace github.com/galaxy-io/filament/connectors/object => ../connectors/object
 

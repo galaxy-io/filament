@@ -6,6 +6,7 @@ use (
 	./connectors/bigquery
 	./connectors/databricks
 	./connectors/iceberg
+	./connectors/kinesis
 	./connectors/motherduck
 	./connectors/object
 	./connectors/redshift
