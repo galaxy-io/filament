@@ -9,6 +9,7 @@ import type {
   PipelineNotifier,
   PipelineNotifierState,
 } from "@/pages/pipelines/components/notifier/types";
+import type { PipelineResourceSinkConfig } from "@/pages/pipelines/components/resource/types";
 import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 export enum CreatePipelineModalActionType {
@@ -23,6 +24,7 @@ export enum CreatePipelineModalActionType {
   SET_RESOURCE_COLUMNS = "SET_RESOURCE_COLUMNS",
   SET_RESOURCE_PARTITIONS = "SET_RESOURCE_PARTITIONS",
   SET_RESOURCE_WRITE_MODE = "SET_RESOURCE_WRITE_MODE",
+  SET_RESOURCE_SINK_CONFIG = "SET_RESOURCE_SINK_CONFIG",
   SET_SINK_WRITE_MODE = "SET_SINK_WRITE_MODE",
   SET_NODE_CONFIG = "SET_NODE_CONFIG",
   SET_NAME = "SET_NAME",
@@ -110,6 +112,15 @@ export interface SetResourceWriteModeAction {
   payload: { sinkId: Connection["id"]; resource: Resource["name"]; writeMode: WriteMode };
 }
 
+export interface SetResourceSinkConfigAction {
+  type: CreatePipelineModalActionType.SET_RESOURCE_SINK_CONFIG;
+  payload: {
+    sinkId: Connection["id"];
+    resource: Resource["name"];
+    config: PipelineResourceSinkConfig;
+  };
+}
+
 export interface SetSinkWriteModeAction {
   type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE;
   payload: { sinkId: Connection["id"]; writeMode: WriteMode };
@@ -190,6 +201,7 @@ export type CreatePipelineModalAction =
   | SetResourceColumnsAction
   | SetResourcePartitionsAction
   | SetResourceWriteModeAction
+  | SetResourceSinkConfigAction
   | SetSinkWriteModeAction
   | SetNodeConfigAction
   | SetNameAction

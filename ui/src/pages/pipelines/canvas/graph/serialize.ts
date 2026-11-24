@@ -46,6 +46,7 @@ export const getCanvasEdgeConfig = (
   cursors: edge.data?.cursors ?? baseEdge?.cursors ?? [],
   columns: edge.data?.columns ?? baseEdge?.columns ?? [],
   partitions: edge.data?.partitions ?? baseEdge?.partitions ?? [],
+  sinkConfigs: edge.data?.sinkConfigs ?? baseEdge?.sinkConfigs ?? [],
   transform: edge.data && "transform" in edge.data ? edge.data.transform : baseEdge?.transform,
 });
 

@@ -9,14 +9,21 @@ import {
   ResourceColumnSelectionSchema,
   type ResourcePartitionSelection,
   ResourcePartitionSelectionSchema,
+  type ResourceSinkConfig,
+  ResourceSinkConfigSchema,
 } from "@/gen/ingestion/v1/pipelines_pb";
 
 import {
   READ_MODE_TO_LABEL_MAP,
   WRITE_MODE_TO_LABEL_MAP,
 } from "@/pages/pipelines/components/create/constants";
-import { READ_MODE_TO_WRITE_MODES_MAP } from "@/pages/pipelines/components/resource/constants";
 import {
+  LOGICAL_TYPE_TO_PARTITION_TRANSFORMS_MAP,
+  PIPELINE_RESOURCE_PARTITION_IDENTITY,
+  READ_MODE_TO_WRITE_MODES_MAP,
+} from "@/pages/pipelines/components/resource/constants";
+import {
+  type PipelineResourceSinkConfig,
   type PipelineResourceStatus,
   PipelineResourceStatusField,
 } from "@/pages/pipelines/components/resource/types";
@@ -133,6 +140,26 @@ export const createResourcePartitionSelections = ({
   selected.length === partitions.length
     ? []
     : [create(ResourcePartitionSelectionSchema, { resource, partitions: selected })];
+
+export const getPartitionByOptions = (columns: ResourceColumn[]): SelectOption[] =>
+  columns.flatMap((column) =>
+    (LOGICAL_TYPE_TO_PARTITION_TRANSFORMS_MAP[column.logicalType] ?? []).map((transform) => {
+      const entry =
+        transform === PIPELINE_RESOURCE_PARTITION_IDENTITY
+          ? column.name
+          : `${transform}(${column.name})`;
+      return { id: entry, label: entry, group: column.name };
+    }),
+  );
+
+export const createResourceSinkConfigs = ({
+  resource,
+  config,
+}: {
+  resource: Resource["name"];
+  config: PipelineResourceSinkConfig;
+}): ResourceSinkConfig[] =>
+  Object.keys(config).length === 0 ? [] : [create(ResourceSinkConfigSchema, { resource, config })];
 
 export const addColumnToSelections = (
   selections: ResourceColumnSelection[],
