@@ -220,8 +220,12 @@ resources:
 				if err := json.Unmarshal(sink.records[1].Data, &row); err != nil {
 					t.Fatalf("unmarshal record: %v", err)
 				}
-				if row["updated"] != nil {
-					t.Fatalf("null cursor row updated = %v, want nil", row["updated"])
+				v, ok := row["updated"]
+				if !ok {
+					t.Fatalf("null cursor row is missing the updated key")
+				}
+				if v != nil {
+					t.Fatalf("null cursor row updated = %v, want nil", v)
 				}
 				return
 			}
