@@ -275,6 +275,19 @@ func keyInExpr(it *iceTable, key string, values []any) (iceberg.BooleanExpressio
 	if !ok {
 		return nil, fmt.Errorf("primary key %q is not in iceberg schema", key)
 	}
+	// arrow-go's is_in misreads bit-packed Boolean arrays, so a Boolean column
+	// takes equalities.
+	if field.Type.Equals(iceberg.PrimitiveTypes.Bool) {
+		terms := make([]iceberg.BooleanExpression, len(values))
+		for i, value := range values {
+			term, err := equalExpr(key, value)
+			if err != nil {
+				return nil, err
+			}
+			terms[i] = term
+		}
+		return balancedOr(terms), nil
+	}
 	isUUID := field.Type.Equals(iceberg.PrimitiveTypes.UUID)
 	lits := make([]iceberg.Literal, len(values))
 	for i, value := range values {
