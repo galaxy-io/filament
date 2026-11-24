@@ -3,5 +3,6 @@
 import typing
 
 IngestionV1FieldScope = typing.Union[
-    typing.Literal["FIELD_SCOPE_UNSPECIFIED", "FIELD_SCOPE_CONNECTION", "FIELD_SCOPE_PIPELINE"], typing.Any
+    typing.Literal["FIELD_SCOPE_UNSPECIFIED", "FIELD_SCOPE_CONNECTION", "FIELD_SCOPE_PIPELINE", "FIELD_SCOPE_RESOURCE"],
+    typing.Any,
 ]
