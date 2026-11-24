@@ -8,12 +8,20 @@ import (
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
+// namedRoute is a route with one edge per resource. "" is an all-resources edge.
+func namedRoute(resources ...string) *routeGroup {
+	tables := map[string]*routeTable{}
+	for _, resource := range resources {
+		tables[resource] = &routeTable{named: true, selector: resource}
+	}
+	return &routeGroup{tables: tables}
+}
+
 func TestReplicationStreamContinuityFingerprintIgnoresResources(t *testing.T) {
 	group := &routeGroup{
-		source:     &ingestionv1.PipelineNode{ConnectionId: "source"},
-		sink:       &ingestionv1.PipelineNode{ConnectionId: "sink"},
-		resources:  map[string]bool{"customers": true},
-		writeModes: map[string]filament.WriteMode{"customers": filament.WriteMerge},
+		source: &ingestionv1.PipelineNode{ConnectionId: "source"},
+		sink:   &ingestionv1.PipelineNode{ConnectionId: "sink"},
+		tables: map[string]*routeTable{"customers": {named: true, writeMode: filament.WriteMerge}},
 	}
 	connections := map[string]filament.Connection{
 		"source": {ID: "source", Version: 3},
@@ -26,7 +34,7 @@ func TestReplicationStreamContinuityFingerprintIgnoresResources(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	group.resources["orders"] = true
+	group.tables["orders"] = &routeTable{named: true, writeMode: filament.WriteMerge}
 	compatible, err := replicationStreamContinuityFingerprint(group, connections, "postgres", sourceContinuity, sink)
 	if err != nil {
 		t.Fatal(err)
@@ -48,8 +56,10 @@ func TestReplicationStreamContinuityFingerprintIgnoresResources(t *testing.T) {
 func TestCompileIngestionTypesPerResourceWriteModes(t *testing.T) {
 	group := &routeGroup{
 		from: "src", to: "snk",
-		readModes:  map[string]filament.ReadMode{"orders": filament.ModeIncremental, "audit": filament.ModeFull},
-		writeModes: map[string]filament.WriteMode{"orders": filament.WriteUpsert, "audit": filament.WriteReplace},
+		tables: map[string]*routeTable{
+			"orders": {named: true, readMode: filament.ModeIncremental, writeMode: filament.WriteUpsert},
+			"audit":  {named: true, readMode: filament.ModeFull, writeMode: filament.WriteReplace},
+		},
 	}
 	types, err := compileIngestionTypes(group, false)
 	if err != nil {
@@ -79,7 +89,7 @@ func TestContinuityFingerprintLeavesMembershipOut(t *testing.T) {
 }
 
 func TestResyncMustNameARouteResource(t *testing.T) {
-	groups := []*routeGroup{{resources: map[string]bool{"orders": true, "customers": true}}}
+	groups := []*routeGroup{namedRoute("orders", "customers")}
 	if err := validateResync(groups, []string{"orders"}); err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +102,7 @@ func TestResyncMustNameARouteResource(t *testing.T) {
 }
 
 func TestResourcesMustNameARouteResource(t *testing.T) {
-	groups := []*routeGroup{{resources: map[string]bool{"orders": true, "customers": true}}}
+	groups := []*routeGroup{namedRoute("orders", "customers")}
 	if err := validateResources(groups, []string{"orders"}, []string{"orders"}); err != nil {
 		t.Fatal(err)
 	}
@@ -105,14 +115,14 @@ func TestResourcesMustNameARouteResource(t *testing.T) {
 }
 
 func TestPartialRouteComparesSelectedResources(t *testing.T) {
-	full := &routeGroup{resources: map[string]bool{"orders": true, "customers": true}}
-	if isPartialRoute(&routeGroup{resources: map[string]bool{"orders": true, "customers": true}}, full) {
+	full := namedRoute("orders", "customers")
+	if isPartialRoute(namedRoute("orders", "customers"), full) {
 		t.Fatal("every resource selected is not partial")
 	}
-	if !isPartialRoute(&routeGroup{resources: map[string]bool{"orders": true}}, full) {
+	if !isPartialRoute(namedRoute("orders"), full) {
 		t.Fatal("one of two resources is partial")
 	}
-	if !isPartialRoute(&routeGroup{resources: map[string]bool{"orders": true}}, &routeGroup{all: true}) {
+	if !isPartialRoute(namedRoute("orders"), namedRoute("")) {
 		t.Fatal("an all-resources route run by name is partial")
 	}
 }
