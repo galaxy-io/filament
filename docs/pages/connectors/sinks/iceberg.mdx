@@ -160,6 +160,10 @@ rewrite existing data files. Each commit costs several catalog and storage round
 trips, so committing tables in parallel shortens the commit of a run with many
 tables.
 
+An append, upsert, delete, or merge commit that loses a race with another
+writer is rebuilt from the current table and retried up to four times. A
+replace is not retried.
+
 If one table fails to commit, the sink starts no further commits, lets those
 already in flight finish, and fails the run. Tables that committed before the
 failure stay visible, so a later table can fail after an earlier one is

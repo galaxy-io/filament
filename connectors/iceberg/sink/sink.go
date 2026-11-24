@@ -5,6 +5,7 @@ package iceberg
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -27,6 +28,8 @@ const (
 	writeMergeModeKey         = "write.merge.mode"
 	defaultCommitConcurrency  = 8
 	maxCommitConcurrency      = 64
+	commitRetries             = 4
+	commitRetryWait           = 100 * time.Millisecond
 )
 
 type writeMode string
@@ -263,7 +266,7 @@ func (s *Sink) commitJobs(ctx context.Context, st *stage, jobs []commitJob, work
 		}
 		wg.Go(func() {
 			defer func() { <-slots }()
-			err := s.writeBuffer(ctx, job.it, job.rb, job.mode)
+			err := s.commitTable(ctx, job)
 			mu.Lock()
 			defer mu.Unlock()
 			if err != nil {
@@ -282,6 +285,27 @@ func (s *Sink) commitJobs(ctx context.Context, st *stage, jobs []commitJob, work
 	}
 	wg.Wait()
 	return first
+}
+
+// commitTable commits one job. A commit that loses a race to another writer
+// landed nothing, so it is rebuilt from a fresh load and tried again. Replace
+// is not retried: that would discard the other writer's rows.
+func (s *Sink) commitTable(ctx context.Context, job commitJob) error {
+	retries := commitRetries
+	if job.mode == writeModeReplace {
+		retries = 0
+	}
+	for attempt := 0; ; attempt++ {
+		err := s.writeBuffer(ctx, job.it, job.rb, job.mode)
+		if attempt == retries || !errors.Is(err, icetable.ErrCommitFailed) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(commitRetryWait << attempt):
+		}
+	}
 }
 
 func (s *Sink) stageResources(st *stage) []string {
