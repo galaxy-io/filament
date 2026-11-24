@@ -4,6 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"google.golang.org/protobuf/types/known/structpb"
+
 	ingestionv1 "github.com/galaxy-io/filament/api/ingestion/v1"
 )
 
@@ -83,6 +85,45 @@ func TestGroupEdgesCollectsPartitionSelections(t *testing.T) {
 	}
 	if got, ok := routeSelection(none[0].partitions)["orders"]; !ok || got == nil || len(got) != 0 {
 		t.Fatalf("an empty selection must stay an empty selection, got %v (present %v)", got, ok)
+	}
+}
+
+func TestGroupEdgesCollectsSinkConfigs(t *testing.T) {
+	nodes := map[string]*ingestionv1.PipelineNode{"src": {Id: "src"}, "snk": {Id: "snk"}}
+	sinkConfig := func(mode string) []*ingestionv1.ResourceSinkConfig {
+		config, err := structpb.NewStruct(map[string]any{"update_mode": mode})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return []*ingestionv1.ResourceSinkConfig{{Resource: "orders", Config: config}}
+	}
+	groups, err := groupEdges([]*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", SinkConfigs: sinkConfig("merge-on-read")},
+		{FromNode: "src", ToNode: "snk", Resource: "orders", SinkConfigs: sinkConfig("merge-on-read")},
+		{FromNode: "src", ToNode: "snk", Resource: "items"},
+	}, nodes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configs := routeSinkConfigs(groups[0].sinkConfigs)
+	if len(configs) != 1 || configs["orders"]["update_mode"] != "merge-on-read" {
+		t.Fatalf("sink configs = %v", configs)
+	}
+
+	plain, err := groupEdges([]*ingestionv1.PipelineEdge{{FromNode: "src", ToNode: "snk", Resource: "orders"}}, nodes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if routeSinkConfigs(plain[0].sinkConfigs) != nil {
+		t.Fatalf("a route without sink configs must carry none: %v", routeSinkConfigs(plain[0].sinkConfigs))
+	}
+
+	_, err = groupEdges([]*ingestionv1.PipelineEdge{
+		{FromNode: "src", ToNode: "snk", SinkConfigs: sinkConfig("merge-on-read")},
+		{FromNode: "src", ToNode: "snk", Resource: "orders", SinkConfigs: sinkConfig("copy-on-write")},
+	}, nodes)
+	if !errors.Is(err, ErrInvalid) {
+		t.Fatalf("conflicting sink configs: %v", err)
 	}
 }
 

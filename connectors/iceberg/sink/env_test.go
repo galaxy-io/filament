@@ -58,9 +58,9 @@ func newTestEnv(t *testing.T) *testEnv {
 	}}
 }
 
-// updateMode sets table.update_mode for the tables the sink creates.
+// updateMode sets the pipeline's update_mode for the tables the sink creates.
 func (e *testEnv) updateMode(mode string) {
-	e.cfg["table"] = map[string]any{"update_mode": mode}
+	e.cfg["update_mode"] = mode
 }
 
 // run drives one committed sink run into the events table.

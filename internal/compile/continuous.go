@@ -50,7 +50,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
+		sinkRef, err := c.resolveSinkRef(ctx, group, connections)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +91,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			return nil, err
 		}
 		desired := &filament.ReplicationStream{ID: streamID, Tenant: tenant, PipelineID: p.Id, Route: group.key, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig, ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: v.Id}
-		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: routeSelection(group.columns), Partitions: routeSelection(group.partitions), Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker, WritePolicies: policies, IngestionTypes: ingestionTypes}}})
+		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: routeSelection(group.columns), Partitions: routeSelection(group.partitions), SinkConfigs: routeSinkConfigs(group.sinkConfigs), Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker, WritePolicies: policies, IngestionTypes: ingestionTypes}}})
 	}
 	return out, nil
 }

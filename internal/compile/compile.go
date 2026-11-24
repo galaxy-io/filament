@@ -103,7 +103,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
+		sinkRef, err := c.resolveSinkRef(ctx, group, connections)
 		if err != nil {
 			return nil, err
 		}
@@ -153,6 +153,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				CursorConfigs:       group.cursorConfigs,
 				Columns:             routeSelection(group.columns),
 				Partitions:          routeSelection(group.partitions),
+				SinkConfigs:         routeSinkConfigs(group.sinkConfigs),
 				Resync:              routeResync(group, resync),
 				Options:             routeOptions,
 				ScheduleID:          scheduleID,
@@ -294,6 +295,31 @@ func routeSelection(selection map[string][]string) map[string][]string {
 		return nil
 	}
 	return selection
+}
+
+// resolveSinkRef resolves a route's sink node and checks the route's
+// per-resource sink config against the fields that sink declares
+// resource-scoped.
+func (c *Compiler) resolveSinkRef(ctx context.Context, group *routeGroup, connections map[string]filament.Connection) (filament.Ref, error) {
+	sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
+	if err != nil || len(group.sinkConfigs) == 0 {
+		return sinkRef, err
+	}
+	schema, err := c.schemaFor(ctx, filament.ConnectorKindSink, sinkRef.Connector)
+	if err != nil {
+		return filament.Ref{}, err
+	}
+	if err := ValidateResourceConfigs(schema, group.sinkConfigs); err != nil {
+		return filament.Ref{}, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	return sinkRef, nil
+}
+
+func routeSinkConfigs(configs map[string]map[string]any) map[string]map[string]any {
+	if len(configs) == 0 {
+		return nil
+	}
+	return configs
 }
 
 func routeResources(group *routeGroup) (resources, selectors []string) {

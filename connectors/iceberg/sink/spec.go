@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	icetable "github.com/apache/iceberg-go/table"
+
 	"github.com/galaxy-io/filament"
 	icebergcatalog "github.com/galaxy-io/filament/connectors/iceberg/internal/catalog"
 )
@@ -22,6 +24,9 @@ func (s *Sink) Spec() filament.SinkSpec {
 			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
 			{Name: "commit_interval", Type: filament.FieldDuration, Default: "1m", Scope: filament.ScopePipeline, Help: "How often a continuous run commits to the table"},
 			{Name: "commit_concurrency", Type: filament.FieldInt, Default: defaultCommitConcurrency, Scope: filament.ScopePipeline, Help: "Append and replace tables committed at once at the end of a run or boundary; 1 through 64. Upsert, delete, and merge tables commit one at a time."},
+			{Name: "update_mode", Type: filament.FieldEnum, Default: icetable.WriteModeCopyOnWrite, Enum: updateModeOptions, Scope: filament.ScopePipeline, Help: "How tables this pipeline creates apply updates and deletes. Use copy-on-write when a query engine cannot read equality deletes."},
+			{Name: "update_mode", Type: filament.FieldEnum, Enum: updateModeOptions, Scope: filament.ScopeResource, Help: "Overrides the pipeline's update mode for this table. Applies when the table is created."},
+			{Name: "partition_by", Type: filament.FieldList, Scope: filament.ScopeResource, Help: "Partitions this table when it is created. Each entry is a column or an Iceberg transform of one, such as day(created_at) or bucket[16](id)."},
 		}...)},
 		SchemaField: "namespace",
 		Capabilities: filament.SinkCapabilities{
@@ -39,6 +44,22 @@ func (s *Sink) Spec() filament.SinkSpec {
 				filament.IngestionCDCAppend,
 			),
 		},
+	}
+}
+
+var updateModeOptions = []filament.EnumOption{
+	{Value: icetable.WriteModeMergeOnRead, Label: "Merge-on-read"},
+	{Value: icetable.WriteModeCopyOnWrite, Label: "Copy-on-write"},
+}
+
+// updateMode reads update_mode from a pipeline or resource config. Empty
+// means the config does not set one.
+func updateMode(cfg filament.Config) (string, error) {
+	switch mode := cfg.String("update_mode"); mode {
+	case "", icetable.WriteModeMergeOnRead, icetable.WriteModeCopyOnWrite:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("unsupported update mode %q", mode)
 	}
 }
 

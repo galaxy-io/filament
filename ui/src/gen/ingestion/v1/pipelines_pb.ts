@@ -19,7 +19,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file ingestion/v1/pipelines.proto.
  */
 export const file_ingestion_v1_pipelines: GenFile = /*@__PURE__*/
-  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEiowMKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIQCghzZWxlY3RvchgEIAEoCRIzCgdjdXJzb3JzGAUgAygLMiIuaW5nZXN0aW9uLnYxLlJlc291cmNlQ3Vyc29yQ29uZmlnEikKCXJlYWRfbW9kZRgGIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIrCgp3cml0ZV9tb2RlGAcgASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRIcChRkZXN0aW5hdGlvbl9yZXNvdXJjZRgIIAEoCRIqCgl0cmFuc2Zvcm0YCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjYKB2NvbHVtbnMYCiADKAsyJS5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5TZWxlY3Rpb24SPAoKcGFydGl0aW9ucxgLIAMoCzIoLmluZ2VzdGlvbi52MS5SZXNvdXJjZVBhcnRpdGlvblNlbGVjdGlvbiI8ChdSZXNvdXJjZUNvbHVtblNlbGVjdGlvbhIQCghyZXNvdXJjZRgBIAEoCRIPCgdjb2x1bW5zGAIgAygJIkIKGlJlc291cmNlUGFydGl0aW9uU2VsZWN0aW9uEhAKCHJlc291cmNlGAEgASgJEhIKCnBhcnRpdGlvbnMYAiADKAkiUQoUUmVzb3VyY2VDdXJzb3JDb25maWcSEAoIcmVzb3VyY2UYASABKAkSDQoFZmllbGQYAiABKAkSGAoQbG9va2JhY2tfc2Vjb25kcxgDIAEoAyJlCg1QaXBlbGluZUdyYXBoEikKBW5vZGVzGAEgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZRIpCgVlZGdlcxgCIAMoCzIaLmluZ2VzdGlvbi52MS5QaXBlbGluZUVkZ2Ui1gEKD1BpcGVsaW5lVmVyc2lvbhIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDEhIKCmNyZWF0ZWRfYXQYAyABKAMSKgoFZ3JhcGgYBCABKAsyGy5pbmdlc3Rpb24udjEuUGlwZWxpbmVHcmFwaBISCgp1cGRhdGVkX2F0GAUgASgDEhoKEmNyZWF0ZWRfYnlfdXNlcl9pZBgGIAEoCRIaChJ1cGRhdGVkX2J5X3VzZXJfaWQYByABKAkSGgoSZGVsZXRlZF9ieV91c2VyX2lkGAggASgJIsQECghQaXBlbGluZRIRCgl0ZW5hbnRfaWQYASABKAkSCgoCaWQYAiABKAkSDAoEbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRI2Cg9jdXJyZW50X3ZlcnNpb24YBSABKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uEi8KCHZlcnNpb25zGAYgAygLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbhInCghsYXN0X3J1bhgHIAEoCzIVLmluZ2VzdGlvbi52MS5SdW5JbmZvEjAKCHNjaGVkdWxlGAggASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUSEgoKY3JlYXRlZF9hdBgJIAEoAxISCgpkZWxldGVkX2F0GAogASgDEhIKCnVwZGF0ZWRfYXQYCyABKAMSGgoSY3JlYXRlZF9ieV91c2VyX2lkGAwgASgJEhoKEnVwZGF0ZWRfYnlfdXNlcl9pZBgNIAEoCRIaChJkZWxldGVkX2J5X3VzZXJfaWQYDiABKAkSPwoUd29ya2VyX2NvbmZpZ3VyYXRpb24YDyABKAsyIS5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbhIzCg5leGVjdXRpb25fbW9kZRgQIAEoDjIbLmluZ2VzdGlvbi52MS5FeGVjdXRpb25Nb2RlEhoKDWZhaWxfb25fZXJyb3IYESABKAhIAIgBAUIQCg5fZmFpbF9vbl9lcnJvciKRAQoWUGlwZWxpbmVTY2hlZHVsZUNvbmZpZxIMCgRjcm9uGAEgASgJEhAKCHRpbWV6b25lGAIgASgJEhIKCmlzX2VuYWJsZWQYAyABKAgSQwoOb3ZlcmxhcF9wb2xpY3kYBCABKA4yKy5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZU92ZXJsYXBQb2xpY3kilgEKEFBpcGVsaW5lU2NoZWR1bGUSCgoCaWQYASABKAkSEwoLcGlwZWxpbmVfaWQYAiABKAkSNAoGY29uZmlnGAMgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWcSFAoMbmV4dF9maXJlX2F0GAQgASgDEhUKDWxhc3RfZmlyZWRfYXQYBSABKAMi/wEKFUNyZWF0ZVBpcGVsaW5lUmVxdWVzdBIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEjYKCHNjaGVkdWxlGAMgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWcSPwoUd29ya2VyX2NvbmZpZ3VyYXRpb24YBCABKAsyIS5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbhIzCg5leGVjdXRpb25fbW9kZRgFIAEoDjIbLmluZ2VzdGlvbi52MS5FeGVjdXRpb25Nb2RlEhUKDWZhaWxfb25fZXJyb3IYBiABKAgidAoWQ3JlYXRlUGlwZWxpbmVSZXNwb25zZRIoCghwaXBlbGluZRgBIAEoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZRIwCghzY2hlZHVsZRgCIAEoCzIeLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlImwKHUNyZWF0ZVBpcGVsaW5lU2NoZWR1bGVSZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEjYKCHNjaGVkdWxlGAIgASgLMiQuaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGVDb25maWciUgoeQ3JlYXRlUGlwZWxpbmVTY2hlZHVsZVJlc3BvbnNlEjAKCHNjaGVkdWxlGAEgASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUibAodVXBkYXRlUGlwZWxpbmVTY2hlZHVsZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSNgoIc2NoZWR1bGUYAiABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZyJSCh5VcGRhdGVQaXBlbGluZVNjaGVkdWxlUmVzcG9uc2USMAoIc2NoZWR1bGUYASABKAsyHi5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZSJfChxDcmVhdGVQaXBlbGluZVZlcnNpb25SZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEioKBWdyYXBoGAIgASgLMhsuaW5nZXN0aW9uLnYxLlBpcGVsaW5lR3JhcGgiTwodQ3JlYXRlUGlwZWxpbmVWZXJzaW9uUmVzcG9uc2USLgoHdmVyc2lvbhgBIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24i8wEKFVVwZGF0ZVBpcGVsaW5lUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEj8KFHdvcmtlcl9jb25maWd1cmF0aW9uGAQgASgLMiEuaW5nZXN0aW9uLnYxLldvcmtlckNvbmZpZ3VyYXRpb24SMwoOZXhlY3V0aW9uX21vZGUYBSABKA4yGy5pbmdlc3Rpb24udjEuRXhlY3V0aW9uTW9kZRIaCg1mYWlsX29uX2Vycm9yGAYgASgISACIAQFCEAoOX2ZhaWxfb25fZXJyb3IiQgoWVXBkYXRlUGlwZWxpbmVSZXNwb25zZRIoCghwaXBlbGluZRgBIAEoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZSJuChJHZXRQaXBlbGluZVJlcXVlc3QSCgoCaWQYASABKAkSGAoQaW5jbHVkZV92ZXJzaW9ucxgCIAEoCBIYChBpbmNsdWRlX2xhc3RfcnVuGAMgASgIEhgKEGluY2x1ZGVfc2NoZWR1bGUYBCABKAgiPwoTR2V0UGlwZWxpbmVSZXNwb25zZRIoCghwaXBlbGluZRgBIAEoCzIWLmluZ2VzdGlvbi52MS5QaXBlbGluZSJBChlHZXRQaXBlbGluZVZlcnNpb25SZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAMiTAoaR2V0UGlwZWxpbmVWZXJzaW9uUmVzcG9uc2USLgoHdmVyc2lvbhgBIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24ilgEKG0xpc3RQaXBlbGluZVZlcnNpb25zUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRIzCgpwYWdpbmF0aW9uGAIgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0Ei0KB3NvcnRpbmcYAyABKAsyHC5pbmdlc3Rpb24udjEuU29ydGluZ1JlcXVlc3QihQEKHExpc3RQaXBlbGluZVZlcnNpb25zUmVzcG9uc2USLwoIdmVyc2lvbnMYASADKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIvEBChRMaXN0UGlwZWxpbmVzUmVxdWVzdBIXCg9pbmNsdWRlX2RlbGV0ZWQYASABKAgSMwoKcGFnaW5hdGlvbhgCIAEoCzIfLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVxdWVzdBIYChBpbmNsdWRlX3ZlcnNpb25zGAMgASgIEhgKEGluY2x1ZGVfbGFzdF9ydW4YBCABKAgSGAoQaW5jbHVkZV9zY2hlZHVsZRgFIAEoCBIOCgZzZWFyY2gYBiABKAkSLQoHc29ydGluZxgHIAEoCzIcLmluZ2VzdGlvbi52MS5Tb3J0aW5nUmVxdWVzdCJ4ChVMaXN0UGlwZWxpbmVzUmVzcG9uc2USKQoJcGlwZWxpbmVzGAEgAygLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lEjQKCnBhZ2luYXRpb24YAiABKAsyIC5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlc3BvbnNlIiMKFURlbGV0ZVBpcGVsaW5lUmVxdWVzdBIKCgJpZBgBIAEoCSIYChZEZWxldGVQaXBlbGluZVJlc3BvbnNlKqgBCh1QaXBlbGluZVNjaGVkdWxlT3ZlcmxhcFBvbGljeRIwCixQSVBFTElORV9TQ0hFRFVMRV9PVkVSTEFQX1BPTElDWV9VTlNQRUNJRklFRBAAEikKJVBJUEVMSU5FX1NDSEVEVUxFX09WRVJMQVBfUE9MSUNZX1NLSVAQARIqCiZQSVBFTElORV9TQ0hFRFVMRV9PVkVSTEFQX1BPTElDWV9BTExPVxACYgZwcm90bzM", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_runs, file_ingestion_v1_sorting]);
+  fileDesc("Chxpbmdlc3Rpb24vdjEvcGlwZWxpbmVzLnByb3RvEgxpbmdlc3Rpb24udjEi+QEKDFBpcGVsaW5lTm9kZRIKCgJpZBgBIAEoCRIpCgRraW5kGAIgASgOMhsuaW5nZXN0aW9uLnYxLkNvbm5lY3RvcktpbmQSFQoNY29ubmVjdGlvbl9pZBgDIAEoCRInCgZjb25maWcYBCABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ej8KC3NlY3JldF9yZWZzGAUgAygLMiouaW5nZXN0aW9uLnYxLlBpcGVsaW5lTm9kZS5TZWNyZXRSZWZzRW50cnkaMQoPU2VjcmV0UmVmc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEi2wMKDFBpcGVsaW5lRWRnZRIRCglmcm9tX25vZGUYASABKAkSEAoIcmVzb3VyY2UYAiABKAkSDwoHdG9fbm9kZRgDIAEoCRIQCghzZWxlY3RvchgEIAEoCRIzCgdjdXJzb3JzGAUgAygLMiIuaW5nZXN0aW9uLnYxLlJlc291cmNlQ3Vyc29yQ29uZmlnEikKCXJlYWRfbW9kZRgGIAEoDjIWLmluZ2VzdGlvbi52MS5SZWFkTW9kZRIrCgp3cml0ZV9tb2RlGAcgASgOMhcuaW5nZXN0aW9uLnYxLldyaXRlTW9kZRIcChRkZXN0aW5hdGlvbl9yZXNvdXJjZRgIIAEoCRIqCgl0cmFuc2Zvcm0YCSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EjYKB2NvbHVtbnMYCiADKAsyJS5pbmdlc3Rpb24udjEuUmVzb3VyY2VDb2x1bW5TZWxlY3Rpb24SPAoKcGFydGl0aW9ucxgLIAMoCzIoLmluZ2VzdGlvbi52MS5SZXNvdXJjZVBhcnRpdGlvblNlbGVjdGlvbhI2CgxzaW5rX2NvbmZpZ3MYDCADKAsyIC5pbmdlc3Rpb24udjEuUmVzb3VyY2VTaW5rQ29uZmlnIk8KElJlc291cmNlU2lua0NvbmZpZxIQCghyZXNvdXJjZRgBIAEoCRInCgZjb25maWcYAiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IjwKF1Jlc291cmNlQ29sdW1uU2VsZWN0aW9uEhAKCHJlc291cmNlGAEgASgJEg8KB2NvbHVtbnMYAiADKAkiQgoaUmVzb3VyY2VQYXJ0aXRpb25TZWxlY3Rpb24SEAoIcmVzb3VyY2UYASABKAkSEgoKcGFydGl0aW9ucxgCIAMoCSJRChRSZXNvdXJjZUN1cnNvckNvbmZpZxIQCghyZXNvdXJjZRgBIAEoCRINCgVmaWVsZBgCIAEoCRIYChBsb29rYmFja19zZWNvbmRzGAMgASgDImUKDVBpcGVsaW5lR3JhcGgSKQoFbm9kZXMYASADKAsyGi5pbmdlc3Rpb24udjEuUGlwZWxpbmVOb2RlEikKBWVkZ2VzGAIgAygLMhouaW5nZXN0aW9uLnYxLlBpcGVsaW5lRWRnZSLWAQoPUGlwZWxpbmVWZXJzaW9uEgoKAmlkGAEgASgJEg8KB3ZlcnNpb24YAiABKAMSEgoKY3JlYXRlZF9hdBgDIAEoAxIqCgVncmFwaBgEIAEoCzIbLmluZ2VzdGlvbi52MS5QaXBlbGluZUdyYXBoEhIKCnVwZGF0ZWRfYXQYBSABKAMSGgoSY3JlYXRlZF9ieV91c2VyX2lkGAYgASgJEhoKEnVwZGF0ZWRfYnlfdXNlcl9pZBgHIAEoCRIaChJkZWxldGVkX2J5X3VzZXJfaWQYCCABKAkixAQKCFBpcGVsaW5lEhEKCXRlbmFudF9pZBgBIAEoCRIKCgJpZBgCIAEoCRIMCgRuYW1lGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEjYKD2N1cnJlbnRfdmVyc2lvbhgFIAEoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24SLwoIdmVyc2lvbnMYBiADKAsyHS5pbmdlc3Rpb24udjEuUGlwZWxpbmVWZXJzaW9uEicKCGxhc3RfcnVuGAcgASgLMhUuaW5nZXN0aW9uLnYxLlJ1bkluZm8SMAoIc2NoZWR1bGUYCCABKAsyHi5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZRISCgpjcmVhdGVkX2F0GAkgASgDEhIKCmRlbGV0ZWRfYXQYCiABKAMSEgoKdXBkYXRlZF9hdBgLIAEoAxIaChJjcmVhdGVkX2J5X3VzZXJfaWQYDCABKAkSGgoSdXBkYXRlZF9ieV91c2VyX2lkGA0gASgJEhoKEmRlbGV0ZWRfYnlfdXNlcl9pZBgOIAEoCRI/ChR3b3JrZXJfY29uZmlndXJhdGlvbhgPIAEoCzIhLmluZ2VzdGlvbi52MS5Xb3JrZXJDb25maWd1cmF0aW9uEjMKDmV4ZWN1dGlvbl9tb2RlGBAgASgOMhsuaW5nZXN0aW9uLnYxLkV4ZWN1dGlvbk1vZGUSGgoNZmFpbF9vbl9lcnJvchgRIAEoCEgAiAEBQhAKDl9mYWlsX29uX2Vycm9yIpEBChZQaXBlbGluZVNjaGVkdWxlQ29uZmlnEgwKBGNyb24YASABKAkSEAoIdGltZXpvbmUYAiABKAkSEgoKaXNfZW5hYmxlZBgDIAEoCBJDCg5vdmVybGFwX3BvbGljeRgEIAEoDjIrLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlT3ZlcmxhcFBvbGljeSKWAQoQUGlwZWxpbmVTY2hlZHVsZRIKCgJpZBgBIAEoCRITCgtwaXBlbGluZV9pZBgCIAEoCRI0CgZjb25maWcYAyABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZxIUCgxuZXh0X2ZpcmVfYXQYBCABKAMSFQoNbGFzdF9maXJlZF9hdBgFIAEoAyL/AQoVQ3JlYXRlUGlwZWxpbmVSZXF1ZXN0EgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSNgoIc2NoZWR1bGUYAyABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZxI/ChR3b3JrZXJfY29uZmlndXJhdGlvbhgEIAEoCzIhLmluZ2VzdGlvbi52MS5Xb3JrZXJDb25maWd1cmF0aW9uEjMKDmV4ZWN1dGlvbl9tb2RlGAUgASgOMhsuaW5nZXN0aW9uLnYxLkV4ZWN1dGlvbk1vZGUSFQoNZmFpbF9vbl9lcnJvchgGIAEoCCJ0ChZDcmVhdGVQaXBlbGluZVJlc3BvbnNlEigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lEjAKCHNjaGVkdWxlGAIgASgLMh4uaW5nZXN0aW9uLnYxLlBpcGVsaW5lU2NoZWR1bGUibAodQ3JlYXRlUGlwZWxpbmVTY2hlZHVsZVJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSNgoIc2NoZWR1bGUYAiABKAsyJC5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZUNvbmZpZyJSCh5DcmVhdGVQaXBlbGluZVNjaGVkdWxlUmVzcG9uc2USMAoIc2NoZWR1bGUYASABKAsyHi5pbmdlc3Rpb24udjEuUGlwZWxpbmVTY2hlZHVsZSJsCh1VcGRhdGVQaXBlbGluZVNjaGVkdWxlUmVxdWVzdBITCgtwaXBlbGluZV9pZBgBIAEoCRI2CghzY2hlZHVsZRgCIAEoCzIkLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlQ29uZmlnIlIKHlVwZGF0ZVBpcGVsaW5lU2NoZWR1bGVSZXNwb25zZRIwCghzY2hlZHVsZRgBIAEoCzIeLmluZ2VzdGlvbi52MS5QaXBlbGluZVNjaGVkdWxlIl8KHENyZWF0ZVBpcGVsaW5lVmVyc2lvblJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSKgoFZ3JhcGgYAiABKAsyGy5pbmdlc3Rpb24udjEuUGlwZWxpbmVHcmFwaCJPCh1DcmVhdGVQaXBlbGluZVZlcnNpb25SZXNwb25zZRIuCgd2ZXJzaW9uGAEgASgLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbiLzAQoVVXBkYXRlUGlwZWxpbmVSZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSPwoUd29ya2VyX2NvbmZpZ3VyYXRpb24YBCABKAsyIS5pbmdlc3Rpb24udjEuV29ya2VyQ29uZmlndXJhdGlvbhIzCg5leGVjdXRpb25fbW9kZRgFIAEoDjIbLmluZ2VzdGlvbi52MS5FeGVjdXRpb25Nb2RlEhoKDWZhaWxfb25fZXJyb3IYBiABKAhIAIgBAUIQCg5fZmFpbF9vbl9lcnJvciJCChZVcGRhdGVQaXBlbGluZVJlc3BvbnNlEigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIm4KEkdldFBpcGVsaW5lUmVxdWVzdBIKCgJpZBgBIAEoCRIYChBpbmNsdWRlX3ZlcnNpb25zGAIgASgIEhgKEGluY2x1ZGVfbGFzdF9ydW4YAyABKAgSGAoQaW5jbHVkZV9zY2hlZHVsZRgEIAEoCCI/ChNHZXRQaXBlbGluZVJlc3BvbnNlEigKCHBpcGVsaW5lGAEgASgLMhYuaW5nZXN0aW9uLnYxLlBpcGVsaW5lIkEKGUdldFBpcGVsaW5lVmVyc2lvblJlcXVlc3QSEwoLcGlwZWxpbmVfaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoAyJMChpHZXRQaXBlbGluZVZlcnNpb25SZXNwb25zZRIuCgd2ZXJzaW9uGAEgASgLMh0uaW5nZXN0aW9uLnYxLlBpcGVsaW5lVmVyc2lvbiKWAQobTGlzdFBpcGVsaW5lVmVyc2lvbnNSZXF1ZXN0EhMKC3BpcGVsaW5lX2lkGAEgASgJEjMKCnBhZ2luYXRpb24YAiABKAsyHy5pbmdlc3Rpb24udjEuUGFnaW5hdGlvblJlcXVlc3QSLQoHc29ydGluZxgDIAEoCzIcLmluZ2VzdGlvbi52MS5Tb3J0aW5nUmVxdWVzdCKFAQocTGlzdFBpcGVsaW5lVmVyc2lvbnNSZXNwb25zZRIvCgh2ZXJzaW9ucxgBIAMoCzIdLmluZ2VzdGlvbi52MS5QaXBlbGluZVZlcnNpb24SNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2Ui8QEKFExpc3RQaXBlbGluZXNSZXF1ZXN0EhcKD2luY2x1ZGVfZGVsZXRlZBgBIAEoCBIzCgpwYWdpbmF0aW9uGAIgASgLMh8uaW5nZXN0aW9uLnYxLlBhZ2luYXRpb25SZXF1ZXN0EhgKEGluY2x1ZGVfdmVyc2lvbnMYAyABKAgSGAoQaW5jbHVkZV9sYXN0X3J1bhgEIAEoCBIYChBpbmNsdWRlX3NjaGVkdWxlGAUgASgIEg4KBnNlYXJjaBgGIAEoCRItCgdzb3J0aW5nGAcgASgLMhwuaW5nZXN0aW9uLnYxLlNvcnRpbmdSZXF1ZXN0IngKFUxpc3RQaXBlbGluZXNSZXNwb25zZRIpCglwaXBlbGluZXMYASADKAsyFi5pbmdlc3Rpb24udjEuUGlwZWxpbmUSNAoKcGFnaW5hdGlvbhgCIAEoCzIgLmluZ2VzdGlvbi52MS5QYWdpbmF0aW9uUmVzcG9uc2UiIwoVRGVsZXRlUGlwZWxpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIhgKFkRlbGV0ZVBpcGVsaW5lUmVzcG9uc2UqqAEKHVBpcGVsaW5lU2NoZWR1bGVPdmVybGFwUG9saWN5EjAKLFBJUEVMSU5FX1NDSEVEVUxFX09WRVJMQVBfUE9MSUNZX1VOU1BFQ0lGSUVEEAASKQolUElQRUxJTkVfU0NIRURVTEVfT1ZFUkxBUF9QT0xJQ1lfU0tJUBABEioKJlBJUEVMSU5FX1NDSEVEVUxFX09WRVJMQVBfUE9MSUNZX0FMTE9XEAJiBnByb3RvMw", [file_google_protobuf_struct, file_ingestion_v1_common, file_ingestion_v1_pagination, file_ingestion_v1_runs, file_ingestion_v1_sorting]);
 
 /**
  * PipelineNode is one source or sink on the canvas. connection_id references the
@@ -154,6 +154,16 @@ export type PipelineEdge = Message<"ingestion.v1.PipelineEdge"> & {
    * @generated from field: repeated ingestion.v1.ResourcePartitionSelection partitions = 11;
    */
   partitions: ResourcePartitionSelection[];
+
+  /**
+   * sink_configs holds the sink's resource-scoped config for each resource.
+   * An all-resource edge may configure several resources; a resource-specific
+   * edge may configure only its own resource. An omitted resource uses the
+   * sink's defaults.
+   *
+   * @generated from field: repeated ingestion.v1.ResourceSinkConfig sink_configs = 12;
+   */
+  sinkConfigs: ResourceSinkConfig[];
 };
 
 /**
@@ -162,6 +172,30 @@ export type PipelineEdge = Message<"ingestion.v1.PipelineEdge"> & {
  */
 export const PipelineEdgeSchema: GenMessage<PipelineEdge> = /*@__PURE__*/
   messageDesc(file_ingestion_v1_pipelines, 1);
+
+/**
+ * @generated from message ingestion.v1.ResourceSinkConfig
+ */
+export type ResourceSinkConfig = Message<"ingestion.v1.ResourceSinkConfig"> & {
+  /**
+   * @generated from field: string resource = 1;
+   */
+  resource: string;
+
+  /**
+   * config holds RESOURCE-scoped fields of the sink connector only.
+   *
+   * @generated from field: google.protobuf.Struct config = 2;
+   */
+  config?: JsonObject | undefined;
+};
+
+/**
+ * Describes the message ingestion.v1.ResourceSinkConfig.
+ * Use `create(ResourceSinkConfigSchema)` to create a new message.
+ */
+export const ResourceSinkConfigSchema: GenMessage<ResourceSinkConfig> = /*@__PURE__*/
+  messageDesc(file_ingestion_v1_pipelines, 2);
 
 /**
  * @generated from message ingestion.v1.ResourceColumnSelection
@@ -183,7 +217,7 @@ export type ResourceColumnSelection = Message<"ingestion.v1.ResourceColumnSelect
  * Use `create(ResourceColumnSelectionSchema)` to create a new message.
  */
 export const ResourceColumnSelectionSchema: GenMessage<ResourceColumnSelection> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 2);
+  messageDesc(file_ingestion_v1_pipelines, 3);
 
 /**
  * @generated from message ingestion.v1.ResourcePartitionSelection
@@ -205,7 +239,7 @@ export type ResourcePartitionSelection = Message<"ingestion.v1.ResourcePartition
  * Use `create(ResourcePartitionSelectionSchema)` to create a new message.
  */
 export const ResourcePartitionSelectionSchema: GenMessage<ResourcePartitionSelection> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 3);
+  messageDesc(file_ingestion_v1_pipelines, 4);
 
 /**
  * @generated from message ingestion.v1.ResourceCursorConfig
@@ -232,7 +266,7 @@ export type ResourceCursorConfig = Message<"ingestion.v1.ResourceCursorConfig"> 
  * Use `create(ResourceCursorConfigSchema)` to create a new message.
  */
 export const ResourceCursorConfigSchema: GenMessage<ResourceCursorConfig> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 4);
+  messageDesc(file_ingestion_v1_pipelines, 5);
 
 /**
  * @generated from message ingestion.v1.PipelineGraph
@@ -254,7 +288,7 @@ export type PipelineGraph = Message<"ingestion.v1.PipelineGraph"> & {
  * Use `create(PipelineGraphSchema)` to create a new message.
  */
 export const PipelineGraphSchema: GenMessage<PipelineGraph> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 5);
+  messageDesc(file_ingestion_v1_pipelines, 6);
 
 /**
  * @generated from message ingestion.v1.PipelineVersion
@@ -306,7 +340,7 @@ export type PipelineVersion = Message<"ingestion.v1.PipelineVersion"> & {
  * Use `create(PipelineVersionSchema)` to create a new message.
  */
 export const PipelineVersionSchema: GenMessage<PipelineVersion> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 6);
+  messageDesc(file_ingestion_v1_pipelines, 7);
 
 /**
  * Pipeline is mutable metadata plus a pointer to its current graph version.
@@ -416,7 +450,7 @@ export type Pipeline = Message<"ingestion.v1.Pipeline"> & {
  * Use `create(PipelineSchema)` to create a new message.
  */
 export const PipelineSchema: GenMessage<Pipeline> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 7);
+  messageDesc(file_ingestion_v1_pipelines, 8);
 
 /**
  * @generated from message ingestion.v1.PipelineScheduleConfig
@@ -448,7 +482,7 @@ export type PipelineScheduleConfig = Message<"ingestion.v1.PipelineScheduleConfi
  * Use `create(PipelineScheduleConfigSchema)` to create a new message.
  */
 export const PipelineScheduleConfigSchema: GenMessage<PipelineScheduleConfig> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 8);
+  messageDesc(file_ingestion_v1_pipelines, 9);
 
 /**
  * PipelineSchedule includes the server-owned identity and derived fire times.
@@ -487,7 +521,7 @@ export type PipelineSchedule = Message<"ingestion.v1.PipelineSchedule"> & {
  * Use `create(PipelineScheduleSchema)` to create a new message.
  */
 export const PipelineScheduleSchema: GenMessage<PipelineSchedule> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 9);
+  messageDesc(file_ingestion_v1_pipelines, 10);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineRequest
@@ -536,7 +570,7 @@ export type CreatePipelineRequest = Message<"ingestion.v1.CreatePipelineRequest"
  * Use `create(CreatePipelineRequestSchema)` to create a new message.
  */
 export const CreatePipelineRequestSchema: GenMessage<CreatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 10);
+  messageDesc(file_ingestion_v1_pipelines, 11);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineResponse
@@ -558,7 +592,7 @@ export type CreatePipelineResponse = Message<"ingestion.v1.CreatePipelineRespons
  * Use `create(CreatePipelineResponseSchema)` to create a new message.
  */
 export const CreatePipelineResponseSchema: GenMessage<CreatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 11);
+  messageDesc(file_ingestion_v1_pipelines, 12);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineScheduleRequest
@@ -580,7 +614,7 @@ export type CreatePipelineScheduleRequest = Message<"ingestion.v1.CreatePipeline
  * Use `create(CreatePipelineScheduleRequestSchema)` to create a new message.
  */
 export const CreatePipelineScheduleRequestSchema: GenMessage<CreatePipelineScheduleRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 12);
+  messageDesc(file_ingestion_v1_pipelines, 13);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineScheduleResponse
@@ -597,7 +631,7 @@ export type CreatePipelineScheduleResponse = Message<"ingestion.v1.CreatePipelin
  * Use `create(CreatePipelineScheduleResponseSchema)` to create a new message.
  */
 export const CreatePipelineScheduleResponseSchema: GenMessage<CreatePipelineScheduleResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 13);
+  messageDesc(file_ingestion_v1_pipelines, 14);
 
 /**
  * @generated from message ingestion.v1.UpdatePipelineScheduleRequest
@@ -619,7 +653,7 @@ export type UpdatePipelineScheduleRequest = Message<"ingestion.v1.UpdatePipeline
  * Use `create(UpdatePipelineScheduleRequestSchema)` to create a new message.
  */
 export const UpdatePipelineScheduleRequestSchema: GenMessage<UpdatePipelineScheduleRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 14);
+  messageDesc(file_ingestion_v1_pipelines, 15);
 
 /**
  * @generated from message ingestion.v1.UpdatePipelineScheduleResponse
@@ -636,7 +670,7 @@ export type UpdatePipelineScheduleResponse = Message<"ingestion.v1.UpdatePipelin
  * Use `create(UpdatePipelineScheduleResponseSchema)` to create a new message.
  */
 export const UpdatePipelineScheduleResponseSchema: GenMessage<UpdatePipelineScheduleResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 15);
+  messageDesc(file_ingestion_v1_pipelines, 16);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineVersionRequest
@@ -658,7 +692,7 @@ export type CreatePipelineVersionRequest = Message<"ingestion.v1.CreatePipelineV
  * Use `create(CreatePipelineVersionRequestSchema)` to create a new message.
  */
 export const CreatePipelineVersionRequestSchema: GenMessage<CreatePipelineVersionRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 16);
+  messageDesc(file_ingestion_v1_pipelines, 17);
 
 /**
  * @generated from message ingestion.v1.CreatePipelineVersionResponse
@@ -675,7 +709,7 @@ export type CreatePipelineVersionResponse = Message<"ingestion.v1.CreatePipeline
  * Use `create(CreatePipelineVersionResponseSchema)` to create a new message.
  */
 export const CreatePipelineVersionResponseSchema: GenMessage<CreatePipelineVersionResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 17);
+  messageDesc(file_ingestion_v1_pipelines, 18);
 
 /**
  * @generated from message ingestion.v1.UpdatePipelineRequest
@@ -721,7 +755,7 @@ export type UpdatePipelineRequest = Message<"ingestion.v1.UpdatePipelineRequest"
  * Use `create(UpdatePipelineRequestSchema)` to create a new message.
  */
 export const UpdatePipelineRequestSchema: GenMessage<UpdatePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 18);
+  messageDesc(file_ingestion_v1_pipelines, 19);
 
 /**
  * @generated from message ingestion.v1.UpdatePipelineResponse
@@ -738,7 +772,7 @@ export type UpdatePipelineResponse = Message<"ingestion.v1.UpdatePipelineRespons
  * Use `create(UpdatePipelineResponseSchema)` to create a new message.
  */
 export const UpdatePipelineResponseSchema: GenMessage<UpdatePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 19);
+  messageDesc(file_ingestion_v1_pipelines, 20);
 
 /**
  * @generated from message ingestion.v1.GetPipelineRequest
@@ -770,7 +804,7 @@ export type GetPipelineRequest = Message<"ingestion.v1.GetPipelineRequest"> & {
  * Use `create(GetPipelineRequestSchema)` to create a new message.
  */
 export const GetPipelineRequestSchema: GenMessage<GetPipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 20);
+  messageDesc(file_ingestion_v1_pipelines, 21);
 
 /**
  * @generated from message ingestion.v1.GetPipelineResponse
@@ -787,7 +821,7 @@ export type GetPipelineResponse = Message<"ingestion.v1.GetPipelineResponse"> & 
  * Use `create(GetPipelineResponseSchema)` to create a new message.
  */
 export const GetPipelineResponseSchema: GenMessage<GetPipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 21);
+  messageDesc(file_ingestion_v1_pipelines, 22);
 
 /**
  * @generated from message ingestion.v1.GetPipelineVersionRequest
@@ -809,7 +843,7 @@ export type GetPipelineVersionRequest = Message<"ingestion.v1.GetPipelineVersion
  * Use `create(GetPipelineVersionRequestSchema)` to create a new message.
  */
 export const GetPipelineVersionRequestSchema: GenMessage<GetPipelineVersionRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 22);
+  messageDesc(file_ingestion_v1_pipelines, 23);
 
 /**
  * @generated from message ingestion.v1.GetPipelineVersionResponse
@@ -826,7 +860,7 @@ export type GetPipelineVersionResponse = Message<"ingestion.v1.GetPipelineVersio
  * Use `create(GetPipelineVersionResponseSchema)` to create a new message.
  */
 export const GetPipelineVersionResponseSchema: GenMessage<GetPipelineVersionResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 23);
+  messageDesc(file_ingestion_v1_pipelines, 24);
 
 /**
  * @generated from message ingestion.v1.ListPipelineVersionsRequest
@@ -853,7 +887,7 @@ export type ListPipelineVersionsRequest = Message<"ingestion.v1.ListPipelineVers
  * Use `create(ListPipelineVersionsRequestSchema)` to create a new message.
  */
 export const ListPipelineVersionsRequestSchema: GenMessage<ListPipelineVersionsRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 24);
+  messageDesc(file_ingestion_v1_pipelines, 25);
 
 /**
  * @generated from message ingestion.v1.ListPipelineVersionsResponse
@@ -875,7 +909,7 @@ export type ListPipelineVersionsResponse = Message<"ingestion.v1.ListPipelineVer
  * Use `create(ListPipelineVersionsResponseSchema)` to create a new message.
  */
 export const ListPipelineVersionsResponseSchema: GenMessage<ListPipelineVersionsResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 25);
+  messageDesc(file_ingestion_v1_pipelines, 26);
 
 /**
  * @generated from message ingestion.v1.ListPipelinesRequest
@@ -922,7 +956,7 @@ export type ListPipelinesRequest = Message<"ingestion.v1.ListPipelinesRequest"> 
  * Use `create(ListPipelinesRequestSchema)` to create a new message.
  */
 export const ListPipelinesRequestSchema: GenMessage<ListPipelinesRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 26);
+  messageDesc(file_ingestion_v1_pipelines, 27);
 
 /**
  * @generated from message ingestion.v1.ListPipelinesResponse
@@ -944,7 +978,7 @@ export type ListPipelinesResponse = Message<"ingestion.v1.ListPipelinesResponse"
  * Use `create(ListPipelinesResponseSchema)` to create a new message.
  */
 export const ListPipelinesResponseSchema: GenMessage<ListPipelinesResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 27);
+  messageDesc(file_ingestion_v1_pipelines, 28);
 
 /**
  * @generated from message ingestion.v1.DeletePipelineRequest
@@ -961,7 +995,7 @@ export type DeletePipelineRequest = Message<"ingestion.v1.DeletePipelineRequest"
  * Use `create(DeletePipelineRequestSchema)` to create a new message.
  */
 export const DeletePipelineRequestSchema: GenMessage<DeletePipelineRequest> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 28);
+  messageDesc(file_ingestion_v1_pipelines, 29);
 
 /**
  * @generated from message ingestion.v1.DeletePipelineResponse
@@ -974,7 +1008,7 @@ export type DeletePipelineResponse = Message<"ingestion.v1.DeletePipelineRespons
  * Use `create(DeletePipelineResponseSchema)` to create a new message.
  */
 export const DeletePipelineResponseSchema: GenMessage<DeletePipelineResponse> = /*@__PURE__*/
-  messageDesc(file_ingestion_v1_pipelines, 29);
+  messageDesc(file_ingestion_v1_pipelines, 30);
 
 /**
  * PipelineScheduleConfig is the client-owned portion of a pipeline's schedule.

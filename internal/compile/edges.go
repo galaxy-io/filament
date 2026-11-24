@@ -3,6 +3,7 @@ package compile
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/galaxy-io/filament"
@@ -27,7 +28,8 @@ type routeGroup struct {
 	cursorConfigs map[string]filament.ResourceCursorConfig
 	columns       map[string][]string // resource → selected source columns
 	partitions    map[string][]string // resource → partitions to backfill
-	transforms    map[string]any      // resource → steps, merged across the route's edges
+	sinkConfigs   map[string]map[string]any
+	transforms    map[string]any // resource → steps, merged across the route's edges
 	destinations  map[string]string
 }
 
@@ -79,6 +81,7 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				cursorConfigs: map[string]filament.ResourceCursorConfig{},
 				columns:       map[string][]string{},
 				partitions:    map[string][]string{},
+				sinkConfigs:   map[string]map[string]any{},
 				transforms:    map[string]any{},
 				destinations:  map[string]string{},
 			}
@@ -106,6 +109,9 @@ func groupEdges(edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1
 				return nil, fmt.Errorf("%w: conflicting partition selection for resource %q", ErrInvalid, selection.GetResource())
 			}
 			group.partitions[selection.GetResource()] = partitions
+		}
+		if err := mergeSinkConfigs(group, edge); err != nil {
+			return nil, err
 		}
 		resource := edge.GetResource()
 		if err := mergeTransform(group, edge); err != nil {
@@ -153,6 +159,19 @@ func (g *routeGroup) routeWriteMode() (filament.WriteMode, error) {
 		mode = candidate
 	}
 	return mode, nil
+}
+
+// mergeSinkConfigs folds an edge's per-resource sink config into its route.
+// Two edges may not give one resource different config.
+func mergeSinkConfigs(group *routeGroup, edge *ingestionv1.PipelineEdge) error {
+	for _, sinkConfig := range edge.GetSinkConfigs() {
+		config := sinkConfig.GetConfig().AsMap()
+		if previous, exists := group.sinkConfigs[sinkConfig.GetResource()]; exists && !reflect.DeepEqual(previous, config) {
+			return fmt.Errorf("%w: conflicting sink config for resource %q", ErrInvalid, sinkConfig.GetResource())
+		}
+		group.sinkConfigs[sinkConfig.GetResource()] = config
+	}
+	return nil
 }
 
 // mergeTransform folds an edge's transform into its route. The definition is

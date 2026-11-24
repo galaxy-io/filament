@@ -97,6 +97,8 @@ enum FieldScope {
   FIELD_SCOPE_UNSPECIFIED = 0;
   FIELD_SCOPE_CONNECTION = 1;
   FIELD_SCOPE_PIPELINE = 2;
+  // FIELD_SCOPE_RESOURCE fields are set per resource on a pipeline edge.
+  FIELD_SCOPE_RESOURCE = 3;
 }
 
 // ConfigField describes one connector configuration field.

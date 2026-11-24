@@ -373,9 +373,10 @@ const (
 	FieldList
 )
 
-// FieldScope is the scope for a config field, aligning with either a connection config or a pipeline config.
+// FieldScope is the scope for a config field, aligning with a connection config, a pipeline config, or one resource.
 // Connection == Only used to establish a connection to connector, reusable for all runs
 // Pipeline == Varies based on pipeline
+// Resource == Varies based on resource within a pipeline
 // For example: postgres has a dsn to connect (connection scope) and a table the data should land in (pipeline scope)
 type FieldScope int
 
@@ -384,6 +385,7 @@ const (
 	ScopeUnspecified FieldScope = iota
 	ScopeConnection
 	ScopePipeline
+	ScopeResource
 )
 
 // IsPipeline reports whether the field is set per pipeline node

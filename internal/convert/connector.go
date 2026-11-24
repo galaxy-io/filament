@@ -430,6 +430,8 @@ func FieldScopeToProto(s filament.FieldScope) ingestionv1.FieldScope {
 		return ingestionv1.FieldScope_FIELD_SCOPE_CONNECTION
 	case filament.ScopePipeline:
 		return ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE
+	case filament.ScopeResource:
+		return ingestionv1.FieldScope_FIELD_SCOPE_RESOURCE
 	default:
 		return ingestionv1.FieldScope_FIELD_SCOPE_UNSPECIFIED
 	}
@@ -444,6 +446,8 @@ func FieldScopeFromProto(s ingestionv1.FieldScope) (filament.FieldScope, error) 
 		return filament.ScopeConnection, nil
 	case ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE:
 		return filament.ScopePipeline, nil
+	case ingestionv1.FieldScope_FIELD_SCOPE_RESOURCE:
+		return filament.ScopeResource, nil
 	default:
 		return 0, fmt.Errorf("unknown field scope %d", s)
 	}

@@ -103,12 +103,13 @@ func comparableConnectionConfig(schema filament.ConfigSchema, cfg map[string]any
 
 // pipelineFieldsAndDefaults reports which top-level fields are pipeline
 // scoped and each field's default. A name declared once per conditional
-// branch is pipeline scoped only if every declaration is.
+// branch is pipeline scoped only if every declaration is. A resource-scoped
+// field is not a connection field either, so it counts as pipeline scoped.
 func pipelineFieldsAndDefaults(schema filament.ConfigSchema) (map[string]bool, map[string]any) {
 	pipeline := map[string]bool{}
 	defaults := map[string]any{}
 	for _, field := range schema.Fields {
-		isPipeline := field.Scope.IsPipeline()
+		isPipeline := field.Scope.IsPipeline() || field.Scope == filament.ScopeResource
 		if seen, ok := pipeline[field.Name]; ok {
 			isPipeline = isPipeline && seen
 		}
