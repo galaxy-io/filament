@@ -16,7 +16,12 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-const sshHandshakeTimeout = 30 * time.Second
+const (
+	sshHandshakeTimeout = 30 * time.Second
+	// A NAT gateway drops a connection that stays idle, AWS after 350 seconds,
+	// so the bastion connection sends TCP keep-alive probes well inside that.
+	sshKeepAlive = 30 * time.Second
+)
 
 // Tunnel dials a target that cannot be reached directly. One SSH connection
 // carries every connection opened through it.
@@ -145,7 +150,7 @@ func (t *Tunnel) connect(ctx context.Context) (*ssh.Client, error) {
 	if t.client != nil {
 		return t.client, nil
 	}
-	var dialer net.Dialer
+	dialer := net.Dialer{KeepAlive: sshKeepAlive}
 	conn, err := dialer.DialContext(ctx, "tcp", t.address)
 	if err != nil {
 		return nil, fmt.Errorf("ssh tunnel: connect %s: %w", t.address, err)
