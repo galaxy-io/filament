@@ -25,7 +25,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionCDCAppend,
 			filament.IngestionCDCMerge,
 		),
-		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(), []filament.ConfigField{
+		Config: filament.ConfigSchema{Fields: append(pgconnection.Fields(s.reverseTunnelHost), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: replicationStandard, Enum: []filament.EnumOption{
 				{Value: replicationStandard, Label: "Standard"},
 				{Value: replicationCDC, Label: "Change Data Capture (CDC)"},

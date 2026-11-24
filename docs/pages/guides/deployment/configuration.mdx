@@ -30,6 +30,16 @@ empty, or invalid configured directories stop startup. The variable does not mou
 [private catalog setup](/pages/connectors/building-a-connector/http-manifests#load-a-private-catalog-at-startup)
 for the directory structure and override behavior.
 
+### Reverse SSH tunnels
+
+| Variable | Default | Description |
+|---|---|---|
+| `SSH_REVERSE_TUNNEL_HOST` | unset | Host where reverse SSH tunnels listen. Set it to add the reverse SSH tunnel method to database connections, which dial this host on the port entered for the connection. Unset leaves the method out |
+
+Set it on every worker. A reverse tunnel is opened from inside the database's
+network to a server you run, and Filament connects to the port that tunnel
+opens. Filament does not run that server or register keys on it.
+
 ### Connector allowlist
 
 | Variable | Default | Description |

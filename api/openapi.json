@@ -4151,6 +4151,16 @@
             ],
             "title": "visible_when",
             "description": "visible_when conditionally includes this field based on a sibling field."
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only",
+            "description": "read_only marks a value the server or the platform sets. A form shows it\n without an input."
+          },
+          "publicKeyField": {
+            "type": "string",
+            "title": "public_key_field",
+            "description": "public_key_field makes a secret field an SSH private key and names the\n sibling that receives its public half. The server generates the key when\n none is supplied."
           }
         },
         "title": "ConfigField",

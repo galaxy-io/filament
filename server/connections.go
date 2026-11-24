@@ -40,9 +40,10 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		// Persist the concrete identity when a catalog default alias was used.
 		connector = spec.Name
 	}
-	cfg := convert.StructMap(req.Msg.GetConfig())
-	refs := cloneStrings(req.Msg.GetSecretRefs())
-	canonicalizeConnectionConfig(schema, cfg, refs)
+	cfg, refs, err := submittedConnectionConfig(schema, req.Msg.GetConfig(), req.Msg.GetSecretRefs(), nil)
+	if err != nil {
+		return nil, err
+	}
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -112,9 +113,10 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	cfg := convert.StructMap(in.GetConfig())
-	refs := cloneStrings(in.GetSecretRefs())
-	canonicalizeConnectionConfig(schema, cfg, refs)
+	cfg, refs, err := submittedConnectionConfig(schema, in.GetConfig(), in.GetSecretRefs(), stored.Config)
+	if err != nil {
+		return nil, err
+	}
 	if err := checkUpdatedSecretRefs(schema, stored, cfg, refs); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -170,6 +172,19 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, err
 	}
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: a.connectionForResponse(ctx, next)}), nil
+}
+
+// submittedConnectionConfig returns the config and secret refs a request
+// carries, canonical and with their key pairs settled. stored is the config
+// the connection holds today, or nil for a new one.
+func submittedConnectionConfig(schema filament.ConfigSchema, config *structpb.Struct, secretRefs map[string]string, stored map[string]any) (map[string]any, map[string]string, error) {
+	cfg := convert.StructMap(config)
+	refs := cloneStrings(secretRefs)
+	canonicalizeConnectionConfig(schema, cfg, refs)
+	if err := prepareKeyPairs(schema.Fields, cfg, refs, stored, ""); err != nil {
+		return nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return cfg, refs, nil
 }
 
 // validateConnectionUpdateTarget checks the persisted invariants that must

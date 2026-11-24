@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -136,5 +137,50 @@ func TestSecretSaveRetriesUseDistinctReferences(t *testing.T) {
 		}
 		previous = ref
 		api.deleteSecretRefs(testCtx(), written)
+	}
+}
+
+func TestPrepareKeyPairs(t *testing.T) {
+	schema := []filament.ConfigField{{Name: "tunnel", Type: filament.FieldObject, Fields: []filament.ConfigField{
+		{Name: "method", Type: filament.FieldEnum},
+		{Name: "private_key", Type: filament.FieldSecret, PublicKeyField: "public_key", VisibleWhen: &filament.FieldCondition{Field: "method", Values: []string{"ssh"}}},
+		{Name: "public_key", Type: filament.FieldString, ReadOnly: true},
+	}}}
+	tunnel := func(cfg map[string]any) map[string]any { return cfg["tunnel"].(map[string]any) }
+
+	generated := map[string]any{"tunnel": map[string]any{"method": "ssh"}}
+	if err := prepareKeyPairs(schema, generated, map[string]string{}, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	private, _ := tunnel(generated)["private_key"].(string)
+	public, _ := tunnel(generated)["public_key"].(string)
+	if derived, err := sshPublicKey(private); err != nil || derived != public || !strings.HasPrefix(public, "ssh-ed25519 ") {
+		t.Fatalf("generated pair: public %q, derived %q, %v", public, derived, err)
+	}
+
+	supplied := map[string]any{"tunnel": map[string]any{"method": "ssh", "private_key": private, "public_key": "ssh-ed25519 forged"}}
+	if err := prepareKeyPairs(schema, supplied, map[string]string{}, nil, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := tunnel(supplied)["public_key"]; got != public {
+		t.Fatalf("a supplied key must show its own public half: %v", got)
+	}
+
+	kept := map[string]any{"tunnel": map[string]any{"method": "ssh", "public_key": "ssh-ed25519 forged"}}
+	stored := map[string]any{"tunnel": map[string]any{"public_key": public}}
+	if err := prepareKeyPairs(schema, kept, map[string]string{"tunnel.private_key": "ref"}, stored, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, regenerated := tunnel(kept)["private_key"]; regenerated || tunnel(kept)["public_key"] != public {
+		t.Fatalf("a stored key must keep its public half: %v", tunnel(kept))
+	}
+
+	direct := map[string]any{"tunnel": map[string]any{"method": "none"}}
+	if err := prepareKeyPairs(schema, direct, map[string]string{}, nil, ""); err != nil || len(tunnel(direct)) != 1 {
+		t.Fatalf("no key without a tunnel: %v, %v", tunnel(direct), err)
+	}
+	bad := map[string]any{"tunnel": map[string]any{"method": "ssh", "private_key": "not a key"}}
+	if err := prepareKeyPairs(schema, bad, map[string]string{}, nil, ""); err == nil {
+		t.Fatal("an unreadable private key was accepted")
 	}
 }

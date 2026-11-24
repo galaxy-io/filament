@@ -26,6 +26,11 @@ data:
   CONNECTOR_SINKS: {{ join "," . | quote }}
   {{- end }}
 
+  # SSH
+  {{- with .Values.ssh.reverse.host }}
+  SSH_REVERSE_TUNNEL_HOST: {{ . | quote }}
+  {{- end }}
+
   # Heartbeat
   {{- with .Values.worker.heartbeatSeconds }}
   HEARTBEAT_SECONDS: {{ . | quote }}

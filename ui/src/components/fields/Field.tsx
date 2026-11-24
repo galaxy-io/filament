@@ -15,6 +15,7 @@ import FieldEnum from "@/components/fields/FieldEnum";
 import FieldInt from "@/components/fields/FieldInt";
 import FieldList from "@/components/fields/FieldList";
 import FieldObject from "@/components/fields/FieldObject";
+import FieldReadOnly from "@/components/fields/FieldReadOnly";
 import FieldSecret from "@/components/fields/FieldSecret";
 import FieldString from "@/components/fields/FieldString";
 import type { FieldComponent } from "@/components/fields/types";
@@ -62,7 +63,7 @@ const Field: FC<FieldProps> = ({
 
   if (field.type === FieldType.OBJECT && field.fields.length > 0) {
     const objectValue = isJsonObject(value) ? value : {};
-    const displayValue = { ...getFieldDefaults(field.fields), ...objectValue };
+    const displayValue = { ...getFieldDefaults(field.fields, objectValue), ...objectValue };
     const error = getError?.(path);
     return (
       <Box fillWidth>
@@ -99,8 +100,8 @@ const Field: FC<FieldProps> = ({
     );
   }
 
-  const Component = FIELD_TYPE_TO_FIELD_COMPONENT_MAP[field.type];
-  if (!Component) return null;
+  const Component = field.readOnly ? FieldReadOnly : FIELD_TYPE_TO_FIELD_COMPONENT_MAP[field.type];
+  if (!Component || (field.readOnly && (value === null || value === ""))) return null;
 
   return (
     <Component

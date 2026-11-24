@@ -338,6 +338,13 @@ type ConfigField struct {
 	Secret   bool
 	// VisibleWhen conditionally includes this field based on a sibling field.
 	VisibleWhen *FieldCondition
+	// ReadOnly marks a value the server or the platform sets. A form shows it
+	// without an input.
+	ReadOnly bool
+	// PublicKeyField makes a secret field an SSH private key and names the
+	// sibling that receives its public half. The server generates the key when
+	// none is supplied.
+	PublicKeyField string
 	// Fields describes the members of an object field. It is empty for scalar
 	// fields and for intentionally free-form objects.
 	Fields []ConfigField
