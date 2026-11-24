@@ -116,7 +116,6 @@ const ObservabilityPipelinesWidget: FC = () => {
         health,
         cells: createObservabilityPipelinesCells(
           pipeline,
-          health,
           timeframe,
           bucketStartMs,
           completedCounts,
