@@ -30,6 +30,7 @@ import {
   getCreatePipelineModalSeedIds,
   mapConnectionsToCreatePipelineModalSeed,
 } from "@/pages/pipelines/components/create/utils";
+import { usePipelineResourceSinkFields } from "@/pages/pipelines/components/resource/hooks/usePipelineResourceSinkFields";
 
 import { useGetConnectionQueries } from "@/api/queries/connections";
 
@@ -54,14 +55,21 @@ interface CreatePipelineModalContentState {
 const DEFAULT_CONTENT_STATE: CreatePipelineModalContentState = {};
 
 const CreatePipelineModalContent: FC<CreatePipelineModalContentProps> = ({ isOpen, onClose }) => {
-  const { step, rowsBySink, activeSinkId } = useCreatePipelineModalState();
+  const { step, rowsBySink, activeSinkId, sinkConnections, nodeConfigs } =
+    useCreatePipelineModalState();
+  const hasSinkFields =
+    usePipelineResourceSinkFields(
+      sinkConnections.find((connection) => connection.id === activeSinkId),
+      nodeConfigs[activeSinkId] ?? {},
+    ).fields.length > 0;
   const [localState, setLocalState] =
     useState<CreatePipelineModalContentState>(DEFAULT_CONTENT_STATE);
 
   const activeRow =
     step === CreatePipelineModalStep.RESOURCES
       ? rowsBySink[activeSinkId]?.find(
-          (row) => row.name === localState.activeResource && row.isColumnSelectable,
+          (row) =>
+            row.name === localState.activeResource && (row.isColumnSelectable || hasSinkFields),
         )
       : undefined;
 

@@ -11,11 +11,10 @@ import { FOCUS_RING, INTERACTIVE_RESET } from "@galaxy-io/dls/styles/mixins";
 import Text, { TextSize, TextVariant } from "@galaxy-io/dls/text/Text";
 import { t } from "@galaxy-io/dls/theme/tokens/t";
 
-import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
-
 import PipelineRunStatusSwatch from "@/components/runs/PipelineRunStatusSwatch";
+import { getPipelineRunStatusLabel } from "@/components/runs/utils";
 
-import { usePipelineCanvasIsRunning } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasIsRunning";
+import { usePipelineCanvasActiveRuns } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasActiveRuns";
 import { PIPELINE_CANVAS_PANEL_ACTIVITY_CARET_SIZE } from "@/pages/pipelines/canvas/panel/activity/constants";
 import PipelineCanvasPanelHeader from "@/pages/pipelines/canvas/panel/PipelineCanvasPanelHeader";
 
@@ -47,7 +46,7 @@ const PipelineCanvasPanelActivityHeader: FC<PipelineCanvasPanelActivityHeaderPro
   isOpen,
   onToggle,
 }) => {
-  const isRunning = usePipelineCanvasIsRunning();
+  const [activeRun] = usePipelineCanvasActiveRuns();
 
   return (
     <Box position="relative">
@@ -63,11 +62,20 @@ const PipelineCanvasPanelActivityHeader: FC<PipelineCanvasPanelActivityHeaderPro
           icon={PulseIcon}
           hasDivider={isOpen}
           actions={[
-            isRunning && (
+            activeRun && (
               <Flex key="running" alignItems={AlignItems.CENTER} gap={8} shrink={0}>
-                <PipelineRunStatusSwatch status={RunStatus.RUNNING} size={SquareSize.SMALL} />
+                <PipelineRunStatusSwatch
+                  status={activeRun.status}
+                  failedResources={activeRun.failedResources}
+                  executionStatus={activeRun.executionStatus}
+                  size={SquareSize.SMALL}
+                />
                 <Text as="span" size={TextSize.BODY_SM} variant={TextVariant.SECONDARY}>
-                  Running
+                  {getPipelineRunStatusLabel(
+                    activeRun.status,
+                    activeRun.failedResources,
+                    activeRun.executionStatus,
+                  )}
                 </Text>
               </Flex>
             ),

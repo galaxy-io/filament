@@ -46,3 +46,41 @@ func TestValidateOverlaySecretRefs(t *testing.T) {
 		})
 	}
 }
+
+func TestResourceScopedFields(t *testing.T) {
+	schema := filament.ConfigSchema{Fields: []filament.ConfigField{
+		{Name: "host", Type: filament.FieldString, Scope: filament.ScopeConnection},
+		{Name: "namespace", Type: filament.FieldString, Scope: filament.ScopePipeline},
+		// Declared twice: the pipeline value is the default for its resources.
+		{Name: "update_mode", Type: filament.FieldEnum, Scope: filament.ScopePipeline},
+		{Name: "update_mode", Type: filament.FieldEnum, Scope: filament.ScopeResource},
+		{Name: "partition_by", Type: filament.FieldList, Scope: filament.ScopeResource},
+	}}
+
+	if err := ValidateConnectionConfig(schema, map[string]any{"host": "db"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"namespace", "update_mode", "partition_by"} {
+		if err := ValidateConnectionConfig(schema, map[string]any{key: "x"}); err == nil {
+			t.Fatalf("connection config accepted %q", key)
+		}
+	}
+
+	if err := ValidateOverlayConfig(schema, map[string]any{"namespace": "raw", "update_mode": "merge-on-read"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"host", "partition_by"} {
+		if err := ValidateOverlayConfig(schema, map[string]any{key: "x"}); err == nil {
+			t.Fatalf("pipeline node config accepted %q", key)
+		}
+	}
+
+	if err := ValidateResourceConfigs(schema, map[string]map[string]any{"orders": {"update_mode": "merge-on-read", "partition_by": []any{"day(created_at)"}}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"host", "namespace", "unknown"} {
+		if err := ValidateResourceConfigs(schema, map[string]map[string]any{"orders": {key: "x"}}); err == nil {
+			t.Fatalf("resource config accepted %q", key)
+		}
+	}
+}

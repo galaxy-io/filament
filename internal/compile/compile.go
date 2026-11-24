@@ -87,11 +87,11 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 	if err != nil {
 		return nil, err
 	}
-	groups, edges, err := c.boundedGroups(ctx, version.GetGraph().GetEdges(), nodes, connections, resync)
+	groups, err := c.boundedGroups(ctx, version.GetGraph().GetEdges(), nodes, connections, resync)
 	if err != nil {
 		return nil, err
 	}
-	groups, fullRoutes, err := subsetGroups(groups, edges, nodes, resources, resync)
+	groups, fullRoutes, err := subsetGroups(groups, resources, resync)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
+		sinkRef, err := c.resolveSinkRef(ctx, group, connections)
 		if err != nil {
 			return nil, err
 		}
@@ -150,9 +150,10 @@ func (c *Compiler) Compile(ctx context.Context, tenant filament.TenantID, pipeli
 				IngestionTypes:      ingestionTypes,
 				WritePolicies:       destinationWritePolicies(group),
 				CheckpointRoute:     key,
-				CursorConfigs:       group.cursorConfigs,
-				Columns:             routeSelection(group.columns),
-				Partitions:          routeSelection(group.partitions),
+				CursorConfigs:       group.cursorConfigs(),
+				Columns:             routeSelection(group.columns()),
+				Partitions:          routeSelection(group.partitions()),
+				SinkConfigs:         routeSinkConfigs(group.sinkConfigs()),
 				Resync:              routeResync(group, resync),
 				Options:             routeOptions,
 				ScheduleID:          scheduleID,
@@ -245,10 +246,11 @@ func validateResources(groups []*routeGroup, resources, resync []string) error {
 	return nil
 }
 
-// subsetGroups regroups a bounded run's edges around the named resources and
-// returns the full grouping by route key, so a partial change-stream route can
-// be rejected. With no resources it returns groups unchanged and a nil map.
-func subsetGroups(groups []*routeGroup, edges []*ingestionv1.PipelineEdge, nodes map[string]*ingestionv1.PipelineNode, resources, resync []string) ([]*routeGroup, map[string]*routeGroup, error) {
+// subsetGroups narrows a bounded run's routes to the named resources, leaving
+// out a route that names none of them, and returns the full grouping by route
+// key, so a partial change-stream route can be rejected. With no resources it
+// returns groups unchanged and a nil map.
+func subsetGroups(groups []*routeGroup, resources, resync []string) ([]*routeGroup, map[string]*routeGroup, error) {
 	if len(resources) == 0 {
 		return groups, nil, nil
 	}
@@ -256,12 +258,12 @@ func subsetGroups(groups []*routeGroup, edges []*ingestionv1.PipelineEdge, nodes
 		return nil, nil, err
 	}
 	full := make(map[string]*routeGroup, len(groups))
+	var selected []*routeGroup
 	for _, group := range groups {
 		full[group.key] = group
-	}
-	selected, err := groupEdges(selectEdges(edges, resources), nodes)
-	if err != nil {
-		return nil, nil, err
+		if narrowed := group.narrow(resources); len(narrowed.tables) > 0 {
+			selected = append(selected, narrowed)
+		}
 	}
 	return selected, full, nil
 }
@@ -271,7 +273,7 @@ func subsetGroups(groups []*routeGroup, edges []*ingestionv1.PipelineEdge, nodes
 func isPartialRoute(subset, full *routeGroup) bool {
 	selected, _ := routeResources(subset)
 	all, _ := routeResources(full)
-	return full.all || !slices.Equal(selected, all)
+	return full.all() || !slices.Equal(selected, all)
 }
 
 // routeResync returns the resync names this route selects, or nil.
@@ -296,19 +298,45 @@ func routeSelection(selection map[string][]string) map[string][]string {
 	return selection
 }
 
+// resolveSinkRef resolves a route's sink node and checks the route's
+// per-resource sink config against the fields that sink declares
+// resource-scoped.
+func (c *Compiler) resolveSinkRef(ctx context.Context, group *routeGroup, connections map[string]filament.Connection) (filament.Ref, error) {
+	sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
+	configs := group.sinkConfigs()
+	if err != nil || len(configs) == 0 {
+		return sinkRef, err
+	}
+	schema, err := c.schemaFor(ctx, filament.ConnectorKindSink, sinkRef.Connector)
+	if err != nil {
+		return filament.Ref{}, err
+	}
+	if err := ValidateResourceConfigs(schema, configs); err != nil {
+		return filament.Ref{}, fmt.Errorf("%w: %v", ErrInvalid, err)
+	}
+	return sinkRef, nil
+}
+
+func routeSinkConfigs(configs map[string]map[string]any) map[string]map[string]any {
+	if len(configs) == 0 {
+		return nil
+	}
+	return configs
+}
+
 func routeResources(group *routeGroup) (resources, selectors []string) {
-	if group.all {
+	if group.all() {
 		return nil, nil
 	}
-	for resource := range group.resources {
-		resources = append(resources, resource)
+	for resource, table := range group.tables {
+		if table.named {
+			resources = append(resources, resource)
+			selectors = append(selectors, table.selector)
+		}
 	}
 	slices.Sort(resources)
-	for selector := range group.selectors {
-		selectors = append(selectors, selector)
-	}
 	slices.Sort(selectors)
-	return resources, selectors
+	return resources, slices.Compact(selectors)
 }
 
 func (c *Compiler) planRouteReplicationStream(
@@ -399,7 +427,7 @@ func replicationStreamContinuityFingerprint(group *routeGroup, connections map[s
 		SinkConnector:           sinkRef.Connector, SinkConnectionID: sinkConnection.ID,
 		SinkConnectionVersion: sinkConnection.Version, SinkConfig: sinkRef.Config,
 		WriteMode:            fmt.Sprint(writeMode),
-		DestinationResources: group.destinations,
+		DestinationResources: group.destinations(),
 	}
 	raw, err := json.Marshal(identity)
 	if err != nil {
@@ -417,19 +445,24 @@ func cdcIngestionFor(writeMode filament.WriteMode) filament.IngestionType {
 }
 
 func compileIngestionTypes(group *routeGroup, cdc bool) (map[string]filament.IngestionType, error) {
-	types := make(map[string]filament.IngestionType, len(group.readModes))
+	types := make(map[string]filament.IngestionType, len(group.tables))
 	if cdc {
 		writeMode, err := group.routeWriteMode()
 		if err != nil {
 			return nil, err
 		}
-		for resource := range group.readModes {
-			types[resource] = cdcIngestionFor(writeMode)
+		for resource, table := range group.tables {
+			if table.named {
+				types[resource] = cdcIngestionFor(writeMode)
+			}
 		}
 		return types, nil
 	}
-	for resource, readMode := range group.readModes {
-		ingestionType, err := filament.IngestionFor(readMode, group.writeModes[resource])
+	for resource, table := range group.tables {
+		if !table.named {
+			continue
+		}
+		ingestionType, err := filament.IngestionFor(table.readMode, table.writeMode)
 		if err != nil {
 			return nil, err
 		}

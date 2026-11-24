@@ -122,6 +122,8 @@ func fieldScopeFromProto(scope ingestionv1.FieldScope) filament.FieldScope {
 		return filament.ScopeConnection
 	case ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE:
 		return filament.ScopePipeline
+	case ingestionv1.FieldScope_FIELD_SCOPE_RESOURCE:
+		return filament.ScopeResource
 	default:
 		return filament.ScopeUnspecified
 	}

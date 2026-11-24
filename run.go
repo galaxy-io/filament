@@ -42,6 +42,9 @@ type RunSpec struct {
 	// Partitions narrows the partitions each resource backfills; an absent
 	// resource backfills every partition.
 	Partitions map[string][]string
+	// SinkConfigs holds each resource's resource-scoped sink config; an absent
+	// resource uses the sink's defaults.
+	SinkConfigs map[string]map[string]any
 	// Resync names resources read from the beginning again by this run.
 	Resync    []string
 	Source    Ref
@@ -87,6 +90,12 @@ func sameColumnSelection(a, b []string) bool {
 	return slices.Equal(a, b)
 }
 
+// SinkConfig returns a resource's resource-scoped sink config, empty when the
+// resource sets none.
+func (s RunSpec) SinkConfig(resource string) Config {
+	return NewConfig(s.SinkConfigs[resource])
+}
+
 // SinkWriteIdentity returns the artifact namespace for this destination write.
 // Bounded runs retain their existing run-based artifact names.
 func (s RunSpec) SinkWriteIdentity() RunID {
@@ -124,6 +133,8 @@ type RunRequest struct {
 	Columns map[string][]string `json:",omitempty"`
 	// Partitions narrows the partitions each resource backfills.
 	Partitions map[string][]string `json:",omitempty"`
+	// SinkConfigs holds each resource's resource-scoped sink config.
+	SinkConfigs map[string]map[string]any `json:",omitempty"`
 	// Resync names resources whose durable progress is discarded before this
 	// run reads them, so each one is read from the beginning again.
 	Resync     []string `json:",omitempty"`
@@ -927,6 +938,7 @@ func (s RunState) ExecutionSpec() RunSpec {
 		CursorConfigs:     r.CursorConfigs,
 		Columns:           r.Columns,
 		Partitions:        r.Partitions,
+		SinkConfigs:       r.SinkConfigs,
 		Resync:            r.Resync,
 		Source:            r.Source, Sink: r.Sink, Resources: r.Resources, Selectors: r.Selectors,
 		IngestionTypes: r.IngestionTypes, Options: r.Options,

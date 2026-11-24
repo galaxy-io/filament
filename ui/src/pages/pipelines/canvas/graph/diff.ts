@@ -39,6 +39,7 @@ const getEdgeConfigKey = ({
   cursors,
   columns,
   partitions,
+  sinkConfigs,
   transform,
   destinationResource,
 }: PipelineCanvasEdgeData): string =>
@@ -57,6 +58,13 @@ const getEdgeConfigKey = ({
       .map((selection) => ({
         resource: selection.resource,
         partitions: [...selection.partitions].sort(),
+      }))
+      .sort((left, right) => left.resource.localeCompare(right.resource)),
+  )}|${JSON.stringify(
+    (sinkConfigs ?? [])
+      .map((sinkConfig) => ({
+        resource: sinkConfig.resource,
+        config: getCanonicalJson(sinkConfig.config ?? {}),
       }))
       .sort((left, right) => left.resource.localeCompare(right.resource)),
   )}|${transform ? JSON.stringify(getCanonicalJson(transform)) : ""}`;
