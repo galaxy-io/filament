@@ -158,7 +158,7 @@ func (s *Sink) writeMutationBuffer(ctx context.Context, it *iceTable, rb *record
 	if err := txn.Overwrite(ctx, rdr, nil, table.WithOverwriteFilter(m.filter)); err != nil {
 		return fmt.Errorf("%s: %w", mode, err)
 	}
-	updated, err := txn.Commit(ctx)
+	updated, err := commitTransaction(ctx, txn)
 	if err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
@@ -269,7 +269,7 @@ func commitRowDelta(ctx context.Context, it *iceTable, m *mutation, deleteIDs []
 	if err := rd.Commit(ctx); err != nil {
 		return fmt.Errorf("row delta: %w", err)
 	}
-	updated, err := txn.Commit(ctx)
+	updated, err := commitTransaction(ctx, txn)
 	if err != nil {
 		return fmt.Errorf("commit transaction: %w", err)
 	}

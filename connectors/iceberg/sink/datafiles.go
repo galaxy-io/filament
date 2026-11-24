@@ -88,7 +88,7 @@ func (a *streamedFiles) commitAppend(ctx context.Context, tbl *icetable.Table) (
 		return nil, fmt.Errorf("add data files: %w", err)
 	}
 	a.attempted = true
-	return txn.Commit(ctx)
+	return commitTransaction(ctx, txn)
 }
 
 // commitReplace finishes writing and, in one overwrite snapshot, removes every
@@ -118,7 +118,7 @@ func (a *streamedFiles) commitReplace(ctx context.Context, tbl *icetable.Table) 
 	if a != nil {
 		a.attempted = true
 	}
-	return txn.Commit(ctx)
+	return commitTransaction(ctx, txn)
 }
 
 // currentDataFiles lists the live data files of the table's current snapshot
@@ -272,4 +272,23 @@ func (s *dataFileStream) drain() {
 	for rec := range s.records {
 		rec.Release()
 	}
+}
+
+type uncertainCommitError struct{ err error }
+
+func (e uncertainCommitError) Error() string { return e.err.Error() }
+
+func (e uncertainCommitError) Unwrap() error { return e.err }
+
+func commitTransaction(ctx context.Context, txn *icetable.Transaction) (*icetable.Table, error) {
+	updated, err := txn.Commit(ctx)
+	if err != nil && !errors.Is(err, icetable.ErrCommitFailed) {
+		return nil, uncertainCommitError{err: err}
+	}
+	return updated, err
+}
+
+func isUncertainCommit(err error) bool {
+	var uncertain uncertainCommitError
+	return errors.As(err, &uncertain)
 }

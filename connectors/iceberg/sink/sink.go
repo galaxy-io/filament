@@ -219,11 +219,15 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		}
 	}
 	if err := s.commitJobs(ctx, st, streamed, s.commitConcurrency); err != nil {
-		s.uncertain = err
+		if isUncertainCommit(err) {
+			s.uncertain = err
+		}
 		return err
 	}
 	if err := s.commitJobs(ctx, st, rewrites, 1); err != nil {
-		s.uncertain = err
+		if isUncertainCommit(err) {
+			s.uncertain = err
+		}
 		return err
 	}
 	// Every resource committed, so close deletes no data files; it only frees
