@@ -26,13 +26,17 @@ type table struct {
 
 // tableMeta reads table's columns in ordinal order and its primary key. CLR
 // types report their own name; alias types report the system type under them,
-// also when the login cannot see the alias type itself.
+// also when the login cannot see the alias type itself. A CDC source leaves
+// out computed columns: change tables hold NULL for them, which an update
+// would write over the real value, so snapshot and change rows both omit
+// them. A computed key column cannot be left out without merging rows the key
+// tells apart, so CDC rejects such a table.
 func (s *Source) tableMeta(ctx context.Context, name string) (*table, error) {
 	const q = `
 SELECT c.name,
 	CASE WHEN t.is_assembly_type = 1 THEN t.name ELSE bt.name END,
 	c.max_length, c.precision, c.scale, c.is_nullable,
-	COALESCE(ic.key_ordinal, 0), COALESCE(c.collation_name, N'')
+	COALESCE(ic.key_ordinal, 0), COALESCE(c.collation_name, N''), c.is_computed
 FROM sys.columns c
 LEFT JOIN sys.types t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.types bt ON bt.user_type_id = c.system_type_id
@@ -53,8 +57,15 @@ ORDER BY c.column_id`
 		var typeName sql.NullString
 		var maxLength int16
 		var precision, scale uint8
-		if err := rows.Scan(&c.name, &typeName, &maxLength, &precision, &scale, &c.nullable, &c.pkOrder, &c.collation); err != nil {
+		var computed bool
+		if err := rows.Scan(&c.name, &typeName, &maxLength, &precision, &scale, &c.nullable, &c.pkOrder, &c.collation, &computed); err != nil {
 			return nil, fmt.Errorf("scan column: %w", err)
+		}
+		if computed && s.cdc {
+			if c.pkOrder > 0 {
+				return nil, fmt.Errorf("%s primary key column %q is computed; CDC change tables hold NULL for computed columns, so the table cannot be read with CDC", qualified, c.name)
+			}
+			continue
 		}
 		if !typeName.Valid {
 			// A CLR type the login has no permission on has no system type
@@ -157,6 +168,13 @@ ORDER BY t.name, ic.key_ordinal`
 	}
 	if err := rows.Err(); err != nil {
 		return filament.DiscoverResult{}, fmt.Errorf("sqlserver source: discover rows: %w", err)
+	}
+	if s.cdc {
+		// CDC reads a change by its table's key, so a keyless table cannot
+		// be selected; a full refresh reads it whole.
+		for i := range resources {
+			resources[i].Selectable = len(resources[i].PrimaryKey) > 0
+		}
 	}
 	return filament.DiscoverResult{Resources: resources}, nil
 }
