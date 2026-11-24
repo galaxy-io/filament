@@ -8,9 +8,11 @@ require (
 	github.com/galaxy-io/filament v0.0.0
 	github.com/galaxy-io/filament/connectors/iceberg v0.0.0
 	github.com/galaxy-io/filament/connectors/object v0.0.0
+	github.com/galaxy-io/filament/connectors/sqlserver v0.0.0
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/microsoft/go-mssqldb v1.11.2
 	github.com/minio/minio-go/v7 v7.2.0
 	github.com/nats-io/nats.go v1.54.0
 	github.com/redis/go-redis/v9 v9.10.0
@@ -126,6 +128,8 @@ require (
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
+	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -280,3 +284,7 @@ replace github.com/galaxy-io/filament => ..
 replace github.com/galaxy-io/filament/connectors/iceberg => ../connectors/iceberg
 
 replace github.com/galaxy-io/filament/connectors/object => ../connectors/object
+
+replace github.com/galaxy-io/filament/connectors/sqlserver => ../connectors/sqlserver
+
+replace github.com/microsoft/go-mssqldb => github.com/atterpac/go-mssqldb v0.1.0

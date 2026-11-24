@@ -1,0 +1,62 @@
+---
+title: "Azure SQL source connector"
+sidebarTitle: "Azure SQL"
+description: "Keyset snapshot reads from Azure SQL Database and Azure SQL Managed Instance"
+icon: "https://cdn.getgalaxy.io/sources/source-icon-azure-dark.svg"
+---
+
+Connector ID `azuresql`
+
+The Azure SQL source reads from Azure SQL Database and Azure SQL Managed
+Instance with resumable keyset snapshots. It is in preview.
+
+It runs the same reader as the [SQL Server source](/pages/connectors/sources/sqlserver)
+and differs only in how it connects. Snapshot reads, types and permissions work
+as that page describes.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `connection_method` | Connection | `fields` | `fields` or `url`. Unset with a `dsn` present implies `url`. |
+| `dsn` | Connection | | A `sqlserver://` URL in the go-mssqldb format. Required in `url` mode. Without an `encrypt` parameter the session is encrypted and the certificate verified, as in `fields` mode. Secret. |
+| `host` | Connection | | Server name, such as `myserver.database.windows.net`. Required in `fields` mode. |
+| `port` | Connection | `1433` | Server port. A Managed Instance public endpoint listens on `3342`. |
+| `auth.type` | Connection | `sql` | `sql`, `service_principal`, `managed_identity` or `default`. See [Authentication](#authentication). |
+| `auth.username` | Connection | | SQL login. Required with `sql`. |
+| `auth.password` | Connection | | Required with `sql`. Secret. |
+| `auth.tenant_id` | Connection | | Directory (tenant) ID. Required with `service_principal`. |
+| `auth.client_id` | Connection | | Application (client) ID. Required with `service_principal`. With `managed_identity` it selects a user-assigned identity. |
+| `auth.client_secret` | Connection | | Required with `service_principal`. Secret. |
+| `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
+| `encrypt` | Connection | `true` | `true` encrypts the session and `strict` uses TDS 8.0. Azure SQL always encrypts. |
+| `schema` | Pipeline | `dbo` | Schema to read tables from. |
+| `shard_rows` | Pipeline | `1000000` | Rows per parallel shard. `0` reads each table on one connection. |
+| `max_conns` | Pipeline | | Maximum source connections. Set it to at least the run's parallelism. |
+| `isolation` | Pipeline | `auto` | `auto` uses snapshot isolation when the database allows it and read committed otherwise. `snapshot` requires it. `read_committed` never uses it. |
+
+Azure SQL Database allows snapshot isolation by default, so `auto` reads each
+shard at a consistent point in time.
+
+## Authentication
+
+`sql` signs in with a SQL login and password. The other types sign in with
+Microsoft Entra ID.
+
+- `service_principal` uses an application registration and its client secret.
+- `managed_identity` uses the managed identity of the host running the worker.
+  Leave `client_id` empty for a system-assigned identity.
+- `default` tries the Azure default credential chain in order. That covers
+  `AZURE_*` environment variables, AKS workload identity, managed identity and a
+  local `az login`.
+
+An Entra principal needs a database user before it can connect. Create one
+while signed in as an Entra administrator of the server.
+
+```sql
+CREATE USER [filament-app] FROM EXTERNAL PROVIDER;
+ALTER ROLE db_datareader ADD MEMBER [filament-app];
+```
+
+In `url` mode set the `fedauth` parameter to any workflow go-mssqldb supports,
+such as `sqlserver://myserver.database.windows.net?database=app&fedauth=ActiveDirectoryManagedIdentity`.
