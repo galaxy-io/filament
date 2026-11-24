@@ -128,7 +128,8 @@ storage credentials, then opens one Iceberg transaction:
 
 - **append** adds the data files written during the run.
 - **replace** removes every data file of the current snapshot and adds the
-  files written during the run, in one overwrite snapshot. A replace run that
+  files written during the run, in one overwrite snapshot. On a format version
+  3 table the removal and the new files are two snapshots in one commit. A replace run that
   produced **zero records still overwrites the table to empty**. An empty
   source empties the destination. Under the table's default serializable
   isolation, a data file another writer commits during the replace makes the

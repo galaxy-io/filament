@@ -45,8 +45,9 @@ type Sink struct {
 	policies  map[string]filament.WritePolicy
 	lifecycle sinkstate.Lifecycle
 	active    *stage
-	// uncertain is a failed table commit. It may still have reached the
-	// catalog, so the session cannot prove what the destination holds.
+	// uncertain is a failed commit that may still have reached the catalog, or
+	// that failed after another table committed. Replaying either can
+	// duplicate rows, so the session cannot close clean.
 	uncertain error
 
 	tableLocationRoot  string
@@ -219,13 +220,13 @@ func (s *Sink) promoteStage(ctx context.Context, st *stage) error {
 		}
 	}
 	if err := s.commitJobs(ctx, st, streamed, s.commitConcurrency); err != nil {
-		if isUncertainCommit(err) {
+		if isUncertainCommit(err) || len(st.committed) > 0 {
 			s.uncertain = err
 		}
 		return err
 	}
 	if err := s.commitJobs(ctx, st, rewrites, 1); err != nil {
-		if isUncertainCommit(err) {
+		if isUncertainCommit(err) || len(st.committed) > 0 {
 			s.uncertain = err
 		}
 		return err

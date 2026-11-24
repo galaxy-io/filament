@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -26,6 +27,7 @@ const streamQueue = 4
 // instead of writing the whole run. Files stay invisible until Commit adds them
 // to the table, and an aborted run deletes them.
 type streamedFiles struct {
+	mu        sync.Mutex // keeps the rotation timer from closing a stream mid-write
 	load      func(context.Context) (*icetable.Table, error)
 	current   *dataFileStream
 	files     []iceberg.DataFile
@@ -41,8 +43,10 @@ func newStreamedFiles(cat icecatalog.Catalog, ident icetable.Identifier) *stream
 
 // write conforms rows to the table schema and queues them for the writer.
 func (a *streamedFiles) write(ctx context.Context, rows arrow.RecordBatch) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	if a.current != nil && time.Since(a.current.started) >= streamRotateAfter {
-		if err := a.finishCurrent(); err != nil {
+		if err := a.finishCurrent(ctx); err != nil {
 			return err
 		}
 	}
@@ -55,6 +59,13 @@ func (a *streamedFiles) write(ctx context.Context, rows arrow.RecordBatch) error
 		if err != nil {
 			return err
 		}
+		// A resource that stops receiving rows still finishes its file before
+		// the credentials expire.
+		stream.expire = time.AfterFunc(streamRotateAfter, func() {
+			a.mu.Lock()
+			defer a.mu.Unlock()
+			stream.closeInput()
+		})
 		a.tbl, a.current = tbl, stream
 	}
 	rec, err := conform(rows, a.current.schema)
@@ -64,9 +75,16 @@ func (a *streamedFiles) write(ctx context.Context, rows arrow.RecordBatch) error
 	return a.current.write(ctx, rec)
 }
 
-func (a *streamedFiles) finishCurrent() error {
+func (a *streamedFiles) finishCurrent(ctx context.Context) error {
 	if a.current == nil {
 		return nil
+	}
+	a.current.closeInput()
+	select {
+	case <-a.current.done:
+	case <-ctx.Done():
+		// The stream stays current, so abort cancels its writer.
+		return ctx.Err()
 	}
 	files, err := a.current.finish()
 	a.files = append(a.files, files...)
@@ -74,17 +92,27 @@ func (a *streamedFiles) finishCurrent() error {
 	return err
 }
 
+// addFiles stages written data files as an append. AddDataFiles demands a
+// first_row_id on format v3 that written files do not carry, so a v3 table
+// takes them as a row delta and its snapshot assigns row lineage.
+func addFiles(ctx context.Context, txn *icetable.Transaction, tbl *icetable.Table, files []iceberg.DataFile) error {
+	if tbl.Metadata().Version() < 3 {
+		return txn.AddDataFiles(ctx, files, nil)
+	}
+	return txn.NewRowDelta(nil).AddRows(files...).Commit(ctx)
+}
+
 // commitAppend finishes writing and adds every file to the table in one
 // snapshot.
 func (a *streamedFiles) commitAppend(ctx context.Context, tbl *icetable.Table) (*icetable.Table, error) {
-	if err := a.finishCurrent(); err != nil {
+	if err := a.finishCurrent(ctx); err != nil {
 		return nil, fmt.Errorf("write data files: %w", err)
 	}
 	if len(a.files) == 0 {
 		return tbl, nil
 	}
 	txn := tbl.NewTransaction()
-	if err := txn.AddDataFiles(ctx, a.files, nil); err != nil {
+	if err := addFiles(ctx, txn, tbl, a.files); err != nil {
 		return nil, fmt.Errorf("add data files: %w", err)
 	}
 	a.attempted = true
@@ -99,7 +127,7 @@ func (a *streamedFiles) commitAppend(ctx context.Context, tbl *icetable.Table) (
 func (a *streamedFiles) commitReplace(ctx context.Context, tbl *icetable.Table) (*icetable.Table, error) {
 	var written []iceberg.DataFile
 	if a != nil {
-		if err := a.finishCurrent(); err != nil {
+		if err := a.finishCurrent(ctx); err != nil {
 			return nil, fmt.Errorf("write data files: %w", err)
 		}
 		written = a.files
@@ -112,13 +140,37 @@ func (a *streamedFiles) commitReplace(ctx context.Context, tbl *icetable.Table) 
 		return tbl, nil
 	}
 	txn := tbl.NewTransaction()
-	if err := txn.ReplaceDataFilesWithDataFiles(ctx, current, written, nil); err != nil {
+	if len(current) > 0 && tbl.Metadata().Version() < 3 {
+		err = txn.ReplaceDataFilesWithDataFiles(ctx, current, written, nil)
+	} else {
+		err = replacePinned(ctx, txn, tbl, current, written)
+	}
+	if err != nil {
 		return nil, fmt.Errorf("replace data files: %w", err)
 	}
 	if a != nil {
 		a.attempted = true
 	}
 	return commitTransaction(ctx, txn)
+}
+
+// replacePinned stages the replaces that add their files as an append: into an
+// empty table, and on format v3, where the current files are removed first. A
+// commit retry would replay that append over another writer's snapshot, so the
+// branch head is pinned and the commit fails instead.
+func replacePinned(ctx context.Context, txn *icetable.Transaction, tbl *icetable.Table, current, written []iceberg.DataFile) error {
+	if err := txn.AssertRefSnapshotID(""); err != nil {
+		return err
+	}
+	if len(current) > 0 {
+		if err := txn.ReplaceDataFilesWithDataFiles(ctx, current, nil, nil); err != nil {
+			return err
+		}
+	}
+	if len(written) == 0 {
+		return nil
+	}
+	return addFiles(ctx, txn, tbl, written)
 }
 
 // currentDataFiles lists the live data files of the table's current snapshot
@@ -184,8 +236,9 @@ type dataFileStream struct {
 	schema  *arrow.Schema
 	started time.Time
 	cancel  context.CancelFunc
+	expire  *time.Timer // closes the input once the stream is due to rotate
 	records chan arrow.RecordBatch
-	closed  bool
+	closed  sync.Once
 	done    chan struct{}
 	files   []iceberg.DataFile // valid after done
 	err     error              // valid after done
@@ -242,10 +295,8 @@ func (s *dataFileStream) write(ctx context.Context, rec arrow.RecordBatch) error
 }
 
 func (s *dataFileStream) closeInput() {
-	if !s.closed {
-		s.closed = true
-		close(s.records)
-	}
+	s.expire.Stop()
+	s.closed.Do(func() { close(s.records) })
 }
 
 // finish waits for queued batches to be written and returns the files.

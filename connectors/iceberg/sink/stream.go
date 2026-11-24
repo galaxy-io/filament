@@ -92,9 +92,10 @@ func (s *Sink) Abort(ctx context.Context) error {
 	return s.lifecycle.MarkAborted()
 }
 
-// Close is called after all Apply calls have joined. Only a failed table commit
-// leaves the destination uncertain. A failed write never reached the catalog,
-// so its session closes clean and the error it returned stands on its own.
+// Close is called after all Apply calls have joined. A failed table commit, or
+// a failure after another table committed, leaves the destination uncertain.
+// A failure before any commit never reached the catalog, so its session closes
+// clean and the error it returned stands on its own.
 func (s *Sink) Close(ctx context.Context) error {
 	if closed, err := s.lifecycle.Closed(); closed {
 		return err

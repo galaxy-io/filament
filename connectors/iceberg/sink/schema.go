@@ -72,7 +72,7 @@ func evolveSchema(ctx context.Context, tbl *icetable.Table, schema rowmodel.Sche
 }
 
 // createProperties is the property set for a table the sink creates. The update
-// mode sets both write.merge.mode and write.delete.mode; empty is merge-on-read.
+// mode sets both write.merge.mode and write.delete.mode; empty is copy-on-write.
 func createProperties(updateMode string) iceberg.Properties {
 	if updateMode == "" {
 		updateMode = icetable.WriteModeCopyOnWrite
