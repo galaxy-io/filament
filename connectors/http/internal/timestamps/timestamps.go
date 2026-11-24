@@ -14,7 +14,10 @@ import (
 )
 
 // Layouts are the timestamp spellings tried in order. RFC3339Nano first so
-// the common case parses without trying the rest.
+// the common case parses without trying the rest. RFC1123Z is last: Twilio
+// emits RFC 2822 dates (for example "Fri, 18 Oct 2019 17:00:00 +0000"),
+// and no ISO spelling can match that shape, so existing parsing cannot
+// change.
 var Layouts = []string{
 	time.RFC3339Nano,
 	"2006-01-02T15:04:05.999999999-0700",
@@ -22,6 +25,7 @@ var Layouts = []string{
 	"2006-01-02 15:04:05.999999999Z07:00",
 	"2006-01-02 15:04:05.999999999",
 	"2006-01-02",
+	time.RFC1123Z,
 }
 
 // Parse reads s as an instant, trying each layout in order.
