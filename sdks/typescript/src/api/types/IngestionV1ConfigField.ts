@@ -22,4 +22,15 @@ export interface IngestionV1ConfigField {
     fields?: Filament.IngestionV1ConfigField[] | undefined;
     /** visible_when conditionally includes this field based on a sibling field. */
     visibleWhen?: Filament.IngestionV1FieldCondition | undefined;
+    /**
+     * read_only marks a value the server or the platform sets. A form shows it
+     *  without an input.
+     */
+    readOnly?: boolean | undefined;
+    /**
+     * public_key_field makes a secret field an SSH private key and names the
+     *  sibling that receives its public half. The server generates the key when
+     *  none is supplied.
+     */
+    publicKeyField?: string | undefined;
 }
