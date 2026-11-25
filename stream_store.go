@@ -106,6 +106,11 @@ const (
 // successor on a newer release. The supervisor restarts it without backoff.
 const AttemptReasonUpgrade = "yielded for upgrade"
 
+// AttemptReasonShutdown is the clean end reason of an attempt whose worker was
+// asked to stop, as when its pod is evicted. The supervisor restarts it without
+// backoff.
+const AttemptReasonShutdown = "worker shut down"
+
 // EndAttemptRequest conditionally records termination under the owning lease.
 type EndAttemptRequest struct {
 	Lease       LeaseToken

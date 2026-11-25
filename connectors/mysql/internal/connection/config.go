@@ -9,9 +9,9 @@ const defaultPort = 3306
 
 // Fields returns the connection-scoped configuration shared by the MySQL
 // source and sink.
-func Fields() []filament.ConfigField {
+func Fields(reverseTunnelHost string) []filament.ConfigField {
 	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
-	return []filament.ConfigField{
+	return append([]filament.ConfigField{
 		dbconfig.MethodConfigField(),
 		dbconfig.DSNConfigField("MySQL URL or driver DSN"),
 		{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "MySQL server hostname"},
@@ -25,5 +25,5 @@ func Fields() []filament.ConfigField {
 			{Value: "true", Label: "Require"},
 			{Value: "skip-verify", Label: "Require, skip verification"},
 		}, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "MySQL TLS mode"},
-	}
+	}, dbconfig.TunnelConfigField(reverseTunnelHost))
 }

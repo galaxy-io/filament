@@ -1,17 +1,20 @@
+import type { RoleColor } from "@galaxy-io/dls/theme/tokens/types";
+
 import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
-import type { RunStatus } from "@/gen/ingestion/v1/runs_pb";
+import type { RunInfo } from "@/gen/ingestion/v1/runs_pb";
 import type { TimeseriesPoint } from "@/gen/metrics/v1/metrics_pb";
 
 export interface ObservabilityPipelinesCell {
   bucketStartMs: TimeseriesPoint["bucketStartMs"];
-  status: RunStatus | undefined;
+  liveRun: RunInfo | undefined;
   completed: number;
   failed: number;
   summary: string;
 }
 
 export interface ObservabilityPipelinesBarSegment {
-  status: RunStatus;
+  key: string;
+  hue: RoleColor | undefined;
   height: number;
 }
 

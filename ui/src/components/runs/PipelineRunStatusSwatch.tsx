@@ -9,15 +9,17 @@ import { getPipelineRunStatusHue } from "@/components/runs/utils";
 interface PipelineRunStatusSwatchProps {
   status: RunStatus;
   failedResources?: RunInfo["failedResources"];
+  executionStatus?: RunInfo["executionStatus"];
   size?: SquareSize;
 }
 
 const PipelineRunStatusSwatch: FC<PipelineRunStatusSwatchProps> = ({
   status,
   failedResources,
+  executionStatus,
   size,
-}) => {
-  return <Square size={size} color={getPipelineRunStatusHue(status, failedResources)} />;
-};
+}) => (
+  <Square size={size} color={getPipelineRunStatusHue(status, failedResources, executionStatus)} />
+);
 
 export default PipelineRunStatusSwatch;

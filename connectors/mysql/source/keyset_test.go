@@ -2,8 +2,11 @@ package mysql
 
 import (
 	"math"
+	"slices"
 	"strconv"
 	"testing"
+
+	"github.com/galaxy-io/filament/connectors/internal/dbconfig"
 )
 
 func TestIntBoundariesStayOrderedForWideKeys(t *testing.T) {
@@ -34,5 +37,28 @@ func TestIntBoundariesStayOrderedForWideKeys(t *testing.T) {
 				prev = b
 			}
 		})
+	}
+}
+
+func TestReverseTunnelHostAddsTheMethod(t *testing.T) {
+	methods := func(connector *Source) []string {
+		var values []string
+		for _, field := range connector.Spec().Config.Fields {
+			if field.Name != dbconfig.TunnelField {
+				continue
+			}
+			for _, option := range field.Fields[0].Enum {
+				values = append(values, option.Value)
+			}
+		}
+		return values
+	}
+	connector := New()
+	if got := methods(connector); slices.Contains(got, dbconfig.TunnelReverse) || !slices.Contains(got, dbconfig.TunnelSSH) {
+		t.Fatalf("methods without a host = %v", got)
+	}
+	connector.UseReverseTunnelHost("tunnel.internal")
+	if got := methods(connector); !slices.Contains(got, dbconfig.TunnelReverse) {
+		t.Fatalf("methods with a host = %v", got)
 	}
 }

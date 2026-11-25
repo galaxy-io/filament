@@ -276,6 +276,14 @@ persistence:
   # @ignore
   mysql: {}
 
+ssh:
+  reverse:
+    # -- Host where reverse SSH tunnels listen, stored in the worker ConfigMap as
+    # `SSH_REVERSE_TUNNEL_HOST`. Setting it adds the reverse SSH tunnel method to
+    # database connections, which dial this host on the port entered for the
+    # connection. Empty leaves the method out.
+    host: ""
+
 secrets:
   # -- Secret storage provider. `datastore` keeps secrets in the persistence
   # store and emits no `SECRET_PROVIDER`; external provider names are stored in

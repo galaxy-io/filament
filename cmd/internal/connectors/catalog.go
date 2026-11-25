@@ -21,7 +21,7 @@ func SourcesFromEnv(metrics filament.Metrics) (filament.SourceRegistry, error) {
 	if err != nil {
 		return nil, err
 	}
-	return withWebhookInbox(sources, metrics), nil
+	return withWebhookInbox(sourcesWithReverseTunnel(sources), metrics), nil
 }
 
 func catalogFromEnv() (*registry.Sources, error) {
@@ -57,13 +57,13 @@ func SinksFromEnv() (*registry.Sinks, error) {
 		return nil, err
 	}
 	if len(names) == 0 {
-		return registry.DefaultSinks, nil
+		return sinksWithReverseTunnel(registry.DefaultSinks), nil
 	}
 	only, err := registry.DefaultSinks.Only(names)
 	if err != nil {
 		return nil, fmt.Errorf("CONNECTOR_SINKS: %w", err)
 	}
-	return only, nil
+	return sinksWithReverseTunnel(only), nil
 }
 
 // connectorNames splits a comma-separated list of connector names. A blank

@@ -363,6 +363,8 @@ const (
 	FieldScope_FIELD_SCOPE_UNSPECIFIED FieldScope = 0
 	FieldScope_FIELD_SCOPE_CONNECTION  FieldScope = 1
 	FieldScope_FIELD_SCOPE_PIPELINE    FieldScope = 2
+	// FIELD_SCOPE_RESOURCE fields are set per resource on a pipeline edge.
+	FieldScope_FIELD_SCOPE_RESOURCE FieldScope = 3
 )
 
 // Enum value maps for FieldScope.
@@ -371,11 +373,13 @@ var (
 		0: "FIELD_SCOPE_UNSPECIFIED",
 		1: "FIELD_SCOPE_CONNECTION",
 		2: "FIELD_SCOPE_PIPELINE",
+		3: "FIELD_SCOPE_RESOURCE",
 	}
 	FieldScope_value = map[string]int32{
 		"FIELD_SCOPE_UNSPECIFIED": 0,
 		"FIELD_SCOPE_CONNECTION":  1,
 		"FIELD_SCOPE_PIPELINE":    2,
+		"FIELD_SCOPE_RESOURCE":    3,
 	}
 )
 
@@ -623,9 +627,16 @@ type ConfigField struct {
 	// means the object is intentionally free-form.
 	Fields []*ConfigField `protobuf:"bytes,9,rep,name=fields,proto3" json:"fields,omitempty"`
 	// visible_when conditionally includes this field based on a sibling field.
-	VisibleWhen   *FieldCondition `protobuf:"bytes,10,opt,name=visible_when,json=visibleWhen,proto3" json:"visible_when,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	VisibleWhen *FieldCondition `protobuf:"bytes,10,opt,name=visible_when,json=visibleWhen,proto3" json:"visible_when,omitempty"`
+	// read_only marks a value the server or the platform sets. A form shows it
+	// without an input.
+	ReadOnly bool `protobuf:"varint,11,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	// public_key_field makes a secret field an SSH private key and names the
+	// sibling that receives its public half. The server generates the key when
+	// none is supplied.
+	PublicKeyField string `protobuf:"bytes,12,opt,name=public_key_field,json=publicKeyField,proto3" json:"public_key_field,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ConfigField) Reset() {
@@ -726,6 +737,20 @@ func (x *ConfigField) GetVisibleWhen() *FieldCondition {
 		return x.VisibleWhen
 	}
 	return nil
+}
+
+func (x *ConfigField) GetReadOnly() bool {
+	if x != nil {
+		return x.ReadOnly
+	}
+	return false
+}
+
+func (x *ConfigField) GetPublicKeyField() string {
+	if x != nil {
+		return x.PublicKeyField
+	}
+	return ""
 }
 
 // EnumOption is one ordered choice for an enum or list config field.
@@ -907,7 +932,7 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a>\n" +
 	"\x10AnnotationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9a\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x03\n" +
 	"\vConfigField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12+\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x17.ingestion.v1.FieldTypeR\x04type\x12\x1a\n" +
@@ -919,7 +944,9 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x06secret\x18\b \x01(\bR\x06secret\x121\n" +
 	"\x06fields\x18\t \x03(\v2\x19.ingestion.v1.ConfigFieldR\x06fields\x12?\n" +
 	"\fvisible_when\x18\n" +
-	" \x01(\v2\x1c.ingestion.v1.FieldConditionR\vvisibleWhen\"8\n" +
+	" \x01(\v2\x1c.ingestion.v1.FieldConditionR\vvisibleWhen\x12\x1b\n" +
+	"\tread_only\x18\v \x01(\bR\breadOnly\x12(\n" +
+	"\x10public_key_field\x18\f \x01(\tR\x0epublicKeyField\"8\n" +
 	"\n" +
 	"EnumOption\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12\x14\n" +
@@ -962,12 +989,13 @@ const file_ingestion_v1_common_proto_rawDesc = "" +
 	"\x12WRITE_MODE_REPLACE\x10\x02\x12\x15\n" +
 	"\x11WRITE_MODE_UPSERT\x10\x03\x12\x14\n" +
 	"\x10WRITE_MODE_MERGE\x10\x04\x12\x15\n" +
-	"\x11WRITE_MODE_DELETE\x10\x05*_\n" +
+	"\x11WRITE_MODE_DELETE\x10\x05*y\n" +
 	"\n" +
 	"FieldScope\x12\x1b\n" +
 	"\x17FIELD_SCOPE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16FIELD_SCOPE_CONNECTION\x10\x01\x12\x18\n" +
-	"\x14FIELD_SCOPE_PIPELINE\x10\x02B\xac\x01\n" +
+	"\x14FIELD_SCOPE_PIPELINE\x10\x02\x12\x18\n" +
+	"\x14FIELD_SCOPE_RESOURCE\x10\x03B\xac\x01\n" +
 	"\x10com.ingestion.v1B\vCommonProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (

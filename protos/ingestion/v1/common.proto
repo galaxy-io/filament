@@ -97,6 +97,8 @@ enum FieldScope {
   FIELD_SCOPE_UNSPECIFIED = 0;
   FIELD_SCOPE_CONNECTION = 1;
   FIELD_SCOPE_PIPELINE = 2;
+  // FIELD_SCOPE_RESOURCE fields are set per resource on a pipeline edge.
+  FIELD_SCOPE_RESOURCE = 3;
 }
 
 // ConfigField describes one connector configuration field.
@@ -115,6 +117,13 @@ message ConfigField {
   repeated ConfigField fields = 9;
   // visible_when conditionally includes this field based on a sibling field.
   FieldCondition visible_when = 10;
+  // read_only marks a value the server or the platform sets. A form shows it
+  // without an input.
+  bool read_only = 11;
+  // public_key_field makes a secret field an SSH private key and names the
+  // sibling that receives its public half. The server generates the key when
+  // none is supplied.
+  string public_key_field = 12;
 }
 
 // EnumOption is one ordered choice for an enum or list config field.

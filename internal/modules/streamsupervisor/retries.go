@@ -45,7 +45,7 @@ func (s *Supervisor) retryPolicy(state filament.StreamState) (time.Duration, boo
 	a := state.Attempt
 	if a != nil && a.EndedAt != nil && a.Lease.Attempt.Token != r.endedToken {
 		r.endedToken = a.Lease.Attempt.Token
-		if a.Reason == "" || a.Reason == filament.AttemptReasonUpgrade {
+		if a.Reason == "" || restartsWithoutBackoff(a.Reason) {
 			r.failures = 0
 		} else {
 			r.failures++
@@ -54,12 +54,18 @@ func (s *Supervisor) retryPolicy(state filament.StreamState) (time.Duration, boo
 	if r.failures > maxRetries {
 		return 0, true
 	}
-	// An attempt that yielded for an upgrade ended on purpose, so its successor starts at once.
-	if a != nil && a.EndedAt != nil && a.Reason == filament.AttemptReasonUpgrade && r.failures < 1 {
+	// A yield or a shutdown is not a failure, so its successor starts at once.
+	if a != nil && a.EndedAt != nil && restartsWithoutBackoff(a.Reason) && r.failures < 1 {
 		return 0, false
 	}
 	if r.failures < 1 {
 		return 5 * time.Second, false
 	}
 	return 5 * time.Second * time.Duration(1<<(r.failures-1)), false
+}
+
+// restartsWithoutBackoff reports an end the worker was asked for, a yield for
+// an upgrade or a shutdown, which does not count as a failed attempt.
+func restartsWithoutBackoff(reason string) bool {
+	return reason == filament.AttemptReasonUpgrade || reason == filament.AttemptReasonShutdown
 }

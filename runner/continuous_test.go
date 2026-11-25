@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"slices"
@@ -77,7 +78,14 @@ type continuousTestSource struct {
 	op                 rowmodel.Operation
 	keys               []string
 	idle               bool
+	idleWait           time.Duration
 	started            sync.Once
+	// records, when set, is how many reads return a record before reads block.
+	records, produced int
+	// openBlocks holds OpenStream until its context ends.
+	openBlocks bool
+	// readErr replaces the context error a blocked read returns.
+	readErr error
 	filament.Source
 	store  *continuousTestStore
 	writer arrowbatch.RowWriter
@@ -96,8 +104,13 @@ func (*continuousTestSource) Spec() filament.ConnectorSpec {
 
 func (*continuousTestSource) Configure(context.Context, filament.Config) error { return nil }
 func (*continuousTestSource) Teardown(context.Context) error                   { return nil }
-func (s *continuousTestSource) OpenStream(_ context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
+func (s *continuousTestSource) OpenStream(ctx context.Context, opts filament.StreamOpenOpts) (filament.StreamSession, error) {
 	s.sourceConnectionID = opts.SourceConnectionID
+	if s.openBlocks {
+		close(s.opened)
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	return s, nil
 }
 func (s *continuousTestSource) Close(context.Context) error { return nil }
@@ -107,15 +120,23 @@ func (s *continuousTestSource) Read(ctx context.Context, out filament.StreamReco
 		select {
 		case <-ctx.Done():
 			return filament.Coverage{}, ctx.Err()
-		case <-time.After(10 * time.Millisecond):
+		case <-time.After(cmp.Or(s.idleWait, 10*time.Millisecond)):
 			return filament.Coverage{}, nil
 		}
 	}
-	if s.block {
-		close(s.opened)
+	if s.block || (s.records > 0 && s.produced >= s.records) {
+		s.started.Do(func() {
+			if s.opened != nil {
+				close(s.opened)
+			}
+		})
 		<-ctx.Done()
+		if s.readErr != nil {
+			return filament.Coverage{}, s.readErr
+		}
 		return filament.Coverage{}, ctx.Err()
 	}
+	s.produced++
 	if s.writer == nil {
 		var err error
 		s.writer, err = out.Builder("events", 0, rowmodel.Schema{Resource: "events", Fields: []rowmodel.Field{{Name: "value", Logical: rowmodel.LogicalString}}})
@@ -147,10 +168,11 @@ func (s *continuousTestSource) Acknowledge(context.Context, filament.Coverage) e
 
 type continuousTestSink struct {
 	filament.Sink
-	ref     filament.EpochRef
-	rows    int64
-	commits int
-	fail    bool
+	ref        filament.EpochRef
+	rows       int64
+	commits    int
+	fail       bool
+	closeDelay time.Duration
 }
 
 func (*continuousTestSink) Spec() filament.SinkSpec {
@@ -176,7 +198,10 @@ func (s *continuousTestSink) Commit(context.Context) error {
 	return nil
 }
 func (*continuousTestSink) Abort(context.Context) error { return nil }
-func (*continuousTestSink) Close(context.Context) error { return nil }
+func (s *continuousTestSink) Close(context.Context) error {
+	time.Sleep(s.closeDelay)
+	return nil
+}
 
 func continuousFixture(t *testing.T) (ContinuousConfig, *continuousTestStore, *continuousTestSource, *continuousTestSink) {
 	t.Helper()
@@ -236,7 +261,7 @@ func TestContinuousLeaseRenewalDuringBlockedRead(t *testing.T) {
 			store.mu.Unlock()
 			if n >= 3 {
 				cancel()
-				if err := <-done; !errors.Is(err, context.Canceled) {
+				if err := <-done; err != nil {
 					t.Fatal(err)
 				}
 				return
@@ -288,10 +313,155 @@ func TestContinuousIdleStopAndLeaseLoss(t *testing.T) {
 			store.mu.Lock()
 			termination := store.state.Attempt.Termination
 			store.mu.Unlock()
-			if mode == "pause" && termination != filament.AttemptClean {
-				t.Fatalf("clean pause: %s", termination)
+			// Cleanup joined everything in every mode, so closure is proven.
+			if termination != filament.AttemptClean {
+				t.Fatalf("%s ended %s, want clean", mode, termination)
 			}
 		})
+	}
+}
+
+func TestContinuousShutdownStopsReadAndEndsClean(t *testing.T) {
+	cfg, store, src, _ := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.block = true
+	src.opened = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if src.ack != 0 {
+		t.Fatal("interrupted read acknowledged input")
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != filament.AttemptReasonShutdown {
+		t.Fatalf("shutdown ended %s %q, want clean worker shut down", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
+func TestContinuousShutdownDuringStartupEndsClean(t *testing.T) {
+	cfg, store, src, sink := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.openBlocks = true
+	src.opened = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if sink.commits != 0 {
+		t.Fatal("interrupted startup wrote to the sink")
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != filament.AttemptReasonShutdown {
+		t.Fatalf("shutdown ended %s %q, want clean worker shut down", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
+// A read that fails on its own while the worker shuts down keeps its error.
+func TestContinuousShutdownKeepsUnrelatedReadError(t *testing.T) {
+	cfg, store, src, _ := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	src.block = true
+	src.opened = make(chan struct{})
+	src.readErr = errors.New("source failed")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	cancel()
+	if err := <-done; !errors.Is(err, src.readErr) {
+		t.Fatalf("RunContinuous = %v, want the source failure", err)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || !strings.Contains(store.state.Attempt.Reason, "source failed") {
+		t.Fatalf("ended %s %q, want clean with the source failure", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
+// blockingCommitSink holds Commit open so a test can act while it is in progress.
+type blockingCommitSink struct {
+	continuousTestSink
+	started, release chan struct{}
+}
+
+func (s *blockingCommitSink) Commit(ctx context.Context) error {
+	close(s.started)
+	<-s.release
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.continuousTestSink.Commit(ctx)
+}
+
+func TestContinuousShutdownFinishesCommitInProgress(t *testing.T) {
+	cfg, store, src, _ := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	// Shutdown is recorded asynchronously, so the loop may start another epoch
+	// after the commit is released. Its read blocks, and shutdown interrupts it.
+	src.records = 1
+	sink := &blockingCommitSink{started: make(chan struct{}), release: make(chan struct{})}
+	cfg.Sink = sink
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-sink.started
+	cancel()
+	close(sink.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if sink.commits != 1 || src.ack != 1 {
+		t.Fatalf("commits=%d acks=%d, want the commit in progress certified and acknowledged", sink.commits, src.ack)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != filament.AttemptReasonShutdown {
+		t.Fatalf("shutdown ended %s %q, want clean worker shut down", store.state.Attempt.Termination, store.state.Attempt.Reason)
+	}
+}
+
+// A drain that reaches cleanup in time stays clean when cleanup itself
+// outlasts the drain deadline.
+func TestContinuousDrainDeadlineStopsAtCleanup(t *testing.T) {
+	cfg, store, src, sink := continuousFixture(t)
+	cfg.MaxEpochs = 0
+	// The read ends a second before the deadline, cleanup spans the deadline,
+	// and cleanup finishes well inside its own budget.
+	cfg.DrainTimeout = 2 * time.Second
+	src.opened = make(chan struct{})
+	src.idle = true
+	src.idleWait = time.Second
+	sink.closeDelay = 1300 * time.Millisecond
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- RunContinuous(ctx, cfg) }()
+	<-src.opened
+	store.mu.Lock()
+	store.state.Desired = filament.StreamPaused
+	store.mu.Unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	if store.state.Attempt.Termination != filament.AttemptClean || store.state.Attempt.Reason != "" {
+		t.Fatalf("pause ended %s %q, want clean", store.state.Attempt.Termination, store.state.Attempt.Reason)
 	}
 }
 
@@ -664,17 +834,59 @@ func TestContinuousUsesFreshFiniteSinks(t *testing.T) {
 	}
 }
 
+type specSink struct {
+	filament.Sink
+	spec filament.SinkSpec
+}
+
+func (s specSink) Spec() filament.SinkSpec { return s.spec }
+
+type boundedSink struct{ specSink }
+
+func (boundedSink) EpochBoundary(cfg filament.Config) (filament.Boundary, error) {
+	if cfg.Duration("interval") <= 0 {
+		return filament.Boundary{}, errors.New("interval required")
+	}
+	return filament.Boundary{MaxWait: cfg.Duration("interval"), MaxAge: cfg.Duration("interval")}, nil
+}
+
 func TestContinuousBoundaryAmortizesFreshSessions(t *testing.T) {
-	single := filament.SinkSpec{}
-	reusable := filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true}}
-	if got := continuousBoundary(filament.RunOptions{}, single); got.MaxWait != 30*time.Second || got.MaxAge != 30*time.Second || got.MaxRecords != 100_000 {
+	boundary := func(options filament.RunOptions, sink filament.Sink, cfg map[string]any) filament.Boundary {
+		t.Helper()
+		b, err := continuousBoundary(options, sink, filament.NewConfig(cfg))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	single := specSink{}
+	reusable := specSink{spec: filament.SinkSpec{Capabilities: filament.SinkCapabilities{ReusableSession: true}}}
+	if got := boundary(filament.RunOptions{}, single, nil); got.MaxWait != 30*time.Second || got.MaxAge != 30*time.Second || got.MaxRecords != 100_000 {
 		t.Fatal(got)
 	}
-	if got := continuousBoundary(filament.RunOptions{}, reusable); got.MaxWait != time.Second || got.MaxAge != time.Second || got.MaxRecords != 1000 {
+	if got := boundary(filament.RunOptions{}, reusable, nil); got.MaxWait != time.Second || got.MaxAge != time.Second || got.MaxRecords != 1000 {
 		t.Fatal(got)
 	}
 	custom := filament.Boundary{MaxRecords: 10, MaxWait: 2 * time.Second}
-	if got := continuousBoundary(filament.RunOptions{EpochBoundary: &custom}, single); got != custom {
+	if got := boundary(filament.RunOptions{EpochBoundary: &custom}, single, nil); got != custom {
 		t.Fatal(got)
+	}
+	preferred := filament.Boundary{MaxRecords: 1_000_000, MaxWait: time.Minute, MaxAge: time.Minute}
+	tuned := specSink{spec: filament.SinkSpec{Capabilities: filament.SinkCapabilities{PreferredEpochBoundary: &preferred}}}
+	if got := boundary(filament.RunOptions{}, tuned, nil); got != preferred {
+		t.Fatal(got)
+	}
+	if got := boundary(filament.RunOptions{EpochBoundary: &custom}, tuned, nil); got != custom {
+		t.Fatal(got)
+	}
+	configured := boundedSink{tuned}
+	if got := boundary(filament.RunOptions{}, configured, map[string]any{"interval": "5m"}); got.MaxWait != 5*time.Minute || got.MaxAge != 5*time.Minute {
+		t.Fatal(got)
+	}
+	if got := boundary(filament.RunOptions{EpochBoundary: &custom}, configured, map[string]any{"interval": "5m"}); got != custom {
+		t.Fatal(got)
+	}
+	if _, err := continuousBoundary(filament.RunOptions{}, configured, filament.NewConfig(nil)); err == nil {
+		t.Fatal("expected configured boundary error")
 	}
 }

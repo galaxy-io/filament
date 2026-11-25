@@ -1,6 +1,11 @@
 package iceberg
 
 import (
+	"fmt"
+	"time"
+
+	icetable "github.com/apache/iceberg-go/table"
+
 	"github.com/galaxy-io/filament"
 	icebergcatalog "github.com/galaxy-io/filament/connectors/iceberg/internal/catalog"
 )
@@ -17,11 +22,18 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Config: filament.ConfigSchema{Fields: append(icebergcatalog.Fields(), []filament.ConfigField{
 			{Name: "namespace", Type: filament.FieldString, Default: defaultNamespace, Scope: filament.ScopePipeline, Help: "Destination namespace (database) for this pipeline's tables. Empty defaults to the normalized source connection name."},
 			{Name: "stage_buffer_limit_mb", Type: filament.FieldInt, Scope: filament.ScopePipeline, Help: "Staging buffer flush threshold in MiB."},
+			{Name: "commit_interval", Type: filament.FieldDuration, Default: "1m", Scope: filament.ScopePipeline, Help: "How often a continuous run commits to the table"},
+			{Name: "commit_concurrency", Type: filament.FieldInt, Default: defaultCommitConcurrency, Scope: filament.ScopePipeline, Help: "Append and replace tables committed at once at the end of a run or boundary; 1 through 64. Upsert, delete, and merge tables commit one at a time."},
+			{Name: "update_mode", Type: filament.FieldEnum, Default: icetable.WriteModeCopyOnWrite, Enum: updateModeOptions, Scope: filament.ScopePipeline, Help: "How tables this pipeline creates apply updates and deletes. Use copy-on-write when a query engine cannot read equality deletes."},
+			{Name: "update_mode", Type: filament.FieldEnum, Enum: updateModeOptions, Scope: filament.ScopeResource, Help: "Overrides the pipeline's update mode for this table. Applies when the table is created."},
+			{Name: "partition_by", Type: filament.FieldList, Scope: filament.ScopeResource, Help: "Partitions this table when it is created. Each entry is a column or an Iceberg transform of one, such as day(created_at) or bucket[16](id)."},
 		}...)},
 		SchemaField: "namespace",
 		Capabilities: filament.SinkCapabilities{
-			Schematized:         true,
-			PreferredBatchBytes: defaultStageBufLimitBytes,
+			Schematized:            true,
+			PreferredBatchRows:     100_000,
+			PreferredBatchBytes:    defaultStageBufLimitBytes,
+			PreferredEpochBoundary: new(commitBoundary(defaultCommitInterval, defaultStageBufLimitBytes)),
 			WritePolicies: commitDurableCapabilities(
 				filament.IngestionFullReplace,
 				filament.IngestionFullAppend,
@@ -35,6 +47,22 @@ func (s *Sink) Spec() filament.SinkSpec {
 	}
 }
 
+var updateModeOptions = []filament.EnumOption{
+	{Value: icetable.WriteModeMergeOnRead, Label: "Merge-on-read"},
+	{Value: icetable.WriteModeCopyOnWrite, Label: "Copy-on-write"},
+}
+
+// updateMode reads update_mode from a pipeline or resource config. Empty
+// means the config does not set one.
+func updateMode(cfg filament.Config) (string, error) {
+	switch mode := cfg.String("update_mode"); mode {
+	case "", icetable.WriteModeMergeOnRead, icetable.WriteModeCopyOnWrite:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("unsupported update mode %q", mode)
+	}
+}
+
 func commitDurableCapabilities(types ...filament.IngestionType) []filament.WritePolicyCapability {
 	capabilities := filament.WriteCapabilities(types...)
 	for i := range capabilities {
@@ -42,4 +70,32 @@ func commitDurableCapabilities(types ...filament.IngestionType) []filament.Write
 		capabilities[i].Atomicity = filament.AtomicityResource
 	}
 	return capabilities
+}
+
+// EpochBoundary sets a continuous run's commit cadence from commit_interval
+// and stage_buffer_limit_mb.
+func (s *Sink) EpochBoundary(cfg filament.Config) (filament.Boundary, error) {
+	bufLimit := int64(defaultStageBufLimitBytes)
+	if mb := cfg.Int("stage_buffer_limit_mb"); mb > 0 {
+		bufLimit = int64(mb) << 20
+	}
+	if v := cfg.Raw()["commit_interval"]; v == nil || v == "" {
+		return commitBoundary(defaultCommitInterval, bufLimit), nil
+	}
+	interval := cfg.Duration("commit_interval")
+	if interval <= 0 {
+		return filament.Boundary{}, fmt.Errorf("iceberg sink: commit_interval must be a positive duration")
+	}
+	return commitBoundary(interval, bufLimit), nil
+}
+
+// commitBoundary ends an epoch, and so a table snapshot, at the interval or
+// when the stage buffer fills.
+func commitBoundary(interval time.Duration, bufLimit int64) filament.Boundary {
+	return filament.Boundary{
+		MaxRecords: 1_000_000,
+		MaxBytes:   bufLimit,
+		MaxWait:    interval,
+		MaxAge:     interval,
+	}
 }

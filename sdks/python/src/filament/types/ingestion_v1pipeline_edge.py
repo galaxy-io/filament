@@ -11,6 +11,7 @@ from .ingestion_v1read_mode import IngestionV1ReadMode
 from .ingestion_v1resource_column_selection import IngestionV1ResourceColumnSelection
 from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
 from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
+from .ingestion_v1resource_sink_config import IngestionV1ResourceSinkConfig
 from .ingestion_v1write_mode import IngestionV1WriteMode
 
 
@@ -79,6 +80,21 @@ class IngestionV1PipelineEdge(UniversalBaseModel):
      all-resource edge may configure several resources; a resource-specific
      edge may configure only its own resource. An omitted resource backfills
      every partition, and an empty selection backfills none.
+    """
+
+    sink_configs: typing_extensions.Annotated[
+        typing.Optional[typing.List[IngestionV1ResourceSinkConfig]],
+        FieldMetadata(alias="sinkConfigs"),
+        pydantic.Field(
+            alias="sinkConfigs",
+            description="sink_configs holds the sink's resource-scoped config for each resource.\n An all-resource edge may configure several resources; a resource-specific\n edge may configure only its own resource. An omitted resource uses the\n sink's defaults.",
+        ),
+    ] = None
+    """
+    sink_configs holds the sink's resource-scoped config for each resource.
+     An all-resource edge may configure several resources; a resource-specific
+     edge may configure only its own resource. An omitted resource uses the
+     sink's defaults.
     """
 
     if IS_PYDANTIC_V2:
