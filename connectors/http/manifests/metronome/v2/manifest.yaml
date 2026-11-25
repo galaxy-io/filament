@@ -56,6 +56,33 @@ includes:
   - resources/administration.yaml
   - resources/optional.yaml
   - resources/legacy.yaml
+  - resources/webhooks.yaml
+# Metronome signs each delivery with HMAC-SHA256 over X-Metronome-Date, a
+# newline and the body, sent as hex in Metronome-Webhook-Signature. The
+# payload id names one triggered notification and stays the same on every
+# delivery attempt, so it deduplicates retries. One destination receives every
+# notification type, so deliveries are routed by the body's type. Metronome
+# creates each webhook's signing secret, so the connection is given it.
+# https://docs.metronome.com/guides/platform-configuration/webhooks/best-practices
+# https://docs.metronome.com/guides/platform-configuration/webhooks/monitor-webhooks
+webhook:
+  verifier:
+    profile: hmac
+    params:
+      signature: {header: Metronome-Webhook-Signature}
+      timestamp: {header: X-Metronome-Date, format: http_date}
+      signed: "{timestamp}\n{body}"
+      delivery_id: {body: id}
+  route:
+    event: {body: type}
+  secret: provider
+  setup: |
+    In Metronome, open **Developer** > **Notifications** > **Webhooks**, choose **Add** and set the URL to {{delivery_url}}.
+
+    Metronome creates a signing secret for each webhook. Copy it into this connection's signing key. Each Metronome webhook has its own secret, so point one webhook at each connection, and use a separate connection for each Metronome environment.
+
+    Every notification type the destination receives is routed by its type. System and offset notifications for contracts, commits, credits, subscriptions and voided invoices go to `system_notifications_webhook`. Threshold alerts, finalized invoices, billing provider and integration errors, marketplace and payment gating notifications go to `notifications_webhook`.
+
 discovery:
   mode: static
   default_resources:

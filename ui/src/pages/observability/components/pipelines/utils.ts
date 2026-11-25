@@ -4,6 +4,9 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 import { RunStatus } from "@/gen/ingestion/v1/runs_pb";
 import type { MetricGranularity, Timeseries } from "@/gen/metrics/v1/metrics_pb";
 
+import { PIPELINE_RUN_STATUS_TO_HUE_MAP } from "@/components/runs/constants";
+import { getPipelineRunStatusHue, getPipelineRunStatusLabel } from "@/components/runs/utils";
+
 import {
   OBSERVABILITY_PIPELINES_BAR_GAP,
   OBSERVABILITY_PIPELINES_BAR_HEIGHT,
@@ -21,10 +24,7 @@ import {
   OBSERVABILITY_TIMEFRAME_TO_LABEL_MAP,
   OBSERVABILITY_TIMEFRAME_TO_QUERY_MAP,
 } from "@/pages/observability/constants";
-import {
-  ObservabilityPipelineHealth,
-  type ObservabilityTimeframe,
-} from "@/pages/observability/types";
+import type { ObservabilityTimeframe } from "@/pages/observability/types";
 import {
   createTimeframeSince,
   formatBucketKey,
@@ -32,6 +32,8 @@ import {
   getBucketOffset,
   getObservabilityBucketCount,
 } from "@/pages/observability/utils";
+
+import { isRunActive } from "@/utils/runs";
 
 export const getObservabilityPipelinesTrackWidth = (bucketCount: number) =>
   bucketCount * OBSERVABILITY_PIPELINES_BAR_WIDTH +
@@ -58,29 +60,18 @@ export const mapObservabilityPipelinesSeries = (
     ]),
   );
 
-const getObservabilityPipelinesCellStatus = (
-  isRunning: boolean,
-  failed: number,
-  completed: number,
-) => {
-  if (isRunning) {
-    return RunStatus.RUNNING;
-  }
-  if (failed > 0) {
-    return RunStatus.FAILED;
-  }
-  if (completed > 0) {
-    return RunStatus.COMPLETED;
-  }
-  return undefined;
-};
-
 const formatObservabilityPipelinesCellSummary = (
-  { bucketStartMs, status, completed, failed }: Omit<ObservabilityPipelinesCell, "summary">,
+  { bucketStartMs, liveRun, completed, failed }: Omit<ObservabilityPipelinesCell, "summary">,
   granularity: MetricGranularity,
 ) => {
   const parts = [
-    status === RunStatus.RUNNING ? "running" : undefined,
+    liveRun
+      ? getPipelineRunStatusLabel(
+          liveRun.status,
+          liveRun.failedResources,
+          liveRun.executionStatus,
+        ).toLowerCase()
+      : undefined,
     completed > 0 ? `${completed} completed` : undefined,
     failed > 0 ? `${failed} failed` : undefined,
   ].filter((part) => part !== undefined);
@@ -90,7 +81,6 @@ const formatObservabilityPipelinesCellSummary = (
 
 export const createObservabilityPipelinesCells = (
   pipeline: Pipeline,
-  health: ObservabilityPipelineHealth,
   timeframe: ObservabilityTimeframe,
   bucketStartMs: number,
   completedCounts: ObservabilityPipelinesCounts,
@@ -101,6 +91,8 @@ export const createObservabilityPipelinesCells = (
   const failed = failedCounts.get(pipeline.id);
   const since = new Date(Number(createTimeframeSince(timeframe, bucketStartMs)));
   const bucketCount = getObservabilityBucketCount(timeframe);
+  const { lastRun } = pipeline;
+  const activeRun = lastRun && isRunActive(lastRun) ? lastRun : undefined;
 
   return Array.from({ length: bucketCount }, (_, index) => {
     const cellStartMs = BigInt(getBucketOffset(granularity, since, index));
@@ -109,11 +101,7 @@ export const createObservabilityPipelinesCells = (
     const failedCount = failed?.get(bucketKey) ?? 0;
     const cell = {
       bucketStartMs: cellStartMs,
-      status: getObservabilityPipelinesCellStatus(
-        health === ObservabilityPipelineHealth.RUNNING && index === bucketCount - 1,
-        failedCount,
-        completedCount,
-      ),
+      liveRun: index === bucketCount - 1 ? activeRun : undefined,
       completed: completedCount,
       failed: failedCount,
     };
@@ -122,19 +110,21 @@ export const createObservabilityPipelinesCells = (
 };
 
 export const createObservabilityPipelinesBarSegments = ({
-  status,
+  liveRun,
   completed,
   failed,
 }: ObservabilityPipelinesCell): ObservabilityPipelinesBarSegment[] => {
   const total = completed + failed;
+  const liveHue = liveRun
+    ? getPipelineRunStatusHue(liveRun.status, liveRun.failedResources, liveRun.executionStatus)
+    : undefined;
   if (total === 0) {
-    return status === RunStatus.RUNNING
-      ? [{ status: RunStatus.RUNNING, height: OBSERVABILITY_PIPELINES_BAR_HEIGHT }]
+    return liveRun
+      ? [{ key: "live", hue: liveHue, height: OBSERVABILITY_PIPELINES_BAR_HEIGHT }]
       : [];
   }
-  const runningHeight =
-    status === RunStatus.RUNNING ? OBSERVABILITY_PIPELINES_BAR_RUNNING_HEIGHT : 0;
-  const height = OBSERVABILITY_PIPELINES_BAR_HEIGHT - runningHeight;
+  const liveHeight = liveRun ? OBSERVABILITY_PIPELINES_BAR_RUNNING_HEIGHT : 0;
+  const height = OBSERVABILITY_PIPELINES_BAR_HEIGHT - liveHeight;
   const failedHeight =
     failed === 0
       ? 0
@@ -143,8 +133,16 @@ export const createObservabilityPipelinesBarSegments = ({
           Math.max(1, Math.round((height * failed) / total)),
         );
   return [
-    { status: RunStatus.RUNNING, height: runningHeight },
-    { status: RunStatus.FAILED, height: failedHeight },
-    { status: RunStatus.COMPLETED, height: height - failedHeight },
+    { key: "live", hue: liveHue, height: liveHeight },
+    {
+      key: "failed",
+      hue: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.FAILED],
+      height: failedHeight,
+    },
+    {
+      key: "completed",
+      hue: PIPELINE_RUN_STATUS_TO_HUE_MAP[RunStatus.COMPLETED],
+      height: height - failedHeight,
+    },
   ].filter((segment) => segment.height > 0);
 };

@@ -45,7 +45,8 @@ server mode="": migrate
       WEBHOOK_INBOX_MAX_BYTES="${WEBHOOK_INBOX_MAX_BYTES:-1073741824}" \
       WEBHOOK_INBOX_MAX_MESSAGE_BYTES="${WEBHOOK_INBOX_MAX_MESSAGE_BYTES:-2097152}" \
       WEBHOOK_INBOX_REPLICAS="${WEBHOOK_INBOX_REPLICAS:-1}" \
-      WEBHOOK_PUBLIC_BASE_URL="${WEBHOOK_PUBLIC_BASE_URL:-http://localhost:8080}" \
+      WEBHOOK_ADDR="${WEBHOOK_ADDR:-:8088}" \
+      WEBHOOK_PUBLIC_BASE_URL="${WEBHOOK_PUBLIC_BASE_URL:-http://localhost:8088}" \
       AUTH_PROVIDER="${AUTH_PROVIDER:-{{ mode }}}" \
       AUTH_ISSUER="${AUTH_ISSUER:-{{ if mode == "keycloak" { "http://localhost:8400/realms/filament" } else { "http://localhost:8300" } }}}" \
       AUTH_PAT="${AUTH_PAT:-$(cat {{ justfile_directory() }}/.zitadel/pat 2>/dev/null)}" \
@@ -123,7 +124,7 @@ sdks: proto
 
 # Tidy go.mod
 [group('code')]
-tidy: (_each "GOWORK=off go mod tidy")
+tidy: && (_each "GOWORK=off go mod tidy")
     go work sync
 
 # Build everything

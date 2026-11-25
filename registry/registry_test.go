@@ -276,3 +276,40 @@ func TestRejectSingleWriteStreamSink(t *testing.T) {
 	}()
 	NewSinks().Register("invalid", func() filament.Sink { return &singleStreamSink{} })
 }
+
+func TestConfiguredRegistryPreparesEveryProvider(t *testing.T) {
+	sources := NewSources()
+	sources.RegisterWithPreview("example@v1", true, func() filament.Source { return &specSource{name: "example@v1"} })
+	sources.RegisterAlias("example", "example@v1")
+	configured := sources.Configured(func(source filament.Source) { source.(*specSource).name = "configured" })
+
+	resolved, err := configured.Resolve("example")
+	if err != nil || resolved.Spec().Name != "configured" {
+		t.Fatalf("resolved = %+v, %v", resolved, err)
+	}
+	// The catalog names the registration, and the spec it carries was built
+	// from a configured source.
+	spec, err := configured.Spec("example@v1")
+	if err != nil || spec.Name != "configured" || !spec.IsPreview {
+		t.Fatalf("spec = %+v, %v", spec, err)
+	}
+	if specs := configured.Specs(); len(specs) != 2 || specs[0].AliasTarget != "example@v1" {
+		t.Fatalf("specs = %+v", specs)
+	}
+	if original, err := sources.Resolve("example"); err != nil || original.Spec().Name != "example@v1" {
+		t.Fatalf("the receiver must stay as it was: %+v, %v", original, err)
+	}
+
+	sinks := NewSinks()
+	sinks.Register("example", func() filament.Sink { return &specSink{} })
+	prepared := 0
+	if _, err := sinks.Configured(func(filament.Sink) { prepared++ }).Resolve("example"); err != nil || prepared != 1 {
+		t.Fatalf("sink prepared %d times, %v", prepared, err)
+	}
+}
+
+type specSink struct {
+	filament.Sink
+}
+
+func (*specSink) Spec() filament.SinkSpec { return filament.SinkSpec{Name: "example"} }

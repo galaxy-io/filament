@@ -8,9 +8,15 @@ import Tooltip from "@galaxy-io/dls/tooltip/Tooltip";
 
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
+import { WEBHOOK_DELIVERY_URL_UNAVAILABLE_MESSAGE } from "@/components/webhooks/constants";
 import { createWebhookDeliveryUrl } from "@/components/webhooks/utils";
 
-import { createGetWebhookEndpointInput, useGetWebhookEndpointQuery } from "@/api/queries/webhooks";
+import {
+  createGetWebhookDeliveryURLInput,
+  useGetWebhookDeliveryURLQuery,
+} from "@/api/queries/webhooks";
+
+import { getErrorMessage } from "@/utils/errors";
 
 interface WebhookDeliveryUrlCopyButtonProps {
   sourceConnectionId: Connection["id"];
@@ -21,24 +27,26 @@ const WebhookDeliveryUrlCopyButton: FC<WebhookDeliveryUrlCopyButtonProps> = ({
   sourceConnectionId,
   resource,
 }) => {
-  const { data, isLoading } = useGetWebhookEndpointQuery({
-    input: createGetWebhookEndpointInput(sourceConnectionId),
+  const { data, error, isError, isLoading } = useGetWebhookDeliveryURLQuery({
+    input: createGetWebhookDeliveryURLInput(sourceConnectionId),
     options: { retry: false },
   });
-  const deliveryUrl = createWebhookDeliveryUrl(resource, data?.endpoint?.deliveryUrl);
+  const deliveryUrl = createWebhookDeliveryUrl(resource, data?.deliveryUrl);
 
   return (
     <Tooltip
       body={
         <Text size={TextSize.BODY_SM} family={FontFamily.MONO}>
-          {deliveryUrl ?? "Delivery URL unavailable. Configure WEBHOOK_PUBLIC_BASE_URL."}
+          {isError
+            ? getErrorMessage(error, "Could not load the delivery URL")
+            : (deliveryUrl ?? WEBHOOK_DELIVERY_URL_UNAVAILABLE_MESSAGE)}
         </Text>
       }
     >
       <CopyButton
         label="Copy URL"
         value={deliveryUrl ?? ""}
-        ariaLabel={`Copy ${resource} delivery URL`}
+        ariaLabel={resource ? `Copy URL for ${resource}` : undefined}
         variant={ButtonVariant.SECONDARY}
         size={ButtonSize.SMALL}
         isDisabled={isLoading || !deliveryUrl}

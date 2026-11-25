@@ -14,4 +14,5 @@ export interface IngestionV1ValidateTransformRequest {
     sourceConnectionId?: string;
     resource?: string;
     transform?: Filament.GoogleProtobufStruct;
+    columns?: string[];
 }

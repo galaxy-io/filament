@@ -28,6 +28,7 @@ export const createInitialCreatePipelineModalState = (): CreatePipelineModalStat
   resourceColumns: {},
   resourcePartitions: {},
   resourceWriteModes: {},
+  resourceSinkConfigs: {},
   sinkWriteModes: {},
   nodeConfigs: {},
   name: "",
@@ -39,6 +40,7 @@ export const createInitialCreatePipelineModalState = (): CreatePipelineModalStat
   },
   notifiers: [],
   workerConfiguration: PIPELINE_WORKER_CONFIGURATION_DEFAULT_TEXT,
+  failOnError: false,
   isSubmitting: false,
 });
 

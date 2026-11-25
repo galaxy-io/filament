@@ -49,13 +49,15 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "dispatch"})
 	}
 	m.deps = runner.Deps{
-		Bus:       d.Bus,
-		DataStore: d.DataStore,
-		Secrets:   d.Secrets,
-		Sources:   d.Sources,
-		Sinks:     d.Sinks,
-		Log:       d.Log,
-		Tracer:    d.Tracer,
+		Bus:           d.Bus,
+		DataStore:     d.DataStore,
+		Secrets:       d.Secrets,
+		Sources:       d.Sources,
+		Sinks:         d.Sinks,
+		Log:           d.Log,
+		Tracer:        d.Tracer,
+		Functions:     d.Functions,
+		FunctionBatch: d.FunctionBatch,
 	}
 	return nil
 }

@@ -1,8 +1,5 @@
-import { create } from "@bufbuild/protobuf";
-
 import type { ConnectorKind } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
-import { GetConnectorRequestSchema } from "@/gen/ingestion/v1/connectors_pb";
 
 import {
   getFieldDefaults,
@@ -15,7 +12,7 @@ import type {
   PipelineNodeConfigState,
 } from "@/pages/pipelines/components/node/types";
 
-import { useGetConnectorQuery } from "@/api/queries/connectors";
+import { createGetConnectorInput, useGetConnectorQuery } from "@/api/queries/connectors";
 
 export const usePipelineNodeConfig = (
   connection: Connection | undefined,
@@ -24,10 +21,7 @@ export const usePipelineNodeConfig = (
   defaultSchema?: string,
 ): PipelineNodeConfigState => {
   const { data } = useGetConnectorQuery({
-    input: create(GetConnectorRequestSchema, {
-      connector: connection?.connector ?? "",
-      kind,
-    }),
+    input: createGetConnectorInput(connection?.connector ?? "", kind),
     options: { enabled: !!connection?.connector },
   });
   const connector = data?.connector;

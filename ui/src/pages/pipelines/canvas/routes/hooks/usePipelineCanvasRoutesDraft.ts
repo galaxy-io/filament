@@ -5,11 +5,15 @@ import { addEdge } from "@xyflow/react";
 import { ExecutionMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { Resource } from "@/gen/ingestion/v1/connectors_pb";
 
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { getWebhookResourceError, hasFixedWebhookResources } from "@/components/webhooks/utils";
+
 import {
   PIPELINE_CANVAS_EDGE_TYPE,
   PIPELINE_CANVAS_NODE_SINK_HANDLE_ID,
 } from "@/pages/pipelines/canvas/constants";
 import { canConnectEdge } from "@/pages/pipelines/canvas/graph/rules";
+import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import { usePipelineCanvasSourceNodeResources } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSourceNodeResources";
 import {
@@ -40,7 +44,10 @@ export interface PipelineCanvasRoutesDraftState {
   sinks: PipelineCanvasRoutesSink[];
   sinkCount: number;
   sourceNodeId: CanvasNode["id"] | undefined;
+  resourceError: string | undefined;
+  isWebhook: boolean;
   canOpen: boolean;
+  canAddRoute: boolean;
   canAdd: boolean;
   open: (resource?: Resource["name"]) => void;
   close: () => void;
@@ -63,6 +70,10 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
     .filter(isConnectionNode)
     .find((node) => node.type === PipelineCanvasNodeType.SOURCE)?.id;
   const sourceResources = usePipelineCanvasSourceNodeResources();
+  const connectionByNodeId = usePipelineCanvasConnections();
+  const { webhook, isLoading: isWebhookLoading } = useConnectionWebhookSpec(
+    sourceNodeId ? connectionByNodeId.get(sourceNodeId) : undefined,
+  );
 
   const getConnection = useCallback(
     (resource: Resource["name"], sinkId: CanvasNode["id"]) => ({
@@ -148,7 +159,9 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
     [canRoute],
   );
 
-  const canAdd = draft !== undefined && canRoute(resource, draft.sinkId);
+  const resourceError = webhook && resource !== "" ? getWebhookResourceError(resource) : undefined;
+  const canAdd =
+    draft !== undefined && canRoute(resource, draft.sinkId) && resourceError === undefined;
   const add = useCallback(
     (config: PipelineCanvasEdgeData, hasReadLevers: boolean) => {
       if (!draft || !canAdd) return;
@@ -173,6 +186,8 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
     ],
   );
 
+  const canOpen = !isReadOnly && sourceNodeId !== undefined && allSinks.length > 0;
+
   return {
     draft,
     resource,
@@ -180,7 +195,10 @@ export const usePipelineCanvasRoutesDraft = (): PipelineCanvasRoutesDraftState =
     sinks,
     sinkCount: allSinks.length,
     sourceNodeId,
-    canOpen: !isReadOnly && sourceNodeId !== undefined && allSinks.length > 0,
+    resourceError,
+    isWebhook: !!webhook,
+    canOpen,
+    canAddRoute: canOpen && !isWebhookLoading && !hasFixedWebhookResources(webhook),
     canAdd,
     open,
     close,

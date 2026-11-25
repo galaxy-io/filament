@@ -1,3 +1,6 @@
+import type { JsonValue } from "@bufbuild/protobuf";
+
+import type { ConfigField } from "@/gen/ingestion/v1/common_pb";
 import type { Resource, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 
 import type { CanvasNode } from "@/pages/pipelines/canvas/types";
@@ -24,4 +27,11 @@ export interface PipelineResourceStatus {
 export interface PipelineResourceCreateState {
   resource: Resource["name"];
   sinkId: CanvasNode["id"];
+}
+
+export type PipelineResourceSinkConfig = Record<ConfigField["name"], JsonValue>;
+
+export interface PipelineResourceSinkFieldsState {
+  fields: ConfigField[];
+  pipelineValues: PipelineResourceSinkConfig;
 }

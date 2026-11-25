@@ -18,7 +18,8 @@ import (
 // pattern matches. Implementations must be safe for concurrent use.
 type Bus interface {
 	// Publish routes payload to matching subscriptions. subject must be
-	// concrete (wildcard-free); the payload is never inspected.
+	// concrete (wildcard-free). The payload is never inspected beyond the
+	// optional [Identified] capability.
 	Publish(ctx context.Context, subject string, payload any) error
 
 	// Subscribe registers interest in a pattern ('*' = one token, trailing
@@ -31,6 +32,15 @@ type Bus interface {
 
 	// Name identifies the transport for logs (e.g. "inproc", "nats").
 	Name() string
+}
+
+// Identified is an optional payload capability. MessageID returns a stable
+// identity for one logical message, so a transport that retries a publish can
+// let the broker drop the copy it already stored. Republishing the same value
+// must return the same ID, and two distinct messages must never share one. An
+// empty ID opts out.
+type Identified interface {
+	MessageID() string
 }
 
 // ReadinessChecker is an optional transport capability used by serving

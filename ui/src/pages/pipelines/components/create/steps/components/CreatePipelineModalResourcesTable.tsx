@@ -12,7 +12,8 @@ import type { TableColumn } from "@galaxy-io/dls/table/types";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily, Side } from "@galaxy-io/dls/theme/enums";
 
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { isWebhookResource } from "@/components/webhooks/utils";
 
 import {
   useCreatePipelineModalActions,
@@ -30,6 +31,7 @@ import CreatePipelineModalResourcesReadModeCell from "@/pages/pipelines/componen
 import CreatePipelineModalResourcesUrlCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesUrlCell";
 import CreatePipelineModalResourcesWriteModeCell from "@/pages/pipelines/components/create/steps/components/CreatePipelineModalResourcesWriteModeCell";
 import type { CreatePipelineModalResourceRow } from "@/pages/pipelines/components/create/types";
+import { usePipelineResourceSinkFields } from "@/pages/pipelines/components/resource/hooks/usePipelineResourceSinkFields";
 import PipelineResourceColumnsChip from "@/pages/pipelines/components/resource/PipelineResourceColumnsChip";
 
 const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
@@ -57,25 +59,20 @@ const NAME_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
   ),
 };
 
-const OPEN_COLUMN: TableColumn<CreatePipelineModalResourceRow> = {
+const createOpenColumn = (hasSinkFields: boolean): TableColumn<CreatePipelineModalResourceRow> => ({
   id: "open",
   header: "",
   width: CREATE_PIPELINE_MODAL_COLUMN_WIDTH_OPEN,
   align: "right",
   cell: ({ row }) =>
-    row.isColumnSelectable ? (
+    row.isColumnSelectable || hasSinkFields ? (
       <Icon
         component={CaretRightIcon}
         size={CREATE_PIPELINE_MODAL_OPEN_CARET_SIZE}
         variant={IconVariant.TERTIARY}
       />
     ) : null,
-};
-
-const OPEN_COLUMN_PINNED: TableColumn<CreatePipelineModalResourceRow> = {
-  ...OPEN_COLUMN,
-  pin: Side.RIGHT,
-};
+});
 
 const RESOURCE_COLUMNS_BASE: TableColumn<CreatePipelineModalResourceRow>[] = [NAME_COLUMN];
 
@@ -124,8 +121,13 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
   activeRow,
   onActiveResourceChange,
 }) => {
-  const { activeSinkId, hasReadLevers, isLoading, sourceConnection } =
+  const { activeSinkId, hasReadLevers, isLoading, sourceConnection, sinkConnections, nodeConfigs } =
     useCreatePipelineModalState();
+  const hasSinkFields =
+    usePipelineResourceSinkFields(
+      sinkConnections.find((connection) => connection.id === activeSinkId),
+      nodeConfigs[activeSinkId] ?? {},
+    ).fields.length > 0;
   const { setResourceSelection } = useCreatePipelineModalActions();
 
   const selectedNames = useMemo(
@@ -141,21 +143,27 @@ const CreatePipelineModalResourcesTable: FC<CreatePipelineModalResourcesTablePro
     });
 
   const handleRowClick = (row: CreatePipelineModalResourceRow) => {
-    if (!row.isColumnSelectable) return;
+    if (!row.isColumnSelectable && !hasSinkFields) return;
     onActiveResourceChange(row.name === activeRow?.name ? undefined : row.name);
   };
 
-  const hasColumnSelection = rows.some((row) => row.isColumnSelectable);
-  const isWebhook = isWebhookConnector(sourceConnection?.connector);
+  const hasColumnSelection = hasSinkFields || rows.some((row) => row.isColumnSelectable);
+  const { webhook } = useConnectionWebhookSpec(sourceConnection);
+  const isWebhookOnly = !!webhook && rows.every((row) => isWebhookResource(webhook, row.name));
   const columns = useMemo(() => {
-    if (isWebhook) return RESOURCE_COLUMNS_WEBHOOK;
+    if (isWebhookOnly) return RESOURCE_COLUMNS_WEBHOOK;
     if (!hasColumnSelection) {
       return hasReadLevers ? RESOURCE_COLUMNS_WITH_LEVERS : RESOURCE_COLUMNS_BASE;
     }
+    const openColumn = createOpenColumn(hasSinkFields);
+    const pinnedOpenColumn: TableColumn<CreatePipelineModalResourceRow> = {
+      ...openColumn,
+      pin: Side.RIGHT,
+    };
     return hasReadLevers
-      ? [...RESOURCE_COLUMNS_WITH_LEVERS, OPEN_COLUMN_PINNED]
-      : [...RESOURCE_COLUMNS_BASE, OPEN_COLUMN];
-  }, [hasReadLevers, hasColumnSelection, isWebhook]);
+      ? [...RESOURCE_COLUMNS_WITH_LEVERS, pinnedOpenColumn]
+      : [...RESOURCE_COLUMNS_BASE, openColumn];
+  }, [hasReadLevers, hasColumnSelection, hasSinkFields, isWebhookOnly]);
 
   return (
     <FlexItem grow={1} basis={0} minHeight={0} fillWidth>

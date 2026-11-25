@@ -1,5 +1,6 @@
 import { type FC, Suspense, useMemo } from "react";
 
+import type { JsonValue } from "@bufbuild/protobuf";
 import { FlowArrowIcon } from "@phosphor-icons/react";
 import { CatchBoundary } from "@tanstack/react-router";
 
@@ -13,17 +14,19 @@ import ScrollArea from "@galaxy-io/dls/layout/ScrollArea";
 import Text, { TextSize } from "@galaxy-io/dls/text/Text";
 import { FontFamily } from "@galaxy-io/dls/theme/enums";
 
-import { ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
+import { type ConfigField, ConnectorKind, ReadMode, WriteMode } from "@/gen/ingestion/v1/common_pb";
 import type { ResourceColumn, ResourceColumns } from "@/gen/ingestion/v1/connectors_pb";
 
 import KeyValueList from "@/components/KeyValueList";
 import KeyValueListRow from "@/components/KeyValueListRow";
-import { isWebhookConnector } from "@/components/webhooks/utils";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { isWebhookResource } from "@/components/webhooks/utils";
 import WebhookDeliveryUrlCopyButton from "@/components/webhooks/WebhookDeliveryUrlCopyButton";
 
 import { PIPELINE_CANVAS_EDGE_WRITE_MODE_FIELD } from "@/pages/pipelines/canvas/constants";
 import { usePipelineCanvasConnections } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasConnections";
 import { usePipelineCanvasEdgeConfig } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeConfig";
+import { usePipelineCanvasEdgeLocked } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasEdgeLocked";
 import { usePipelineCanvasPanelResourceOptions } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasPanelResourceOptions";
 import { usePipelineCanvasSelection } from "@/pages/pipelines/canvas/hooks/usePipelineCanvasSelection";
 import PipelineCanvasPanelResourceColumnsSection from "@/pages/pipelines/canvas/panel/overview/resource/PipelineCanvasPanelResourceColumnsSection";
@@ -45,10 +48,13 @@ import {
   getEdgeFieldError,
   getEdgeResourceStatus,
 } from "@/pages/pipelines/canvas/utils";
+import { usePipelineResourceSinkFields } from "@/pages/pipelines/components/resource/hooks/usePipelineResourceSinkFields";
+import PipelineResourceSinkField from "@/pages/pipelines/components/resource/PipelineResourceSinkField";
 import { PipelineResourceStatusField } from "@/pages/pipelines/components/resource/types";
 import {
   createResourceColumnSelections,
   createResourcePartitionSelections,
+  createResourceSinkConfigs,
   getEffectiveColumnSelection,
   getEffectivePartitionSelection,
   getLockedColumnNames,
@@ -71,6 +77,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
   const { clearSelection, setShowPanel } = usePipelineCanvasSelection();
   const { setEdgeConfig, applyEdgeChanges } = usePipelineCanvasActions();
   const sourceConnection = usePipelineCanvasConnections().get(edge.source);
+  const { webhook } = useConnectionWebhookSpec(sourceConnection);
 
   const options = usePipelineCanvasPanelResourceOptions(edge);
   const {
@@ -92,6 +99,8 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
     isManagedIncremental,
     isColumnSelectable,
     partitions,
+    sinkConnection,
+    sinkConfig,
   } = options;
 
   const {
@@ -181,6 +190,23 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
       partitions: createResourcePartitionSelections({ resource, selected: next, partitions }),
     });
 
+  const isLockedEdge = usePipelineCanvasEdgeLocked(edge);
+  const sinkFields = usePipelineResourceSinkFields(sinkConnection, sinkConfig ?? {});
+  const sinkFieldValues =
+    edge.data?.sinkConfigs?.find((candidate) => candidate.resource === resource)?.config ?? {};
+  const handleSinkFieldChange = (field: ConfigField, value: JsonValue | undefined) => {
+    const { [field.name]: _previous, ...rest } = sinkFieldValues;
+    setEdgeConfig(edge.id, {
+      readMode: configuredReadMode,
+      writeMode: configuredWriteMode,
+      cursors,
+      sinkConfigs: createResourceSinkConfigs({
+        resource,
+        config: value === undefined ? rest : { ...rest, [field.name]: value },
+      }),
+    });
+  };
+
   return (
     <>
       <PipelineCanvasPanelHeader
@@ -219,13 +245,13 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   </Text>
                 }
               />
-              {sourceConnection && isWebhookConnector(sourceConnection.connector) && (
+              {sourceConnection && webhook && isWebhookResource(webhook, resource) && (
                 <KeyValueListRow
                   label="Endpoint"
                   value={
                     <WebhookDeliveryUrlCopyButton
                       sourceConnectionId={sourceConnection.id}
-                      resource={resource}
+                      resource={webhook.routed ? "" : resource}
                     />
                   }
                 />
@@ -297,6 +323,19 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                   variant={SelectInputVariant.TERTIARY}
                   fillWidth
                 />
+                {sinkFields.fields.map((field) => (
+                  <PipelineResourceSinkField
+                    key={field.name}
+                    field={field}
+                    value={sinkFieldValues[field.name]}
+                    pipelineValue={sinkFields.pipelineValues[field.name]}
+                    columns={columns ?? NO_COLUMNS}
+                    resourceName={resource}
+                    isDisabled={isReadOnly || isLoading}
+                    isReadOnly={isLockedEdge}
+                    onChange={(value) => handleSinkFieldChange(field, value)}
+                  />
+                ))}
                 {isContinuous && (
                   <TextInput
                     label="Destination"
@@ -343,6 +382,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
                       onChange={handleTransformChange}
                       resource={resource}
                       columns={selectedColumns}
+                      columnSelection={selectedColumnNames}
                       sourceConnectionId={sourceConnectionId}
                       isReadOnly={isReadOnly}
                     >

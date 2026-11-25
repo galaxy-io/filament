@@ -27,9 +27,15 @@ func RefFromProto(ref *workerv1.Ref) (filament.ConnectorRef, error) {
 // engine facts it omits.
 func SourceToProto(spec filament.ConnectorSpec) *workerv1.Source {
 	out := &workerv1.Source{
-		Spec:      SourceSpecToProto(spec),
-		Policies:  sourcePoliciesToProto(spec.SourcePolicies),
-		Resources: &workerv1.ResourceCapabilities{Discoverable: spec.Resources.Discoverable, PerResourceCursor: spec.Resources.PerResourceCursor, SelectableColumns: spec.Resources.SelectableColumns, WebhookEndpointBacked: spec.Resources.WebhookEndpointBacked},
+		Spec:     SourceSpecToProto(spec),
+		Policies: sourcePoliciesToProto(spec.SourcePolicies),
+		Resources: &workerv1.ResourceCapabilities{
+			Discoverable:      spec.Resources.Discoverable,
+			PerResourceCursor: spec.Resources.PerResourceCursor,
+			SelectableColumns: spec.Resources.SelectableColumns,
+			// Deprecated mirror for servers that predate the webhook spec.
+			WebhookEndpointBacked: spec.Webhook != nil && spec.Webhook.DynamicResources, //nolint:staticcheck // written for older servers
+		},
 	}
 	for _, mode := range spec.Modes {
 		out.ReadModes = append(out.ReadModes, ReadModeToProto(mode))
@@ -62,10 +68,13 @@ func SourceFromProto(source *workerv1.Source) (filament.ConnectorSpec, error) {
 		return filament.ConnectorSpec{}, fmt.Errorf("source %q: %w", spec.Name, err)
 	}
 	spec.Resources = filament.ResourceCapabilities{
-		Discoverable:          source.GetResources().GetDiscoverable(),
-		PerResourceCursor:     source.GetResources().GetPerResourceCursor(),
-		SelectableColumns:     source.GetResources().GetSelectableColumns(),
-		WebhookEndpointBacked: source.GetResources().GetWebhookEndpointBacked(),
+		Discoverable:      source.GetResources().GetDiscoverable(),
+		PerResourceCursor: source.GetResources().GetPerResourceCursor(),
+		SelectableColumns: source.GetResources().GetSelectableColumns(),
+	}
+	//nolint:staticcheck // reading the deprecated field keeps older workers working
+	if spec.Webhook, err = webhookSpecFromProto(source.GetSpec(), source.GetResources().GetWebhookEndpointBacked()); err != nil {
+		return filament.ConnectorSpec{}, fmt.Errorf("source %q: %w", spec.Name, err)
 	}
 	if stream := source.GetStream(); stream != nil {
 		caps := &filament.StreamCapabilities{}
@@ -140,6 +149,14 @@ func SinkToProto(spec filament.SinkSpec) *workerv1.Sink {
 	if caps.PreferredFlushInterval != 0 {
 		out.Capabilities.PreferredFlushInterval = durationpb.New(caps.PreferredFlushInterval)
 	}
+	if b := caps.PreferredEpochBoundary; b != nil {
+		out.Capabilities.PreferredEpochBoundary = &workerv1.Boundary{
+			MaxRecords: int64(b.MaxRecords),
+			MaxBytes:   b.MaxBytes,
+			MaxWait:    durationpb.New(b.MaxWait),
+			MaxAge:     durationpb.New(b.MaxAge),
+		}
+	}
 
 	return out
 }
@@ -160,6 +177,14 @@ func SinkFromProto(sink *workerv1.Sink) (filament.SinkSpec, error) {
 	}
 	if caps.GetPreferredFlushInterval() != nil {
 		spec.Capabilities.PreferredFlushInterval = caps.GetPreferredFlushInterval().AsDuration()
+	}
+	if b := caps.GetPreferredEpochBoundary(); b != nil {
+		spec.Capabilities.PreferredEpochBoundary = &filament.Boundary{
+			MaxRecords: int(b.GetMaxRecords()),
+			MaxBytes:   b.GetMaxBytes(),
+			MaxWait:    b.GetMaxWait().AsDuration(),
+			MaxAge:     b.GetMaxAge().AsDuration(),
+		}
 	}
 	if spec.Capabilities.WritePolicies, err = writePoliciesFromProto(caps.GetWritePolicies()); err != nil {
 		return filament.SinkSpec{}, fmt.Errorf("sink %q: %w", spec.Name, err)

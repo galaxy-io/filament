@@ -38,6 +38,9 @@ if typing.TYPE_CHECKING:
     from .google_protobuf_null_value import GoogleProtobufNullValue
     from .google_protobuf_struct import GoogleProtobufStruct
     from .google_protobuf_value import GoogleProtobufValue
+    from .ingestion_v1alchemy_contract_kind import IngestionV1AlchemyContractKind
+    from .ingestion_v1alchemy_function import IngestionV1AlchemyFunction
+    from .ingestion_v1alchemy_version_status import IngestionV1AlchemyVersionStatus
     from .ingestion_v1candidate_status import IngestionV1CandidateStatus
     from .ingestion_v1candidate_value import IngestionV1CandidateValue
     from .ingestion_v1config_field import IngestionV1ConfigField
@@ -63,6 +66,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1field_condition import IngestionV1FieldCondition
     from .ingestion_v1field_scope import IngestionV1FieldScope
     from .ingestion_v1field_type import IngestionV1FieldType
+    from .ingestion_v1get_alchemy_function_response import IngestionV1GetAlchemyFunctionResponse
     from .ingestion_v1get_connection_response import IngestionV1GetConnectionResponse
     from .ingestion_v1get_connector_response import IngestionV1GetConnectorResponse
     from .ingestion_v1get_pipeline_response import IngestionV1GetPipelineResponse
@@ -71,7 +75,9 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1get_run_response import IngestionV1GetRunResponse
     from .ingestion_v1get_version_request import IngestionV1GetVersionRequest
     from .ingestion_v1get_version_response import IngestionV1GetVersionResponse
+    from .ingestion_v1get_webhook_delivery_url_response import IngestionV1GetWebhookDeliveryUrlResponse
     from .ingestion_v1get_webhook_endpoint_response import IngestionV1GetWebhookEndpointResponse
+    from .ingestion_v1list_alchemy_functions_response import IngestionV1ListAlchemyFunctionsResponse
     from .ingestion_v1list_connections_response import IngestionV1ListConnectionsResponse
     from .ingestion_v1list_connectors_response import IngestionV1ListConnectorsResponse
     from .ingestion_v1list_pipeline_notifiers_response import IngestionV1ListPipelineNotifiersResponse
@@ -106,6 +112,7 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1resource_columns import IngestionV1ResourceColumns
     from .ingestion_v1resource_cursor_config import IngestionV1ResourceCursorConfig
     from .ingestion_v1resource_partition_selection import IngestionV1ResourcePartitionSelection
+    from .ingestion_v1resource_sink_config import IngestionV1ResourceSinkConfig
     from .ingestion_v1resource_validation import IngestionV1ResourceValidation
     from .ingestion_v1run_event import IngestionV1RunEvent
     from .ingestion_v1run_event_fields import IngestionV1RunEventFields
@@ -134,6 +141,8 @@ if typing.TYPE_CHECKING:
     from .ingestion_v1validate_transform_response import IngestionV1ValidateTransformResponse
     from .ingestion_v1validation_error import IngestionV1ValidationError
     from .ingestion_v1webhook_endpoint_config import IngestionV1WebhookEndpointConfig
+    from .ingestion_v1webhook_secret_issuer import IngestionV1WebhookSecretIssuer
+    from .ingestion_v1webhook_spec import IngestionV1WebhookSpec
     from .ingestion_v1worker_configuration import IngestionV1WorkerConfiguration
     from .ingestion_v1worker_resources import IngestionV1WorkerResources
     from .ingestion_v1worker_toleration import IngestionV1WorkerToleration
@@ -180,6 +189,9 @@ _dynamic_imports: typing.Dict[str, str] = {
     "GoogleProtobufNullValue": ".google_protobuf_null_value",
     "GoogleProtobufStruct": ".google_protobuf_struct",
     "GoogleProtobufValue": ".google_protobuf_value",
+    "IngestionV1AlchemyContractKind": ".ingestion_v1alchemy_contract_kind",
+    "IngestionV1AlchemyFunction": ".ingestion_v1alchemy_function",
+    "IngestionV1AlchemyVersionStatus": ".ingestion_v1alchemy_version_status",
     "IngestionV1CandidateStatus": ".ingestion_v1candidate_status",
     "IngestionV1CandidateValue": ".ingestion_v1candidate_value",
     "IngestionV1ConfigField": ".ingestion_v1config_field",
@@ -205,6 +217,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1FieldCondition": ".ingestion_v1field_condition",
     "IngestionV1FieldScope": ".ingestion_v1field_scope",
     "IngestionV1FieldType": ".ingestion_v1field_type",
+    "IngestionV1GetAlchemyFunctionResponse": ".ingestion_v1get_alchemy_function_response",
     "IngestionV1GetConnectionResponse": ".ingestion_v1get_connection_response",
     "IngestionV1GetConnectorResponse": ".ingestion_v1get_connector_response",
     "IngestionV1GetPipelineResponse": ".ingestion_v1get_pipeline_response",
@@ -213,7 +226,9 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1GetRunResponse": ".ingestion_v1get_run_response",
     "IngestionV1GetVersionRequest": ".ingestion_v1get_version_request",
     "IngestionV1GetVersionResponse": ".ingestion_v1get_version_response",
+    "IngestionV1GetWebhookDeliveryUrlResponse": ".ingestion_v1get_webhook_delivery_url_response",
     "IngestionV1GetWebhookEndpointResponse": ".ingestion_v1get_webhook_endpoint_response",
+    "IngestionV1ListAlchemyFunctionsResponse": ".ingestion_v1list_alchemy_functions_response",
     "IngestionV1ListConnectionsResponse": ".ingestion_v1list_connections_response",
     "IngestionV1ListConnectorsResponse": ".ingestion_v1list_connectors_response",
     "IngestionV1ListPipelineNotifiersResponse": ".ingestion_v1list_pipeline_notifiers_response",
@@ -248,6 +263,7 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ResourceColumns": ".ingestion_v1resource_columns",
     "IngestionV1ResourceCursorConfig": ".ingestion_v1resource_cursor_config",
     "IngestionV1ResourcePartitionSelection": ".ingestion_v1resource_partition_selection",
+    "IngestionV1ResourceSinkConfig": ".ingestion_v1resource_sink_config",
     "IngestionV1ResourceValidation": ".ingestion_v1resource_validation",
     "IngestionV1RunEvent": ".ingestion_v1run_event",
     "IngestionV1RunEventFields": ".ingestion_v1run_event_fields",
@@ -276,6 +292,8 @@ _dynamic_imports: typing.Dict[str, str] = {
     "IngestionV1ValidateTransformResponse": ".ingestion_v1validate_transform_response",
     "IngestionV1ValidationError": ".ingestion_v1validation_error",
     "IngestionV1WebhookEndpointConfig": ".ingestion_v1webhook_endpoint_config",
+    "IngestionV1WebhookSecretIssuer": ".ingestion_v1webhook_secret_issuer",
+    "IngestionV1WebhookSpec": ".ingestion_v1webhook_spec",
     "IngestionV1WorkerConfiguration": ".ingestion_v1worker_configuration",
     "IngestionV1WorkerResources": ".ingestion_v1worker_resources",
     "IngestionV1WorkerToleration": ".ingestion_v1worker_toleration",
@@ -346,6 +364,9 @@ __all__ = [
     "GoogleProtobufNullValue",
     "GoogleProtobufStruct",
     "GoogleProtobufValue",
+    "IngestionV1AlchemyContractKind",
+    "IngestionV1AlchemyFunction",
+    "IngestionV1AlchemyVersionStatus",
     "IngestionV1CandidateStatus",
     "IngestionV1CandidateValue",
     "IngestionV1ConfigField",
@@ -371,6 +392,7 @@ __all__ = [
     "IngestionV1FieldCondition",
     "IngestionV1FieldScope",
     "IngestionV1FieldType",
+    "IngestionV1GetAlchemyFunctionResponse",
     "IngestionV1GetConnectionResponse",
     "IngestionV1GetConnectorResponse",
     "IngestionV1GetPipelineResponse",
@@ -379,7 +401,9 @@ __all__ = [
     "IngestionV1GetRunResponse",
     "IngestionV1GetVersionRequest",
     "IngestionV1GetVersionResponse",
+    "IngestionV1GetWebhookDeliveryUrlResponse",
     "IngestionV1GetWebhookEndpointResponse",
+    "IngestionV1ListAlchemyFunctionsResponse",
     "IngestionV1ListConnectionsResponse",
     "IngestionV1ListConnectorsResponse",
     "IngestionV1ListPipelineNotifiersResponse",
@@ -414,6 +438,7 @@ __all__ = [
     "IngestionV1ResourceColumns",
     "IngestionV1ResourceCursorConfig",
     "IngestionV1ResourcePartitionSelection",
+    "IngestionV1ResourceSinkConfig",
     "IngestionV1ResourceValidation",
     "IngestionV1RunEvent",
     "IngestionV1RunEventFields",
@@ -442,6 +467,8 @@ __all__ = [
     "IngestionV1ValidateTransformResponse",
     "IngestionV1ValidationError",
     "IngestionV1WebhookEndpointConfig",
+    "IngestionV1WebhookSecretIssuer",
+    "IngestionV1WebhookSpec",
     "IngestionV1WorkerConfiguration",
     "IngestionV1WorkerResources",
     "IngestionV1WorkerToleration",

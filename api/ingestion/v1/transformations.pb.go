@@ -360,12 +360,14 @@ func (x *ListTransformFunctionsResponse) GetGrammarSchema() string {
 
 // ValidateTransformRequest compiles a transform against one resource's
 // schema, read from the source connection, exactly as a run would. The
-// transform is the same JSON object an edge carries.
+// transform is the same JSON object an edge carries, and columns is the
+// edge's column selection for the resource, empty when it reads every column.
 type ValidateTransformRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	SourceConnectionId string                 `protobuf:"bytes,1,opt,name=source_connection_id,json=sourceConnectionId,proto3" json:"source_connection_id,omitempty"`
 	Resource           string                 `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource,omitempty"`
 	Transform          *structpb.Struct       `protobuf:"bytes,3,opt,name=transform,proto3" json:"transform,omitempty"`
+	Columns            []string               `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -417,6 +419,13 @@ func (x *ValidateTransformRequest) GetResource() string {
 func (x *ValidateTransformRequest) GetTransform() *structpb.Struct {
 	if x != nil {
 		return x.Transform
+	}
+	return nil
+}
+
+func (x *ValidateTransformRequest) GetColumns() []string {
+	if x != nil {
+		return x.Columns
 	}
 	return nil
 }
@@ -489,8 +498,10 @@ type ValidateTransformResponse struct {
 	Issues          []*ValidationError         `protobuf:"bytes,2,rep,name=issues,proto3" json:"issues,omitempty"`
 	OutputColumns   []*ResourceColumn          `protobuf:"bytes,3,rep,name=output_columns,json=outputColumns,proto3" json:"output_columns,omitempty"`
 	ExpressionTypes []*TransformExpressionType `protobuf:"bytes,4,rep,name=expression_types,json=expressionTypes,proto3" json:"expression_types,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// output_arrow_schema is output_columns as an Arrow IPC schema, to seed an alchemy contract.
+	OutputArrowSchema []byte `protobuf:"bytes,5,opt,name=output_arrow_schema,json=outputArrowSchema,proto3" json:"output_arrow_schema,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ValidateTransformResponse) Reset() {
@@ -551,6 +562,13 @@ func (x *ValidateTransformResponse) GetExpressionTypes() []*TransformExpressionT
 	return nil
 }
 
+func (x *ValidateTransformResponse) GetOutputArrowSchema() []byte {
+	if x != nil {
+		return x.OutputArrowSchema
+	}
+	return nil
+}
+
 var File_ingestion_v1_transformations_proto protoreflect.FileDescriptor
 
 const file_ingestion_v1_transformations_proto_rawDesc = "" +
@@ -585,19 +603,21 @@ const file_ingestion_v1_transformations_proto_rawDesc = "" +
 	"\x1eListTransformFunctionsResponse\x12=\n" +
 	"\tfunctions\x18\x01 \x03(\v2\x1f.ingestion.v1.TransformFunctionR\tfunctions\x12'\n" +
 	"\x0fgrammar_version\x18\x02 \x01(\x05R\x0egrammarVersion\x12%\n" +
-	"\x0egrammar_schema\x18\x03 \x01(\tR\rgrammarSchema\"\x9f\x01\n" +
+	"\x0egrammar_schema\x18\x03 \x01(\tR\rgrammarSchema\"\xb9\x01\n" +
 	"\x18ValidateTransformRequest\x120\n" +
 	"\x14source_connection_id\x18\x01 \x01(\tR\x12sourceConnectionId\x12\x1a\n" +
 	"\bresource\x18\x02 \x01(\tR\bresource\x125\n" +
-	"\ttransform\x18\x03 \x01(\v2\x17.google.protobuf.StructR\ttransform\"P\n" +
+	"\ttransform\x18\x03 \x01(\v2\x17.google.protobuf.StructR\ttransform\x12\x18\n" +
+	"\acolumns\x18\x04 \x03(\tR\acolumns\"P\n" +
 	"\x17TransformExpressionType\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
-	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\"\xff\x01\n" +
+	"\flogical_type\x18\x02 \x01(\tR\vlogicalType\"\xaf\x02\n" +
 	"\x19ValidateTransformResponse\x12\x14\n" +
 	"\x05valid\x18\x01 \x01(\bR\x05valid\x125\n" +
 	"\x06issues\x18\x02 \x03(\v2\x1d.ingestion.v1.ValidationErrorR\x06issues\x12C\n" +
 	"\x0eoutput_columns\x18\x03 \x03(\v2\x1c.ingestion.v1.ResourceColumnR\routputColumns\x12P\n" +
-	"\x10expression_types\x18\x04 \x03(\v2%.ingestion.v1.TransformExpressionTypeR\x0fexpressionTypesB\xb5\x01\n" +
+	"\x10expression_types\x18\x04 \x03(\v2%.ingestion.v1.TransformExpressionTypeR\x0fexpressionTypes\x12.\n" +
+	"\x13output_arrow_schema\x18\x05 \x01(\fR\x11outputArrowSchemaB\xb5\x01\n" +
 	"\x10com.ingestion.v1B\x14TransformationsProtoP\x01Z:github.com/galaxy-io/filament/api/ingestion/v1;ingestionv1\xa2\x02\x03IXX\xaa\x02\fIngestion.V1\xca\x02\fIngestion\\V1\xe2\x02\x18Ingestion\\V1\\GPBMetadata\xea\x02\rIngestion::V1b\x06proto3"
 
 var (

@@ -46,11 +46,12 @@ const (
 // created per run: Configure opens the pool, Extract pages the tables, Teardown
 // closes the pool.
 type Source struct {
-	db         *sql.DB
-	dsn        string // driver DSN the pool was opened with; the CDC bootstrap opens its lock session from it
-	database   string
-	pageSize   int
-	shardPages int
+	db                *sql.DB
+	conn              mysqlconnection.Resolved // what the pool was opened with; the CDC bootstrap opens its lock session from it
+	reverseTunnelHost string
+	database          string
+	pageSize          int
+	shardPages        int
 
 	// Per-resource incremental settings populated by PlanIncremental.
 	cursorColumns   map[string]string
@@ -94,7 +95,7 @@ var (
 
 // Validate rejects an invalid DSN or incomplete individual connection fields.
 func (s *Source) Validate(cfg filament.Config) error {
-	resolved, err := mysqlconnection.Resolve(cfg)
+	resolved, err := mysqlconnection.Resolve(cfg, s.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
@@ -109,7 +110,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	resolved, err := mysqlconnection.Resolve(cfg)
+	resolved, err := mysqlconnection.Resolve(cfg, s.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
@@ -129,7 +130,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	resolved, err := mysqlconnection.Resolve(cfg)
+	resolved, err := mysqlconnection.Resolve(cfg, s.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("mysql source: connection config: %w", err)
 	}
@@ -185,7 +186,7 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	// driver re-render those values as RFC3339 before scanning into RawBytes.
 	mc.ParseTime = false
 
-	s.dsn = mc.FormatDSN()
+	s.conn = resolved
 	db, err := mysqlconnection.Open(ctx, resolved)
 	if err != nil {
 		return fmt.Errorf("mysql source: open: %w", err)
@@ -197,18 +198,28 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
+		_ = resolved.Tunnel.Close()
 		return fmt.Errorf("mysql source: ping: %w", err)
 	}
 	s.db = db
 	return nil
 }
 
-// Teardown closes the pool.
+// Teardown closes the pool and the tunnel it dialed through.
 func (s *Source) Teardown(context.Context) error {
 	if s.db != nil {
 		_ = s.db.Close()
 		s.db = nil
 	}
+	_ = s.conn.Tunnel.Close()
+	s.conn = mysqlconnection.Resolved{}
 	s.binlogTLS = nil
 	return nil
+}
+
+var _ filament.ReverseTunnelUser = (*Source)(nil)
+
+// UseReverseTunnelHost sets where this deployment's reverse SSH tunnels listen.
+func (s *Source) UseReverseTunnelHost(host string) {
+	s.reverseTunnelHost = host
 }

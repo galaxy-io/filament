@@ -43,6 +43,7 @@ func (a *Server) CreatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: id, TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: workerConfiguration, ExecutionMode: execution,
+		FailOnError: proto.Bool(req.Msg.GetFailOnError()),
 	}
 	var schedule *filament.ScheduleState
 	if config := req.Msg.GetSchedule(); config != nil {
@@ -82,6 +83,7 @@ func defaultWorkerConfiguration() *ingestionv1.WorkerConfiguration {
 		},
 		NodeSelector: map[string]string{},
 		Tolerations:  []*ingestionv1.WorkerToleration{},
+		Annotations:  map[string]string{},
 	}
 }
 
@@ -108,6 +110,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validatePartitionSelections(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := validateSinkConfigs(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -130,13 +135,17 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if !validation.GetValid() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("pipeline graph is invalid: %s", pipelineValidationMessage(validation)))
 	}
-	if pipeline.GetExecutionMode() == ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
-		for _, edge := range edges {
-			if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
-				edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
-			}
+	// Validation resolved each edge's execution mode. A pipeline can hold both
+	// when its source splits execution per resource.
+	bounded := make([]*ingestionv1.PipelineEdge, 0, len(edges))
+	for i, edge := range edges {
+		if validation.GetEdges()[i].GetEffectiveExecutionMode() != ingestionv1.ExecutionMode_EXECUTION_MODE_CONTINUOUS {
+			bounded = append(bounded, edge)
+		} else if edge.GetWriteMode() == ingestionv1.WriteMode_WRITE_MODE_UNSPECIFIED {
+			edge.WriteMode = ingestionv1.WriteMode_WRITE_MODE_APPEND
 		}
-	} else if err := a.normalizeEdgeModes(ctx, tenant, nodes, edges); err != nil {
+	}
+	if err := a.normalizeEdgeModes(ctx, tenant, nodes, bounded); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	a.defaultSinkSchemas(ctx, tenant, nodes, edges)
@@ -311,6 +320,28 @@ func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
 	return nil
 }
 
+// validateSinkConfigs checks the shape of each edge's per-resource sink config.
+// The compiler checks its fields against the sink's schema.
+func validateSinkConfigs(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		seen := make(map[string]struct{}, len(edge.GetSinkConfigs()))
+		for _, sinkConfig := range edge.GetSinkConfigs() {
+			resource := sinkConfig.GetResource()
+			if resource == "" {
+				return fmt.Errorf("sink config resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("sink config resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate sink config for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
+		}
+	}
+	return nil
+}
+
 func validatePartitionSelections(edges []*ingestionv1.PipelineEdge) error {
 	routes := map[string][]string{}
 	for _, edge := range edges {
@@ -397,6 +428,7 @@ func (a *Server) UpdatePipeline(ctx context.Context, req *connect.Request[ingest
 	pipeline := &ingestionv1.Pipeline{
 		Id: req.Msg.GetPipelineId(), TenantId: string(tenant), Name: req.Msg.GetName(), Description: req.Msg.GetDescription(),
 		WorkerConfiguration: req.Msg.GetWorkerConfiguration(), ExecutionMode: req.Msg.GetExecutionMode(),
+		FailOnError: req.Msg.FailOnError,
 	}
 	next, err := a.store.UpdatePipeline(ctx, pipeline)
 	if errors.Is(err, filament.ErrNotFound) {

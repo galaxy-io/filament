@@ -26,9 +26,28 @@ data:
   CONNECTOR_SINKS: {{ join "," . | quote }}
   {{- end }}
 
+  # SSH
+  {{- with .Values.ssh.reverse.host }}
+  SSH_REVERSE_TUNNEL_HOST: {{ . | quote }}
+  {{- end }}
+
   # Heartbeat
   {{- with .Values.worker.heartbeatSeconds }}
   HEARTBEAT_SECONDS: {{ . | quote }}
+  {{- end }}
+
+  # Alchemy
+  {{- with .Values.alchemy.serverUrl | default .Values.galaxy.productUrls.alchemy }}
+  GALAXY_ALCHEMY_SERVER_URL: {{ . | quote }}
+  {{- if $.Values.auth.enabled }}
+  AUTH_PROVIDER: {{ $.Values.auth.type | quote }}
+  {{- end }}
+  {{- with $.Values.alchemy.batchMaxBytes }}
+  ALCHEMY_BATCH_MAX_BYTES: {{ . | int64 | quote }}
+  {{- end }}
+  {{- with $.Values.alchemy.maxInFlight }}
+  ALCHEMY_MAX_IN_FLIGHT: {{ . | quote }}
+  {{- end }}
   {{- end }}
 
   # Observability

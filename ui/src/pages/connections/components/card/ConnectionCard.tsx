@@ -14,6 +14,8 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 
 import ConnectionKindChip from "@/components/connections/ConnectionKindChip";
 import ConnectorTile from "@/components/connections/ConnectorTile";
+import { useConnectionWebhookSpec } from "@/components/webhooks/hooks/useConnectionWebhookSpec";
+import { getWebhookConnectorTileBadge } from "@/components/webhooks/utils";
 
 import { formatVersion } from "@/utils/format";
 
@@ -24,6 +26,7 @@ interface ConnectionCardProps {
 }
 
 const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount, onClick }) => {
+  const { webhook } = useConnectionWebhookSpec(connection);
   const pipelineLabel =
     pipelineCount === undefined ? EMPTY_VALUE : pluralize("pipeline", pipelineCount, true);
 
@@ -41,7 +44,11 @@ const ConnectionCard: FC<ConnectionCardProps> = ({ connection, pipelineCount, on
       <Flex alignItems={AlignItems.START} fillWidth justifyContent={JustifyContent.SPACE_BETWEEN}>
         <Flex alignItems={AlignItems.CENTER} gap={8}>
           <FlexItem shrink={0}>
-            <ConnectorTile connector={connection.connector} kind={connection.kind} />
+            <ConnectorTile
+              connector={connection.connector}
+              kind={connection.kind}
+              badge={getWebhookConnectorTileBadge(webhook)}
+            />
           </FlexItem>
           <Text size={TextSize.BODY_LG} weight={TextWeight.MEDIUM}>
             {connection.name}

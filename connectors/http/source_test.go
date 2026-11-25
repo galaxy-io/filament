@@ -2547,8 +2547,19 @@ func TestCatalogPostHogSpecAndEmbeddedManifest(t *testing.T) {
 	for _, field := range spec.Config.Fields {
 		fields[field.Name] = field
 	}
-	if len(fields) != 4 {
-		t.Fatalf("config fields = %#v, want api_key, project_id, host and session_recordings_start_date", spec.Config.Fields)
+	if len(fields) != 5 {
+		t.Fatalf("config fields = %#v, want ingestion, api_key, project_id, host and session_recordings_start_date", spec.Config.Fields)
+	}
+	// The webhook block adds the ingestion choice first, reading the API by
+	// default, and shows the API fields only to connections that read it.
+	if f := spec.Config.Fields[0]; f.Name != "ingestion" || f.Type != filament.FieldEnum || f.Default != filament.IngestionAPI || f.Scope != filament.ScopeConnection || len(f.Enum) != 3 {
+		t.Fatalf("first config field = %#v, want connection-scoped ingestion enum defaulting to api", f)
+	}
+	if c := fields["api_key"].VisibleWhen; c == nil || c.Field != "ingestion" || !slices.Equal(c.Values, []string{filament.IngestionAPI, filament.IngestionBoth}) {
+		t.Fatalf("api_key visible_when = %#v, want ingestion api or both", c)
+	}
+	if spec.Webhook == nil || spec.Webhook.Verifier != "standard_webhooks" || spec.Webhook.IngestionField != "ingestion" || spec.Stream == nil {
+		t.Fatalf("webhook spec = %#v, stream = %#v", spec.Webhook, spec.Stream)
 	}
 	if fields["api_key"].Type != filament.FieldSecret || !fields["api_key"].Required {
 		t.Fatalf("api_key field = %#v, want required secret", fields["api_key"])

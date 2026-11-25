@@ -25,6 +25,10 @@ func (m *Manifest) Normalize() {
 	for i := range m.Resources {
 		r := &m.Resources[i]
 		m.normalizeResourceFields(r)
+		if r.Mode == ModeWebhook {
+			normalizeWebhookResource(r)
+			continue
+		}
 		// Export requests have their own HTTP and decoding settings. Resource
 		// defaults must not accidentally paginate a job or change its payload.
 		if r.Mode == "export" {
@@ -224,7 +228,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		names[r.Name] = struct{}{}
 
-		if r.Path == "" && r.Mode != "export" {
+		if r.Path == "" && r.Mode != "export" && r.Mode != ModeWebhook {
 			_ = agg.Addf(path+".path", "is required")
 		}
 		if r.Parent != nil && r.Parent.Resource == "" {
@@ -453,6 +457,8 @@ func (m *Manifest) validateSemantics() error {
 			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "unknown resource %q", name)
 		} else if byName[name].CaptureOnly {
 			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "resource %q is capture_only", name)
+		} else if byName[name].IsWebhook() {
+			_ = agg.Addf(fmt.Sprintf("discovery.include[%d]", i), "resource %q receives webhooks and is discovered from the webhook block", name)
 		}
 	}
 	if m.Discovery.Mode == "dynamic" && len(m.Discovery.Include) > 0 {
@@ -463,11 +469,15 @@ func (m *Manifest) validateSemantics() error {
 	}
 	for i, name := range m.Discovery.DefaultResources {
 		path := fmt.Sprintf("discovery.default_resources[%d]", i)
-		if _, ok := names[name]; !ok {
+		_, known := names[name]
+		switch {
+		case !known:
 			_ = agg.Addf(path, "unknown resource %q", name)
-		} else if byName[name].CaptureOnly {
+		case byName[name].CaptureOnly:
 			_ = agg.Addf(path, "resource %q is capture_only", name)
-		} else if len(m.Discovery.Include) > 0 && !slices.Contains(m.Discovery.Include, name) {
+		case byName[name].IsWebhook():
+			_ = agg.Addf(path, "resource %q receives webhooks and is discovered from the webhook block", name)
+		case len(m.Discovery.Include) > 0 && !slices.Contains(m.Discovery.Include, name):
 			_ = agg.Addf(path, "resource %q is not in discovery.include", name)
 		}
 	}
@@ -574,6 +584,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		seen[key] = r.Name
 	}
+	validateWebhook(&agg, m)
 
 	return agg.AsError()
 }

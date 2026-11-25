@@ -7,6 +7,7 @@ package convert
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -20,20 +21,103 @@ import (
 // capabilities are omitted; the worker contract carries those.
 func SourceSpecToProto(spec filament.ConnectorSpec) *ingestionv1.ConnectorSpec {
 	return &ingestionv1.ConnectorSpec{
-		Name:            spec.Name,
-		DisplayName:     spec.DisplayName,
-		Description:     spec.Description,
-		DarkLogoUrl:     spec.DarkLogoURL,
-		LightLogoUrl:    spec.LightLogoURL,
-		Kind:            ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
-		Version:         spec.Version,
-		ApiVersion:      spec.APIVersion,
-		AliasTarget:     spec.AliasTarget,
-		IsPreview:       spec.IsPreview,
-		Modes:           ReplicationModesToProto(spec.Modes),
-		ConfigSchema:    ConfigSchemaToProto(spec.Config),
-		WebhookVerifier: spec.WebhookVerifier,
+		Name:         spec.Name,
+		DisplayName:  spec.DisplayName,
+		Description:  spec.Description,
+		DarkLogoUrl:  spec.DarkLogoURL,
+		LightLogoUrl: spec.LightLogoURL,
+		Kind:         ingestionv1.ConnectorKind_CONNECTOR_KIND_SOURCE,
+		Version:      spec.Version,
+		ApiVersion:   spec.APIVersion,
+		AliasTarget:  spec.AliasTarget,
+		IsPreview:    spec.IsPreview,
+		Modes:        ReplicationModesToProto(spec.Modes),
+		ConfigSchema: ConfigSchemaToProto(spec.Config),
+		Webhook:      WebhookSpecToProto(spec.Webhook),
+		// Deprecated mirror for clients that predate the webhook spec.
+		WebhookVerifier: spec.Webhook.GetVerifier(), //nolint:staticcheck // written for older clients
+
 	}
+}
+
+// WebhookSpecToProto encodes a source's webhook spec, nil when it has none.
+func WebhookSpecToProto(spec *filament.WebhookSpec) *ingestionv1.WebhookSpec {
+	if spec == nil {
+		return nil
+	}
+	out := &ingestionv1.WebhookSpec{
+		Verifier: spec.Verifier, DynamicResources: spec.DynamicResources,
+		IngestionField: spec.IngestionField, Setup: spec.Setup, Resources: slices.Clone(spec.Resources),
+		SplitsExecution: spec.SplitsExecution(), Routed: spec.Routed(),
+		SecretIssuer: webhookSecretIssuerToProto(spec.SecretIssuer),
+	}
+	// Parameters and ingress are JSON objects by contract. A source that
+	// breaks it loses them on the wire and the endpoint save fails validation.
+	out.VerifierParams = jsonObjectToStruct(spec.VerifierParams)
+	out.Ingress = jsonObjectToStruct(spec.Ingress)
+	return out
+}
+
+func webhookSecretIssuerToProto(issuer string) ingestionv1.WebhookSecretIssuer {
+	if issuer == filament.WebhookSecretProvider {
+		return ingestionv1.WebhookSecretIssuer_WEBHOOK_SECRET_ISSUER_PROVIDER
+	}
+	return ingestionv1.WebhookSecretIssuer_WEBHOOK_SECRET_ISSUER_FILAMENT
+}
+
+func webhookSecretIssuerFromProto(issuer ingestionv1.WebhookSecretIssuer) string {
+	if issuer == ingestionv1.WebhookSecretIssuer_WEBHOOK_SECRET_ISSUER_PROVIDER {
+		return filament.WebhookSecretProvider
+	}
+	return filament.WebhookSecretFilament
+}
+
+func jsonObjectToStruct(raw []byte) *structpb.Struct {
+	if len(raw) == 0 {
+		return nil
+	}
+	out := &structpb.Struct{}
+	if err := protojson.Unmarshal(raw, out); err != nil || len(out.GetFields()) == 0 {
+		return nil
+	}
+	return out
+}
+
+func structToJSONObject(in *structpb.Struct, what string) (json.RawMessage, error) {
+	if in == nil || len(in.GetFields()) == 0 {
+		return nil, nil
+	}
+	raw, err := protojson.Marshal(in)
+	if err != nil {
+		return nil, fmt.Errorf("webhook %s: %w", what, err)
+	}
+	return raw, nil
+}
+
+// webhookSpecFromProto decodes a webhook spec. A worker that predates the
+// spec sends only the verifier and the endpoint-backed resource flag.
+func webhookSpecFromProto(spec *ingestionv1.ConnectorSpec, endpointBacked bool) (*filament.WebhookSpec, error) {
+	in := spec.GetWebhook()
+	if in == nil {
+		//nolint:staticcheck // reading the deprecated field keeps older workers working
+		if verifier := spec.GetWebhookVerifier(); verifier != "" {
+			return &filament.WebhookSpec{Verifier: verifier, DynamicResources: endpointBacked}, nil
+		}
+		return nil, nil
+	}
+	out := &filament.WebhookSpec{
+		Verifier: in.GetVerifier(), DynamicResources: in.GetDynamicResources(),
+		IngestionField: in.GetIngestionField(), Setup: in.GetSetup(), Resources: slices.Clone(in.GetResources()),
+		SecretIssuer: webhookSecretIssuerFromProto(in.GetSecretIssuer()),
+	}
+	var err error
+	if out.VerifierParams, err = structToJSONObject(in.GetVerifierParams(), "verifier params"); err != nil {
+		return nil, err
+	}
+	if out.Ingress, err = structToJSONObject(in.GetIngress(), "ingress"); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // sourceSpecFromProto restores the fields the public projection carries.
@@ -43,17 +127,16 @@ func sourceSpecFromProto(spec *ingestionv1.ConnectorSpec) (filament.ConnectorSpe
 		return filament.ConnectorSpec{}, err
 	}
 	return filament.ConnectorSpec{
-		Name:            spec.GetName(),
-		DisplayName:     spec.GetDisplayName(),
-		Description:     spec.GetDescription(),
-		DarkLogoURL:     spec.GetDarkLogoUrl(),
-		LightLogoURL:    spec.GetLightLogoUrl(),
-		Version:         spec.GetVersion(),
-		APIVersion:      spec.GetApiVersion(),
-		AliasTarget:     spec.GetAliasTarget(),
-		IsPreview:       spec.GetIsPreview(),
-		Config:          config,
-		WebhookVerifier: spec.GetWebhookVerifier(),
+		Name:         spec.GetName(),
+		DisplayName:  spec.GetDisplayName(),
+		Description:  spec.GetDescription(),
+		DarkLogoURL:  spec.GetDarkLogoUrl(),
+		LightLogoURL: spec.GetLightLogoUrl(),
+		Version:      spec.GetVersion(),
+		APIVersion:   spec.GetApiVersion(),
+		AliasTarget:  spec.GetAliasTarget(),
+		IsPreview:    spec.GetIsPreview(),
+		Config:       config,
 	}, nil
 }
 
@@ -112,16 +195,18 @@ func configFieldsToProto(configFields []filament.ConfigField) []*ingestionv1.Con
 	fields := make([]*ingestionv1.ConfigField, 0, len(configFields))
 	for _, field := range configFields {
 		fields = append(fields, &ingestionv1.ConfigField{
-			Name:        field.Name,
-			Type:        FieldTypeToProto(field.Type),
-			Required:    field.Required,
-			Default:     ValueToProto(field.Default),
-			Enum:        enumOptionsToProto(field.Enum),
-			Help:        field.Help,
-			Scope:       FieldScopeToProto(field.Scope),
-			Secret:      field.Secret || field.Type == filament.FieldSecret,
-			Fields:      configFieldsToProto(field.Fields),
-			VisibleWhen: fieldConditionToProto(field.VisibleWhen),
+			Name:           field.Name,
+			Type:           FieldTypeToProto(field.Type),
+			Required:       field.Required,
+			Default:        ValueToProto(field.Default),
+			Enum:           enumOptionsToProto(field.Enum),
+			Help:           field.Help,
+			Scope:          FieldScopeToProto(field.Scope),
+			Secret:         field.Secret || field.Type == filament.FieldSecret,
+			Fields:         configFieldsToProto(field.Fields),
+			VisibleWhen:    fieldConditionToProto(field.VisibleWhen),
+			ReadOnly:       field.ReadOnly,
+			PublicKeyField: field.PublicKeyField,
 		})
 	}
 	return fields
@@ -150,16 +235,18 @@ func configFieldsFromProto(configFields []*ingestionv1.ConfigField) ([]filament.
 			defaultValue = field.GetDefault().AsInterface()
 		}
 		fields = append(fields, filament.ConfigField{
-			Name:        field.GetName(),
-			Type:        fieldType,
-			Required:    field.GetRequired(),
-			Default:     defaultValue,
-			Enum:        enumOptionsFromProto(field.GetEnum()),
-			Help:        field.GetHelp(),
-			Scope:       scope,
-			Secret:      field.GetSecret(),
-			Fields:      nested,
-			VisibleWhen: fieldConditionFromProto(field.GetVisibleWhen()),
+			Name:           field.GetName(),
+			Type:           fieldType,
+			Required:       field.GetRequired(),
+			Default:        defaultValue,
+			Enum:           enumOptionsFromProto(field.GetEnum()),
+			Help:           field.GetHelp(),
+			Scope:          scope,
+			Secret:         field.GetSecret(),
+			Fields:         nested,
+			VisibleWhen:    fieldConditionFromProto(field.GetVisibleWhen()),
+			ReadOnly:       field.GetReadOnly(),
+			PublicKeyField: field.GetPublicKeyField(),
 		})
 	}
 	return fields, nil
@@ -347,6 +434,8 @@ func FieldScopeToProto(s filament.FieldScope) ingestionv1.FieldScope {
 		return ingestionv1.FieldScope_FIELD_SCOPE_CONNECTION
 	case filament.ScopePipeline:
 		return ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE
+	case filament.ScopeResource:
+		return ingestionv1.FieldScope_FIELD_SCOPE_RESOURCE
 	default:
 		return ingestionv1.FieldScope_FIELD_SCOPE_UNSPECIFIED
 	}
@@ -361,6 +450,8 @@ func FieldScopeFromProto(s ingestionv1.FieldScope) (filament.FieldScope, error) 
 		return filament.ScopeConnection, nil
 	case ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE:
 		return filament.ScopePipeline, nil
+	case ingestionv1.FieldScope_FIELD_SCOPE_RESOURCE:
+		return filament.ScopeResource, nil
 	default:
 		return 0, fmt.Errorf("unknown field scope %d", s)
 	}

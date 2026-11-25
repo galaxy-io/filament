@@ -11,15 +11,18 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/dbconfig"
+	"github.com/galaxy-io/filament/connectors/internal/tunnel"
 )
 
-// Resolved contains the native MySQL driver configuration.
+// Resolved contains the native MySQL driver configuration. Tunnel is nil when
+// the database is dialed directly.
 type Resolved struct {
 	DriverConfig *mysql.Config
+	Tunnel       *tunnel.Tunnel
 }
 
 // Resolve translates connector configuration into a MySQL driver config.
-func Resolve(cfg filament.Config) (Resolved, error) {
+func Resolve(cfg filament.Config, reverseTunnelHost string) (Resolved, error) {
 	method, err := dbconfig.Method(cfg)
 	if err != nil {
 		return Resolved{}, err
@@ -33,7 +36,7 @@ func Resolve(cfg filament.Config) (Resolved, error) {
 		if err != nil {
 			return Resolved{}, fmt.Errorf("parse dsn: %w", err)
 		}
-		return Resolved{DriverConfig: parsed}, nil
+		return withTunnel(cfg, reverseTunnelHost, parsed)
 	}
 
 	host := strings.TrimSpace(cfg.String("host"))
@@ -80,7 +83,19 @@ func Resolve(cfg filament.Config) (Resolved, error) {
 	if err != nil {
 		return Resolved{}, err
 	}
-	return Resolved{DriverConfig: driverConfig}, nil
+	return withTunnel(cfg, reverseTunnelHost, driverConfig)
+}
+
+// withTunnel routes the driver's connections through the configured tunnel.
+func withTunnel(cfg filament.Config, reverseTunnelHost string, driverConfig *mysql.Config) (Resolved, error) {
+	opened, err := dbconfig.OpenTunnel(cfg, reverseTunnelHost)
+	if err != nil {
+		return Resolved{}, err
+	}
+	if opened != nil {
+		driverConfig.DialFunc = opened.DialContext
+	}
+	return Resolved{DriverConfig: driverConfig, Tunnel: opened}, nil
 }
 
 // parseDSN accepts both the go-sql-driver native DSN and the conventional

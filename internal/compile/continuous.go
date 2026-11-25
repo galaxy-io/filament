@@ -25,6 +25,9 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 	if err != nil {
 		return nil, err
 	}
+	if graph.Edges, err = c.executionEdges(ctx, graph.Edges, nodes, connections, filament.ExecutionContinuous); err != nil {
+		return nil, err
+	}
 	if err := normalizeContinuousEdges(graph.Edges); err != nil {
 		return nil, err
 	}
@@ -47,7 +50,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if err != nil {
 			return nil, err
 		}
-		sinkRef, err := c.resolveNodeRef(ctx, group.sink, connections)
+		sinkRef, err := c.resolveSinkRef(ctx, group, connections)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +65,8 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 		if err := filament.ValidateContinuous(sourceSpec, sinkSpec); err != nil {
 			return nil, fmt.Errorf("%w: %v", ErrPrecondition, err)
 		}
-		if len(group.transforms) > 0 {
+		group.key = ContinuousRouteKey(sourceSpec, group.key)
+		if len(group.transforms()) > 0 {
 			return nil, fmt.Errorf("%w: continuous execution does not apply transforms", ErrInvalid)
 		}
 		if err := validateContinuousResync(sourceSpec, sourceRef, routeResync(group, resync)); err != nil {
@@ -87,7 +91,7 @@ func (c *Compiler) compileContinuous(ctx context.Context, tenant filament.Tenant
 			return nil, err
 		}
 		desired := &filament.ReplicationStream{ID: streamID, Tenant: tenant, PipelineID: p.Id, Route: group.key, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, ConsumerName: plan.ConsumerName, ConsumerConfig: plan.ConsumerConfig, ContinuityFingerprint: fingerprint, CreatedFromPipelineVersionID: v.Id}
-		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: routeSelection(group.columns), Partitions: routeSelection(group.partitions), Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker.Merge(WorkerConfigurationFromProto(p.WorkerConfiguration)), WritePolicies: policies, IngestionTypes: ingestionTypes}}})
+		out = append(out, CompiledRun{Edge: group.key, Submission: filament.RunSubmission{DesiredReplicationStream: desired, Request: filament.RunRequest{Tenant: tenant, PipelineID: p.Id, PipelineVersionID: v.Id, IdempotencyKey: fmt.Sprintf("%s:%s:%s", p.Id, token, group.key), Source: sourceRef, Sink: sinkRef, SourceConnectionID: group.source.ConnectionId, SinkConnectionID: group.sink.ConnectionId, Resources: resources, Columns: routeSelection(group.columns()), Partitions: routeSelection(group.partitions()), SinkConfigs: routeSinkConfigs(group.sinkConfigs()), Resync: routeResync(group, resync), CheckpointRoute: group.key, Options: options, WorkerConfiguration: worker, WritePolicies: policies, IngestionTypes: ingestionTypes}}})
 	}
 	return out, nil
 }

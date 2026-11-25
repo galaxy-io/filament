@@ -22,6 +22,7 @@ const ConnectionFormWrapper: FC<PropsWithChildren<ConnectionFormWrapperProps>> =
     isOpen={isOpen}
     header={header}
     footer={footer}
+    hasDividers
     isDismissable={isDismissable}
     onOpenChange={(isOpen) => {
       if (!isOpen) onClose();

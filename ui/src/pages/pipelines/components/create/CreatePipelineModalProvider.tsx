@@ -23,6 +23,7 @@ import {
   type SetActiveSinkAction,
   type SetDescriptionAction,
   type SetExecutionModeAction,
+  type SetFailOnErrorAction,
   type SetNameAction,
   type SetNodeConfigAction,
   type SetResourceColumnsAction,
@@ -30,6 +31,7 @@ import {
   type SetResourcePartitionsAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
+  type SetResourceSinkConfigAction,
   type SetResourceWriteModeAction,
   type SetScheduleAction,
   type SetSinkWriteModeAction,
@@ -110,6 +112,8 @@ export const useCreatePipelineModalActions = () => {
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_PARTITIONS, payload }),
       setResourceWriteMode: (payload: SetResourceWriteModeAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE, payload }),
+      setResourceSinkConfig: (payload: SetResourceSinkConfigAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_RESOURCE_SINK_CONFIG, payload }),
       setSinkWriteMode: (payload: SetSinkWriteModeAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_SINK_WRITE_MODE, payload }),
       setNodeConfig: (payload: SetNodeConfigAction["payload"]) =>
@@ -128,6 +132,8 @@ export const useCreatePipelineModalActions = () => {
         dispatch({ type: CreatePipelineModalActionType.REMOVE_NOTIFIER, payload }),
       setWorkerConfiguration: (payload: SetWorkerConfigurationAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.SET_WORKER_CONFIGURATION, payload }),
+      setFailOnError: (payload: SetFailOnErrorAction["payload"]) =>
+        dispatch({ type: CreatePipelineModalActionType.SET_FAIL_ON_ERROR, payload }),
       goToStep: (payload: GoToStepAction["payload"]) =>
         dispatch({ type: CreatePipelineModalActionType.GO_TO_STEP, payload }),
       goBack: () => dispatch({ type: CreatePipelineModalActionType.GO_BACK }),

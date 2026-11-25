@@ -40,9 +40,10 @@ func (a *Server) CreateConnection(ctx context.Context, req *connect.Request[inge
 		// Persist the concrete identity when a catalog default alias was used.
 		connector = spec.Name
 	}
-	cfg := convert.StructMap(req.Msg.GetConfig())
-	refs := cloneStrings(req.Msg.GetSecretRefs())
-	canonicalizeConnectionConfig(schema, cfg, refs)
+	cfg, refs, err := submittedConnectionConfig(schema, req.Msg.GetConfig(), req.Msg.GetSecretRefs(), nil)
+	if err != nil {
+		return nil, err
+	}
 	if err := validateSecretRefTenant(refs, tenant); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -112,11 +113,9 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	cfg := convert.StructMap(in.GetConfig())
-	refs := cloneStrings(in.GetSecretRefs())
-	canonicalizeConnectionConfig(schema, cfg, refs)
-	if err := checkUpdatedSecretRefs(schema, stored, cfg, refs); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	cfg, refs, err := submittedConnectionConfig(schema, in.GetConfig(), in.GetSecretRefs(), &stored)
+	if err != nil {
+		return nil, err
 	}
 	if err := compile.ValidateConnectionConfig(schema, cfg); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -166,7 +165,32 @@ func (a *Server) UpdateConnection(ctx context.Context, req *connect.Request[inge
 		return nil, connect.NewError(connect.CodeAborted, err)
 	}
 	a.deleteReplacedSecretRefs(ctx, stored.SecretRefs, next.SecretRefs)
+	if err := a.disableWebhookEndpointWhenOff(ctx, tenantID, stored, filament.NewConfig(cfg)); err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&ingestionv1.UpdateConnectionResponse{Connection: a.connectionForResponse(ctx, next)}), nil
+}
+
+// submittedConnectionConfig returns the config and secret refs a request
+// carries, canonical and with their key pairs settled. stored is the
+// connection being updated, or nil for a new one. Key pairs settle after the
+// saved-secret check, so a generated key whose ref that check drops is
+// replaced with a new pair, which the caller could not have supplied again.
+func submittedConnectionConfig(schema filament.ConfigSchema, config *structpb.Struct, secretRefs map[string]string, stored *filament.Connection) (map[string]any, map[string]string, error) {
+	cfg := convert.StructMap(config)
+	refs := cloneStrings(secretRefs)
+	canonicalizeConnectionConfig(schema, cfg, refs)
+	var saved map[string]any
+	if stored != nil {
+		if err := checkUpdatedSecretRefs(schema, *stored, cfg, refs); err != nil {
+			return nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		saved = stored.Config
+	}
+	if _, err := prepareKeyPairs(schema.Fields, cfg, refs, saved, ""); err != nil {
+		return nil, nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return cfg, refs, nil
 }
 
 // validateConnectionUpdateTarget checks the persisted invariants that must
@@ -243,8 +267,9 @@ func (a *Server) connectionForResponse(ctx context.Context, conn filament.Connec
 		if err != nil {
 			return out
 		}
-		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, filament.NewConfig(conn.Config)))
-		out.ExecutionModes = a.sourceExecutionModes(spec)
+		cfg := filament.NewConfig(conn.Config)
+		out.Replication = convert.ReplicationToProto(filament.ReplicationFor(spec, cfg))
+		out.ExecutionModes = a.connectionExecutionModes(spec, cfg)
 	case filament.ConnectorKindSink:
 		spec, err := a.worker.SinkSpec(ctx, conn.Connector)
 		if err != nil {

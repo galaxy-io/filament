@@ -319,9 +319,8 @@ type ConnectorSpec struct {
 	SourcePolicies []SourcePolicy
 	Config         ConfigSchema
 	Resources      ResourceCapabilities
-	// WebhookVerifier names the webhook verifier that authenticates this
-	// source's deliveries. A source that sets it can own a webhook endpoint.
-	WebhookVerifier string
+	// Webhook is set when the source receives provider webhooks.
+	Webhook *WebhookSpec
 }
 
 // ConfigSchema declares the fields a connector's Config accepts.
@@ -339,6 +338,13 @@ type ConfigField struct {
 	Secret   bool
 	// VisibleWhen conditionally includes this field based on a sibling field.
 	VisibleWhen *FieldCondition
+	// ReadOnly marks a value the server or the platform sets. A form shows it
+	// without an input.
+	ReadOnly bool
+	// PublicKeyField makes a secret field an SSH private key and names the
+	// sibling that receives its public half. The server generates the key when
+	// none is supplied.
+	PublicKeyField string
 	// Fields describes the members of an object field. It is empty for scalar
 	// fields and for intentionally free-form objects.
 	Fields []ConfigField
@@ -374,9 +380,10 @@ const (
 	FieldList
 )
 
-// FieldScope is the scope for a config field, aligning with either a connection config or a pipeline config.
+// FieldScope is the scope for a config field, aligning with a connection config, a pipeline config, or one resource.
 // Connection == Only used to establish a connection to connector, reusable for all runs
 // Pipeline == Varies based on pipeline
+// Resource == Varies based on resource within a pipeline
 // For example: postgres has a dsn to connect (connection scope) and a table the data should land in (pipeline scope)
 type FieldScope int
 
@@ -385,6 +392,7 @@ const (
 	ScopeUnspecified FieldScope = iota
 	ScopeConnection
 	ScopePipeline
+	ScopeResource
 )
 
 // IsPipeline reports whether the field is set per pipeline node
@@ -403,7 +411,7 @@ const (
 )
 
 // ResourceCapabilities advertises what a source can do per resource.
-type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns, WebhookEndpointBacked bool }
+type ResourceCapabilities struct{ Discoverable, PerResourceCursor, SelectableColumns bool }
 
 // ExtractOpts scopes one extraction: which resources, how fast. Read behavior
 // per resource is carried by the checkpoint plan handed to ExtractFrom, not by

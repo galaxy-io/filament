@@ -7,6 +7,7 @@ import {
   ReplicationMode,
 } from "@/gen/ingestion/v1/common_pb";
 import type { Connection } from "@/gen/ingestion/v1/connections_pb";
+import type { WebhookSpec } from "@/gen/ingestion/v1/connectors_pb";
 import {
   type CreatePipelineNotifierRequest,
   CreatePipelineNotifierRequestSchema,
@@ -38,6 +39,7 @@ import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/no
 import {
   createResourceColumnSelections,
   createResourcePartitionSelections,
+  createResourceSinkConfigs,
 } from "@/pages/pipelines/components/resource/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 
@@ -107,25 +109,30 @@ const createSinkEdges = ({
   rows,
   sink,
   hasReadLevers,
+  webhook,
 }: {
   sourceId: PipelineNode["id"];
   rows: CreatePipelineModalResourceRow[];
   sink: CreatePipelineModalSinkRow;
   hasReadLevers: boolean;
+  webhook: WebhookSpec | undefined;
 }): PipelineEdge[] =>
   rows
     .filter((row) => row.isSelected)
     .map((row) => {
-      const readMode = hasReadLevers ? row.readMode : ReadMode.UNSPECIFIED;
+      const isBounded =
+        hasReadLevers && !(webhook?.splitsExecution && webhook.resources.includes(row.name));
+      const readMode = isBounded ? row.readMode : ReadMode.UNSPECIFIED;
       return create(PipelineEdgeSchema, {
         fromNode: sourceId,
         resource: row.name,
         toNode: sink.connection.id,
         readMode,
         writeMode: hasReadLevers ? row.writeMode : sink.writeMode,
-        cursors: hasReadLevers ? createCursors([row], readMode) : [],
+        cursors: isBounded ? createCursors([row], readMode) : [],
         columns: createColumns(row),
         partitions: createPartitions(row, readMode),
+        sinkConfigs: createResourceSinkConfigs({ resource: row.name, config: row.sinkConfig }),
       });
     });
 
@@ -134,11 +141,13 @@ const createEdges = ({
   rowsBySink,
   sinks,
   hasReadLevers,
+  webhook,
 }: {
   sourceConnection: Connection | null;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
   sinks: CreatePipelineModalSinkRow[];
   hasReadLevers: boolean;
+  webhook: WebhookSpec | undefined;
 }): PipelineEdge[] => {
   if (!sourceConnection) return [];
   return sinks.flatMap((sink) =>
@@ -147,6 +156,7 @@ const createEdges = ({
       rows: rowsBySink[sink.connection.id] ?? [],
       sink,
       hasReadLevers,
+      webhook,
     }),
   );
 };
@@ -159,6 +169,7 @@ export const mapCreatePipelineStateToVersionRequest = ({
   replication,
   executionMode,
   pipelineId,
+  webhook,
 }: {
   sourceConnection: Connection | null;
   rowsBySink: Record<Connection["id"], CreatePipelineModalResourceRow[]>;
@@ -167,6 +178,7 @@ export const mapCreatePipelineStateToVersionRequest = ({
   replication: ReplicationMode;
   executionMode: ExecutionMode;
   pipelineId: Pipeline["id"];
+  webhook: WebhookSpec | undefined;
 }): CreatePipelineVersionRequest =>
   create(CreatePipelineVersionRequestSchema, {
     pipelineId,
@@ -178,6 +190,7 @@ export const mapCreatePipelineStateToVersionRequest = ({
         sinks,
         hasReadLevers:
           replication !== ReplicationMode.CDC && executionMode !== ExecutionMode.CONTINUOUS,
+        webhook,
       }),
     },
   });
@@ -199,6 +212,7 @@ export const mapCreatePipelineStateToRequest = (
           }
         : undefined,
     workerConfiguration: parseWorkerConfiguration(state.workerConfiguration).configuration,
+    failOnError: state.failOnError,
   });
 
 export const mapCreatePipelineNotifierToRequest = (

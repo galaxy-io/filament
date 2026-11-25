@@ -181,7 +181,7 @@ func (m *Module) jobForSpec(spec filament.RunSpec) (*batchv1.Job, error) {
 			BackoffLimit:            &backoff,
 			TTLSecondsAfterFinished: m.cfg.TTLSecondsAfterFinished,
 			Template: corev1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{Labels: m.jobLabels(spec)},
+				ObjectMeta: metav1.ObjectMeta{Labels: m.jobLabels(spec), Annotations: spec.WorkerConfiguration.Annotations},
 				Spec:       podSpec,
 			},
 		},
