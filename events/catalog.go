@@ -44,16 +44,26 @@ type (
 		// resource failures. The sink committed every other resource.
 		FailedResources []string `json:"failedResources,omitempty"`
 	}
-	// RunFailedEvent carries the error that ended the run.
+	// RunFailedEvent carries the error that ended the run. Records and Bytes
+	// are the engine's counters when the engine reports the failure, and zero
+	// when another process does.
 	RunFailedEvent struct {
-		Error string `json:"error"`
+		Error   string `json:"error"`
+		Records int64  `json:"records,omitempty"`
+		Bytes   int64  `json:"bytes,omitempty"`
 	}
 	// RunPartialEvent marks a run that landed some resources but not all.
 	RunPartialEvent struct {
-		Error string `json:"error"`
+		Error   string `json:"error"`
+		Records int64  `json:"records,omitempty"`
+		Bytes   int64  `json:"bytes,omitempty"`
 	}
-	// RunCanceledEvent marks a run stopped by a cancellation request.
-	RunCanceledEvent struct{}
+	// RunCanceledEvent marks a run stopped by a cancellation request. Records
+	// and Bytes are set as for RunFailedEvent.
+	RunCanceledEvent struct {
+		Records int64 `json:"records,omitempty"`
+		Bytes   int64 `json:"bytes,omitempty"`
+	}
 	// RunPausedEvent marks a run suspended for a later continuation. Committed
 	// reports whether the sink reached a boundary that can promote checkpoints.
 	RunPausedEvent struct {

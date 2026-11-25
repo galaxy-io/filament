@@ -3,6 +3,7 @@ package arrowbatch
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sync/atomic"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -296,7 +297,9 @@ func (b *Builder) Timestamp(micros int64) {
 
 // EndRow closes the row with its meta and flushes the chunk once it reaches
 // MaxRows or MaxBytes, or a flush was requested. It returns the builder's sticky
-// error, including a row short of columns.
+// error, including a row short of columns. meta.Key is borrowed until the next
+// EndRow: the builder copies the key of a chunk's last row into the chunk, so a
+// source may reuse one key slice for every row.
 func (b *Builder) EndRow(meta rowmodel.Meta) error {
 	if b.closed.Load() {
 		return ErrClosed
@@ -406,6 +409,7 @@ func (b *Builder) flush() error {
 	}
 	out := NewBatch(rec, takeOperations(b.ops))
 	out.Last = b.last
+	out.Last.Key = slices.Clone(b.last.Key)
 	b.ops = nil
 	b.rows = 0
 	b.bytes = 0
