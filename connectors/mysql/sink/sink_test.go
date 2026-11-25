@@ -1,11 +1,13 @@
 package mysql
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
 
 	"github.com/galaxy-io/filament/arrowbatch"
+	"github.com/galaxy-io/filament/connectors/internal/dbconfig"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -106,5 +108,28 @@ func TestLoadPayload(t *testing.T) {
 func TestSpecAdvertisesEncodedIntegrity(t *testing.T) {
 	if !New().Spec().Capabilities.EncodedIntegrity {
 		t.Fatal("MySQL sink must require encoded integrity evidence")
+	}
+}
+
+func TestReverseTunnelHostAddsTheMethod(t *testing.T) {
+	methods := func(connector *Sink) []string {
+		var values []string
+		for _, field := range connector.Spec().Config.Fields {
+			if field.Name != dbconfig.TunnelField {
+				continue
+			}
+			for _, option := range field.Fields[0].Enum {
+				values = append(values, option.Value)
+			}
+		}
+		return values
+	}
+	connector := New()
+	if got := methods(connector); slices.Contains(got, dbconfig.TunnelReverse) || !slices.Contains(got, dbconfig.TunnelSSH) {
+		t.Fatalf("methods without a host = %v", got)
+	}
+	connector.UseReverseTunnelHost("tunnel.internal")
+	if got := methods(connector); !slices.Contains(got, dbconfig.TunnelReverse) {
+		t.Fatalf("methods with a host = %v", got)
 	}
 }

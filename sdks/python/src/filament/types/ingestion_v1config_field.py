@@ -49,6 +49,33 @@ class IngestionV1ConfigField(UniversalBaseModel):
     visible_when conditionally includes this field based on a sibling field.
     """
 
+    read_only: typing_extensions.Annotated[
+        typing.Optional[bool],
+        FieldMetadata(alias="readOnly"),
+        pydantic.Field(
+            alias="readOnly",
+            description="read_only marks a value the server or the platform sets. A form shows it\n without an input.",
+        ),
+    ] = None
+    """
+    read_only marks a value the server or the platform sets. A form shows it
+     without an input.
+    """
+
+    public_key_field: typing_extensions.Annotated[
+        typing.Optional[str],
+        FieldMetadata(alias="publicKeyField"),
+        pydantic.Field(
+            alias="publicKeyField",
+            description="public_key_field makes a secret field an SSH private key and names the\n sibling that receives its public half. The server generates the key when\n none is supplied.",
+        ),
+    ] = None
+    """
+    public_key_field makes a secret field an SSH private key and names the
+     sibling that receives its public half. The server generates the key when
+     none is supplied.
+    """
+
     if IS_PYDANTIC_V2:
         model_config: typing.ClassVar[pydantic.ConfigDict] = pydantic.ConfigDict(extra="allow", frozen=True)  # type: ignore # Pydantic v2
     else:

@@ -94,7 +94,7 @@ func TestS3SinkParquetSmallBatches(t *testing.T) {
 	if err := dst.Commit(ctx); err != nil {
 		t.Fatal(err)
 	}
-	body := readMinIOObject(t, ctx, store, bucket, "exports/accounts/dt=2026-09-10/parquet-batches.parquet")
+	body := readMinIOObject(t, ctx, store, bucket, "exports/accounts/dt=2026-09-10/parquet-batches.0000.parquet")
 	reader, err := file.NewParquetReader(bytes.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
@@ -124,19 +124,22 @@ func TestS3SinkParquetSmallBatches(t *testing.T) {
 	}
 	manifestBody := readMinIOObject(t, ctx, store, bucket, "exports/_runs/parquet-batches/_SUCCESS.json")
 	var manifest struct {
+		Version   int `json:"version"`
 		Resources []struct {
-			Rows   int64  `json:"rows"`
-			Bytes  int64  `json:"bytes"`
-			CRC32C string `json:"crc32c"`
+			Files []struct {
+				Rows   int64  `json:"rows"`
+				Bytes  int64  `json:"bytes"`
+				CRC32C string `json:"crc32c"`
+			} `json:"files"`
 		} `json:"resources"`
 	}
 	if err := json.Unmarshal(manifestBody, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if len(manifest.Resources) != 1 {
+	if manifest.Version != 2 || len(manifest.Resources) != 1 || len(manifest.Resources[0].Files) != 1 {
 		t.Fatalf("success manifest = %s", manifestBody)
 	}
-	resource := manifest.Resources[0]
+	resource := manifest.Resources[0].Files[0]
 	wantCRC := fmt.Sprintf("%08x", crc32.Checksum(body, crc32.MakeTable(crc32.Castagnoli)))
 	if resource.Rows != rows || resource.Bytes != int64(len(body)) || resource.CRC32C != wantCRC {
 		t.Fatalf("manifest resource = %#v, want rows=%d bytes=%d CRC=%s", resource, rows, len(body), wantCRC)

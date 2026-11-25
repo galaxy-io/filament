@@ -10,7 +10,10 @@ import type { Pipeline } from "@/gen/ingestion/v1/pipelines_pb";
 
 import type { PipelineNodeConfig } from "@/pages/pipelines/components/node/types";
 import type { PipelineNotifier } from "@/pages/pipelines/components/notifier/types";
-import type { PipelineResourceStatus } from "@/pages/pipelines/components/resource/types";
+import type {
+  PipelineResourceSinkConfig,
+  PipelineResourceStatus,
+} from "@/pages/pipelines/components/resource/types";
 import type { PipelineScheduleState } from "@/pages/pipelines/components/schedule/types";
 
 import type { FilamentFlowSeed } from "@/module/schemas";
@@ -38,6 +41,10 @@ export interface CreatePipelineModalState {
     Record<Resource["name"], ResourceColumns["partitions"]>
   >;
   resourceWriteModes: Record<Connection["id"], Record<Resource["name"], WriteMode>>;
+  resourceSinkConfigs: Record<
+    Connection["id"],
+    Record<Resource["name"], PipelineResourceSinkConfig>
+  >;
   sinkWriteModes: Record<Connection["id"], WriteMode>;
   nodeConfigs: Record<Connection["id"], PipelineNodeConfig>;
   name: Pipeline["name"];
@@ -75,6 +82,7 @@ export interface CreatePipelineModalResourceRow {
   isColumnSelectable: boolean;
   partitions: ResourceColumns["partitions"];
   selectedPartitions: ResourceColumns["partitions"];
+  sinkConfig: PipelineResourceSinkConfig;
   status?: PipelineResourceStatus;
 }
 

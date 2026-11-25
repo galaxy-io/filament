@@ -11,3 +11,29 @@ export const READ_MODE_TO_WRITE_MODES_MAP: Record<ReadMode, WriteMode[]> = {
 
 export const PIPELINE_RESOURCE_COLUMNS_TABLE_INSET: Space = 4;
 export const PIPELINE_RESOURCE_COLUMNS_TABLE_WIDTH_TYPE = 200;
+
+export const PIPELINE_RESOURCE_SINK_FIELD_UNSET_ID = "__unset__";
+
+export const PIPELINE_RESOURCE_PARTITION_BY_FIELD = "partition_by";
+
+export const PIPELINE_RESOURCE_PARTITION_IDENTITY = "identity";
+
+export const PIPELINE_RESOURCE_PARTITION_TIME_ENTRY = /^(?:hour|day|month|year)\((.+)\)$/;
+
+export const PIPELINE_RESOURCE_PARTITION_ENTRY =
+  /^(?:(?:identity|void|year|month|day|hour|bucket\[\d+\]|truncate\[\d+\])\(([^()\s]+)\)|([^()\s]+))$/;
+
+const PARTITION_KEYED_TRANSFORMS: string[] = [PIPELINE_RESOURCE_PARTITION_IDENTITY, "bucket[16]"];
+
+export const LOGICAL_TYPE_TO_PARTITION_TRANSFORMS_MAP: Record<string, string[]> = {
+  bool: [PIPELINE_RESOURCE_PARTITION_IDENTITY],
+  int16: PARTITION_KEYED_TRANSFORMS,
+  int32: PARTITION_KEYED_TRANSFORMS,
+  int64: PARTITION_KEYED_TRANSFORMS,
+  decimal: PARTITION_KEYED_TRANSFORMS,
+  string: PARTITION_KEYED_TRANSFORMS,
+  uuid: PARTITION_KEYED_TRANSFORMS,
+  date: [PIPELINE_RESOURCE_PARTITION_IDENTITY, "day", "month", "year"],
+  timestamp: ["hour", "day", "month", "year"],
+  timestamptz: ["hour", "day", "month", "year"],
+};

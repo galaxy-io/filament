@@ -198,9 +198,8 @@ func (a *Server) validateEdge(ctx context.Context, edge *ingestionv1.PipelineEdg
 		edgeError(ev, "from_node", err.Error())
 		return nil
 	}
-	snkSpec, err := a.worker.SinkSpec(ctx, snkConn.Connector)
-	if err != nil {
-		edgeError(ev, "to_node", err.Error())
+	snkSpec, ok := a.edgeSinkSpec(ctx, edge, snkConn.Connector, ev)
+	if !ok {
 		return nil
 	}
 	mode = resourceExecutionMode(srcSpec, edge.GetResource(), mode)
@@ -733,6 +732,24 @@ func (a *Server) validateNodeConfig(ctx context.Context, tenant string, node *in
 		resp.Errors = append(resp.Errors, &ingestionv1.ValidationError{Message: fmt.Sprintf("node %q: %s", node.GetId(), err.Error())})
 	}
 	return nil
+}
+
+// edgeSinkSpec loads the edge's sink spec. It also reports per-resource sink
+// config naming a field that sink does not declare resource-scoped.
+func (a *Server) edgeSinkSpec(ctx context.Context, edge *ingestionv1.PipelineEdge, connector string, ev *ingestionv1.EdgeValidation) (filament.SinkSpec, bool) {
+	spec, err := a.worker.SinkSpec(ctx, connector)
+	if err != nil {
+		edgeError(ev, "to_node", err.Error())
+		return filament.SinkSpec{}, false
+	}
+	sinkConfigs := make(map[string]map[string]any, len(edge.GetSinkConfigs()))
+	for _, sinkConfig := range edge.GetSinkConfigs() {
+		sinkConfigs[sinkConfig.GetResource()] = sinkConfig.GetConfig().AsMap()
+	}
+	if err := compile.ValidateResourceConfigs(spec.Config, sinkConfigs); err != nil {
+		edgeError(ev, "sink_configs", err.Error())
+	}
+	return spec, true
 }
 
 func edgeError(ev *ingestionv1.EdgeValidation, field, message string) {

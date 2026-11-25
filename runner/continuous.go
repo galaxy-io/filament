@@ -279,6 +279,19 @@ func validateContinuous(cfg ContinuousConfig) error {
 	return nil
 }
 
+// publishCertified releases a certified epoch's held write facts, the bytes
+// its sink wrote at commit, and a checkpoint fact per resource.
+func publishCertified(cfg ContinuousConfig, dst filament.Sink, receipts []filament.EpochReceipt) {
+	if cfg.events == nil {
+		return
+	}
+	cfg.pipelineEvents.certified()
+	publishCommitBytes(cfg.events, dst)
+	for _, receipt := range receipts {
+		emit(cfg.events, events.CheckpointSaved, receipt.Resource, events.CheckpointSavedEvent{})
+	}
+}
+
 func runEpochs(runCtx, readCtx context.Context, cfg ContinuousConfig, p *pipeline.Pipeline, session filament.StreamSession, dst filament.Sink, state filament.StreamState, lease filament.LeaseToken, stop *continuousStop, activeEpoch **filament.EpochRef) error {
 	spec := cfg.Spec
 	var err error
@@ -347,12 +360,7 @@ func runEpochs(runCtx, readCtx context.Context, cfg ContinuousConfig, p *pipelin
 		}
 		// Publish only certified progress, never tentative Apply results. A lost
 		// commit response verified above has the same durable outcome.
-		if cfg.events != nil {
-			cfg.pipelineEvents.certified()
-			for _, receipt := range commit.Certificate.Receipts {
-				emit(cfg.events, events.CheckpointSaved, receipt.Resource, events.CheckpointSavedEvent{})
-			}
-		}
+		publishCertified(cfg, dst, commit.Certificate.Receipts)
 		// Historical lookup alone does not authorize acknowledgement.
 		if err := cfg.Store.RenewLease(runCtx, lease, cfg.LeaseTTL); err != nil {
 			return err

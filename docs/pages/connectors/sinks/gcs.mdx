@@ -39,7 +39,7 @@ With prefix `local_pg`, resource `accounts`, and the default partition, a bounde
 writes the following objects.
 
 ```text
-local_pg/accounts/dt=2026-09-10/<run>.parquet
+local_pg/accounts/dt=2026-09-10/<run>.0000.parquet
 local_pg/_runs/<run>/_SUCCESS.json
 ```
 
@@ -52,16 +52,20 @@ objects directly under the resource directory.
 Continuous append creates a fresh sink per boundary and uses this layout.
 
 ```text
-local_pg/accounts/dt=2026-09-10/<write-id>.parquet
+local_pg/accounts/dt=2026-09-10/<write-id>.0000.parquet
 local_pg/_runs/<run-id>/<write-id>/_SUCCESS.json
 ```
 
 Each boundary has its own objects and manifest. The manifest retains the logical
 run ID. Continuous replace is not supported.
 
-The success manifest lists every resource's key, `gs://` URI, row count, byte
-count, and CRC32C. Consumers should treat `_SUCCESS.json` as the visibility
-boundary and ignore writes without it.
+Object names carry a four-digit file number to match the S3 layout. The GCS
+sink writes one object per resource, so the number is always `0000`.
+
+The success manifest uses version 2 of the S3 sink's format. Each resource lists
+its rows, bytes, and a `files` entry with the object's key, `gs://` URI, row
+count, byte count, and CRC32C. Consumers should treat `_SUCCESS.json` as the
+visibility boundary and ignore writes without it.
 
 ## Write mechanics and failure behavior
 

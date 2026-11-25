@@ -147,6 +147,12 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 		return nil, connectorError(err)
 	}
 	canonicalizeConnectionConfig(schema, config, nil)
+	// A key generated here is on no bastion yet, so the config is checked
+	// without a live test. Saving generates the key the connection keeps.
+	untestable, err := prepareKeyPairs(schema.Fields, config, nil, nil, "")
+	if err != nil {
+		return connect.NewResponse(validationError(err.Error())), nil
+	}
 	cfg := filament.NewConfig(config)
 	if err := validateConfigSchema(schema, cfg); err != nil {
 		return connect.NewResponse(schemaValidationError(err)), nil
@@ -156,6 +162,9 @@ func (a *Server) ValidateConfig(ctx context.Context, req *connect.Request[ingest
 			return connect.NewResponse(validationError(err.Error())), nil
 		}
 		return nil, connectorError(err)
+	}
+	if untestable {
+		return connect.NewResponse(&ingestionv1.ValidateConfigResponse{Valid: true}), nil
 	}
 	// Connectors without a probe pass on structural validation alone.
 	if err := a.worker.TestConnection(ctx, ref, cfg); err != nil && !errors.Is(err, filament.ErrUnsupported) {

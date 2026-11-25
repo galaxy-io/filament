@@ -19,6 +19,7 @@ import {
   type SetResourcePartitionsAction,
   type SetResourceReadModeAction,
   type SetResourceSelectionAction,
+  type SetResourceSinkConfigAction,
   type SetResourceWriteModeAction,
   type SetScheduleAction,
   type SetSinkWriteModeAction,
@@ -49,6 +50,7 @@ function applyExecutionMode(
     resourceColumns: {},
     resourcePartitions: {},
     resourceWriteModes: {},
+    resourceSinkConfigs: {},
     sinkWriteModes: {},
   };
 }
@@ -73,6 +75,7 @@ function selectSource(
     resourceColumns: {},
     resourcePartitions: {},
     resourceWriteModes: {},
+    resourceSinkConfigs: {},
   });
 }
 
@@ -212,6 +215,20 @@ function setResourceColumns(
   };
 }
 
+function setResourceSinkConfig(
+  state: CreatePipelineModalState,
+  action: SetResourceSinkConfigAction,
+): CreatePipelineModalState {
+  const { sinkId, resource, config } = action.payload;
+  return {
+    ...state,
+    resourceSinkConfigs: {
+      ...state.resourceSinkConfigs,
+      [sinkId]: { ...state.resourceSinkConfigs[sinkId], [resource]: config },
+    },
+  };
+}
+
 function setResourcePartitions(
   state: CreatePipelineModalState,
   action: SetResourcePartitionsAction,
@@ -338,6 +355,8 @@ const createPipelineModalReducer = (
       return setResourcePartitions(state, action);
     case CreatePipelineModalActionType.SET_RESOURCE_WRITE_MODE:
       return setResourceWriteMode(state, action);
+    case CreatePipelineModalActionType.SET_RESOURCE_SINK_CONFIG:
+      return setResourceSinkConfig(state, action);
     case CreatePipelineModalActionType.SET_SINK_WRITE_MODE:
       return setSinkWriteMode(state, action);
     case CreatePipelineModalActionType.SET_NODE_CONFIG:

@@ -37,7 +37,10 @@ type Sink struct {
 	format      encoder.FileFormat
 	compression encoder.Compression
 	enc         map[string]*resourceEncoder
+	commitBytes map[string]int64 // bytes appended outside receipts; see CommitBytes
 }
+
+var _ filament.CommitBytesReporter = (*Sink)(nil)
 
 // New returns an unconfigured sink.
 func New() *Sink { return &Sink{state: stateNew, enc: make(map[string]*resourceEncoder)} }
@@ -109,6 +112,7 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 	s.session = newUploadSession(ctx, store, cfg)
 	s.applyWG = sync.WaitGroup{}
 	s.enc = make(map[string]*resourceEncoder)
+	s.commitBytes = nil
 	return nil
 }
 

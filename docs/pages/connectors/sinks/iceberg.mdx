@@ -25,14 +25,18 @@ catalog. Rows remain staged until their resource commits.
 | `catalog` | Connection | — | Required. Catalog connection object. See below. |
 | `catalog.provider` | Connection | — | Required. `generic`, `rest`, `polaris`, or `lakekeeper`. |
 | `table.location_root` | Connection | — | Optional object-storage root for new tables (e.g. `s3://bucket/warehouse`). Leave empty when the catalog assigns locations. |
-| `table.update_mode` | Connection | `copy-on-write` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Existing tables keep their own setting. |
 | `namespace` | Pipeline | `default` | Destination namespace, dot-separated |
 | `stage_buffer_limit_mb` | Pipeline | `256` | In-memory buffer threshold in MiB before upsert, delete, and merge runs spill to temp files |
 | `commit_interval` | Pipeline | `1m` | How often a continuous run commits to the table. Longer intervals write fewer, larger files and snapshots. |
 | `commit_concurrency` | Pipeline | `8` | Append and replace tables committed at once, from 1 through 64. Upsert, delete, and merge tables commit one at a time |
+| `update_mode` | Pipeline, Table | `copy-on-write` | How new tables apply updates and deletes, `merge-on-read` or `copy-on-write`. Set it on the pipeline for every table, and on a table to override the pipeline. Existing tables keep their own setting. |
+| `partition_by` | Table | — | Partitions the table when the sink creates it. Each entry is a column or an Iceberg transform of one, such as `day(created_at)` or `bucket[16](id)`. Existing tables keep their partitioning. |
 
 A `namespace` left empty is defaulted server-side to the normalized source
 connection name.
+
+A field with the Table scope is set per resource on the pipeline edge, under
+`sink_configs`.
 
 Per provider, inside `catalog`:
 
@@ -74,7 +78,7 @@ Iceberg tables. See
 
 `EnsureSchema` creates the namespace and the table with
 `write.format.default=parquet`, `write.metadata.delete-after-commit.enabled`,
-`commit.manifest-merge.enabled`, and `table.update_mode` for
+`commit.manifest-merge.enabled`, and the table's `update_mode` for
 `write.merge.mode` and `write.delete.mode`. For an existing table, evolution is
 **add-only**. New fields are appended to the schema, while type changes,
 nullability changes, and drops are never applied. A resource whose name
@@ -148,7 +152,7 @@ storage credentials, then opens one Iceberg transaction:
   would bring the deleted rows back.
 
 Query engines must read equality deletes to see `merge-on-read` tables
-correctly. Trino and Spark read them. Check any other engine before setting `table.update_mode` to `merge-on-read`. For a table that already exists, compact its delete files,
+correctly. Trino and Spark read them. Check any other engine before setting `update_mode` to `merge-on-read`. For a table that already exists, compact its delete files,
 then set `write.merge.mode` and `write.delete.mode` to `copy-on-write` on the
 table.
 

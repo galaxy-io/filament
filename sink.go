@@ -45,6 +45,15 @@ type Schematized interface {
 	EnsureSchema(ctx context.Context, resource string, schema RecordSchema) error
 }
 
+// CommitBytesReporter is the optional sink contract for bytes a sink writes
+// during Commit that no WriteReceipt reported, such as a file format's trailer
+// or output an encoder held back. After a successful Commit the runner adds
+// them to the resource and run byte totals. CommitBytes reports the boundary
+// that just committed, keyed by resource.
+type CommitBytesReporter interface {
+	CommitBytes() map[string]int64
+}
+
 // EpochBounded is the optional sink contract for a continuous epoch boundary
 // that depends on the pipeline's sink config. It replaces
 // SinkCapabilities.PreferredEpochBoundary. Options.EpochBoundary still wins.

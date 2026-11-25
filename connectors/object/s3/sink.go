@@ -1,10 +1,12 @@
 // Package s3 implements a resource-partitioned object sink for Amazon S3 and
 // compatible object stores.
 //
-// Resource objects land at <prefix>/<resource>/<partition>/<run>.<ext> so one
-// table per resource can point at <prefix>/<resource>/. The partition
-// directories are templated; the resource root, filename, and manifest are not.
-// Apply streams full multipart parts and Commit publishes
+// Resource objects land at <prefix>/<resource>/<partition>/<run>.<NNNN>.<ext>
+// so one table per resource can point at <prefix>/<resource>/. A resource
+// rolls into the next numbered object once the current one reaches
+// max_file_size_mib. The partition directories are templated; the resource
+// root, filename, and manifest are not. Apply streams full multipart parts and
+// Commit completes every object, then publishes
 // <prefix>/_runs/<run>/_SUCCESS.json last.
 package s3
 
@@ -12,6 +14,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"hash/crc32"
 	"sync"
 
 	"github.com/galaxy-io/filament"
@@ -41,8 +44,12 @@ type Sink struct {
 	applyWG     sync.WaitGroup
 	format      encoder.FileFormat
 	compression encoder.Compression
+	maxFileSize int64
 	enc         map[string]*resourceEncoder
+	commitBytes map[string]int64 // bytes appended outside receipts; see CommitBytes
 }
+
+var _ filament.CommitBytesReporter = (*Sink)(nil)
 
 // New returns an unconfigured sink.
 func New() *Sink { return &Sink{state: stateNew, enc: make(map[string]*resourceEncoder)} }
@@ -88,7 +95,11 @@ func (s *Sink) Open(ctx context.Context, run filament.RunSpec) error {
 	if err != nil {
 		return err
 	}
-	return s.open(ctx, run, cfg, store)
+	if err := s.open(ctx, run, cfg, store); err != nil {
+		return err
+	}
+	sweepOnOpen(ctx, store, cfg, string(run.Run))
+	return nil
 }
 
 func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, store multipartStore) error {
@@ -107,11 +118,13 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec, cfg sinkConfig, s
 	s.layout = object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), run)
 	s.format = cfg.fileFormat
 	s.compression = cfg.compression
+	s.maxFileSize = cfg.maxFileSize
 	s.session = newMultipartSession(ctx, store, cfg.bucket, cfg.partSize, cfg.uploadWorkers, objectMetadata{
 		contentType: cfg.fileFormat.ContentType(), contentEncoding: cfg.compression.ContentEncoding(),
 	})
 	s.applyWG = sync.WaitGroup{}
 	s.enc = make(map[string]*resourceEncoder)
+	s.commitBytes = nil
 	return nil
 }
 
@@ -135,7 +148,8 @@ func (s *Sink) Commit(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("s3 sink: encode success manifest: %w", err)
 	}
-	if err := session.PutObject(ctx, layout.Success(), objectMetadata{contentType: object.ManifestContentType}, bytes.NewReader(body), int64(len(body))); err != nil {
+	manifestCRC := crc32.Checksum(body, crc32cTable)
+	if err := session.PutObject(ctx, layout.Success(), objectMetadata{contentType: object.ManifestContentType}, bytes.NewReader(body), int64(len(body)), manifestCRC); err != nil {
 		return fmt.Errorf("s3 sink: publish success marker: %w", err)
 	}
 

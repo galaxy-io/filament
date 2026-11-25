@@ -86,6 +86,14 @@ func createProperties(updateMode string) iceberg.Properties {
 	}
 }
 
+// updateModeFor is the resource's own update mode, else the pipeline's.
+func (s *Sink) updateModeFor(resource string) string {
+	if mode, ok := s.updateModes[resource]; ok {
+		return mode
+	}
+	return s.updateModes[""]
+}
+
 // EnsureSchema creates the Iceberg table if absent, or evolves it by adding any
 // columns not yet present.
 func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmodel.Schema) error {
@@ -107,11 +115,20 @@ func (s *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	iceSchema := buildIcebergSchema(schema)
 	ident := s.tableIdent(resource)
 	createOpts := []catalog.CreateTableOpt{
-		catalog.WithProperties(createProperties(s.tableUpdateMode)),
+		catalog.WithProperties(createProperties(s.updateModeFor(resource))),
 	}
 	if s.tableLocationRoot != "" {
 		location := joinURI(s.tableLocationRoot, namespacePath(s.namespace), tableName(resource))
 		createOpts = append(createOpts, catalog.WithLocation(location))
+	}
+	if fields := s.partitions[resource]; len(fields) > 0 {
+		spec, err := partitionSpec(iceSchema, fields)
+		if err == nil {
+			createOpts = append(createOpts, catalog.WithPartitionSpec(&spec))
+		} else if exists, existsErr := cat.CheckTableExists(ctx, ident); existsErr != nil || !exists {
+			// An existing table keeps its own partitioning, so only a new one needs the spec.
+			return fmt.Errorf("iceberg sink: partition %s: %w", resource, err)
+		}
 	}
 	tbl, err := cat.CreateTable(ctx, ident, iceSchema, createOpts...)
 	if errors.Is(err, catalog.ErrTableAlreadyExists) {
