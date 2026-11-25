@@ -3,6 +3,8 @@ package runner
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -215,6 +217,22 @@ func factProgress(f events.Fact) (records, bytes int64, errMsg string, hasProgre
 
 // emit stamps and publishes a run-originated fact for a run or resource.
 // (A free function: Go methods cannot take type parameters.)
+// publishCommitBytes reports the bytes a sink wrote during Commit that no
+// receipt carried, as one zero-row batch.written fact per resource, so run and
+// resource totals, tracked progress, and byte metrics include them.
+func publishCommitBytes(e *emitter, sink filament.Sink) {
+	reporter, ok := sink.(filament.CommitBytesReporter)
+	if e == nil || !ok {
+		return
+	}
+	committed := reporter.CommitBytes()
+	for _, resource := range slices.Sorted(maps.Keys(committed)) {
+		if n := committed[resource]; n > 0 {
+			emit(e, events.BatchWritten, resource, events.BatchWrittenEvent{Bytes: n})
+		}
+	}
+}
+
 func emit[T any](e *emitter, t events.EventType[T], resource string, data T) {
 	_ = emitAt(e, t, resource, time.Now(), data)
 }

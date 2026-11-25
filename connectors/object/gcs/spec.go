@@ -18,7 +18,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		Description:  "Managed object storage from Google Cloud for storing data in buckets, with storage classes for different access and availability needs.",
 		DarkLogoURL:  "https://cdn.getgalaxy.io/sources/source-icon-gcs-dark.svg",
 		LightLogoURL: "https://cdn.getgalaxy.io/sources/source-icon-gcs-light.svg",
-		Version:      "1",
+		Version:      "2",
 		Config: filament.ConfigSchema{Fields: []filament.ConfigField{
 			{Name: "bucket", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, Help: "Destination GCS bucket."},
 			{Name: "auth_method", Type: filament.FieldEnum, Default: authMethodADC, Scope: filament.ScopeConnection, Help: "How Filament authenticates to GCS. ADC uses an attached service account on Google Cloud, Workload Identity on GKE, or local gcloud application-default credentials.", Enum: []filament.EnumOption{
@@ -39,7 +39,7 @@ func (s *Sink) Spec() filament.SinkSpec {
 		}},
 		SchemaField: "prefix",
 		Capabilities: filament.SinkCapabilities{
-			EncodedIntegrity: true, Schematized: true, PreferredBatchBytes: defaultChunkSizeMiB << 20,
+			EncodedIntegrity: true, Schematized: true, PreferredBatchRows: preferredBatchRows, PreferredBatchBytes: defaultChunkSizeMiB << 20,
 			WritePolicies: object.CommitDurableCapabilities(filament.IngestionFullAppend, filament.IngestionCDCAppend, filament.IngestionFullReplace),
 		},
 	}

@@ -2,6 +2,7 @@ package s3
 
 import (
 	"errors"
+	"hash/crc32"
 	"io"
 	"sync"
 )
@@ -10,6 +11,8 @@ const (
 	bufferChunkSize   = 64 << 10
 	minFirstChunkSize = 4 << 10
 )
+
+var crc32cTable = crc32.MakeTable(crc32.Castagnoli)
 
 // bufferPool keeps the common full-sized chunks reusable while allowing the
 // first chunk of a small object to remain proportional to the object itself.
@@ -63,6 +66,17 @@ func newPartBuffer(pool *bufferPool, limit int) *partBuffer {
 func (b *partBuffer) Len() int { return b.size }
 
 func (b *partBuffer) Full() bool { return b.size == b.limit }
+
+// CRC32C returns the checksum of the bytes appended so far. It is computed on
+// demand by the goroutine that uploads the part rather than during Append, so
+// the checksum pass runs alongside other uploads instead of on the writer.
+func (b *partBuffer) CRC32C() uint32 {
+	var crc uint32
+	for _, chunk := range b.chunks {
+		crc = crc32.Update(crc, crc32cTable, chunk)
+	}
+	return crc
+}
 
 // Append copies as much data as fits and returns the number of bytes consumed.
 func (b *partBuffer) Append(data []byte) int {
