@@ -80,16 +80,22 @@ func NewLayout(prefix string, partition *template.Template, extension string, ru
 	return Layout{prefix: prefix, run: run.Run, writeID: run.SinkWriteIdentity(), startedAt: startedAt, partition: partition, extension: extension}
 }
 
-// Object returns the key for a resource object.
-func (l Layout) Object(resource string) (string, error) {
+// Object returns the key of a resource's file-th object. Files are numbered
+// from zero so a resource that rolls into several objects lists them in order,
+// and a resource with one object has the same shape as one with many.
+func (l Layout) Object(resource string, file int) (string, error) {
+	if file < 0 {
+		return "", fmt.Errorf("negative file number %d", file)
+	}
 	partition, err := renderPartition(l.partition, newPartitionData(resource, l.run, l.startedAt))
 	if err != nil {
 		return "", err
 	}
+	name := fmt.Sprintf("%s.%04d%s", l.writeID, file, l.extension)
 	if partition == "" {
-		return l.join(resource, string(l.writeID)+l.extension), nil
+		return l.join(resource, name), nil
 	}
-	return l.join(resource, partition, string(l.writeID)+l.extension), nil
+	return l.join(resource, partition, name), nil
 }
 
 // Success returns the run success-marker key.

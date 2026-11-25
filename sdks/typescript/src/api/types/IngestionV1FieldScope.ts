@@ -4,5 +4,6 @@ export const IngestionV1FieldScope = {
     FieldScopeUnspecified: "FIELD_SCOPE_UNSPECIFIED",
     FieldScopeConnection: "FIELD_SCOPE_CONNECTION",
     FieldScopePipeline: "FIELD_SCOPE_PIPELINE",
+    FieldScopeResource: "FIELD_SCOPE_RESOURCE",
 } as const;
 export type IngestionV1FieldScope = (typeof IngestionV1FieldScope)[keyof typeof IngestionV1FieldScope];

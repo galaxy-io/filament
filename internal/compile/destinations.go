@@ -42,8 +42,9 @@ func ValidateDestinations(edges []*ingestionv1.PipelineEdge) error {
 // destinationWritePolicies carries user naming overrides until runtime binds
 // authoritative write capabilities for bounded execution.
 func destinationWritePolicies(group *routeGroup) map[string]filament.WritePolicy {
-	policies := make(map[string]filament.WritePolicy, len(group.destinations))
-	for resource, destination := range group.destinations {
+	destinations := group.destinations()
+	policies := make(map[string]filament.WritePolicy, len(destinations))
+	for resource, destination := range destinations {
 		policies[resource] = filament.WritePolicy{Resource: resource, DestinationResource: destination}
 	}
 	return policies

@@ -110,6 +110,9 @@ func (a *Server) CreatePipelineVersion(ctx context.Context, req *connect.Request
 	if err := validatePartitionSelections(edges); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	if err := validateSinkConfigs(edges); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	pipeline, err := a.store.LoadPipeline(ctx, tenant, req.Msg.GetPipelineId())
 	if errors.Is(err, filament.ErrNotFound) {
 		return nil, connect.NewError(connect.CodeNotFound, err)
@@ -312,6 +315,28 @@ func validateColumnSelections(edges []*ingestionv1.PipelineEdge) error {
 			if conflictingSelection(routes, edge, resource, selection.GetColumns()) {
 				return fmt.Errorf("conflicting column selection for resource %q", resource)
 			}
+		}
+	}
+	return nil
+}
+
+// validateSinkConfigs checks the shape of each edge's per-resource sink config.
+// The compiler checks its fields against the sink's schema.
+func validateSinkConfigs(edges []*ingestionv1.PipelineEdge) error {
+	for _, edge := range edges {
+		seen := make(map[string]struct{}, len(edge.GetSinkConfigs()))
+		for _, sinkConfig := range edge.GetSinkConfigs() {
+			resource := sinkConfig.GetResource()
+			if resource == "" {
+				return fmt.Errorf("sink config resource is required")
+			}
+			if edge.GetResource() != "" && resource != edge.GetResource() {
+				return fmt.Errorf("sink config resource %q does not match edge resource %q", resource, edge.GetResource())
+			}
+			if _, duplicate := seen[resource]; duplicate {
+				return fmt.Errorf("duplicate sink config for resource %q", resource)
+			}
+			seen[resource] = struct{}{}
 		}
 	}
 	return nil

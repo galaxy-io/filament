@@ -32,6 +32,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/internal/tunnel"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
 )
 
@@ -74,6 +75,8 @@ const (
 type Source struct {
 	pool              *pgxpool.Pool
 	dsn               string
+	tunnel            *tunnel.Tunnel
+	reverseTunnelHost string
 	schema            string
 	pageSize          int
 	shardPages        int
@@ -229,7 +232,7 @@ func (s *Source) CleanupReplicationStream(ctx context.Context, stream filament.R
 
 // Validate rejects an invalid URL or incomplete individual connection fields.
 func (s *Source) Validate(cfg filament.Config) error {
-	if _, err := pgconnection.Resolve(cfg); err != nil {
+	if _, err := pgconnection.Resolve(cfg, s.reverseTunnelHost); err != nil {
 		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
 	slot := cfg.String("slot_name")
@@ -253,7 +256,7 @@ func (s *Source) TestConnection(ctx context.Context, cfg filament.Config) error 
 	if err := s.Validate(cfg); err != nil {
 		return err
 	}
-	resolved, err := pgconnection.Resolve(cfg)
+	resolved, err := pgconnection.Resolve(cfg, s.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
@@ -299,11 +302,12 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if v := cfg.String("snapshot_mode"); v != "" {
 		s.snapshotMode = filament.SnapshotMode(v)
 	}
-	resolved, err := pgconnection.Resolve(cfg)
+	resolved, err := pgconnection.Resolve(cfg, s.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("postgres source: connection config: %w", err)
 	}
 	s.dsn = resolved.DSN
+	s.tunnel = resolved.Tunnel
 	poolCfg := resolved.DriverConfig
 	if cfg.Has("max_conns") {
 		if n := cfg.Int("max_conns"); n > 0 && n <= math.MaxInt32 {
@@ -312,17 +316,27 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	}
 	pool, err := pgconnection.Open(ctx, resolved)
 	if err != nil {
+		_ = s.Teardown(ctx)
 		return fmt.Errorf("postgres source: open pool: %w", err)
 	}
 	s.pool = pool
 	return nil
 }
 
-// Teardown closes the pool.
+// Teardown closes the pool and the tunnel it dialed through.
 func (s *Source) Teardown(context.Context) error {
 	if s.pool != nil {
 		s.pool.Close()
 		s.pool = nil
 	}
+	_ = s.tunnel.Close()
+	s.tunnel = nil
 	return nil
+}
+
+var _ filament.ReverseTunnelUser = (*Source)(nil)
+
+// UseReverseTunnelHost sets where this deployment's reverse SSH tunnels listen.
+func (s *Source) UseReverseTunnelHost(host string) {
+	s.reverseTunnelHost = host
 }

@@ -387,6 +387,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		abortSink(ctx, deps, snk)
 		return nil
 	}
+	publishCommitBytes(em, snk)
 	if len(quarantined) > 0 {
 		em.completedExcept(healthyResources(resources, quarantined), pipeline.QuarantinedResources(quarantined))
 	} else {
@@ -520,6 +521,7 @@ func finishControlled(
 			abortSink(ctx, deps, sink)
 			return
 		}
+		publishCommitBytes(em, sink)
 		action = "commit_for_resume"
 	} else {
 		// A checkpoint-free read cannot resume from a partial sink, so discard it;

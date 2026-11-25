@@ -6,25 +6,21 @@ import (
 	"github.com/galaxy-io/filament"
 )
 
-func TestResolveTableUpdateMode(t *testing.T) {
+func TestResolveTableLocationRoot(t *testing.T) {
 	for _, tc := range []struct {
 		table map[string]any
 		want  string
 	}{
-		{table: nil, want: UpdateModeCopyOnWrite},
-		{table: map[string]any{"update_mode": ""}, want: UpdateModeCopyOnWrite},
-		{table: map[string]any{"update_mode": UpdateModeCopyOnWrite}, want: UpdateModeCopyOnWrite},
+		{table: nil, want: ""},
+		{table: map[string]any{"location_root": "s3://bucket/warehouse"}, want: "s3://bucket/warehouse"},
 	} {
 		setup, err := Resolve(genericConfig(tc.table))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if setup.TableUpdateMode != tc.want {
-			t.Fatalf("%v: update mode = %q, want %q", tc.table, setup.TableUpdateMode, tc.want)
+		if setup.TableLocationRoot != tc.want {
+			t.Fatalf("%v: location root = %q, want %q", tc.table, setup.TableLocationRoot, tc.want)
 		}
-	}
-	if _, err := Resolve(genericConfig(map[string]any{"update_mode": "eventually"})); err == nil {
-		t.Fatal("unknown update mode accepted")
 	}
 }
 

@@ -80,16 +80,18 @@ func fieldsFromProto(fields []*ingestionv1.ConfigField) []filament.ConfigField {
 	out := make([]filament.ConfigField, 0, len(fields))
 	for _, field := range fields {
 		out = append(out, filament.ConfigField{
-			Name:        field.GetName(),
-			Type:        fieldTypeFromProto(field.GetType()),
-			Required:    field.GetRequired(),
-			Default:     field.GetDefault().AsInterface(),
-			Enum:        enumOptionsFromProto(field.GetEnum()),
-			Help:        field.GetHelp(),
-			Scope:       fieldScopeFromProto(field.GetScope()),
-			Secret:      field.GetSecret(),
-			VisibleWhen: fieldConditionFromProto(field.GetVisibleWhen()),
-			Fields:      fieldsFromProto(field.GetFields()),
+			Name:           field.GetName(),
+			Type:           fieldTypeFromProto(field.GetType()),
+			Required:       field.GetRequired(),
+			Default:        field.GetDefault().AsInterface(),
+			Enum:           enumOptionsFromProto(field.GetEnum()),
+			Help:           field.GetHelp(),
+			Scope:          fieldScopeFromProto(field.GetScope()),
+			Secret:         field.GetSecret(),
+			VisibleWhen:    fieldConditionFromProto(field.GetVisibleWhen()),
+			Fields:         fieldsFromProto(field.GetFields()),
+			ReadOnly:       field.GetReadOnly(),
+			PublicKeyField: field.GetPublicKeyField(),
 		})
 	}
 	return out
@@ -122,6 +124,8 @@ func fieldScopeFromProto(scope ingestionv1.FieldScope) filament.FieldScope {
 		return filament.ScopeConnection
 	case ingestionv1.FieldScope_FIELD_SCOPE_PIPELINE:
 		return filament.ScopePipeline
+	case ingestionv1.FieldScope_FIELD_SCOPE_RESOURCE:
+		return filament.ScopeResource
 	default:
 		return filament.ScopeUnspecified
 	}

@@ -99,6 +99,13 @@ export const createConfigFieldValues = (
   return next;
 };
 
+export const formatFieldLabel = (fieldName: string): string => {
+  return formatFieldName(fieldName)
+    .split(" ")
+    .map((word, index) => (index === 0 || word === word.toUpperCase() ? word : word.toLowerCase()))
+    .join(" ");
+};
+
 export const getConnectionScopedFields = (fields: ConfigField[]): ConfigField[] => {
   return fields.filter((field) => field.scope === FieldScope.CONNECTION);
 };
@@ -108,4 +115,8 @@ const isRenderableField = (field: ConfigField): boolean =>
 
 export const getPipelineScopedFields = (fields: ConfigField[]): ConfigField[] => {
   return fields.filter((field) => field.scope === FieldScope.PIPELINE && isRenderableField(field));
+};
+
+export const getResourceScopedFields = (fields: ConfigField[]): ConfigField[] => {
+  return fields.filter((field) => field.scope === FieldScope.RESOURCE);
 };

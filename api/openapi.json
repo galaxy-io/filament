@@ -4151,6 +4151,16 @@
             ],
             "title": "visible_when",
             "description": "visible_when conditionally includes this field based on a sibling field."
+          },
+          "readOnly": {
+            "type": "boolean",
+            "title": "read_only",
+            "description": "read_only marks a value the server or the platform sets. A form shows it\n without an input."
+          },
+          "publicKeyField": {
+            "type": "string",
+            "title": "public_key_field",
+            "description": "public_key_field makes a secret field an SSH private key and names the\n sibling that receives its public half. The server generates the key when\n none is supplied."
           }
         },
         "title": "ConfigField",
@@ -4891,7 +4901,8 @@
         "enum": [
           "FIELD_SCOPE_UNSPECIFIED",
           "FIELD_SCOPE_CONNECTION",
-          "FIELD_SCOPE_PIPELINE"
+          "FIELD_SCOPE_PIPELINE",
+          "FIELD_SCOPE_RESOURCE"
         ]
       },
       "ingestion.v1.FieldType": {
@@ -6046,6 +6057,14 @@
             },
             "title": "partitions",
             "description": "partitions narrows the partitions a full read or a change stream's\n initial snapshot backfills from each partitioned resource. The change\n stream still carries every partition, including ones created later. An\n all-resource edge may configure several resources; a resource-specific\n edge may configure only its own resource. An omitted resource backfills\n every partition, and an empty selection backfills none."
+          },
+          "sinkConfigs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ingestion.v1.ResourceSinkConfig"
+            },
+            "title": "sink_configs",
+            "description": "sink_configs holds the sink's resource-scoped config for each resource.\n An all-resource edge may configure several resources; a resource-specific\n edge may configure only its own resource. An omitted resource uses the\n sink's defaults."
           }
         },
         "title": "PipelineEdge",
@@ -6582,6 +6601,26 @@
           }
         },
         "title": "ResourcePartitionSelection",
+        "additionalProperties": false
+      },
+      "ingestion.v1.ResourceSinkConfig": {
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string",
+            "title": "resource"
+          },
+          "config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/google.protobuf.Struct"
+              }
+            ],
+            "title": "config",
+            "description": "config holds RESOURCE-scoped fields of the sink connector only."
+          }
+        },
+        "title": "ResourceSinkConfig",
         "additionalProperties": false
       },
       "ingestion.v1.ResourceValidation": {

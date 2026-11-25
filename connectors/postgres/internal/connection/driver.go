@@ -14,6 +14,7 @@ func Open(ctx context.Context, resolved Resolved) (*pgxpool.Pool, error) {
 
 // Test opens, pings, and closes a short-lived PostgreSQL pool.
 func Test(ctx context.Context, resolved Resolved) error {
+	defer func() { _ = resolved.Tunnel.Close() }()
 	pool, err := Open(ctx, resolved)
 	if err != nil {
 		return fmt.Errorf("open pool: %w", err)

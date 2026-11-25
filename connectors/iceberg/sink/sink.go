@@ -53,8 +53,12 @@ type Sink struct {
 	// duplicate rows, so the session cannot close clean.
 	uncertain error
 
-	tableLocationRoot  string
-	tableUpdateMode    string
+	tableLocationRoot string
+	// updateModes maps a resource to the update mode its new table gets. The
+	// "" entry is the pipeline's.
+	updateModes map[string]string
+	// partitions maps a resource to the partition fields its new table gets.
+	partitions         map[string][]partitionField
 	namespace          string
 	stageBufLimitBytes int64
 	commitConcurrency  int
@@ -141,6 +145,30 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 		}
 		s.commitConcurrency = n
 	}
+	pipelineMode, err := updateMode(cfg)
+	if err != nil {
+		return fmt.Errorf("iceberg sink: %w", err)
+	}
+	updateModes := map[string]string{"": pipelineMode}
+	for resource := range run.SinkConfigs {
+		mode, err := updateMode(run.SinkConfig(resource))
+		if err != nil {
+			return fmt.Errorf("iceberg sink: resource %q: %w", resource, err)
+		}
+		if mode != "" {
+			updateModes[resource] = mode
+		}
+	}
+	partitions := map[string][]partitionField{}
+	for resource := range run.SinkConfigs {
+		fields, err := partitionBy(run.SinkConfig(resource))
+		if err != nil {
+			return fmt.Errorf("iceberg sink: resource %q: %w", resource, err)
+		}
+		if len(fields) > 0 {
+			partitions[resource] = fields
+		}
+	}
 	setup, err := icebergcatalog.Resolve(cfg)
 	if err != nil {
 		return fmt.Errorf("iceberg sink: %w", err)
@@ -153,7 +181,8 @@ func (s *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	s.mu.Lock()
 	s.cat = cat
 	s.tableLocationRoot = setup.TableLocationRoot
-	s.tableUpdateMode = setup.TableUpdateMode
+	s.updateModes = updateModes
+	s.partitions = partitions
 	s.ingestionTypes = maps.Clone(run.IngestionTypes)
 	s.policies = maps.Clone(run.WritePolicies)
 	s.writeModes = map[string]writeMode{}

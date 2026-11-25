@@ -28,6 +28,7 @@ export const createInitialCreatePipelineModalState = (): CreatePipelineModalStat
   resourceColumns: {},
   resourcePartitions: {},
   resourceWriteModes: {},
+  resourceSinkConfigs: {},
   sinkWriteModes: {},
   nodeConfigs: {},
   name: "",

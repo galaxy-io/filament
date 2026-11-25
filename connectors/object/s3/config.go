@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/connectors/internal/encoder"
@@ -16,8 +17,13 @@ const (
 	minPartSizeMiB            = 5
 	maxPartSizeMiB            = 5 * 1024
 	defaultPartSizeMiB        = 16
-	defaultUploadWorkers      = 4
+	defaultUploadWorkers      = 8
 	maxUploadWorkers          = 32
+	minFileSizeMiB            = 5
+	maxFileSizeMiB            = 1 << 20 // 1 TiB, well inside what 10,000 growing parts can hold
+	defaultFileSizeMiB        = 1024
+	// Preferred Apply batch size; gzip needs batches this large to compress in parallel.
+	preferredBatchRows = 8_192
 )
 
 type sinkConfig struct {
@@ -32,7 +38,9 @@ type sinkConfig struct {
 	sessionToken    string
 	pathStyle       bool
 	partSize        int64
+	maxFileSize     int64
 	uploadWorkers   int
+	staleUploadAge  time.Duration // 0 disables the stale upload sweep
 	fileFormat      encoder.FileFormat
 	compression     encoder.Compression
 }
@@ -83,6 +91,7 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 		secretAccessKey: cfg.Secret("secret_access_key"),
 		sessionToken:    cfg.Secret("session_token"),
 		partSize:        defaultPartSizeMiB << 20,
+		maxFileSize:     defaultFileSizeMiB << 20,
 		uploadWorkers:   defaultUploadWorkers,
 		fileFormat:      fileFormat,
 		compression:     compression,
@@ -113,23 +122,57 @@ func parseConfig(cfg filament.Config) (sinkConfig, error) {
 	default:
 		return sinkConfig{}, fmt.Errorf("s3 sink: unsupported auth_method %q", out.authMethod)
 	}
-	if cfg.Has("part_size_mib") {
-		value := cfg.Int("part_size_mib")
-		if value < minPartSizeMiB || value > maxPartSizeMiB {
-			return sinkConfig{}, fmt.Errorf("s3 sink: part_size_mib must be between %d and %d", minPartSizeMiB, maxPartSizeMiB)
-		}
+	if value, ok, err := intInRange(cfg, "part_size_mib", minPartSizeMiB, maxPartSizeMiB); err != nil {
+		return sinkConfig{}, err
+	} else if ok {
 		out.partSize = int64(value) << 20
 	}
-	if cfg.Has("upload_concurrency") {
-		value := cfg.Int("upload_concurrency")
-		if value < 1 || value > maxUploadWorkers {
-			return sinkConfig{}, fmt.Errorf("s3 sink: upload_concurrency must be between 1 and %d", maxUploadWorkers)
-		}
+	if value, ok, err := intInRange(cfg, "max_file_size_mib", minFileSizeMiB, maxFileSizeMiB); err != nil {
+		return sinkConfig{}, err
+	} else if ok {
+		out.maxFileSize = int64(value) << 20
+	}
+	if value, ok, err := intInRange(cfg, "upload_concurrency", 1, maxUploadWorkers); err != nil {
+		return sinkConfig{}, err
+	} else if ok {
 		out.uploadWorkers = value
+	}
+	if out.staleUploadAge, err = staleUploadAge(cfg); err != nil {
+		return sinkConfig{}, err
 	}
 	out.pathStyle = out.endpoint != ""
 	if cfg.Has("path_style") {
 		out.pathStyle = cfg.Bool("path_style")
 	}
 	return out, nil
+}
+
+// intInRange reads an optional integer field and checks its bounds. ok reports
+// whether the field was set.
+func intInRange(cfg filament.Config, name string, low, high int) (value int, ok bool, err error) {
+	if !cfg.Has(name) {
+		return 0, false, nil
+	}
+	value = cfg.Int(name)
+	if value < low || value > high {
+		return 0, false, fmt.Errorf("s3 sink: %s must be between %d and %d", name, low, high)
+	}
+	return value, true, nil
+}
+
+// staleUploadAge reads abort_stale_uploads_after. 0 disables the sweep; any
+// other value must be at least minStaleUploadAge so a sweep cannot abort the
+// uploads of a run that is still writing.
+func staleUploadAge(cfg filament.Config) (time.Duration, error) {
+	if !cfg.Has("abort_stale_uploads_after") {
+		return defaultStaleUploadAge, nil
+	}
+	age := cfg.Duration("abort_stale_uploads_after")
+	if age == 0 && fmt.Sprint(cfg.Raw()["abort_stale_uploads_after"]) == "0" {
+		return 0, nil
+	}
+	if age < minStaleUploadAge {
+		return 0, fmt.Errorf("s3 sink: abort_stale_uploads_after must be a duration of at least %s, or 0 to disable", minStaleUploadAge)
+	}
+	return age, nil
 }

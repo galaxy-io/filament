@@ -9,9 +9,9 @@ const defaultPort = 5432
 
 // Fields returns the connection-scoped configuration shared by the PostgreSQL
 // source and sink.
-func Fields() []filament.ConfigField {
+func Fields(reverseTunnelHost string) []filament.ConfigField {
 	fields := dbconfig.VisibleWhen(dbconfig.MethodFields)
-	return []filament.ConfigField{
+	return append([]filament.ConfigField{
 		dbconfig.MethodConfigField(),
 		dbconfig.DSNConfigField("PostgreSQL connection URL"),
 		{Name: "host", Type: filament.FieldString, Required: true, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "PostgreSQL server hostname"},
@@ -27,5 +27,5 @@ func Fields() []filament.ConfigField {
 			{Value: "verify-ca", Label: "Verify CA"},
 			{Value: "verify-full", Label: "Verify Full"},
 		}, Scope: filament.ScopeConnection, VisibleWhen: fields, Help: "PostgreSQL TLS verification mode"},
-	}
+	}, dbconfig.TunnelConfigField(reverseTunnelHost))
 }

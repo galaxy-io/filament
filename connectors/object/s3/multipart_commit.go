@@ -12,7 +12,8 @@ import (
 	object "github.com/galaxy-io/filament/connectors/object/internal"
 )
 
-// Complete finishes every resource and returns immutable manifest input.
+// Complete finishes every object and returns immutable manifest input, one
+// result per object.
 func (s *multipartSession) Complete(ctx context.Context) ([]object.ResourceResult, error) {
 	resources := s.snapshot()
 	if err := s.completeResources(ctx, resources); err != nil {
@@ -89,7 +90,7 @@ func (s *multipartSession) completeResource(ctx context.Context, upload *objectW
 			body = upload.buffer
 			size = int64(upload.buffer.Len())
 		}
-		if err := s.PutObject(ctx, upload.key, s.metadata, body, size); err != nil {
+		if err := s.PutObject(ctx, upload.key, s.metadata, body, size, upload.crc32c); err != nil {
 			return err
 		}
 		upload.completed = true
@@ -102,14 +103,17 @@ func (s *multipartSession) completeResource(ctx context.Context, upload *objectW
 		if err != nil {
 			return err
 		}
-		token, err := s.uploadPart(ctx, upload.key, upload.uploadID, number, upload.buffer)
+		token, crc, err := s.uploadPart(ctx, upload.key, upload.uploadID, number, upload.buffer)
 		if err != nil {
 			return fmt.Errorf("upload tail part %d: %w", number, err)
 		}
-		upload.parts = append(upload.parts, completedPart{number: number, token: token})
+		upload.parts = append(upload.parts, completedPart{number: number, token: token, crc32c: crc})
 	}
 	sort.Slice(upload.parts, func(i, j int) bool { return upload.parts[i].number < upload.parts[j].number })
-	if err := s.completeMultipart(ctx, upload.key, upload.uploadID, upload.parts); err != nil {
+	// The object checksum is the one the manifest publishes, accumulated from
+	// the encoder's per-batch checksums, so the store's check ties the manifest
+	// to the bytes it actually stored.
+	if err := s.completeMultipart(ctx, upload.key, upload.uploadID, upload.parts, upload.crc32c); err != nil {
 		return err
 	}
 	upload.completed = true
@@ -124,40 +128,40 @@ func (u *objectWriter) result() object.ResourceResult {
 	return object.ResourceResult{Resource: u.resource, Key: u.key, Rows: u.rows, Bytes: u.bytes, CRC32C: u.crc32c}
 }
 
-func (s *multipartSession) uploadPart(ctx context.Context, key, uploadID string, number int32, body *partBuffer) (string, error) {
+func (s *multipartSession) uploadPart(ctx context.Context, key, uploadID string, number int32, body *partBuffer) (string, uint32, error) {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
 	var token string
-	size := int64(body.Len())
+	size, crc := int64(body.Len()), body.CRC32C()
 	err := s.withSlot(opCtx, func(ctx context.Context) error {
 		var err error
-		token, err = s.store.UploadPart(ctx, s.bucket, key, uploadID, number, body, size)
+		token, err = s.store.UploadPart(ctx, s.bucket, key, uploadID, number, body, size, crc)
 		return err
 	})
-	return token, err
+	return token, crc, err
 }
 
-func (s *multipartSession) completeMultipart(ctx context.Context, key, uploadID string, parts []completedPart) error {
+func (s *multipartSession) completeMultipart(ctx context.Context, key, uploadID string, parts []completedPart, crc32c uint32) error {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
 	return s.withSlot(opCtx, func(ctx context.Context) error {
-		return s.store.CompleteMultipart(ctx, s.bucket, key, uploadID, parts)
+		return s.store.CompleteMultipart(ctx, s.bucket, key, uploadID, parts, crc32c)
 	})
 }
 
 // PutObject shares the session-wide request limit with multipart operations.
-func (s *multipartSession) PutObject(ctx context.Context, key string, metadata objectMetadata, body io.ReadSeeker, size int64) error {
+func (s *multipartSession) PutObject(ctx context.Context, key string, metadata objectMetadata, body io.ReadSeeker, size int64, crc32c uint32) error {
 	opCtx, done := s.operationContext(ctx)
 	defer done()
 	return s.withSlot(opCtx, func(ctx context.Context) error {
-		return s.store.PutObject(ctx, s.bucket, key, metadata, body, size)
+		return s.store.PutObject(ctx, s.bucket, key, metadata, body, size, crc32c)
 	})
 }
 
 func (s *multipartSession) snapshot() []*objectWriter {
 	s.mu.Lock()
-	resources := make([]*objectWriter, 0, len(s.resources))
-	for _, upload := range s.resources {
+	resources := make([]*objectWriter, 0, len(s.objects))
+	for _, upload := range s.objects {
 		resources = append(resources, upload)
 	}
 	s.mu.Unlock()

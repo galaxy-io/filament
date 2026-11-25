@@ -102,18 +102,19 @@ const PipelinesTableColumnRecentRuns: FC<PipelinesTableColumnRecentRunsProps> = 
                 run.endedAt ? (
                   <PipelinesTableColumnRecentRunsTooltip run={run} />
                 ) : (
-                  getPipelineRunStatusLabel(run.status, run.failedResources)
+                  getPipelineRunStatusLabel(run.status, run.failedResources, run.executionStatus)
                 )
               }
             >
               <PipelinesTableRecentRunsButton
                 type="button"
-                aria-label={`View ${getPipelineRunStatusLabel(run.status, run.failedResources).toLowerCase()} run`}
+                aria-label={`View ${getPipelineRunStatusLabel(run.status, run.failedResources, run.executionStatus).toLowerCase()} run`}
                 onClick={(event) => handleRunClick(event, run.id)}
               >
                 <PipelineRunStatusSwatch
                   status={run.status}
                   failedResources={run.failedResources}
+                  executionStatus={run.executionStatus}
                   size={SquareSize.MEDIUM}
                 />
               </PipelinesTableRecentRunsButton>

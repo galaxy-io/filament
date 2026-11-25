@@ -10,28 +10,34 @@ import (
 
 const (
 	maxUploadParts         = 10_000
+	maxPartSize            = maxPartSizeMiB << 20
 	maxPooledEncodedBuffer = 4 << 20
+	// partsPerTier is how many parts are written at one size before the part
+	// size doubles. Ten tiers of 1,000 parts starting at the 5 MiB floor reach
+	// roughly 5 TiB, the S3 object size limit, inside the 10,000-part ceiling.
+	partsPerTier = 1_000
 )
 
 // multipartSession owns the bounded buffers and remote state for one sink run.
 // It deliberately knows nothing about Filament batches or write policies.
 type multipartSession struct {
-	mu        sync.Mutex
-	store     multipartStore
-	bucket    string
-	partSize  int
-	workers   int
-	resources map[string]*objectWriter
-	slots     chan struct{}
-	buffers   *bufferPool
-	encoded   sync.Pool
-	metadata  objectMetadata
-	ctx       context.Context
-	cancel    context.CancelFunc
+	mu       sync.Mutex
+	store    multipartStore
+	bucket   string
+	partSize int
+	perTier  int32
+	workers  int
+	objects  map[string]*objectWriter // by object key; a resource may roll into several
+	slots    chan struct{}
+	buffers  *bufferPool
+	encoded  sync.Pool
+	metadata objectMetadata
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 // objectWriter owns the ordered byte stream and remote multipart state for one
-// resource. Different objects proceed independently; appends to one object are
+// object. Different objects proceed independently; appends to one object are
 // serialized so part order and the manifest checksum stay deterministic.
 type objectWriter struct {
 	appendMu  sync.Mutex
@@ -68,13 +74,13 @@ func newMultipartSession(
 	// pause. Apply/Commit contexts and Cancel still bound every operation.
 	sessionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	session := &multipartSession{
-		store: store, bucket: bucket, partSize: int(partSize), workers: workers,
-		resources: make(map[string]*objectWriter),
-		slots:     make(chan struct{}, workers),
-		buffers:   newBufferPool(),
-		metadata:  metadata,
-		ctx:       sessionCtx,
-		cancel:    cancel,
+		store: store, bucket: bucket, partSize: int(partSize), perTier: partsPerTier, workers: workers,
+		objects:  make(map[string]*objectWriter),
+		slots:    make(chan struct{}, workers),
+		buffers:  newBufferPool(),
+		metadata: metadata,
+		ctx:      sessionCtx,
+		cancel:   cancel,
 	}
 	session.encoded.New = func() any {
 		buffer := make([]byte, 0, bufferChunkSize)
@@ -87,9 +93,9 @@ func newObjectWriter(resource, key string) *objectWriter {
 	return &objectWriter{resource: resource, key: key}
 }
 
-// Append adds bytes to one resource and hands every full part to an uploader.
+// Append adds bytes to one object and hands every full part to an uploader.
 func (s *multipartSession) Append(ctx context.Context, resource, key string, data []byte, rows int, encodedCRC uint32) error {
-	upload := s.resource(resource, key)
+	upload := s.object(resource, key)
 	upload.appendMu.Lock()
 	defer upload.appendMu.Unlock()
 
@@ -114,7 +120,7 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 			return err
 		}
 		if upload.buffer == nil {
-			upload.buffer = newPartBuffer(s.buffers, s.partSize)
+			upload.buffer = newPartBuffer(s.buffers, s.partLimit(upload.partNum+1))
 		}
 		count := upload.buffer.Append(data)
 		data = data[count:]
@@ -123,8 +129,10 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 			continue
 		}
 
+		// The next buffer is created lazily once this part has its number, so
+		// its size follows the schedule for the part it will become.
 		body := upload.buffer
-		upload.buffer = newPartBuffer(s.buffers, s.partSize)
+		upload.buffer = nil
 		if upload.uploadID == "" {
 			upload.mu.Unlock()
 			uploadID, err := s.createMultipart(ctx, upload.key)
@@ -161,20 +169,95 @@ func (s *multipartSession) Append(ctx context.Context, resource, key string, dat
 	return nil
 }
 
-func (s *multipartSession) resource(resource, key string) *objectWriter {
+func (s *multipartSession) object(resource, key string) *objectWriter {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if upload := s.resources[resource]; upload != nil {
+	if upload := s.objects[key]; upload != nil {
 		return upload
 	}
 	upload := newObjectWriter(resource, key)
-	s.resources[resource] = upload
+	s.objects[key] = upload
 	return upload
+}
+
+// Seal closes one object to further appends and starts uploading its tail now
+// instead of at Commit, so a resource that rolled to a new object stops holding
+// the old one's buffer. The multipart upload stays open, and the object stays
+// invisible, until Complete. A sealed object that never filled a part becomes
+// a one-part multipart upload, which S3 accepts at any size.
+func (s *multipartSession) Seal(ctx context.Context, key string) error {
+	s.mu.Lock()
+	upload := s.objects[key]
+	s.mu.Unlock()
+	if upload == nil {
+		return nil
+	}
+	upload.appendMu.Lock()
+	defer upload.appendMu.Unlock()
+
+	upload.mu.Lock()
+	if upload.err != nil {
+		err := upload.err
+		upload.mu.Unlock()
+		return err
+	}
+	upload.closed = true
+	body := upload.buffer
+	upload.buffer = nil
+	if body == nil || body.Len() == 0 {
+		upload.mu.Unlock()
+		body.Release()
+		return nil
+	}
+	if upload.uploadID == "" {
+		upload.mu.Unlock()
+		uploadID, err := s.createMultipart(ctx, upload.key)
+		upload.mu.Lock()
+		if err != nil {
+			body.Release()
+			upload.err = fmt.Errorf("create multipart upload: %w", err)
+			err = upload.err
+			upload.mu.Unlock()
+			return err
+		}
+		upload.uploadID = uploadID
+	}
+	number, err := upload.nextPartNumber()
+	if err != nil {
+		body.Release()
+		upload.err = err
+		upload.mu.Unlock()
+		return err
+	}
+	upload.mu.Unlock()
+	return s.startPartUpload(ctx, upload, uploadPart{number: number, body: body})
+}
+
+// partLimit returns the size of multipart part number n. The configured part
+// size holds for the first perTier parts and doubles every perTier parts after
+// that, capped at the S3 per-part maximum. The object's total size is unknown
+// while it streams, so growing the parts is what lets a large object finish
+// inside the 10,000-part ceiling without reserving huge buffers for small ones.
+// S3 accepts parts of different sizes as long as every part but the last is at
+// least 5 MiB, which the configured floor already guarantees.
+func (s *multipartSession) partLimit(n int32) int {
+	return partLimit(s.partSize, n, s.perTier)
+}
+
+func partLimit(base int, n, perTier int32) int {
+	if n < 1 {
+		n = 1
+	}
+	size := int64(base)
+	for tier := (n - 1) / perTier; tier > 0 && size < maxPartSize; tier-- {
+		size <<= 1
+	}
+	return int(min(size, maxPartSize))
 }
 
 func (u *objectWriter) nextPartNumber() (int32, error) {
 	if u.partNum >= maxUploadParts {
-		return 0, fmt.Errorf("multipart upload exceeds %d parts; increase part_size_mib", maxUploadParts)
+		return 0, fmt.Errorf("multipart upload exceeds %d parts after %d bytes", maxUploadParts, u.bytes)
 	}
 	u.partNum++
 	return u.partNum, nil
@@ -262,8 +345,8 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *objectWr
 	upload.inflight.Go(func() {
 		defer stopUpload()
 		defer func() { <-s.slots }()
-		size := int64(part.body.Len())
-		token, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body, size)
+		size, crc := int64(part.body.Len()), part.body.CRC32C()
+		token, err := s.store.UploadPart(uploadCtx, s.bucket, upload.key, uploadID, part.number, part.body, size, crc)
 		part.body.Release()
 		upload.mu.Lock()
 		defer upload.mu.Unlock()
@@ -273,7 +356,7 @@ func (s *multipartSession) startPartUpload(ctx context.Context, upload *objectWr
 			}
 			return
 		}
-		upload.parts = append(upload.parts, completedPart{number: part.number, token: token})
+		upload.parts = append(upload.parts, completedPart{number: part.number, token: token, crc32c: crc})
 	})
 	return nil
 }

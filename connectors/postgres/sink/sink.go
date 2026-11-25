@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/connectors/internal/tunnel"
 	pgconnection "github.com/galaxy-io/filament/connectors/postgres/internal/connection"
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/schema"
@@ -30,12 +31,14 @@ type Sink struct {
 	writeMu             sync.Mutex
 	session             writeSession
 
-	pool     *pgxpool.Pool
-	run      filament.RunID
-	schema   string
-	dsn      string
-	policies map[string]filament.WritePolicy
-	written  atomic.Int64
+	pool              *pgxpool.Pool
+	run               filament.RunID
+	schema            string
+	dsn               string
+	tunnel            *tunnel.Tunnel
+	reverseTunnelHost string
+	policies          map[string]filament.WritePolicy
+	written           atomic.Int64
 
 	// Bounded runs prepare tables before extraction. Continuous runs may also
 	// prepare inferred schemas on their single writer inside the active epoch.
@@ -101,7 +104,7 @@ func (t *Sink) Validate(cfg filament.Config) error {
 	if _, err := schemaPolicy(cfg.String("schema_evolution")); err != nil {
 		return err
 	}
-	if _, err := pgconnection.Resolve(cfg); err != nil {
+	if _, err := pgconnection.Resolve(cfg, t.reverseTunnelHost); err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
 	return nil
@@ -110,7 +113,7 @@ func (t *Sink) Validate(cfg filament.Config) error {
 // TestConnection opens a short-lived pool and verifies the configured
 // credentials without creating the destination schema.
 func (t *Sink) TestConnection(ctx context.Context, cfg filament.Config) error {
-	resolved, err := pgconnection.Resolve(cfg)
+	resolved, err := pgconnection.Resolve(cfg, t.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
@@ -154,11 +157,12 @@ func (t *Sink) open(ctx context.Context, run filament.RunSpec) error {
 	if policy != "" && cfg.String("schema") != "" && !validIdentifier(cfg.String("schema")) {
 		return fmt.Errorf("invalid PostgreSQL schema name")
 	}
-	resolved, err := pgconnection.Resolve(cfg)
+	resolved, err := pgconnection.Resolve(cfg, t.reverseTunnelHost)
 	if err != nil {
 		return fmt.Errorf("postgres sink: connection config: %w", err)
 	}
 	t.dsn = resolved.DSN
+	t.tunnel = resolved.Tunnel
 	if v := cfg.String("schema"); v != "" {
 		t.schema = v
 	}
@@ -209,10 +213,19 @@ func (t *Sink) release() {
 		t.pool.Close()
 		t.pool = nil
 	}
+	_ = t.tunnel.Close()
+	t.tunnel = nil
 }
 
 func (t *Sink) tableFor(resource string) *table {
 	t.tablesMu.RLock()
 	defer t.tablesMu.RUnlock()
 	return t.tables[resource]
+}
+
+var _ filament.ReverseTunnelUser = (*Sink)(nil)
+
+// UseReverseTunnelHost sets where this deployment's reverse SSH tunnels listen.
+func (t *Sink) UseReverseTunnelHost(host string) {
+	t.reverseTunnelHost = host
 }
