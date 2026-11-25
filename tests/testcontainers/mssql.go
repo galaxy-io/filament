@@ -97,6 +97,7 @@ func MSSQLContainer(t testing.TB) *MSSQL {
 	}
 	setup, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
+	waitForMSSQLAgent(setup, t, master)
 	for _, stmt := range []string{
 		"CREATE DATABASE " + mssqlDatabase,
 		"ALTER DATABASE " + mssqlDatabase + " SET ALLOW_SNAPSHOT_ISOLATION ON",
@@ -126,6 +127,31 @@ func MSSQLContainer(t testing.TB) *MSSQL {
 		Password:  mssqlPassword,
 		DSN:       dsn,
 		DB:        db,
+	}
+}
+
+// waitForMSSQLAgent blocks until SQL Agent has a session and has finished
+// starting. Enabling CDC adds Agent jobs, and msdb refuses a job step with
+// error 14258 while Agent is still starting, which lags the server's ready line.
+func waitForMSSQLAgent(ctx context.Context, t testing.TB, db *sql.DB) {
+	t.Helper()
+	const query = `
+		DECLARE @starting int = 1;
+		EXEC master.dbo.xp_sqlagent_is_starting @starting OUTPUT;
+		SELECT CASE WHEN @starting = 0 AND EXISTS (
+			SELECT 1 FROM sys.dm_exec_sessions WHERE program_name LIKE N'SQLAgent%'
+		) THEN 1 ELSE 0 END`
+	for {
+		var ready int
+		err := db.QueryRowContext(ctx, query).Scan(&ready)
+		if err == nil && ready == 1 {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("mssql agent readiness: %v (last error: %v)", ctx.Err(), err)
+		case <-time.After(500 * time.Millisecond):
+		}
 	}
 }
 

@@ -1,18 +1,19 @@
 ---
 title: "Azure SQL source connector"
 sidebarTitle: "Azure SQL"
-description: "Keyset snapshot reads from Azure SQL Database and Azure SQL Managed Instance"
+description: "Keyset snapshot, incremental watermark, and CDC reads from Azure SQL Database and Azure SQL Managed Instance"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-azure-dark.svg"
 ---
 
 Connector ID `azuresql`
 
 The Azure SQL source reads from Azure SQL Database and Azure SQL Managed
-Instance with resumable keyset snapshots. It is in preview.
+Instance with resumable keyset snapshots, incremental watermark reads and change
+data capture. It is in preview.
 
 It runs the same reader as the [SQL Server source](/pages/connectors/sources/sqlserver)
-and differs only in how it connects. Snapshot reads, types and permissions work
-as that page describes.
+and differs only in how it connects. Snapshot reads, types, incremental reads,
+change data capture and permissions work as that page describes.
 
 ## Configuration
 
@@ -30,9 +31,13 @@ as that page describes.
 | `auth.client_secret` | Connection | | Required with `service_principal`. Secret. |
 | `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
 | `encrypt` | Connection | `true` | `true` encrypts the session and `strict` uses TDS 8.0. Azure SQL always encrypts. |
+| `replication` | Connection | `standard` | `standard` reads tables with queries. `cdc` reads changes from the database's change tables. |
+| `manage_capture` | Connection | `true` | With `cdc`, enable capture on a selected table that has no capture instance. Needs `db_owner`. |
+| `capture_role` | Connection | | Gating role for capture instances the source enables. Empty means none. |
+| `snapshot_mode` | Pipeline | `initial` | With `cdc`, `initial` reads a table in full before streaming its changes. `none` streams from the current position only. |
 | `schema` | Pipeline | `dbo` | Schema to read tables from. |
 | `shard_rows` | Pipeline | `1000000` | Rows per parallel shard. `0` reads each table on one connection. |
-| `max_conns` | Pipeline | | Maximum source connections. Set it to at least the run's parallelism. |
+| `max_conns` | Pipeline | | Maximum source connections. Set it to at least the run's parallelism. With `cdc` it is also how many shards the initial snapshot reads at once, 4 when unset. |
 | `isolation` | Pipeline | `auto` | `auto` uses snapshot isolation when the database allows it and read committed otherwise. `snapshot` requires it. `read_committed` never uses it. |
 
 Azure SQL Database allows snapshot isolation by default, so `auto` reads each
@@ -60,3 +65,23 @@ ALTER ROLE db_datareader ADD MEMBER [filament-app];
 
 In `url` mode set the `fedauth` parameter to any workflow go-mssqldb supports,
 such as `sqlserver://myserver.database.windows.net?database=app&fedauth=ActiveDirectoryManagedIdentity`.
+
+## Change data capture
+
+The capture process differs by deployment. On Azure SQL Database it is a
+built-in scheduler, and CDC needs a vCore database or an S3 or higher DTU tier.
+On Azure SQL Managed Instance it is a SQL Agent job. Enabling CDC on the
+database takes `db_owner` on Azure SQL Database and `sysadmin` on Managed
+Instance.
+
+```sql
+EXEC sys.sp_cdc_enable_db;
+```
+
+The capture wait after an initial snapshot needs
+`VIEW DATABASE PERFORMANCE STATE` on Azure SQL Database. On Managed Instance it
+also needs `VIEW SERVER PERFORMANCE STATE`, granted in `master`, as on SQL
+Server 2022.
+
+Everything else follows [change data capture](/pages/connectors/sources/sqlserver#change-data-capture)
+on the SQL Server page.

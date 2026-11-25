@@ -5,6 +5,7 @@ package sqlserver_test
 import (
 	"context"
 	"encoding/hex"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -303,6 +304,114 @@ func TestSQLServerSource(t *testing.T) {
 			t.Fatalf("lines not discovered in %+v", res.Resources)
 		}
 	})
+
+	for _, cursor := range []string{"updated_at", "rv"} {
+		t.Run("incremental by "+cursor, func(t *testing.T) {
+			tbl := "inc_" + cursor
+			exec(t, fmt.Sprintf(`CREATE TABLE dbo.%s (id int NOT NULL PRIMARY KEY, name nvarchar(20) NOT NULL,
+				updated_at datetime2(7) NOT NULL, rv rowversion)`, tbl),
+				fmt.Sprintf(`INSERT INTO dbo.%s (id, name, updated_at)
+				SELECT TOP (500) ROW_NUMBER() OVER (ORDER BY object_id), N'row',
+					DATEADD(second, ROW_NUMBER() OVER (ORDER BY object_id), '2026-01-01')
+				FROM sys.all_columns`, tbl))
+			src := configure(t, map[string]any{"shard_rows": 100})
+			cursors := map[string]filament.ResourceCursorConfig{tbl: {Field: cursor}}
+			plan, err := src.PlanIncremental(ctx, []string{tbl}, nil, cursors)
+			if err != nil {
+				t.Fatal(err)
+			}
+			backfill := &testutil.CollectSink{}
+			defer backfill.Release()
+			if err := src.ExtractFrom(ctx, backfill, filament.ExtractOpts{Resources: []string{tbl}, Parallelism: 3}, plan); err != nil {
+				t.Fatal(err)
+			}
+			if n := len(testutil.DataRecords(backfill.Records)); n != 500 {
+				t.Fatalf("backfill rows = %d, want 500", n)
+			}
+			promoted, ok := checkpoint.PromoteIncrementalBackfill(plan[tbl])
+			if !ok {
+				t.Fatal("backfill did not promote")
+			}
+			exec(t,
+				fmt.Sprintf(`UPDATE dbo.%s SET name = N'changed', updated_at = '2026-02-01T00:00:00.0000001' WHERE id = 7`, tbl),
+				fmt.Sprintf(`INSERT INTO dbo.%s (id, name, updated_at) VALUES (501, N'new', '2026-02-01T00:00:00.0000002')`, tbl))
+			next, err := src.PlanIncremental(ctx, []string{tbl}, map[string]filament.Checkpoint{tbl: promoted}, cursors)
+			if err != nil {
+				t.Fatal(err)
+			}
+			delta := &testutil.CollectSink{}
+			defer delta.Release()
+			if err := src.ExtractFrom(ctx, delta, filament.ExtractOpts{Resources: []string{tbl}}, next); err != nil {
+				t.Fatal(err)
+			}
+			var ids []string
+			for _, r := range testutil.DataRecords(delta.Records) {
+				ids = append(ids, r.ID)
+			}
+			if !slices.Equal(ids, []string{"7", "501"}) {
+				t.Fatalf("delta ids = %v, want [7 501]", ids)
+			}
+		})
+	}
+
+	for _, tc := range []struct {
+		name, table, ddl, seed, later string
+		cursor                        filament.ResourceCursorConfig
+		delta                         int
+	}{
+		{
+			name: "cursor inside the key", table: "inc_keyed",
+			ddl:  `CREATE TABLE dbo.inc_keyed (updated_at datetime2(3) NOT NULL, id int NOT NULL, PRIMARY KEY (updated_at, id))`,
+			seed: `INSERT INTO dbo.inc_keyed VALUES ('2026-01-01', 1), ('2026-01-01', 2), ('2026-01-02', 3)`, later: `INSERT INTO dbo.inc_keyed VALUES ('2026-01-02', 4)`,
+			cursor: filament.ResourceCursorConfig{Field: "updated_at"}, delta: 1,
+		},
+		{
+			// The lookback reaches before 1753, which datetime cannot hold, so
+			// the run re-reads from the start instead of failing.
+			name: "cursor is the key, near the datetime minimum", table: "inc_solo",
+			ddl:  `CREATE TABLE dbo.inc_solo (at datetime NOT NULL PRIMARY KEY)`,
+			seed: `INSERT INTO dbo.inc_solo VALUES ('1753-01-01')`, later: `INSERT INTO dbo.inc_solo VALUES ('2026-01-01')`,
+			cursor: filament.ResourceCursorConfig{Field: "at", LookbackSeconds: 60}, delta: 2,
+		},
+		{
+			name: "hierarchyid key", table: "inc_tree",
+			ddl:  `CREATE TABLE dbo.inc_tree (node hierarchyid NOT NULL PRIMARY KEY, updated_at datetime2 NOT NULL)`,
+			seed: `INSERT INTO dbo.inc_tree VALUES ('/1/', '2026-01-01'), ('/2/', '2026-01-01')`, later: `INSERT INTO dbo.inc_tree VALUES ('/1/1/', '2026-01-02')`,
+			cursor: filament.ResourceCursorConfig{Field: "updated_at"}, delta: 1,
+		},
+	} {
+		t.Run("incremental with a "+tc.name, func(t *testing.T) {
+			exec(t, tc.ddl, tc.seed)
+			src := configure(t, nil)
+			cursors := map[string]filament.ResourceCursorConfig{tc.table: tc.cursor}
+			plan, err := src.PlanIncremental(ctx, []string{tc.table}, nil, cursors)
+			if err != nil {
+				t.Fatal(err)
+			}
+			backfill := &testutil.CollectSink{}
+			defer backfill.Release()
+			if err := src.ExtractFrom(ctx, backfill, filament.ExtractOpts{Resources: []string{tc.table}}, plan); err != nil {
+				t.Fatal(err)
+			}
+			promoted, ok := checkpoint.PromoteIncrementalBackfill(plan[tc.table])
+			if !ok {
+				t.Fatal("backfill did not promote")
+			}
+			exec(t, tc.later)
+			next, err := src.PlanIncremental(ctx, []string{tc.table}, map[string]filament.Checkpoint{tc.table: promoted}, cursors)
+			if err != nil {
+				t.Fatal(err)
+			}
+			delta := &testutil.CollectSink{}
+			defer delta.Release()
+			if err := src.ExtractFrom(ctx, delta, filament.ExtractOpts{Resources: []string{tc.table}}, next); err != nil {
+				t.Fatal(err)
+			}
+			if n := len(testutil.DataRecords(delta.Records)); n != tc.delta {
+				t.Fatalf("delta rows = %d, want %d", n, tc.delta)
+			}
+		})
+	}
 }
 
 // renderRows renders each row as column name → value text: timestamps in

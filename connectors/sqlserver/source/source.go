@@ -1,5 +1,6 @@
 // Package sqlserver implements filament.Source for Microsoft SQL Server 2017
-// and later, and Azure SQL: full snapshots read by primary key.
+// and later, and Azure SQL: full snapshots, incremental watermark reads and
+// change data capture.
 //
 // # Reading
 //
@@ -15,6 +16,15 @@
 // stores a table in its clustered index, normally the primary key, so each
 // shard is a sequential range scan. Each shard runs in a SNAPSHOT
 // transaction when the database allows it, else READ COMMITTED.
+//
+// # Change data capture
+//
+// SQL Server CDC copies committed changes from the log into change tables,
+// which the source reads by query: one ordered UNION ALL over every selected
+// table's change table, decoded by the same per-type decoders (cdc.go).
+// Capture instances stand in for PostgreSQL's slot and publication
+// (capture.go). They hold no log, so retention is the database's cleanup
+// setting, and a checkpoint older than it fails loudly instead of skipping.
 package sqlserver
 
 import (
@@ -35,6 +45,12 @@ const (
 	defaultShardRows = 1_000_000
 )
 
+// Replication modes.
+const (
+	replicationStandard = string(filament.ReplicationStandard)
+	replicationCDC      = string(filament.ReplicationCDC)
+)
+
 // Isolation modes for shard reads.
 const (
 	isolationAuto          = "auto"
@@ -53,6 +69,16 @@ type Source struct {
 	isolation sql.IsolationLevel
 
 	maxConns int
+
+	// Change data capture settings.
+	cdc           bool
+	snapshotMode  filament.SnapshotMode
+	manageCapture bool
+	captureRole   string
+
+	// Per-resource incremental settings, set by PlanIncremental.
+	cursorColumns   map[string]string
+	cursorLookbacks map[string]int
 }
 
 // New returns an unconfigured source for a self-managed SQL Server.
@@ -64,16 +90,18 @@ func New() *Source { return newSource(connection.SQLServer) }
 func NewAzureSQL() *Source { return newSource(connection.AzureSQL) }
 
 func newSource(p connection.Profile) *Source {
-	return &Source{profile: p, schema: defaultSchema, shardRows: defaultShardRows}
+	return &Source{profile: p, schema: defaultSchema, shardRows: defaultShardRows, snapshotMode: filament.SnapshotInitial, manageCapture: true}
 }
 
 var (
-	_ filament.Source          = (*Source)(nil)
-	_ filament.Discoverable    = (*Source)(nil)
-	_ filament.LiveValidatable = (*Source)(nil)
-	_ filament.SchemaProvider  = (*Source)(nil)
-	_ filament.Resumable       = (*Source)(nil)
-	_ filament.ResumePlanner   = (*Source)(nil)
+	_ filament.Source               = (*Source)(nil)
+	_ filament.Discoverable         = (*Source)(nil)
+	_ filament.LiveValidatable      = (*Source)(nil)
+	_ filament.SchemaProvider       = (*Source)(nil)
+	_ filament.CursorColumnProvider = (*Source)(nil)
+	_ filament.IncrementalPlanner   = (*Source)(nil)
+	_ filament.Resumable            = (*Source)(nil)
+	_ filament.ResumePlanner        = (*Source)(nil)
 )
 
 // Validate checks the connection settings and pipeline options without
@@ -89,6 +117,16 @@ func (s *Source) Validate(cfg filament.Config) error {
 	}
 	if cfg.Has("shard_rows") && cfg.Int("shard_rows") < 0 {
 		return fmt.Errorf("sqlserver source: shard_rows must not be negative")
+	}
+	switch cfg.String("replication") {
+	case "", replicationStandard, replicationCDC:
+	default:
+		return fmt.Errorf("sqlserver source: unsupported replication %q", cfg.String("replication"))
+	}
+	switch filament.SnapshotMode(cfg.String("snapshot_mode")) {
+	case "", filament.SnapshotInitial, filament.SnapshotNone:
+	default:
+		return fmt.Errorf("sqlserver source: unsupported snapshot_mode %q", cfg.String("snapshot_mode"))
 	}
 	return nil
 }
@@ -125,6 +163,14 @@ func (s *Source) Configure(ctx context.Context, cfg filament.Config) error {
 	if cfg.Has("shard_rows") {
 		s.shardRows = int64(cfg.Int("shard_rows")) // 0 disables sharding
 	}
+	if v := cfg.String("snapshot_mode"); v != "" {
+		s.snapshotMode = filament.SnapshotMode(v)
+	}
+	if cfg.Has("manage_capture") {
+		s.manageCapture = cfg.Bool("manage_capture")
+	}
+	s.captureRole = cfg.String("capture_role")
+	s.cdc = cfg.String("replication") == replicationCDC
 	db, err := connection.Open(resolved)
 	if err != nil {
 		return fmt.Errorf("sqlserver source: open: %w", err)

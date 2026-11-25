@@ -1,14 +1,15 @@
 ---
 title: "Microsoft SQL Server source connector"
 sidebarTitle: "SQL Server"
-description: "Keyset snapshot reads from SQL Server 2017+"
+description: "Keyset snapshot, incremental watermark, and CDC reads from SQL Server 2017+"
 icon: "https://cdn.getgalaxy.io/sources/source-icon-mssql-dark.svg"
 ---
 
 Connector ID `sqlserver`
 
 The SQL Server source reads from self-managed SQL Server 2017 and later, on
-premises or on a VM, with resumable keyset snapshots. It is in preview.
+premises or on a VM, with resumable keyset snapshots, incremental watermark
+reads and change data capture. It is in preview.
 
 For Azure SQL Database and Azure SQL Managed Instance use the
 [Azure SQL source](/pages/connectors/sources/azuresql). It runs the same reader
@@ -29,9 +30,13 @@ with connection settings for Azure and Microsoft Entra sign-in.
 | `database_name` | Connection | | Database to connect to. Required in `fields` mode. |
 | `encrypt` | Connection | `true` | `true` encrypts the session, `strict` uses TDS 8.0, `false` encrypts the login only, `disable` turns TLS off. |
 | `trust_server_certificate` | Connection | `false` | Accept the server certificate without verifying it. |
+| `replication` | Connection | `standard` | `standard` reads tables with queries. `cdc` reads changes from SQL Server change tables. |
+| `manage_capture` | Connection | `true` | With `cdc`, enable capture on a selected table that has no capture instance. Needs `db_owner`. |
+| `capture_role` | Connection | | Gating role for capture instances the source enables. Empty means none. |
+| `snapshot_mode` | Pipeline | `initial` | With `cdc`, `initial` reads a table in full before streaming its changes. `none` streams from the current position only. |
 | `schema` | Pipeline | `dbo` | Schema to read tables from. |
 | `shard_rows` | Pipeline | `1000000` | Rows per parallel shard. `0` reads each table on one connection. |
-| `max_conns` | Pipeline | | Maximum source connections. Set it to at least the run's parallelism. |
+| `max_conns` | Pipeline | | Maximum source connections. Set it to at least the run's parallelism. With `cdc` it is also how many shards the initial snapshot reads at once, 4 when unset. |
 | `isolation` | Pipeline | `auto` | `auto` uses snapshot isolation when the database allows it and read committed otherwise. `snapshot` requires it. `read_committed` never uses it. |
 
 Connections use a 32 KiB TDS packet unless the URL sets `packet size`.
@@ -93,12 +98,151 @@ keeps one of them. Non-Unicode text is decoded by its column's collation.
 Well-known binary has no spatial reference ID. To keep it, add a computed
 column such as `location.STSrid` to the table.
 
+## Incremental reads
+
+Incremental resources need a primary key without `sql_variant` columns and a
+non-null cursor column, which is a `datetime`, `datetime2`, `smalldatetime`,
+`datetimeoffset` or `rowversion` column. Conventional names such as
+`updated_at` and `ModifiedDate` are recommended automatically, then a
+`rowversion` column. A cursor can also be selected per pipeline resource.
+
+The first incremental run captures the current `(cursor, primary key...)`
+high watermark, then performs a resumable primary-key backfill. Later runs
+read the rows after the watermark up to a high watermark taken when the run
+starts.
+
+A `rowversion` cursor is exact. The server advances it on every insert and
+update, and a run never reads past `MIN_ACTIVE_ROWVERSION()` taken before its
+read starts, so a transaction still open then cannot later commit below the
+watermark. A `rowversion` cursor takes no lookback.
+
+A timestamp cursor depends on the application to advance it on every change.
+A transaction that commits after the high watermark was read, with an older
+timestamp, is missed unless a lookback covers it. Configure a positive
+per-resource lookback to re-read a recent window, and use incremental upsert
+with it, since those rows are read again. An index beginning with the cursor
+and followed by the primary key keeps incremental reads from sorting.
+
+```sql
+CREATE INDEX users_incremental ON dbo.users (updated_at, id);
+```
+
+## Change data capture
+
+With `replication` set to `cdc` the source reads the change tables SQL Server
+CDC maintains. The capture process copies committed changes from the
+transaction log into one change table per capture instance. On SQL Server that
+process is a SQL Agent job, so SQL Agent must be running. The source reads only
+database-scoped objects and never touches `msdb` or Agent tables.
+
+CDC must be enabled on the database before the first run, which takes
+`sysadmin`.
+
+```sql
+EXEC sys.sp_cdc_enable_db;
+```
+
+With `manage_capture` on, the source enables capture on each selected table
+that has none, which needs `db_owner`. With it off, enable each table
+yourself.
+
+```sql
+EXEC sys.sp_cdc_enable_table @source_schema = N'dbo', @source_name = N'orders', @role_name = NULL;
+```
+
+Each table needs a primary key, and tables without one are not offered for
+selection. A run is a bounded catch-up. It replays every
+change committed after each table's checkpoint up to the newest captured
+change, then saves the position it reached. A table without a checkpoint is
+read in full first, unless `snapshot_mode` is `none`.
+
+Change tables hold NULL for computed columns, so CDC reads leave computed
+columns out of the table, in the snapshot as well as in changes.
+
+### Ordering
+
+Every selected table's changes are read by one query that the server merges
+in commit order, so changes reach the destination in the order they committed,
+across tables and within a transaction, also while a table moves to a new
+capture instance. A run's row limit stops on a transaction boundary, never
+inside one. A run that snapshots a table replays to the end regardless of the
+limit, so the snapshot is brought up to date. An update that changes a primary key
+arrives as a delete of the old row and an insert of the new one.
+
+### Initial snapshot
+
+The snapshot uses the same sharded keyset reads as a full refresh, reading up
+to `max_conns` shards at once, or 4 when it is unset. Changes that commit while
+it runs are replayed afterwards, which the merge policy absorbs.
+Change tables trail the log by the capture process's polling interval, so
+after the snapshot the source waits for capture to reach the log position the
+snapshot ended at before it replays. That wait reads
+`sys.dm_db_log_stats`, which needs a server permission, and
+`sys.dm_cdc_log_scan_sessions`, which needs a database one. The
+[permissions](#permissions) section lists them by version. Without them, or on
+a readable secondary, which does not report its log end, the source replays
+what capture holds so far and the next run catches up the rest.
+
+### Retention
+
+A change table holds no log on the source's behalf. The cleanup process
+deletes changes older than the database's retention, three days by default,
+whether or not they were read. Schedule runs well inside that window. If a
+checkpoint falls behind the oldest retained change, before or during a read,
+the run fails instead of skipping changes, and the table needs a new snapshot.
+
+```sql
+EXEC sys.sp_cdc_change_job @job_type = N'cleanup', @retention = 10080; -- minutes
+```
+
+### Schema changes
+
+A capture instance captures the columns the table had when it was created. A
+column added later is not captured, and a run fails while a selected column is
+missing. SQL Server allows two capture instances per table, so add a second one
+that captures the new column. The source reads the old instance up to the
+point the new one starts, then moves to the new one in the same run. Disable
+the old instance once every pipeline has moved past it.
+
+Create the new instance right after adding the column. A change made in
+between is held only by the old instance, which has no value for the new
+column. The run then fails rather than write NULL over the row's value, and
+the table needs a new snapshot.
+
+```sql
+EXEC sys.sp_cdc_enable_table @source_schema = N'dbo', @source_name = N'orders',
+  @role_name = NULL, @capture_instance = N'dbo_orders_v2';
+```
+
+Change tables are shared by every reader. Removing a pipeline never disables
+capture on a table.
+
 ## Permissions
 
 The login needs `SELECT` on the tables it reads and permission to see their
-metadata, which `SELECT` grants.
+metadata, which `SELECT` grants. CDC also needs `SELECT` on the `cdc` schema.
+
+```sql
+GRANT SELECT ON SCHEMA::cdc TO filament;
+```
+
+The capture wait after an initial snapshot needs two more permissions. They are
+optional, and without them the next run catches up instead.
+
+| SQL Server | Server permission, granted in `master` | Database permission |
+|---|---|---|
+| 2022 and later | `VIEW SERVER PERFORMANCE STATE` | `VIEW DATABASE PERFORMANCE STATE` |
+| 2017 and 2019 | `VIEW SERVER STATE` | `VIEW DATABASE STATE` |
+
+```sql
+-- SQL Server 2022 and later
+USE master;
+GRANT VIEW SERVER PERFORMANCE STATE TO filament;
+USE app;
+GRANT VIEW DATABASE PERFORMANCE STATE TO filament;
+```
 
 ## Roadmap
 
-Incremental reads, change data capture and partition selection for snapshots
-are planned.
+Continuous CDC execution, partition selection for snapshots and resumable CDC
+snapshots are planned.
