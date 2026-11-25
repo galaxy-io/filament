@@ -19,5 +19,6 @@ import (
 	_ "github.com/galaxy-io/filament/connectors/redshift"
 	_ "github.com/galaxy-io/filament/connectors/sample"
 	_ "github.com/galaxy-io/filament/connectors/snowflake"
+	_ "github.com/galaxy-io/filament/connectors/sqlserver"
 	_ "github.com/galaxy-io/filament/connectors/stdout"
 )

@@ -95,6 +95,20 @@ mysql.RootDB  // admin handle for lifecycle assertions
 The server has row binlogs, GTIDs, and local infile enabled so the same
 container exercises snapshot, incremental, CDC, and sink loading behavior.
 
+### SQL Server
+
+```go
+ms := testcontainers.MSSQLContainer(t)
+ms.DSN  // go-mssqldb URL for the test database, encryption disabled
+ms.DB   // connected *sql.DB
+testcontainers.MSSQLDSN(ms.Host, ms.Port, "test", url.Values{"packet size": {"32767"}})
+```
+
+SQL Server Developer edition with a `test` database in simple recovery that
+allows snapshot isolation. The image is linux/amd64 only, so on Apple silicon
+it runs under emulation. Use it for relative comparisons there, not absolute
+throughput.
+
 ### NATS
 
 ```go
