@@ -23,8 +23,9 @@ type querier interface {
 // allocation, and stamps each row with the metadata the pipeline checkpoints.
 //
 // A result set holds the schema's fields in order, after skip leading columns
-// that are not part of the row, from which meta derives the row's metadata.
-// Snapshot reads have none and carry the key instead.
+// that are not part of the row: a change-table read puts its LSN, sequence and
+// operation columns there and derives the row's metadata from them through
+// meta. Snapshot and incremental reads have none and carry the key instead.
 type rowReader struct {
 	schema rowmodel.Schema
 	open   func() (arrowbatch.RowWriter, error)
