@@ -133,7 +133,7 @@ const ConnectionDrawer: FC<ConnectionDrawerProps> = ({ connectionId, isOpen, onC
           />
         )}
         {webhook && <ConnectionDrawerWebhook connection={connection} webhook={webhook} />}
-        <ConnectionDrawerPipelines connectionId={connection.id} />
+        <ConnectionDrawerPipelines connection={connection} />
       </Flex>
     );
   };
