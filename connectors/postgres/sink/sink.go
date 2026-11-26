@@ -56,6 +56,7 @@ type table struct {
 	qualified string
 	idents    []string // sanitized column names, schema order
 	types     []string // Postgres column types, schema order
+	castTo    []string // destination type to cast each staged column to, schema order; "" when the staged value lands as-is
 	keyIdx    []int    // primary-key positions in schema order
 	resumable bool
 

@@ -108,11 +108,18 @@ func (t *Sink) EnsureSchema(ctx context.Context, resource string, schema rowmode
 	if len(tbl.keyIdx) > 0 {
 		tbl.temp = pgx.Identifier{"_filament_" + resource}.Sanitize()
 		tbl.keysTemp = pgx.Identifier{"_filament_" + resource + "_keys"}.Sanitize()
+		if t.evolution == "" {
+			casts, err := t.destinationCasts(ctx, resource, schema.Fields, types)
+			if err != nil {
+				return err
+			}
+			tbl.castTo = casts
+		}
 		tbl.tempSQL = tempTableSQL(tbl.temp, idents, types, true)
 		tbl.upsertSQL = upsertSQL(tbl)
 		keyIdents, keyTypes := pick(idents, tbl.keyIdx), pick(types, tbl.keyIdx)
 		tbl.keysTempSQL = tempTableSQL(tbl.keysTemp, keyIdents, keyTypes, false)
-		tbl.deleteSQL = deleteSQL(tbl.qualified, tbl.keysTemp, keyIdents)
+		tbl.deleteSQL = deleteSQL(tbl)
 	}
 	t.installTable(resource, tbl, schema)
 	return nil
@@ -200,6 +207,69 @@ func columnType(f rowmodel.Field, keepNative bool) string {
 	}
 }
 
+// destinationCasts returns, per column in fields order, the destination type
+// to cast staged values to, or "" when a staged value lands as-is. A cast is
+// needed only for a user-defined destination type - an enum, a domain, an
+// extension type - because Postgres has no assignment cast from the staged
+// text form to it, so the fold fails with 42804. A pg_catalog built-in
+// (varchar, numeric, timestamptz) takes the staged value through its
+// assignment cast, and the same type under another spelling needs none.
+// Only the legacy path needs this: a schema policy blocks user-defined
+// native types before any write, so a destination under one can only hold
+// them in legacy mode.
+func (t *Sink) destinationCasts(ctx context.Context, resource string, fields []rowmodel.Field, staged []string) ([]string, error) {
+	const q = `SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod),
+		t.typnamespace = 'pg_catalog'::regnamespace
+		FROM pg_catalog.pg_attribute a
+		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+		JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped`
+	query := t.pool.Query
+	if t.session.active != nil {
+		query = t.session.active.tx.Query
+	}
+	rows, err := query(ctx, q, t.schema, resource)
+	if err != nil {
+		return nil, fmt.Errorf("resolve destination types: %w", err)
+	}
+	defer rows.Close()
+	type destType struct {
+		typ     string
+		builtin bool
+	}
+	byName := make(map[string]destType)
+	for rows.Next() {
+		var name string
+		var d destType
+		if err := rows.Scan(&name, &d.typ, &d.builtin); err != nil {
+			return nil, fmt.Errorf("resolve destination types: %w", err)
+		}
+		byName[name] = d
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("resolve destination types: %w", err)
+	}
+	casts := make([]string, len(fields))
+	for i, f := range fields {
+		d, ok := byName[f.Name]
+		if !ok {
+			continue
+		}
+		casts[i] = castFor(staged[i], d.typ, d.builtin)
+	}
+	return casts, nil
+}
+
+// castFor reports the destination type to cast a staged value of staged type
+// to, or "" when the value lands as-is.
+func castFor(staged, dest string, builtin bool) string {
+	if dest == "" || builtin || baseType(dest) == baseType(staged) {
+		return ""
+	}
+	return dest
+}
+
 // tempTableSQL creates the per-connection scratch table a key-based fold loads
 // into: the given columns, nullable, plus _ord (row order within the batch) when
 // ordered. It is emptied before every load; a merge folds several runs through
@@ -218,7 +288,9 @@ func tempTableSQL(name string, idents, types []string, ordered bool) string {
 // upsertSQL folds the temp table into the destination: the last row per key wins
 // within the batch, then INSERT … ON CONFLICT DO UPDATE by primary key makes the
 // write idempotent (an at-least-once resume re-delivers rows past the last
-// persisted cursor).
+// persisted cursor). A staged column whose destination type is user-defined is
+// cast to it in the SELECT list, so enum and domain columns fold instead of
+// failing with 42804.
 func upsertSQL(tbl *table) string {
 	keys := pick(tbl.idents, tbl.keyIdx)
 	keySet := map[string]bool{}
@@ -232,8 +304,15 @@ func upsertSQL(tbl *table) string {
 		}
 	}
 	cols := strings.Join(tbl.idents, ", ")
+	selects := make([]string, len(tbl.idents))
+	for i, id := range tbl.idents {
+		selects[i] = id
+		if i < len(tbl.castTo) && tbl.castTo[i] != "" {
+			selects[i] = "CAST(" + id + " AS " + tbl.castTo[i] + ")"
+		}
+	}
 	q := fmt.Sprintf("INSERT INTO %s (%s) SELECT DISTINCT ON (%s) %s FROM %s ORDER BY %s, _ord DESC ON CONFLICT (%s) DO ",
-		tbl.qualified, cols, strings.Join(keys, ", "), cols, tbl.temp, strings.Join(keys, ", "), strings.Join(keys, ", "))
+		tbl.qualified, cols, strings.Join(keys, ", "), strings.Join(selects, ", "), tbl.temp, strings.Join(keys, ", "), strings.Join(keys, ", "))
 	if len(sets) == 0 {
 		return q + "NOTHING"
 	}
@@ -241,12 +320,19 @@ func upsertSQL(tbl *table) string {
 }
 
 // deleteSQL removes every destination row whose key is in the keys temp table.
-func deleteSQL(qualified, keysTemp string, keyIdents []string) string {
-	where := make([]string, len(keyIdents))
-	for i, k := range keyIdents {
-		where[i] = "t." + k + " = k." + k
+// A key landing in a user-defined destination type is cast to it, so an enum
+// or domain primary key matches instead of comparing across types.
+func deleteSQL(tbl *table) string {
+	keys := pick(tbl.idents, tbl.keyIdx)
+	where := make([]string, len(keys))
+	for n, k := range keys {
+		rhs := "k." + k
+		if i := tbl.keyIdx[n]; i < len(tbl.castTo) && tbl.castTo[i] != "" {
+			rhs = "CAST(k." + k + " AS " + tbl.castTo[i] + ")"
+		}
+		where[n] = "t." + k + " = " + rhs
 	}
-	return fmt.Sprintf("DELETE FROM %s AS t USING %s AS k WHERE %s", qualified, keysTemp, strings.Join(where, " AND "))
+	return fmt.Sprintf("DELETE FROM %s AS t USING %s AS k WHERE %s", tbl.qualified, tbl.keysTemp, strings.Join(where, " AND "))
 }
 
 func pick[T any](all []T, idx []int) []T {
