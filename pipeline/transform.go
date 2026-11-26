@@ -8,6 +8,7 @@ import (
 
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/rowmodel"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -43,6 +44,7 @@ func (p *Pipeline) transformer(ctx context.Context) {
 		// Mirror the writer: once the pipeline has failed, queued batches are
 		// drained and released, never transformed.
 		if p.Err() != nil || item.gate.quarantined() {
+			p.reject(item.batch, p.dropCause(item.gate))
 			item.batch.Release()
 			continue
 		}
@@ -56,8 +58,10 @@ func (p *Pipeline) transformBatch(ctx context.Context, item queuedBatch) {
 	// current at that point is still owned here and gets its terminal Release.
 	defer func() {
 		if r := recover(); r != nil {
+			f := Failure{Resource: b.Resource, Scope: ScopeSession, Err: transformError(fmt.Errorf("transform %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack()))}
+			p.reject(b, f.Err)
 			b.Release()
-			p.report(Failure{Resource: b.Resource, Scope: ScopeSession, Err: fmt.Errorf("transform %s seq %d panicked: %v\n%s", b.Resource, b.Seq, r, debug.Stack())})
+			p.report(f)
 		}
 	}()
 	if !b.Drained && b.Control == nil {
@@ -68,8 +72,10 @@ func (p *Pipeline) transformBatch(ctx context.Context, item queuedBatch) {
 			started := time.Now()
 			rows, err := plan.Apply(ctx, p.alloc, b.Rows())
 			if err != nil {
+				f := Failure{Resource: b.Resource, Scope: ScopeResource, Err: transformError(fmt.Errorf("transform %s seq %d: %w", b.Resource, b.Seq, err))}
+				p.reject(b, f.Err)
 				b.Release()
-				p.report(Failure{Resource: b.Resource, Scope: ScopeResource, Err: fmt.Errorf("transform %s seq %d: %w", b.Resource, b.Seq, err)})
+				p.report(f)
 				return
 			}
 			out := b.WithRows(rows)
@@ -81,6 +87,12 @@ func (p *Pipeline) transformBatch(ctx context.Context, item queuedBatch) {
 		}
 	}
 	if err := p.send(p.batchCh, item); err != nil {
+		p.reject(b, err)
 		b.Release()
 	}
+}
+
+// transformError marks a failure of the transform stage.
+func transformError(err error) error {
+	return telemetry.WithErrorType(telemetry.ErrorTypeTransform, err)
 }

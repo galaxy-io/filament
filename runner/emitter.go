@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -14,6 +15,10 @@ import (
 	"github.com/galaxy-io/filament/checkpoint"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/oauth"
+	"github.com/galaxy-io/filament/schema"
+	"github.com/galaxy-io/filament/telemetry"
+	"github.com/galaxy-io/filament/transform"
 )
 
 // emitter is the per-run fact publisher. It owns the run's monotonic sequence
@@ -27,6 +32,9 @@ type emitter struct {
 	span   filament.Span
 	tenant filament.TenantID
 	run    filament.RunID
+
+	mx       *telemetry.Set
+	pipeline string
 
 	seq atomic.Uint64
 
@@ -75,6 +83,13 @@ func (e *emitter) seedProgress(state filament.RunState) {
 			filament.Field{Key: "progressed_resources", Value: progressedResources},
 		)
 	}
+}
+
+// measure counts the run's records on mx, under pipeline. It is for a
+// continuous run alone: the control plane counts a bounded run's records from
+// the facts it publishes, and would count them twice.
+func (e *emitter) measure(mx *telemetry.Set, pipeline string) {
+	e.mx, e.pipeline = mx, pipeline
 }
 
 // next returns the run's next fact sequence. Shared with the pipeline so run
@@ -151,7 +166,21 @@ func (e *emitter) publish(f events.Fact) error {
 		}
 		e.logPublishedFact(f, fields)
 	}
+	e.observe(f)
 	return nil
+}
+
+// observe counts what a published fact says about a measured run's records:
+// those read, those written and those rejected.
+func (e *emitter) observe(f events.Fact) {
+	switch d := f.Data.(type) {
+	case events.BatchBufferedEvent:
+		e.mx.RecordsRead(e.ctx, e.pipeline, f.Resource, d.Records)
+	case events.BatchWrittenEvent:
+		e.mx.BatchWritten(e.ctx, e.pipeline, f.Resource, d.Records, d.Bytes)
+	case events.BatchRejectedEvent:
+		e.mx.RecordsRejected(e.ctx, e.pipeline, f.Resource, d.ErrorType, d.Records)
+	}
 }
 
 func (e *emitter) logPublishedFact(f events.Fact, fields []filament.Field) {
@@ -398,7 +427,22 @@ func (e *emitter) fail(err error) {
 			filament.Field{Key: "event.name", Value: "run.failed"})
 	}
 	records, bytes := e.runTotals()
-	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error(), Records: records, Bytes: bytes})
+	emit(e, events.RunFailed, "", events.RunFailedEvent{Error: err.Error(), ErrorType: errorType(err), Records: records, Bytes: bytes})
+}
+
+// errorType classifies a run's failure for the error.type attribute: by the
+// sentinel it wraps, otherwise by the stage that marked it.
+func errorType(err error) string {
+	switch {
+	case errors.Is(err, oauth.ErrReauthorizationRequired):
+		return telemetry.ErrorTypeSourceAuth
+	case errors.Is(err, schema.ErrBlocked):
+		return telemetry.ErrorTypeSchemaMismatch
+	case errors.Is(err, transform.ErrInvalid):
+		return telemetry.ErrorTypeTransform
+	default:
+		return telemetry.ErrorType(err)
+	}
 }
 
 func (e *emitter) partial(err error) {

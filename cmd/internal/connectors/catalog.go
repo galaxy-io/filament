@@ -8,6 +8,7 @@ import (
 	"github.com/galaxy-io/filament"
 	httpapi "github.com/galaxy-io/filament/connectors/http"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // SourcesFromEnv adds HTTP_MANIFESTS_DIR to the bundled catalog, then keeps
@@ -16,7 +17,7 @@ import (
 // registrations cannot be replaced. The process-wide registry is unchanged.
 // Sources that read the webhook inbox attach through NATS_URL and count
 // rejected deliveries in metrics, which may be nil.
-func SourcesFromEnv(metrics filament.Metrics) (filament.SourceRegistry, error) {
+func SourcesFromEnv(metrics *telemetry.Set) (filament.SourceRegistry, error) {
 	sources, err := catalogFromEnv()
 	if err != nil {
 		return nil, err

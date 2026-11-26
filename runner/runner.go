@@ -20,6 +20,7 @@ import (
 	"github.com/galaxy-io/filament/events"
 	oauthsecrets "github.com/galaxy-io/filament/oauth/secrets"
 	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -39,6 +40,9 @@ type Deps struct {
 	Sinks       filament.SinkRegistry
 	Log         filament.Logger
 	Tracer      filament.Tracer
+	// Metrics counts the records of a continuous run, which no control plane
+	// counts; nil records nothing.
+	Metrics *telemetry.Set
 	// Functions backs alchemy steps; nil fails runs that use one.
 	Functions     transform.FunctionService
 	FunctionBatch pipeline.FunctionBatch
@@ -93,7 +97,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	em.span = span
 	extractCtx, control, err := prepareRunExecution(observeSchemaEvents(ctx, em), deps, spec, em)
 	if err != nil {
-		em.failed(err, nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeInternal, err), nil, false)
 		return nil
 	}
 	defer control.close()
@@ -112,31 +116,31 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 
 	src, err := deps.Sources.Resolve(spec.Source.Connector)
 	if err != nil {
-		em.failed(fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err), nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceConfig, fmt.Errorf("resolve source %q: %w", spec.Source.Connector, err)), nil, false)
 		return nil
 	}
 	if err := oauthsecrets.Bind(src, filament.NewConfig(spec.Source.Config), deps.Secrets, spec.Tenant, spec.Source.SecretRefs); err != nil {
-		em.failed(err, nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceAuth, err), nil, false)
 		return nil
 	}
 	if err := bindReplicationStream(extractCtx, deps.DataStore, src, &spec); err != nil {
-		em.failed(err, nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceConfig, err), nil, false)
 		return nil
 	}
 	if err := src.Configure(extractCtx, filament.NewConfig(spec.Source.Config)); err != nil {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
-		em.failed(fmt.Errorf("configure source %q: %w", spec.Source.Connector, err), nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceConfig, fmt.Errorf("configure source %q: %w", spec.Source.Connector, err)), nil, false)
 		return nil
 	}
 	defer teardownSource(ctx, deps.Log, src)
 	if err := SelectColumns(src, spec.Columns); err != nil {
-		em.failed(err, nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceConfig, err), nil, false)
 		return nil
 	}
 	if err := SelectPartitions(src, spec.Partitions); err != nil {
-		em.failed(err, nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceConfig, err), nil, false)
 		return nil
 	}
 	plannedResources, err := PlanResources(extractCtx, src, spec.Resources, spec.Selectors)
@@ -144,7 +148,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
-		em.failed(fmt.Errorf("plan resources: %w", err), nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceRead, fmt.Errorf("plan resources: %w", err)), nil, false)
 		return nil
 	}
 	spec.Resources = plannedResources
@@ -167,7 +171,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	if plan.RequiresCDC && spec.ReplicationStream != nil && spec.ReplicationStream.ID != "" {
 		replicationStreamStore, ok := deps.DataStore.(filament.ReplicationStreamStore)
 		if !ok {
-			em.failed(fmt.Errorf("datastore does not support replication stream %q", spec.ReplicationStream.ID), nil, false)
+			em.failed(telemetry.WithErrorType(telemetry.ErrorTypeInternal, fmt.Errorf("datastore does not support replication stream %q", spec.ReplicationStream.ID)), nil, false)
 			return nil
 		}
 		if _, err := replicationStreamStore.ReconcileReplicationStreamResources(
@@ -176,7 +180,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 			if emitControlledIfStopped(extractCtx, err, control, em) {
 				return nil
 			}
-			em.failed(fmt.Errorf("reconcile replication stream resources: %w", err), nil, false)
+			em.failed(telemetry.WithErrorType(telemetry.ErrorTypeInternal, fmt.Errorf("reconcile replication stream resources: %w", err)), nil, false)
 			return nil
 		}
 	}
@@ -188,7 +192,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 			continue
 		}
 		if err := deps.DataStore.DeleteResourceCheckpoint(extractCtx, spec.Tenant, key); err != nil && !errors.Is(err, filament.ErrNotFound) {
-			em.failed(fmt.Errorf("resync %q: %w", resource, err), nil, false)
+			em.failed(telemetry.WithErrorType(telemetry.ErrorTypeInternal, fmt.Errorf("resync %q: %w", resource, err)), nil, false)
 			return nil
 		}
 	}
@@ -224,7 +228,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
-		em.failed(fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err), nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSinkWrite, fmt.Errorf("open sink %q: %w", spec.Sink.Connector, err)), nil, false)
 		return nil
 	}
 
@@ -232,7 +236,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
-		em.failed(fmt.Errorf("begin sink: %w", err), nil, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSinkWrite, fmt.Errorf("begin sink: %w", err)), nil, false)
 		return nil
 	}
 
@@ -244,12 +248,12 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	if spec.Transform != "" {
 		if transformDef, err = transform.Parse([]byte(spec.Transform)); err != nil {
 			abortSink(ctx, deps, snk)
-			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
+			em.failed(telemetry.WithErrorType(telemetry.ErrorTypeTransform, fmt.Errorf("transform: %w", err)), spec.Resources, false)
 			return nil
 		}
 		if contracts, err = resolveContracts(extractCtx, spec.Tenant, deps.Functions, transformDef, spec.Resources); err != nil {
 			abortSink(ctx, deps, snk)
-			em.failed(fmt.Errorf("transform: %w", err), spec.Resources, false)
+			em.failed(telemetry.WithErrorType(telemetry.ErrorTypeTransform, fmt.Errorf("transform: %w", err)), spec.Resources, false)
 			return nil
 		}
 	}
@@ -264,10 +268,10 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		}
 		var re *resourceError
 		if errors.As(err, &re) {
-			em.failedAt(fmt.Errorf("ensure schema: %w", err), re.resource, spec.Resources)
+			em.failedAt(telemetry.WithErrorType(telemetry.ErrorTypeSchemaMismatch, fmt.Errorf("ensure schema: %w", err)), re.resource, spec.Resources)
 			return nil
 		}
-		em.failed(fmt.Errorf("ensure schema: %w", err), spec.Resources, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSchemaMismatch, fmt.Errorf("ensure schema: %w", err)), spec.Resources, false)
 		return nil
 	}
 
@@ -277,7 +281,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		if emitControlledIfStopped(extractCtx, err, control, em) {
 			return nil
 		}
-		em.failed(err, spec.Resources, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSourceRead, err), spec.Resources, false)
 		return nil
 	}
 	// Everything already in the checkpoint store is durable, so release stream
@@ -333,7 +337,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// one resource: the source stopped, so no other resource is known complete.
 	runErr := waitErr
 	if runErr == nil {
-		runErr = extractErr
+		runErr = telemetry.WithErrorType(telemetry.ErrorTypeSourceRead, extractErr)
 	}
 
 	resources := resolveResources(spec.Resources, em.seenResources())
@@ -347,7 +351,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		signal := control.seal()
 		if signal == controlPause && len(quarantined) > 0 {
 			if err := settleQuarantine(ctx, deps, spec, snk, em, resources, quarantined); err != nil {
-				failedWithCauses(em, err, resources, quarantined, false)
+				failedWithCauses(em, telemetry.WithErrorType(telemetry.ErrorTypeSinkWrite, err), resources, quarantined, false)
 				abortSink(ctx, deps, snk)
 				return nil
 			}
@@ -373,7 +377,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 	// commit below (or a pause commit) covers only the healthy resources.
 	if len(quarantined) > 0 {
 		if err := settleQuarantine(ctx, deps, spec, snk, em, resources, quarantined); err != nil {
-			failedWithCauses(em, err, resources, quarantined, false)
+			failedWithCauses(em, telemetry.WithErrorType(telemetry.ErrorTypeSinkWrite, err), resources, quarantined, false)
 			abortSink(ctx, deps, snk)
 			return nil
 		}
@@ -383,7 +387,7 @@ func RunOne(ctx context.Context, deps Deps, spec filament.RunSpec) error {
 		return nil
 	}
 	if err := snk.Commit(ctx); err != nil {
-		em.failed(fmt.Errorf("commit sink %q: %w", spec.Sink.Connector, err), resources, false)
+		em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSinkWrite, fmt.Errorf("commit sink %q: %w", spec.Sink.Connector, err)), resources, false)
 		abortSink(ctx, deps, snk)
 		return nil
 	}
@@ -517,7 +521,7 @@ func finishControlled(
 	committed := plan.RequiresCDC || checkpointCoverage == filament.CheckpointCoverageAll
 	if committed {
 		if err := sink.Commit(ctx); err != nil {
-			em.failed(fmt.Errorf("commit paused sink %q: %w", spec.Sink.Connector, err), resources, false)
+			em.failed(telemetry.WithErrorType(telemetry.ErrorTypeSinkWrite, fmt.Errorf("commit paused sink %q: %w", spec.Sink.Connector, err)), resources, false)
 			abortSink(ctx, deps, sink)
 			return
 		}

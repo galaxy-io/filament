@@ -18,6 +18,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 const (
@@ -34,7 +35,7 @@ type Module struct {
 	ds    filament.DataStore
 	bus   eventbus.Bus
 	log   filament.Logger
-	mx    filament.Metrics
+	mx    *telemetry.Set
 	probe WorkloadProbe
 
 	interval   time.Duration
@@ -100,13 +101,14 @@ func (m *Module) Name() string { return "reaper" }
 func (m *Module) Subscriptions() []host.Subscription { return nil }
 
 // Mount captures the providers this module uses.
-func (m *Module) Mount(_ context.Context, d module.Deps) error {
+func (m *Module) Mount(ctx context.Context, d module.Deps) error {
 	m.ds = d.DataStore
 	m.bus = d.Bus
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "reaper"})
 	}
 	m.mx = d.Metrics
+	m.mx.Started(ctx, telemetry.Reaper)
 	return nil
 }
 
@@ -193,7 +195,10 @@ func (m *Module) reap(ctx context.Context, now time.Time) error {
 		}
 		err := events.Emit(ctx, m.bus, events.RunFailed,
 			events.Envelope{Tenant: r.Tenant, Run: r.Run, At: now},
-			events.RunFailedEvent{Error: fmt.Sprintf("reaped: no progress since %s", r.UpdatedAt.UTC().Format(time.RFC3339))})
+			events.RunFailedEvent{
+				Error:     fmt.Sprintf("reaped: no progress since %s", r.UpdatedAt.UTC().Format(time.RFC3339)),
+				ErrorType: telemetry.ErrorTypeWorkerLost,
+			})
 		if err != nil {
 			publishFailures++
 			if m.log != nil {
@@ -211,9 +216,7 @@ func (m *Module) reap(ctx context.Context, now time.Time) error {
 				filament.Field{Key: "stale_since", Value: r.UpdatedAt.UTC().Format(time.RFC3339)})
 		}
 		reaped++
-		if m.mx != nil {
-			m.mx.Counter("filament_runs_reaped_total").Inc()
-		}
+		m.mx.RunReaped(ctx)
 	}
 	if m.log != nil {
 		m.log.Debug("reaper sweep completed",

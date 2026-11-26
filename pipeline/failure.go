@@ -7,7 +7,9 @@ import (
 	"sync"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // Scope classifies a failure for the arbiter. The zero value is ScopeSession,
@@ -242,5 +244,42 @@ func (in isolatingInlet) FailResource(resource string, err error) {
 	if err == nil {
 		err = errors.New("source reported a resource failure without a cause")
 	}
-	in.p.report(Failure{Resource: resource, Scope: ScopeResource, Err: err})
+	in.p.report(Failure{Resource: resource, Scope: ScopeResource, Err: telemetry.WithErrorType(telemetry.ErrorTypeSourceRead, err)})
+}
+
+// drop rejects a batch that failed on its way to the sink, then reports the
+// failure.
+func (p *Pipeline) drop(b *arrowbatch.Batch, f Failure) {
+	p.reject(b, f.Err)
+	p.report(f)
+}
+
+// reject publishes the records of a buffered batch that will never reach the
+// sink, classified by err, the failure that stopped them.
+func (p *Pipeline) reject(b *arrowbatch.Batch, err error) {
+	if b == nil || b.Drained || b.Control != nil || b.NumRows() == 0 {
+		return
+	}
+	p.publish(events.NewFact(events.BatchRejected, events.Envelope{Resource: b.Resource},
+		events.BatchRejectedEvent{Records: int64(b.NumRows()), ErrorType: telemetry.ErrorType(err)}))
+}
+
+func (p *Pipeline) rejectItems(items []queuedBatch, err error) {
+	for _, item := range items {
+		p.reject(item.batch, err)
+	}
+}
+
+// dropCause is why a queued batch is released unwritten: the run's failure,
+// otherwise the quarantine of its resource.
+func (p *Pipeline) dropCause(g *resourceGate) error {
+	if err := p.Err(); err != nil {
+		return err
+	}
+	if g == nil {
+		return nil
+	}
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.err
 }

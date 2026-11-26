@@ -22,8 +22,11 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/registry"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/worker"
 )
+
+const telemetryFlushTimeout = 10 * time.Second
 
 // Deps are the providers every deployed binary resolves from the environment.
 // Sources, Sinks and Worker are set by the binary: only the worker links
@@ -38,7 +41,7 @@ type Deps struct {
 	// StreamStore is the same underlying store exposed through its stream interface.
 	StreamStore filament.ContinuousRunStore
 	Secrets     filament.Secrets
-	Metrics     filament.Metrics
+	Metrics     *telemetry.Set
 	Tracer      filament.Tracer
 	Alchemy     alchemy.Config
 }
@@ -93,17 +96,17 @@ func FromEnv(ctx context.Context) (Deps, func(), error) {
 
 // Telemetry builds the logger and otel providers alone, for a binary that
 // needs neither datastore nor bus. The returned close flushes otel.
-func Telemetry(ctx context.Context) (filament.Logger, filament.Metrics, filament.Tracer, func(), error) {
+func Telemetry(ctx context.Context) (filament.Logger, *telemetry.Set, filament.Tracer, func(), error) {
 	lg, err := logger.New()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx)
+	metrics, tracer, otelShutdown, err := otel.FromEnv(ctx, lg)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	flush := func() {
-		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		flushCtx, cancel := context.WithTimeout(context.Background(), telemetryFlushTimeout)
 		defer cancel()
 		_ = otelShutdown(flushCtx)
 	}

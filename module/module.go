@@ -11,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/pipeline"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/transform"
 )
 
@@ -40,7 +41,7 @@ type Deps struct {
 	Worker filament.Worker
 
 	Log     filament.Logger
-	Metrics filament.Metrics
+	Metrics *telemetry.Set
 	Tracer  filament.Tracer
 
 	// Functions and FunctionBatch back alchemy transform steps; nil Functions fails runs that use one.

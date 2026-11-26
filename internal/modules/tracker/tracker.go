@@ -14,19 +14,20 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // Module consumes every ingestion fact and persists the derived run state.
 type Module struct {
 	ds  filament.DataStore
 	log filament.Logger
-	mx  filament.Metrics
+	mx  *telemetry.Set
 
 	// Resumable-checkpoint accumulators, keyed by (run, resource). A single durable
 	// consumer folds facts serially, but the maps are mutex-guarded in case the host
 	// delivers concurrently. cp holds the live merged cursor; since counts written
 	// batches toward the per-run persist cadence.
-	modes map[runKey]filament.ExecutionMode
+	modes map[runKey]runInfo
 	mu    sync.Mutex
 	cp    map[ckKey]filament.Checkpoint
 	since map[ckKey]int
@@ -91,12 +92,13 @@ func (m *Module) Subscriptions() []host.Subscription {
 }
 
 // Mount captures the providers this module uses. Cheap, no I/O.
-func (m *Module) Mount(_ context.Context, d module.Deps) error {
+func (m *Module) Mount(ctx context.Context, d module.Deps) error {
 	m.ds = d.DataStore
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "tracker"})
 	}
 	m.mx = d.Metrics
+	m.mx.Started(ctx, telemetry.Tracker)
 	return nil
 }
 
@@ -127,6 +129,10 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 			filament.Field{Key: "run_id", Value: string(f.Run)},
 			filament.Field{Key: "resource_name", Value: f.Resource},
 			filament.Field{Key: "stream_sequence", Value: msg.Seq()})
+	}
+	// Records read and rejected change no run state: they are counted and acked.
+	if m.observeRecords(ctx, f) {
+		return nil
 	}
 	// Facts apply would ignore (notification reports, per-batch observability)
 	// change neither run state nor the dedup mark, so they cost no store call.
@@ -239,18 +245,14 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	env := f.Envelope
 	switch d := f.Data.(type) {
 	case events.RunStartedEvent:
-		return m.mutate(ctx, env, func(r *filament.RunState) {
-			r.Status = filament.RunRunning
-			// The store keeps the first stamp, so a redelivered fact cannot move it.
-			r.StartedAt = env.At
-		})
+		return m.applyStarted(ctx, env)
 
 	case events.RunCompletedEvent:
 		// A run that isolated resource failures committed only its healthy
 		// resources. A failed resource's cursor is promoted only when its
 		// writes were durable on Apply; commit-gated progress was aborted.
 		skip := m.uncommittedFailures(env.Run, d.FailedResources)
-		return m.terminalExcept(ctx, env, "completed", true, skip, func(r *filament.RunState) {
+		return m.terminalExcept(ctx, env, "completed", "", true, skip, func(r *filament.RunState) {
 			r.Status = filament.RunCompleted
 			// The terminal fact carries the engine's authoritative totals.
 			r.Records = d.Records
@@ -263,7 +265,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		})
 
 	case events.RunFailedEvent:
-		return m.terminal(ctx, env, "failed", false, func(r *filament.RunState) {
+		return m.terminalExcept(ctx, env, "failed", d.ErrorType, false, nil, func(r *filament.RunState) {
 			r.Status = filament.RunFailed
 			r.Error = d.Error
 			raiseTotals(r, d.Records, d.Bytes)
@@ -353,6 +355,25 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	}
 }
 
+// applyStarted marks the run running and, on its first start, records how
+// long it waited since it was requested.
+func (m *Module) applyStarted(ctx context.Context, env events.Envelope) error {
+	var pipeline string
+	var queued time.Duration
+	if err := m.mutate(ctx, env, func(r *filament.RunState) {
+		if r.StartedAt.IsZero() && !r.RequestedAt.IsZero() {
+			pipeline, queued = r.Request.PipelineID, env.At.Sub(r.RequestedAt)
+		}
+		r.Status = filament.RunRunning
+		// The store keeps the first stamp, so a redelivered fact cannot move it.
+		r.StartedAt = env.At
+	}); err != nil {
+		return err
+	}
+	m.observeQueue(ctx, pipeline, queued)
+	return nil
+}
+
 func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d events.BatchWrittenEvent) error {
 	m.rememberBoundary(env, d.CheckpointPolicy)
 	// Incremental progress: accumulate per-resource and run totals as chunks
@@ -371,10 +392,10 @@ func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d e
 	}); err != nil {
 		return err
 	}
-	m.observeBatch(env, pipeline, d.Records, d.Bytes)
+	m.observeBatch(ctx, env, pipeline, d.Records, d.Bytes)
 	if cp, persist := m.foldCursor(ctx, env, d.Checkpoint); cp != nil && persist {
 		if err := m.saveCheckpoint(ctx, env.Tenant, env.Run, cp); err != nil {
-			m.observeCheckpointFailure()
+			m.observeCheckpointFailure(ctx)
 			if m.log != nil {
 				m.log.Error("checkpoint persistence failed", err,
 					filament.Field{Key: "event.name", Value: "tracker.checkpoint.persist_failed"},
@@ -394,15 +415,16 @@ func (m *Module) terminal(
 	promoteCommitGated bool,
 	fn func(*filament.RunState),
 ) error {
-	return m.terminalExcept(ctx, env, status, promoteCommitGated, nil, fn)
+	return m.terminalExcept(ctx, env, status, "", promoteCommitGated, nil, fn)
 }
 
 // terminalExcept is terminal that discards, rather than persists, the
-// tentative cursors of the resources in skip.
+// tentative cursors of the resources in skip. errorType classifies a failed
+// run's failure.
 func (m *Module) terminalExcept(
 	ctx context.Context,
 	env events.Envelope,
-	status string,
+	status, errorType string,
 	promoteCommitGated bool,
 	skip map[string]bool,
 	fn func(*filament.RunState),
@@ -421,7 +443,7 @@ func (m *Module) terminalExcept(
 	}); err != nil {
 		return err
 	}
-	m.observeRun(env, status, labels)
+	m.observeRun(ctx, env, status, errorType, labels)
 	m.evictRun(env.Run)
 	return nil
 }
@@ -634,7 +656,7 @@ func (m *Module) flushResource(ctx context.Context, tenant filament.TenantID, ru
 	m.mu.Unlock()
 	if cp != nil {
 		if _, err := m.persistCheckpoint(ctx, tenant, run, cp, false, checkpointReasonResourceCompleted); err != nil {
-			m.observeCheckpointFailure()
+			m.observeCheckpointFailure(ctx)
 			if m.log != nil {
 				m.log.Error("checkpoint flush failed", err,
 					filament.Field{Key: "event.name", Value: "tracker.checkpoint.flush_failed"},
@@ -671,7 +693,7 @@ func (m *Module) flushRunFor(ctx context.Context, tenant filament.TenantID, run 
 		if err != nil {
 			failed++
 			failures = append(failures, fmt.Errorf("persist checkpoint for resource %q (%s): %w", resource, reason, err))
-			m.observeCheckpointFailure()
+			m.observeCheckpointFailure(ctx)
 		} else if wrote {
 			persisted++
 		}

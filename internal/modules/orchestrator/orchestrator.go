@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/internal/runs"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // Module is the run intake. It issues commands (Submit) rather than reacting to
@@ -22,7 +23,7 @@ type Module struct {
 	bus eventbus.Bus
 	ds  filament.DataStore
 	log filament.Logger
-	mx  filament.Metrics
+	mx  *telemetry.Set
 }
 
 // New returns an unmounted orchestrator. Providers are injected by Mount.
@@ -37,13 +38,14 @@ func (m *Module) Name() string { return "orchestrator" }
 func (m *Module) Subscriptions() []host.Subscription { return nil }
 
 // Mount captures the providers this module uses. Cheap, no I/O.
-func (m *Module) Mount(_ context.Context, d module.Deps) error {
+func (m *Module) Mount(ctx context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "orchestrator"})
 	}
 	m.mx = d.Metrics
+	m.mx.Started(ctx, telemetry.Orchestrator)
 	return nil
 }
 
@@ -57,9 +59,7 @@ func (m *Module) Submit(ctx context.Context, submission filament.RunSubmission) 
 	if err != nil {
 		return "", err
 	}
-	if m.mx != nil {
-		m.mx.Counter("filament_runs_submitted_total", filament.Label{Key: "tenant", Value: string(req.Tenant)}).Inc()
-	}
+	m.mx.RunSubmitted(ctx)
 	if m.log != nil {
 		m.log.Debug("run submitted",
 			filament.Field{Key: "event.name", Value: "orchestrator.run.submitted"},

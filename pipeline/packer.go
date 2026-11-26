@@ -89,6 +89,7 @@ func (p *Pipeline) packer(ctx context.Context) {
 				return
 			}
 			if p.Err() != nil {
+				p.reject(item.batch, p.Err())
 				item.batch.Release()
 				continue
 			}
@@ -132,11 +133,13 @@ func (p *Pipeline) emitPacks(jobs <-chan *packJob, emitted chan<- struct{}) {
 	for j := range jobs {
 		<-j.done
 		for _, item := range j.out {
-			if p.Err() != nil {
+			if err := p.Err(); err != nil {
+				p.reject(item.batch, err)
 				item.batch.Release()
 				continue
 			}
 			if err := p.send(p.batchCh, item); err != nil {
+				p.reject(item.batch, err)
 				item.batch.Release()
 			}
 		}
@@ -153,6 +156,8 @@ func (p *Pipeline) runPack(ctx context.Context, j *packJob) {
 		if r == nil {
 			return
 		}
+		err := transformError(fmt.Errorf("transform %s panicked: %v\n%s", j.items[0].batch.Resource, r, debug.Stack()))
+		p.rejectItems(owned, err)
 		releaseItems(owned)
 		for _, rec := range []arrow.RecordBatch{in, rows} {
 			if rec != nil {
@@ -160,9 +165,10 @@ func (p *Pipeline) runPack(ctx context.Context, j *packJob) {
 			}
 		}
 		j.out = nil
-		p.setErr(fmt.Errorf("transform %s panicked: %v\n%s", j.items[0].batch.Resource, r, debug.Stack()))
+		p.setErr(err)
 	}()
-	if p.Err() != nil {
+	if err := p.Err(); err != nil {
+		p.rejectItems(owned, err)
 		releaseItems(owned)
 		return
 	}
@@ -174,16 +180,20 @@ func (p *Pipeline) runPack(ctx context.Context, j *packJob) {
 	started := time.Now()
 	var err error
 	if in, err = p.concatRecords(batchRows(j.items)); err != nil {
+		err = transformError(fmt.Errorf("transform %s seq %d: pack: %w", first.Resource, first.Seq, err))
+		p.rejectItems(owned, err)
 		releaseItems(owned)
-		p.setErr(fmt.Errorf("transform %s seq %d: pack: %w", first.Resource, first.Seq, err))
+		p.setErr(err)
 		return
 	}
 	rows, err = j.plan.Apply(ctx, p.alloc, in)
 	in.Release()
 	in = nil
 	if err != nil {
+		f := Failure{Resource: first.Resource, Scope: ScopeResource, Err: transformError(fmt.Errorf("transform %s seq %d-%d: %w", first.Resource, first.Seq, j.items[len(j.items)-1].batch.Seq, err))}
+		p.rejectItems(owned, f.Err)
 		releaseItems(owned)
-		p.report(Failure{Resource: first.Resource, Scope: ScopeResource, Err: fmt.Errorf("transform %s seq %d-%d: %w", first.Resource, first.Seq, j.items[len(j.items)-1].batch.Seq, err)})
+		p.report(f)
 		return
 	}
 	elapsed := time.Since(started)

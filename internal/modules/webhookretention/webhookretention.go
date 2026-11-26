@@ -24,6 +24,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
 
@@ -57,7 +58,7 @@ type Module struct {
 
 	store ReleaseStore
 	log   filament.Logger
-	mx    filament.Metrics
+	mx    *telemetry.Set
 
 	inbox *inbox.Inbox
 	close func()
@@ -111,12 +112,13 @@ func (m *Module) Name() string { return "webhookretention" }
 func (m *Module) Subscriptions() []host.Subscription { return nil }
 
 // Mount captures the store, which must report webhook releases.
-func (m *Module) Mount(_ context.Context, d module.Deps) error {
+func (m *Module) Mount(ctx context.Context, d module.Deps) error {
 	store, ok := d.DataStore.(ReleaseStore)
 	if !ok {
 		return errors.New("webhook retention requires a datastore with webhook releases")
 	}
 	m.store, m.mx = store, d.Metrics
+	m.mx.Started(ctx, telemetry.WebhookRetention)
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "webhookretention"})
 	}
@@ -165,32 +167,25 @@ func (m *Module) Sweep(ctx context.Context) error {
 		m.Close()
 		return err
 	}
-	m.report(now, result)
+	m.report(ctx, now, result)
 	// Every delivery of a source deleted before the cutoff is now purged.
 	if _, err := m.store.DeleteWebhookEndpointsOfDeletedSources(ctx, cutoff.Add(-receiverCacheLag)); err != nil {
 		return fmt.Errorf("forget deleted webhook endpoints: %w", err)
 	}
-	if m.mx != nil {
-		if messages, bytes, err := m.inbox.Usage(ctx); err == nil {
-			m.mx.Gauge("filament_webhook_inbox_messages").Set(float64(messages))
-			m.mx.Gauge("filament_webhook_inbox_bytes").Set(float64(bytes))
-		}
+	if messages, bytes, err := m.inbox.Usage(ctx); err == nil {
+		m.mx.WebhookInboxUsage(ctx, messages, bytes)
 	}
 	return nil
 }
 
 // report publishes the sweep's metrics and warns about deliveries that were
 // dropped or are waiting longer than the retention period.
-func (m *Module) report(now time.Time, result inbox.Result) {
+func (m *Module) report(ctx context.Context, now time.Time, result inbox.Result) {
 	var waiting time.Duration
 	if !result.Oldest.IsZero() {
 		waiting = now.Sub(result.Oldest)
 	}
-	if m.mx != nil {
-		m.mx.Counter("filament_webhook_purged_total").Add(float64(result.Purged))
-		m.mx.Counter("filament_webhook_expired_total").Add(float64(result.Expired))
-		m.mx.Gauge("filament_webhook_oldest_unreleased_seconds").Set(waiting.Seconds())
-	}
+	m.mx.WebhookSwept(ctx, result.Purged, result.Expired, waiting)
 	if m.log == nil {
 		return
 	}

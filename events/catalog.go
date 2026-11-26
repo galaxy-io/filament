@@ -48,9 +48,11 @@ type (
 	// are the engine's counters when the engine reports the failure, and zero
 	// when another process does.
 	RunFailedEvent struct {
-		Error   string `json:"error"`
-		Records int64  `json:"records,omitempty"`
-		Bytes   int64  `json:"bytes,omitempty"`
+		Error string `json:"error"`
+		// ErrorType classifies Error with a telemetry error.type value.
+		ErrorType string `json:"errorType,omitempty"`
+		Records   int64  `json:"records,omitempty"`
+		Bytes     int64  `json:"bytes,omitempty"`
 	}
 	// RunPartialEvent marks a run that landed some resources but not all.
 	RunPartialEvent struct {
@@ -157,6 +159,13 @@ type (
 		Checkpoint       *filament.CheckpointData  `json:"checkpoint,omitempty"`
 		CheckpointPolicy filament.CheckpointPolicy `json:"checkpointPolicy,omitempty"`
 	}
+	// BatchRejectedEvent counts buffered records that will never be written.
+	// ErrorType is the telemetry error.type value of the failure that stopped
+	// them.
+	BatchRejectedEvent struct {
+		Records   int64  `json:"records"`
+		ErrorType string `json:"errorType,omitempty"`
+	}
 	// IntegrityVerifiedEvent marks a batch's CRC re-checked after write.
 	IntegrityVerifiedEvent struct {
 		CRC uint32 `json:"crc,omitempty"`
@@ -245,6 +254,7 @@ var (
 	FunctionInvoked          = define[FunctionInvokedEvent]("batch.function_invoked")
 	FunctionFailed           = define[FunctionFailedEvent]("batch.function_failed")
 	BatchWritten             = define[BatchWrittenEvent]("batch.written")
+	BatchRejected            = define[BatchRejectedEvent]("batch.rejected")
 	IntegrityVerified        = define[IntegrityVerifiedEvent]("batch.integrity_verified")
 	EncodedIntegrityVerified = define[EncodedIntegrityVerifiedEvent]("batch.encoded_integrity_verified")
 	ChunkDivergence          = define[ChunkDivergenceEvent]("batch.chunk_divergence")
