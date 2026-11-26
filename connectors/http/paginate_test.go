@@ -359,3 +359,139 @@ func TestHTTPLinkHeaderWalksRepeatedLinkFields(t *testing.T) {
 		t.Fatalf("ids=%v, want [1 2] — the rel=\"next\" field after the first was not followed", ids)
 	}
 }
+
+const cursorCycleTestManifest = `
+version: 1
+name: test
+display_name: Test
+description: Generic HTTP runtime fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    records: $.data
+    primary_key: [id]
+    fields:
+      id: int64
+    pagination:
+      cursor:
+        response: next_cursor
+        request: query.cursor
+`
+
+const nextURLCycleTestManifest = `
+version: 1
+name: test
+display_name: Test
+description: Generic HTTP runtime fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    records: $.data
+    primary_key: [id]
+    fields:
+      id: int64
+    pagination:
+      next_url: next
+`
+
+func paginationTestSource(t *testing.T, manifestYAML string, handler http.HandlerFunc) *Source {
+	t.Helper()
+	api := httptest.NewServer(handler)
+	t.Cleanup(api.Close)
+	src := NewManifest([]byte(strings.Replace(manifestYAML, "base_url: https://example.com", "base_url: "+api.URL, 1)))
+	if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
+	return src
+}
+
+// TestHTTPPaginationCycleErrors pages APIs that hand back the same
+// continuation token on every page. Without a guard the walk refetches the
+// same page until the run context is cancelled; it must fail on the first
+// repeat instead, the way strict mode already does.
+func TestHTTPPaginationCycleErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		manifest string
+		handler  func(calls *atomic.Int64) http.HandlerFunc
+	}{
+		{
+			name:     "cursor repeats",
+			manifest: cursorCycleTestManifest,
+			handler: func(calls *atomic.Int64) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprintf(w, `{"data":[{"id":%d}],"next_cursor":"abc123"}`, calls.Add(1))
+				}
+			},
+		},
+		{
+			name:     "next_url repeats",
+			manifest: nextURLCycleTestManifest,
+			handler: func(calls *atomic.Int64) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					fmt.Fprintf(w, `{"data":[{"id":%d}],"next":"/items?page=2"}`, calls.Add(1))
+				}
+			},
+		},
+		{
+			name:     "link_header repeats",
+			manifest: linkHeaderTestManifest,
+			handler: func(calls *atomic.Int64) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Link", `<http://`+r.Host+`/items?page=2>; rel="next"`)
+					fmt.Fprintf(w, `[{"id":%d}]`, calls.Add(1))
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls atomic.Int64
+			src := paginationTestSource(t, tc.manifest, tc.handler(&calls))
+			var sink collectSink
+			err := src.Extract(context.Background(), &sink, filament.ExtractOpts{Resources: []string{"items"}})
+			if err == nil || !strings.Contains(err.Error(), "pagination cycle") {
+				t.Fatalf("calls=%d error=%v, want pagination cycle", calls.Load(), err)
+			}
+			if calls.Load() != 2 {
+				t.Fatalf("calls=%d, want 2 (cycle must be caught on the first repeat)", calls.Load())
+			}
+		})
+	}
+}
+
+// TestHTTPCursorWalkAdvances is the control for the cycle guard: distinct
+// cursors page normally and a missing cursor terminates the walk.
+func TestHTTPCursorWalkAdvances(t *testing.T) {
+	var calls atomic.Int64
+	src := paginationTestSource(t, cursorCycleTestManifest, func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		switch r.URL.Query().Get("cursor") {
+		case "c1":
+			fmt.Fprint(w, `{"data":[{"id":2}],"next_cursor":"c2"}`)
+		case "c2":
+			fmt.Fprint(w, `{"data":[{"id":3}]}`)
+		default:
+			fmt.Fprint(w, `{"data":[{"id":1}],"next_cursor":"c1"}`)
+		}
+	})
+	var sink collectSink
+	if err := src.Extract(context.Background(), &sink, filament.ExtractOpts{Resources: []string{"items"}}); err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, rec := range sink.records {
+		ids = append(ids, rec.ID)
+	}
+	if calls.Load() != 3 || strings.Join(ids, ",") != "1,2,3" {
+		t.Fatalf("calls=%d ids=%v, want 3 calls and [1 2 3]", calls.Load(), ids)
+	}
+}

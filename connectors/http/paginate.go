@@ -54,6 +54,13 @@ func (c *Connector) paginate(
 	tokenMode := res.Incremental != nil && res.Incremental.ResponseCursor != "" && c.incrementalEnabled(res.Name, res.Name)
 	strictCursor := tokenMode || res.Pagination.Strict
 	state, seen := c.initialPaginationState(res, pag, resumeState, tokenMode)
+	if !strictCursor {
+		// Seed the cycle guard with the token this walk starts from so a
+		// first page that hands it straight back counts as no progress.
+		if tok := continuationToken(state); tok != "" {
+			seen[tok] = true
+		}
+	}
 	var totalRecords, pageCount int
 	progressResource, err := emittedResourceName(res, parent, c.env)
 	if err != nil {
@@ -142,7 +149,30 @@ func (c *Connector) paginate(
 		if state.Done {
 			return totalRecords, pageCount, nil
 		}
+
+		// A continuation token that repeats means the walk is not
+		// advancing: the API echoes the same cursor or next URL forever
+		// (or cycles back to an earlier one), so the loop would refetch
+		// the same pages until the run context is cancelled. Strict mode
+		// already errors on this in responseCursor; mirror that guard
+		// here for the paginator path.
+		if tok := continuationToken(state); tok != "" {
+			if seen[tok] {
+				return totalRecords, pageCount, fmt.Errorf("pagination cycle on %s: continuation token repeated", res.Name)
+			}
+			seen[tok] = true
+		}
 	}
+}
+
+// continuationToken returns the opaque token a paginator state carries into
+// the next request. Page and offset strategies advance numerically and carry
+// no token, so they return "".
+func continuationToken(s pagination.State) string {
+	if s.Cursor != "" {
+		return s.Cursor
+	}
+	return s.NextURL
 }
 
 // decodeBody is the paginators' view of a response body. Numbers stay
