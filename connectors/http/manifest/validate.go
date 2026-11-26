@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -228,6 +229,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		names[r.Name] = struct{}{}
 
+		validateResourceBaseURL(&agg, path, m.Connection, *r)
 		if r.Path == "" && r.Mode != "export" && r.Mode != ModeWebhook {
 			_ = agg.Addf(path+".path", "is required")
 		}
@@ -673,6 +675,39 @@ func paginationInjectionCollides(pagination PaginationSpec, incremental Incremen
 		}
 	}
 	return target == incremental.InjectInto && param == incremental.StartParam
+}
+
+// validateResourceBaseURL checks a resource's own host. base_urls must name a
+// host for every connection.base_urls key so each regional selection resolves.
+func validateResourceBaseURL(agg *errs.ManifestErrors, at string, conn Connection, r Resource) {
+	if r.BaseURL == "" && len(r.BaseURLs) == 0 {
+		return
+	}
+	if r.BaseURL != "" && len(r.BaseURLs) > 0 {
+		_ = agg.Addf(at+".base_url", "cannot be combined with base_urls")
+	}
+	if r.Mode == "export" || r.Mode == ModeWebhook {
+		_ = agg.Addf(at+".base_url", "is not supported for mode %s", r.Mode)
+	}
+	scopes := []string{"config", "env"}
+	validateTemplateScopes(agg, at+".base_url", r.BaseURL, scopes)
+	if len(r.BaseURLs) == 0 {
+		return
+	}
+	if conn.BaseURLField == "" {
+		_ = agg.Addf(at+".base_urls", "requires connection.base_url_field")
+	}
+	for _, key := range slices.Sorted(maps.Keys(conn.BaseURLs)) {
+		if _, ok := r.BaseURLs[key]; !ok {
+			_ = agg.Addf(at+".base_urls", "missing a host for %s", key)
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(r.BaseURLs)) {
+		if _, ok := conn.BaseURLs[key]; !ok {
+			_ = agg.Addf(at+".base_urls."+key, "is not a connection.base_urls key")
+		}
+		validateTemplateScopes(agg, at+".base_urls."+key, r.BaseURLs[key], scopes)
+	}
 }
 
 // validateTemplate parses s and records any syntax/semantic issue against

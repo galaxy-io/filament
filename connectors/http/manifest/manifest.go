@@ -336,8 +336,16 @@ type Resource struct {
 	Name            string   `yaml:"name"`
 	EmitAs          string   `yaml:"emit_as,omitempty"`
 	Path            string   `yaml:"path"`
-	Method          string   `yaml:"method"`
-	Mode            string   `yaml:"mode"` // paginated | stream | export | webhook (default paginated)
+	// BaseURL replaces connection.base_url for this resource, for APIs that
+	// serve some endpoints from a separate host. BaseURLs instead picks the
+	// host with the connection's base_url_field selection, so a regional
+	// connection can route this resource to the matching regional host.
+	// Both render once at configuration from config and env, and requests
+	// to that host carry the connection's authentication.
+	BaseURL  string            `yaml:"base_url,omitempty"`
+	BaseURLs map[string]string `yaml:"base_urls,omitempty"`
+	Method   string            `yaml:"method"`
+	Mode     string            `yaml:"mode"` // paginated | stream | export | webhook (default paginated)
 	// Events lists the event types a webhook resource reads when the
 	// manifest routes deliveries by type. See WebhookSpec.Route.
 	Events         []string  `yaml:"events,omitempty"`

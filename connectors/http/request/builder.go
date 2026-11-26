@@ -43,7 +43,10 @@ import (
 // concerns (base URL, default headers, auth) are bound at construction time;
 // per-request concerns (resource, scope) are passed to Build.
 type Builder struct {
-	BaseURL           string
+	BaseURL string
+	// ResourceBaseURLs holds rendered per-resource hosts keyed by resource
+	// name. A resource without an entry uses BaseURL.
+	ResourceBaseURLs  map[string]string
 	ConnectionHeaders map[string]string
 	Auth              auth.Authenticator
 }
@@ -118,7 +121,11 @@ func (b *Builder) BuildRendered(ctx context.Context, rendered manifest.Resource,
 		return nil, err
 	}
 
-	url := strings.TrimRight(b.BaseURL, "/") + "/" + strings.TrimLeft(rendered.Path, "/")
+	base := b.BaseURL
+	if resourceBase, ok := b.ResourceBaseURLs[rendered.Name]; ok {
+		base = resourceBase
+	}
+	url := strings.TrimRight(base, "/") + "/" + strings.TrimLeft(rendered.Path, "/")
 
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {

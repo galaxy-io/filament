@@ -211,6 +211,12 @@ appear before dependent fields.
 - `base_url` can reference connector config, as PostHog does for `host`. It is
   resolved once when the connector is configured, not separately for every
   request.
+- A resource served from another host sets its own `base_url`. Use
+  `base_urls` with the same keys as `connection.base_urls` when that host also
+  depends on the selected region. Requests to that host carry the connection's
+  authentication, so the rendered host must use HTTPS and share the
+  connection host's registrable domain (`data.mixpanel.com` next to
+  `mixpanel.com`). Configure rejects any other host.
 - `auth` supports no auth, bearer tokens, a custom header, basic auth, and
   OAuth 2 client credentials or a supplied refresh token. OAuth tokens are
   cached through the shared `oauth` package. Token URLs must resolve to HTTPS

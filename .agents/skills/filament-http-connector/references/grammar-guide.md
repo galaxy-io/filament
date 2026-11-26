@@ -130,6 +130,24 @@ See `connectors/http/manifests/posthog/unversioned/manifest.yaml`. Literal base 
 manifest set the host through config instead of the usual
 `strings.Replace(manifest, "https://api.example.com", api.URL, 1)` swap.
 
+A resource served from a different host sets its own `base_url`, or
+`base_urls` keyed like `connection.base_urls` so it follows the same regional
+selection. Every connection key needs a host. Both render once at Configure
+from `config` and `env`, and the connection's auth is sent to that host, so
+Configure checks the rendered host: HTTPS, and the same host or registrable
+domain (public suffix list) as the connection base URL. Loopback test servers
+may use plain HTTP when the connection base URL is loopback too.
+
+```yaml
+connection:
+  base_url_field: region
+  base_urls: { us: https://mixpanel.com, eu: https://eu.mixpanel.com }
+resources:
+  - name: events
+    path: /api/2.0/export
+    base_urls: { us: https://data.mixpanel.com, eu: https://data-eu.mixpanel.com }
+```
+
 ### auth — exactly one strategy key
 
 ```yaml
@@ -180,6 +198,7 @@ resources:
 ```yaml
 - name: tickets            # required, unique
   path: /v2/tickets        # required
+  base_url: https://data.example.com  # optional, replaces connection.base_url (or base_urls by region)
   method: GET              # default from defaults.method
   query: { sort: created_at }
   headers: {}
