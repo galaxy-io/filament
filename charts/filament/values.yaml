@@ -431,6 +431,16 @@ observability:
     # Empty defaults to `grpc`.
     protocol: ""
 
+    # -- Resource attributes added to every metric and span, stored in the
+    # ConfigMaps as `OTEL_RESOURCE_ATTRIBUTES` (for example `io.getgalaxy.tenant.id: acme`).
+    # Only used when `endpoint` is set.
+    resourceAttributes: {}
+
+    # -- Export traces as well as metrics. Set false when the endpoint takes
+    # metrics only, such as Prometheus's OTLP receiver; stored in the
+    # ConfigMaps as `OTEL_TRACES_EXPORTER=none`.
+    exportTraces: true
+
 alchemy:
   # -- Alchemy API that filament's server, control plane and workers call, stored in the ConfigMaps as
   # `GALAXY_ALCHEMY_SERVER_URL`. Empty uses `galaxy.productUrls.alchemy`; both empty disables alchemy steps.

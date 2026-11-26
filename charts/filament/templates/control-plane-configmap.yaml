@@ -60,6 +60,12 @@ data:
   {{- with $.Values.observability.otel.protocol }}
   OTEL_EXPORTER_OTLP_PROTOCOL: {{ . | quote }}
   {{- end }}
+  {{- with $.Values.observability.otel.resourceAttributes }}
+  OTEL_RESOURCE_ATTRIBUTES: {{ include "filament.otelResourceAttributes" . | quote }}
+  {{- end }}
+  {{- if not $.Values.observability.otel.exportTraces }}
+  OTEL_TRACES_EXPORTER: "none"
+  {{- end }}
   {{- end }}
 
   # Secrets
