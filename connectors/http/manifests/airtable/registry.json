@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "airtable",
+  "default_version": "v0",
+  "versions": {
+    "v0": {
+      "is_preview": true
+    }
+  }
+}
