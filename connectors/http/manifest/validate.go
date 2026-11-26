@@ -384,8 +384,8 @@ func (m *Manifest) validateSemantics() error {
 		}
 		if r.Incremental != nil && r.Incremental.ResponseCursor != "" {
 			spec := r.Incremental
-			if spec.CursorField != "" || spec.Comparator != "" || spec.OverlapSeconds != 0 {
-				_ = agg.Addf(path+".incremental", "response_cursor cannot use a row cursor, comparator, or overlap")
+			if spec.CursorField != "" || spec.Comparator != "" || spec.OverlapSeconds != 0 || spec.EndParam != "" {
+				_ = agg.Addf(path+".incremental", "response_cursor cannot use a row cursor, comparator, overlap, or end_param")
 			}
 			if r.Parent != nil || r.Stream != nil || r.EmitAs != "" || r.CaptureOnly {
 				_ = agg.Addf(path+".incremental", "response_cursor requires a top-level, non-streaming resource")
@@ -432,6 +432,22 @@ func (m *Manifest) validateSemantics() error {
 			}
 			if paginationInjectionCollides(r.Pagination, *r.Incremental) {
 				_ = agg.Addf(path+".incremental.start_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, r.Incremental.StartParam)
+			}
+			if r.Incremental.EndLagSeconds != 0 && r.Incremental.EndParam == "" {
+				_ = agg.Addf(path+".incremental.end_lag_seconds", "requires end_param")
+			}
+			if end := r.Incremental.EndParam; end != "" {
+				if r.Incremental.Comparator != "time" {
+					_ = agg.Addf(path+".incremental.end_param", "requires comparator time")
+				}
+				if end == r.Incremental.StartParam {
+					_ = agg.Addf(path+".incremental.end_param", "must differ from start_param")
+				}
+				endSpec := *r.Incremental
+				endSpec.StartParam = end
+				if paginationInjectionCollides(r.Pagination, endSpec) {
+					_ = agg.Addf(path+".incremental.end_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, end)
+				}
 			}
 		}
 		if r.Stream != nil {

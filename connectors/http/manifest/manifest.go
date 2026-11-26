@@ -653,8 +653,19 @@ type IncrementalSpec struct {
 	CursorField    string `yaml:"cursor_field"`
 	// CursorPath is resolved from the projected field declaration after parsing.
 	// It is runtime-only; manifests continue to name the output cursor field.
-	CursorPath    string `yaml:"-"`
-	StartParam    string `yaml:"start_param"`
+	CursorPath string `yaml:"-"`
+	StartParam string `yaml:"start_param"`
+	// EndParam names the request parameter that receives the extraction's
+	// upper bound, the time the extraction started. It goes to the same
+	// target as start_param, rendered with value_date_format and without the
+	// value prefix or suffix. Mixpanel's raw export, for example, rejects a
+	// window without an end date and one that ends after today.
+	EndParam string `yaml:"end_param,omitempty"`
+	// EndLagSeconds moves the end_param bound back from the run start. APIs
+	// that reject an end date after "today" in an account time zone, such as
+	// Mixpanel, take 86400 so a run just after midnight UTC never asks for
+	// tomorrow in a zone behind UTC.
+	EndLagSeconds int    `yaml:"end_lag_seconds,omitempty"`
 	InjectInto    string `yaml:"inject_into"` // query | body | header
 	Initial       string `yaml:"initial,omitempty"`
 	CheckpointKey string `yaml:"checkpoint_key,omitempty"`

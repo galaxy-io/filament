@@ -339,8 +339,20 @@ An `incremental` block turns a resource into an incremental read:
   RFC3339. The checkpoint keeps the normalized RFC3339 value. Filament rejects a
   layout that renders the same value for every watermark, and a bad initial
   watermark fails at setup.
+- `end_param` names a second parameter for APIs that require a window end,
+  such as Mixpanel's raw export. It receives the time the run started, in the
+  same place as `start_param` and in `value_date_format`, without the value
+  prefix or suffix. It requires the `time` comparator.
+- `end_lag_seconds` moves that end back from the run start. The end is taken
+  in UTC, so an API that rejects an end date after "today" in the account's
+  time zone can get a date that is still tomorrow there. Mixpanel projects
+  behind UTC hit this just after midnight UTC, so use `end_lag_seconds: 86400`
+  and reread the previous day with `overlap_seconds`.
+- A full refresh of a resource with `end_param` sends the window too. The
+  start comes from `initial`, without the overlap, and the end is as above.
+  Filament saves no watermark on a full refresh.
 
-The lower bound remains fixed during one extraction. Filament saves the largest
+The lower bound, and the upper bound when set, remain fixed during one extraction. Filament saves the largest
 cursor value it sees. A missing or invalid cursor fails the run because skipping
 that value could cause later runs to miss records.
 

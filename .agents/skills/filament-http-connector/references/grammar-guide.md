@@ -371,6 +371,8 @@ incremental:
   overlap_seconds: 60           # optional re-read window
   value_prefix: "ge"            # optional prefix on the injected value only
   value_date_format: epoch_millis # optional wire format for time watermarks
+  end_param: until              # optional, sends the run's upper bound too
+  end_lag_seconds: 86400        # optional, moves that upper bound back
 ```
 
 The cursor must be projected, non-nullable, and compatible with its comparator.
@@ -387,6 +389,18 @@ fields take an unquoted epoch-milliseconds number that a raw RFC3339
 watermark cannot express. Filament rejects a layout that renders the same
 value for every watermark, and a bad initial watermark fails at setup
 instead of reaching the API.
+`end_param` (time comparator only) names a second parameter that receives the
+extraction's upper bound, the time the run started. Use it for APIs that
+require an explicit window end, such as Mixpanel's raw export with
+`from_date` and `to_date`. It goes to the same target as `start_param`, uses
+`value_date_format`, skips `value_prefix` and `value_suffix`, and stays fixed
+for the whole run. With `inject_into: state` read both bounds through
+`{{ state.<param> }}` templates, which is how `mode: stream` resources get them.
+The end is UTC, so for an API that rejects an end date after "today" in the
+account's time zone (Mixpanel), set `end_lag_seconds: 86400` so a run just
+after midnight UTC never asks for tomorrow. A full refresh of a resource with
+`end_param` sends the window too, from `initial` (no overlap) to the end, and
+saves no watermark; without `end_param` a full refresh sends neither bound.
 See Slack for `ts` + `oldest` + `numeric`, and Granola for an update timestamp.
 Read [research.md](research.md) before deciding that incremental reads are sound.
 

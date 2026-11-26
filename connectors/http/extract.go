@@ -272,10 +272,15 @@ func (c *Connector) readResource(ctx context.Context, res manifest.Resource, sin
 }
 
 // newTracker builds the incremental tracker for one extraction of res under
-// stateResource, or nil when the resource is not running incrementally.
+// stateResource, or nil when the resource is not running incrementally. A
+// full refresh of a resource with end_param gets a window-only tracker, so
+// APIs that require the date window still receive it.
 func (c *Connector) newTracker(res manifest.Resource, stateResource string) (*incremental.Tracker, error) {
-	if res.Incremental == nil || res.Incremental.ResponseCursor != "" || !c.incrementalEnabled(stateResource, res.Name) {
+	if res.Incremental == nil || res.Incremental.ResponseCursor != "" {
 		return nil, nil
+	}
+	if !c.incrementalEnabled(stateResource, res.Name) {
+		return c.windowTracker(res, stateResource)
 	}
 	spec := *res.Incremental
 	if field, ok := manifest.IncrementalCursorField(res); ok {
@@ -294,6 +299,22 @@ func (c *Connector) newTracker(res manifest.Resource, stateResource string) (*in
 		}
 	}
 	tracker, err := incremental.New(spec, stateResource, seed)
+	if err != nil {
+		return nil, fmt.Errorf("incremental: %w", err)
+	}
+	return tracker, nil
+}
+
+// windowTracker builds the window-only tracker a full refresh uses for a
+// resource with end_param: the start is the initial value without overlap and
+// no checkpoint, and records are not observed.
+func (c *Connector) windowTracker(res manifest.Resource, stateResource string) (*incremental.Tracker, error) {
+	if res.Incremental.EndParam == "" {
+		return nil, nil
+	}
+	spec := *res.Incremental
+	spec.OverlapSeconds = 0
+	tracker, err := incremental.New(spec, stateResource, "", incremental.WindowOnly())
 	if err != nil {
 		return nil, fmt.Errorf("incremental: %w", err)
 	}

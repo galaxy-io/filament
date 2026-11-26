@@ -59,6 +59,14 @@ type Tracker struct {
 	// watermark advances as records arrive, but changing the request filter
 	// between pages can invalidate a server cursor and skip records.
 	start string
+	// end is the extraction's upper bound when the spec declares end_param:
+	// the RFC3339 time the tracker was created less end_lag_seconds, fixed
+	// for the whole run.
+	end string
+	now func() time.Time
+	// windowOnly trackers send the request window on a full refresh but
+	// never observe records, so they report no watermark and filter nothing.
+	windowOnly bool
 
 	wm     *atomicwatermark.Watermark
 	cmp    atomicwatermark.Comparator
@@ -72,6 +80,20 @@ type Option func(*Tracker)
 // and other non-fatal anomalies. Defaults to slog.Default().
 func WithLogger(l *slog.Logger) Option {
 	return func(t *Tracker) { t.logger = obs.Logger(l) }
+}
+
+// WithClock replaces the clock that fixes the end_param upper bound. Tests use
+// it to pin the window end.
+func WithClock(now func() time.Time) Option {
+	return func(t *Tracker) { t.now = now }
+}
+
+// WindowOnly makes the tracker send only its request window: start_param
+// from the initial value and end_param. Records are not observed, so the run
+// reports no watermark. Full refreshes of resources with end_param use it,
+// since APIs that need an end date need it on every read.
+func WindowOnly() Option {
+	return func(t *Tracker) { t.windowOnly = true }
 }
 
 // New builds a Tracker. initialWatermark seeds from a stored checkpoint;
@@ -104,6 +126,12 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 	if err := manifest.ValidateValueDateFormat(spec.ValueDateFormat); err != nil {
 		return nil, fmt.Errorf("incremental: %w", err)
 	}
+	if spec.EndParam != "" && spec.Comparator != "time" {
+		return nil, fmt.Errorf("incremental: end_param requires comparator: time")
+	}
+	if spec.EndLagSeconds < 0 || (spec.EndLagSeconds > 0 && spec.EndParam == "") {
+		return nil, fmt.Errorf("incremental: end_lag_seconds must be 0 or greater and requires end_param")
+	}
 	start := initialWatermark
 	if start == "" {
 		start = spec.Initial
@@ -135,11 +163,16 @@ func New(spec manifest.IncrementalSpec, resource, initialWatermark string, opts 
 		spec:     spec,
 		resource: resource,
 		start:    start,
+		now:      time.Now,
 		wm:       wm,
 		cmp:      cmp,
 	}
 	for _, opt := range opts {
 		opt(t)
+	}
+	if spec.EndParam != "" {
+		lag := time.Duration(spec.EndLagSeconds) * time.Second
+		t.end = t.now().UTC().Add(-lag).Truncate(time.Second).Format(time.RFC3339)
 	}
 	// Apply default after opts so an explicit WithLogger(nil) still lands on
 	// slog.Default() rather than nil-panicking on the first Warn call.
@@ -164,6 +197,9 @@ func (t *Tracker) Observe(record map[string]any) bool {
 // A durable incremental run must not report success when its configured cursor
 // is missing or unorderable on a returned record.
 func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
+	if t.windowOnly {
+		return false, nil
+	}
 	cursorPath := t.spec.CursorPath
 	if cursorPath == "" {
 		cursorPath = t.spec.CursorField
@@ -194,8 +230,14 @@ func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
 	return advanced, nil
 }
 
-// Current returns the running watermark (max observed or initial).
-func (t *Tracker) Current() string { return t.wm.Current() }
+// Current returns the running watermark (max observed or initial). A
+// window-only tracker has none.
+func (t *Tracker) Current() string {
+	if t.windowOnly {
+		return ""
+	}
+	return t.wm.Current()
+}
 
 // Start returns the extraction's effective lower bound: the seeded watermark
 // minus overlap. Empty when the run has no starting point.
@@ -205,7 +247,7 @@ func (t *Tracker) Start() string { return t.effective() }
 // An empty Start admits every value.
 func (t *Tracker) Below(v string) (bool, error) {
 	start := t.effective()
-	if start == "" {
+	if start == "" || t.windowOnly {
 		return false, nil
 	}
 	if t.spec.Comparator == "time" {
@@ -218,16 +260,23 @@ func (t *Tracker) Below(v string) (bool, error) {
 	return t.cmp.Less(v, start)
 }
 
-// Scope returns a {start_param: effective_start} pair suitable for merging
-// into a template scope's State map. The lower bound is fixed for the entire
-// extraction so paginated requests all scan the same result set. The value
-// carries the configured value prefix, matching what Apply injects.
+// Scope returns the {start_param: effective_start} pair, plus
+// {end_param: upper_bound} when the spec declares one, suitable for merging
+// into a template scope's State map. Both bounds are fixed for the entire
+// extraction so paginated requests all scan the same result set. The values
+// match what Apply injects. Scope is nil when there is no bound to send.
 func (t *Tracker) Scope() map[string]string {
-	v := t.injectedValue()
-	if v == "" {
-		return nil
+	var out map[string]string
+	if v := t.injectedValue(); v != "" {
+		out = map[string]string{t.spec.StartParam: v}
 	}
-	return map[string]string{t.spec.StartParam: v}
+	if end := t.endValue(); end != "" {
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[t.spec.EndParam] = end
+	}
+	return out
 }
 
 // effective returns the extraction's fixed starting watermark minus overlap
@@ -266,26 +315,50 @@ func (t *Tracker) effective() string {
 	return effective.Format(time.RFC3339)
 }
 
-// Apply injects the extraction's fixed starting watermark into a request. For
-// body-injection, returns a body overrides map to be merged before encoding.
+// Apply injects the extraction's fixed starting watermark, and the end bound
+// when end_param is set, into a request. For body-injection, returns a body
+// overrides map to be merged before encoding.
 // Returns nil overrides for query/header strategies. The injected value
 // carries the configured value prefix; the checkpoint keeps the raw value.
 func (t *Tracker) Apply(req *http.Request) (map[string]any, error) {
-	v := t.injectedValue()
-	if v == "" {
+	values := t.Scope()
+	if len(values) == 0 {
 		return nil, nil
 	}
 	switch t.spec.InjectInto {
 	case "query":
 		q := req.URL.Query()
-		q.Set(t.spec.StartParam, v)
+		for param, v := range values {
+			q.Set(param, v)
+		}
 		req.URL.RawQuery = q.Encode()
 	case "header":
-		req.Header.Set(t.spec.StartParam, v)
+		for param, v := range values {
+			req.Header.Set(param, v)
+		}
 	case "body":
-		return map[string]any{t.spec.StartParam: v}, nil
+		out := make(map[string]any, len(values))
+		for param, v := range values {
+			out[param] = v
+		}
+		return out, nil
 	}
 	return nil, nil
+}
+
+// endValue returns the upper bound as it must appear on the wire, reformatted
+// when value_date_format is set. Empty when the spec declares no end_param.
+func (t *Tracker) endValue() string {
+	if t.end == "" || t.spec.ValueDateFormat == "" {
+		return t.end
+	}
+	formatted, err := formatWatermark(t.end, t.spec.ValueDateFormat)
+	if err != nil {
+		t.logger.Warn("incremental: cannot format end bound",
+			"resource", t.resource, "value", t.end, "format", t.spec.ValueDateFormat, "error", err)
+		return t.end
+	}
+	return formatted
 }
 
 // injectedValue returns the watermark as it must appear on the wire: the

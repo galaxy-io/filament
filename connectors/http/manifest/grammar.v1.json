@@ -443,6 +443,8 @@
             "cursor_field": { "type": "string", "minLength": 1 },
             "response_cursor": { "type": "string", "minLength": 1 },
             "start_param": { "type": "string", "minLength": 1 },
+            "end_param": { "type": "string", "minLength": 1 },
+            "end_lag_seconds": { "type": "integer", "minimum": 0 },
             "inject_into": { "type": "string", "enum": ["query", "body", "header", "state"] },
             "initial": { "type": "string" },
             "checkpoint_key": { "type": "string" },
