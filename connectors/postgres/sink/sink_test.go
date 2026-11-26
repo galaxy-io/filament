@@ -66,7 +66,7 @@ func TestStatements(t *testing.T) {
 	if got != want {
 		t.Fatalf("upsert\n got %s\nwant %s", got, want)
 	}
-	del := deleteSQL(tbl.qualified, tbl.keysTemp, []string{`"tenant_id"`, `"id"`})
+	del := deleteSQL(tbl)
 	for _, part := range []string{`USING "_filament_users_keys" AS k`, `t."tenant_id" = k."tenant_id"`, `t."id" = k."id"`} {
 		if !strings.Contains(del, part) {
 			t.Fatalf("delete SQL %q does not contain %q", del, part)
@@ -75,6 +75,84 @@ func TestStatements(t *testing.T) {
 	tmp := tempTableSQL(tbl.temp, tbl.idents, tbl.types, true)
 	if !strings.HasSuffix(tmp, `"name" text, _ord integer); TRUNCATE "_filament_users"`) {
 		t.Fatalf("temp SQL = %s", tmp)
+	}
+}
+
+func TestUpsertCastsStagedColumnsToDestinationTypes(t *testing.T) {
+	enum := &table{
+		qualified: `"public"."t_enum"`,
+		idents:    []string{`"id"`, `"m"`},
+		types:     []string{"integer", "text"},
+		castTo:    []string{"", "mood"},
+		keyIdx:    []int{0},
+		temp:      `"_filament_t_enum"`,
+		keysTemp:  `"_filament_t_enum_keys"`,
+	}
+	got := upsertSQL(enum)
+	want := `INSERT INTO "public"."t_enum" ("id", "m") SELECT DISTINCT ON ("id") "id", CAST("m" AS mood) FROM "_filament_t_enum" ORDER BY "id", _ord DESC ON CONFLICT ("id") DO UPDATE SET "m" = excluded."m"`
+	if got != want {
+		t.Fatalf("upsert enum\n got %s\nwant %s", got, want)
+	}
+	if del := deleteSQL(enum); strings.Contains(del, "CAST") {
+		t.Fatalf("delete without a user-defined key must not cast: %s", del)
+	}
+
+	domain := &table{
+		qualified: `"public"."t_dom"`,
+		idents:    []string{`"id"`, `"c_pos"`},
+		types:     []string{"integer", "text"},
+		castTo:    []string{"", "pos_int"},
+		keyIdx:    []int{0},
+		temp:      `"_filament_t_dom"`,
+		keysTemp:  `"_filament_t_dom_keys"`,
+	}
+	got = upsertSQL(domain)
+	want = `INSERT INTO "public"."t_dom" ("id", "c_pos") SELECT DISTINCT ON ("id") "id", CAST("c_pos" AS pos_int) FROM "_filament_t_dom" ORDER BY "id", _ord DESC ON CONFLICT ("id") DO UPDATE SET "c_pos" = excluded."c_pos"`
+	if got != want {
+		t.Fatalf("upsert domain\n got %s\nwant %s", got, want)
+	}
+
+	enumKey := &table{
+		qualified: `"public"."t_enum_pk"`,
+		idents:    []string{`"m"`, `"v"`},
+		types:     []string{"text", "integer"},
+		castTo:    []string{"mood", ""},
+		keyIdx:    []int{0},
+		temp:      `"_filament_t_enum_pk"`,
+		keysTemp:  `"_filament_t_enum_pk_keys"`,
+	}
+	del := deleteSQL(enumKey)
+	wantDel := `DELETE FROM "public"."t_enum_pk" AS t USING "_filament_t_enum_pk_keys" AS k WHERE t."m" = CAST(k."m" AS mood)`
+	if del != wantDel {
+		t.Fatalf("delete enum key\n got %s\nwant %s", del, wantDel)
+	}
+	got = upsertSQL(enumKey)
+	want = `INSERT INTO "public"."t_enum_pk" ("m", "v") SELECT DISTINCT ON ("m") CAST("m" AS mood), "v" FROM "_filament_t_enum_pk" ORDER BY "m", _ord DESC ON CONFLICT ("m") DO UPDATE SET "v" = excluded."v"`
+	if got != want {
+		t.Fatalf("upsert enum key\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestCastFor(t *testing.T) {
+	tests := []struct {
+		staged, dest string
+		builtin      bool
+		want         string
+	}{
+		{"text", "mood", false, "mood"},
+		{"text", "pos_int", false, "pos_int"},
+		{"integer", "pos_int", false, "pos_int"},
+		{"text", "mood[]", false, "mood[]"},
+		{"text", "text", true, ""},
+		{"text", "character varying(10)", true, ""},
+		{"timestamptz", "timestamp with time zone", true, ""},
+		{"integer", "integer", true, ""},
+		{"text", "", false, ""},
+	}
+	for _, tt := range tests {
+		if got := castFor(tt.staged, tt.dest, tt.builtin); got != tt.want {
+			t.Errorf("castFor(%q, %q, %v) = %q, want %q", tt.staged, tt.dest, tt.builtin, got, tt.want)
+		}
 	}
 }
 
