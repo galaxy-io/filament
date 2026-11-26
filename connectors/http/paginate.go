@@ -77,6 +77,15 @@ func (c *Connector) paginate(
 					"resource", res.Name, "error", err)
 				state = pag.Initial()
 				resumeState = pagination.State{}
+				// The restarted walk is a new walk: drop the tokens seen
+				// so far (including the stale resume token) so that
+				// legitimately revisiting them does not trip the cycle
+				// guard, then seed from the fresh starting state the
+				// same way the walk start does above.
+				seen = map[string]bool{}
+				if tok := continuationToken(state); tok != "" {
+					seen[tok] = true
+				}
 				continue
 			}
 			return totalRecords, pageCount, err
