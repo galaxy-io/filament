@@ -275,6 +275,13 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("datastore/sqlite: list runs: %w", err)
 	}
+	// A window count has no row to travel on when the offset is past the end.
+	if len(out) == 0 && f.Offset > 0 {
+		query, args := runsQuery(f, true)
+		if err := s.db.QueryRowContext(ctx, query, args...).Scan(&total); err != nil {
+			return nil, 0, fmt.Errorf("datastore/sqlite: count runs: %w", err)
+		}
+	}
 	for i := range out {
 		out[i].Resources, err = s.ListResources(ctx, out[i].Tenant, out[i].Run)
 		if err != nil {
@@ -285,8 +292,15 @@ func (s *Store) ListRuns(ctx context.Context, f filament.RunFilter) ([]filament.
 }
 
 func listRunsQuery(f filament.RunFilter) (string, []any) {
-	q := `SELECT r.id, r.tenant_id, coalesce(r.schedule_id, ''), r.status, r.request, r.records, r.bytes, r.created_at, r.scheduled_at, r.requested_at, r.started_at, r.ended_at, r.updated_at, coalesce(r.error, ''), r.cpu_seconds, r.memory_peak_bytes, count(*) OVER ()
-	      FROM runs r LEFT JOIN pipelines p ON p.tenant_id = r.tenant_id AND p.id = r.pipeline_id WHERE 1=1`
+	return runsQuery(f, false)
+}
+
+func runsQuery(f filament.RunFilter, countOnly bool) (string, []any) {
+	columns := `r.id, r.tenant_id, coalesce(r.schedule_id, ''), r.status, r.request, r.records, r.bytes, r.created_at, r.scheduled_at, r.requested_at, r.started_at, r.ended_at, r.updated_at, coalesce(r.error, ''), r.cpu_seconds, r.memory_peak_bytes, count(*) OVER ()`
+	if countOnly {
+		columns = "count(*)"
+	}
+	q := "SELECT " + columns + ` FROM runs r LEFT JOIN pipelines p ON p.tenant_id = r.tenant_id AND p.id = r.pipeline_id WHERE 1=1`
 	args := []any{}
 	arg := func(v any) string {
 		args = append(args, v)
@@ -326,6 +340,9 @@ func listRunsQuery(f filament.RunFilter) (string, []any) {
 		q += " AND (r.id = " + exact + " OR r.pipeline_id = " + exact +
 			" OR instr(lower(p.name), lower(" + sub + ")) > 0" +
 			" OR instr(lower(p.description), lower(" + sub + ")) > 0)"
+	}
+	if countOnly {
+		return q, args
 	}
 	direction := "ASC"
 	if f.SortDescending {
