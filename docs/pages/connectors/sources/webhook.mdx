@@ -151,15 +151,15 @@ The control plane purges a delivery once it is older than the retention period
 and every stream that can resume reading its source has certified it. That
 includes running, paused and stopped streams. A delivery no stream has
 certified is kept for at most the hold period, 30 days by default. Past it the
-delivery is dropped, counted in `filament_webhook_expired_total`, and logged
-with its source. `filament_webhook_oldest_unreleased_seconds` reports how long
+delivery is dropped, counted in `filament.webhook.inbox.expirations`, and logged
+with its source. `filament.webhook.inbox.oldest_wait.duration` reports how long
 the oldest waiting delivery has waited. Alert on it well before the hold
 period ends.
 
 A connector source that reads deliveries as typed rows, such as PostHog's
 `events_webhook`, skips a delivery whose body does not match its resource. The
 stream keeps running. The delivery is logged with its ID and counted in
-`filament_webhook_rejected_deliveries_total` by resource, and stays in the inbox
+`filament.webhook.rejections` by resource, and stays in the inbox
 until retention purges it.
 
 A delivery for a deleted source, or for a source no stream can resume, is
