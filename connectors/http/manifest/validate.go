@@ -379,6 +379,7 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
+		validatePageOptions(&agg, path+".pagination", r.Pagination)
 		if r.Pagination.Strict && (r.Pagination.Type != "cursor" || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "") {
 			_ = agg.Addf(path+".pagination", "strict cursor pagination requires more and records paths")
 		}
@@ -432,6 +433,11 @@ func (m *Manifest) validateSemantics() error {
 			}
 			if paginationInjectionCollides(r.Pagination, *r.Incremental) {
 				_ = agg.Addf(path+".incremental.start_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, r.Incremental.StartParam)
+			}
+			for _, bound := range []struct{ field, param string }{{"start_param", r.Incremental.StartParam}, {"end_param", r.Incremental.EndParam}} {
+				if sessionInjectionCollides(r.Pagination, r.Incremental.InjectInto, bound.param) {
+					_ = agg.Addf(path+".incremental."+bound.field, "conflicts with pagination.session.request %s.%s; the incremental bound would replace the session token on every page after the first", r.Incremental.InjectInto, bound.param)
+				}
 			}
 			if r.Incremental.EndLagSeconds != 0 && r.Incremental.EndParam == "" {
 				_ = agg.Addf(path+".incremental.end_lag_seconds", "requires end_param")
@@ -691,6 +697,41 @@ func paginationInjectionCollides(pagination PaginationSpec, incremental Incremen
 		}
 	}
 	return target == incremental.InjectInto && param == incremental.StartParam
+}
+
+// sessionInjectionCollides reports whether an incremental bound would be sent
+// at the same target and name as the page session token.
+func sessionInjectionCollides(pagination PaginationSpec, target, param string) bool {
+	return param != "" && pagination.SessionParam != "" && pagination.SessionInjectInto == target && pagination.SessionParam == param
+}
+
+// validatePageOptions checks the page-only start and session options. A
+// session token must not overwrite the page number or size it travels with.
+func validatePageOptions(agg *errs.ManifestErrors, at string, p PaginationSpec) {
+	session := p.SessionPath != "" || p.SessionParam != "" || p.SessionInjectInto != ""
+	if (p.FirstPage != nil || session) && p.Type != "page" {
+		_ = agg.Addf(at, "start and session require page pagination")
+		return
+	}
+	if p.FirstPage != nil && *p.FirstPage < 0 {
+		_ = agg.Addf(at+".start", "must be 0 or greater")
+	}
+	if !session {
+		return
+	}
+	if p.SessionPath == "" || p.SessionParam == "" {
+		_ = agg.Addf(at+".session", "requires response and request")
+	}
+	if err := checkEnum(p.SessionInjectInto, []string{"query", "body", "header"}); err != nil {
+		_ = agg.Addf(at+".session.request", "%v", err)
+	}
+	pageTarget := p.InjectInto
+	if pageTarget == "" {
+		pageTarget = "query"
+	}
+	if p.SessionInjectInto == pageTarget && (p.SessionParam == p.PageParam || p.SessionParam == p.SizeParam) {
+		_ = agg.Addf(at+".session.request", "conflicts with the page number or size parameter")
+	}
 }
 
 // validateResourceBaseURL checks a resource's own host. base_urls must name a

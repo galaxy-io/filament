@@ -278,6 +278,9 @@ Choose the pagination style that matches the API:
   `body.<path>` for both `number` and `size`. Only `query.`, `body.`, and
   `header.` act as prefixes, so a dotted parameter name like `pagination.page`
   stays a query parameter as written.
+  Pages start at 1. Set `start: 0` for APIs that count from zero. Add
+  `session {response, request}` when every page after the first must repeat a
+  token from the previous response, as Mixpanel Engage does with `session_id`.
 
 ### Read child endpoints
 

@@ -340,6 +340,13 @@ pagination:
   offset: { offset: body.offset, limit: body.limit, page_size: 500 }  # both must share query.* or body.*
 pagination:
   page: { number: query.page, size: query.per_page, page_size: 100, total_pages: meta.total_pages }
+pagination:
+  page:                                   # Mixpanel Engage style
+    number: body.page
+    size: body.page_size
+    page_size: 1000
+    start: 0                              # optional first page, default 1
+    session: { response: session_id, request: body.session_id }  # optional token carried to later pages
 pagination: none
 ```
 
@@ -352,8 +359,12 @@ a has-more field. Cursor pagination does not stop merely because a page is short
 Body injection changes the cursor field while preserving rendered filters and
 selectors. Offset targets must both be in query or both in body. Verify page
 number conventions and termination against the actual paginator before using it.
-The current page strategy starts at 1 and injects into query parameters. Offset
-starts at 0. By default, both stop on a short page. Offset and page pagination
+The page strategy starts at 1 unless `start` says otherwise, and injects into
+query parameters unless `number` and `size` use `body.`. Offset starts at 0.
+A page `session` reads a token from every response and sends it with the next
+page request, for APIs whose later pages must repeat a token from the first.
+The first page sends none, and a page that continues the walk without one
+fails. By default, both stop on a short page. Offset and page pagination
 can instead use `more: info.more_records` when the endpoint documents that signal.
 Page pagination also supports `total_pages`.
 A configured `more` path takes precedence; missing or false stops the walk.

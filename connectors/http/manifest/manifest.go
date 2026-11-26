@@ -526,6 +526,16 @@ type PaginationSpec struct {
 	PageParam      string `yaml:"page_param,omitempty"`
 	SizeParam      string `yaml:"size_param,omitempty"`
 	TotalPagesPath string `yaml:"total_pages_path,omitempty"`
+	// FirstPage overrides the first page number, 1 by default, for APIs
+	// whose pages start at 0.
+	FirstPage *int `yaml:"first_page,omitempty"`
+	// SessionPath reads a token from each page's response, and SessionParam
+	// sends it with the next page request at SessionInjectInto
+	// (query | body | header). APIs such as Mixpanel Engage require the
+	// session_id from the first page on every later page.
+	SessionPath       string `yaml:"session_path,omitempty"`
+	SessionParam      string `yaml:"session_param,omitempty"`
+	SessionInjectInto string `yaml:"session_inject_into,omitempty"`
 
 	// link_header
 	Rel string `yaml:"rel,omitempty"`
@@ -609,25 +619,43 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		p.HasMorePath = spec.More
 		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
 	case "page":
-		var spec struct {
-			Number     string `yaml:"number"`
-			Size       string `yaml:"size"`
-			PageSize   int    `yaml:"page_size"`
-			TotalPages string `yaml:"total_pages"`
-			More       string `yaml:"more"`
-		}
-		if err := value.Decode(&spec); err != nil {
-			return err
-		}
-		numberTarget, numberParam := paginationTarget(spec.Number)
-		sizeTarget, sizeParam := paginationTarget(spec.Size)
-		if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
-			return fmt.Errorf("page pagination fields must share a query or body target")
-		}
-		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
-		p.InjectInto, p.HasMorePath = numberTarget, spec.More
+		return p.decodePage(value)
 	default:
 		return fmt.Errorf("unknown pagination strategy %q", strategy)
+	}
+	return nil
+}
+
+// decodePage compiles the concise page strategy.
+func (p *PaginationSpec) decodePage(value *yaml.Node) error {
+	var spec struct {
+		Number     string `yaml:"number"`
+		Size       string `yaml:"size"`
+		PageSize   int    `yaml:"page_size"`
+		TotalPages string `yaml:"total_pages"`
+		More       string `yaml:"more"`
+		Start      *int   `yaml:"start"`
+		Session    *struct {
+			Response string `yaml:"response"`
+			Request  string `yaml:"request"`
+		} `yaml:"session"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+	numberTarget, numberParam := paginationTarget(spec.Number)
+	sizeTarget, sizeParam := paginationTarget(spec.Size)
+	if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
+		return fmt.Errorf("page pagination fields must share a query or body target")
+	}
+	p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
+	p.InjectInto, p.HasMorePath, p.FirstPage = numberTarget, spec.More, spec.Start
+	if spec.Session != nil {
+		target, param, ok := strings.Cut(spec.Session.Request, ".")
+		if !ok || (target != "query" && target != "body" && target != "header") {
+			return fmt.Errorf("page.session.request must be query.<name>, body.<path>, or header.<name>")
+		}
+		p.SessionPath, p.SessionParam, p.SessionInjectInto = spec.Session.Response, param, target
 	}
 	return nil
 }

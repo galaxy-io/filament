@@ -594,7 +594,17 @@
                 "size": { "type": "string" },
                 "page_size": { "type": "integer", "minimum": 1 },
                 "total_pages": { "type": "string" },
-                "more": { "type": "string", "minLength": 1 }
+                "more": { "type": "string", "minLength": 1 },
+                "start": { "type": "integer", "minimum": 0 },
+                "session": {
+                  "type": "object",
+                  "required": ["response", "request"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "response": { "type": "string", "minLength": 1 },
+                    "request": { "type": "string", "minLength": 3 }
+                  }
+                }
               }
             }
           }
