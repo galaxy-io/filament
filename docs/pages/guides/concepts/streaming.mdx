@@ -49,7 +49,9 @@ preparation. The source session stays open in both cases.
 | Reusable | 1,000 | 1 second |
 | Fresh instance per boundary | 100,000 | 30 seconds |
 
-An explicit `RunOptions.EpochBoundary` overrides these defaults. These are soft
+A sink can replace these defaults with its own targets. Iceberg uses 1,000,000
+records, 256 MiB, or one minute, because every epoch becomes a table snapshot.
+An explicit `RunOptions.EpochBoundary` overrides both. These are soft
 targets, not a guaranteed write frequency. Source transaction boundaries,
 consumer credit, and available input can change the size of an epoch. Larger
 boundaries amortize setup costs for sinks that reopen each time.
@@ -196,6 +198,12 @@ finishes its current epoch, ends with the reason `yielded for upgrade`, and
 exits. The stream stays enabled, so the next pass starts a fresh attempt on
 the current image from the last committed position, with no backoff. Streams
 move to the new release one at a time rather than all at once.
+
+A worker that is asked to shut down restarts the same way, for example when
+its node is drained. It stops reading, lets a commit already in progress
+finish, and discards the epoch it was still reading. It ends with the reason
+`worker shut down`, and the next pass starts a fresh attempt from the last
+committed position, with no backoff.
 
 When inspecting a continuous run, look at its desired and observed execution
 states, reason, and last committed time alongside the logical run status.

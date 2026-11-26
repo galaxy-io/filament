@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Source is the connector contract for reading data: describe itself,
@@ -165,6 +167,11 @@ func ResolveCursorVersionPolicy(ctx context.Context, src Source, resource string
 	}
 	if !selected.Eligible {
 		return VersionPolicy{}, fmt.Errorf("incremental %q cursor column %q is not eligible for durable versioning", resource, selected.Name)
+	}
+	if selected.Logical != rowmodel.LogicalTimestamp && selected.Logical != rowmodel.LogicalTimestampTZ {
+		// A rowversion cursor orders the read but is no portable row version,
+		// so the sink keeps insertion order.
+		return VersionPolicy{}, nil
 	}
 	return VersionPolicy{
 		Strategy: VersionCursor,
@@ -338,6 +345,13 @@ type ConfigField struct {
 	Secret   bool
 	// VisibleWhen conditionally includes this field based on a sibling field.
 	VisibleWhen *FieldCondition
+	// ReadOnly marks a value the server or the platform sets. A form shows it
+	// without an input.
+	ReadOnly bool
+	// PublicKeyField makes a secret field an SSH private key and names the
+	// sibling that receives its public half. The server generates the key when
+	// none is supplied.
+	PublicKeyField string
 	// Fields describes the members of an object field. It is empty for scalar
 	// fields and for intentionally free-form objects.
 	Fields []ConfigField
@@ -373,9 +387,10 @@ const (
 	FieldList
 )
 
-// FieldScope is the scope for a config field, aligning with either a connection config or a pipeline config.
+// FieldScope is the scope for a config field, aligning with a connection config, a pipeline config, or one resource.
 // Connection == Only used to establish a connection to connector, reusable for all runs
 // Pipeline == Varies based on pipeline
+// Resource == Varies based on resource within a pipeline
 // For example: postgres has a dsn to connect (connection scope) and a table the data should land in (pipeline scope)
 type FieldScope int
 
@@ -384,6 +399,7 @@ const (
 	ScopeUnspecified FieldScope = iota
 	ScopeConnection
 	ScopePipeline
+	ScopeResource
 )
 
 // IsPipeline reports whether the field is set per pipeline node

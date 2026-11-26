@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -72,7 +73,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		body := readMinIOObject(t, ctx, store, bucket, "exports/accounts/dt=2026-09-10/s3-commit.ndjson")
+		body := readMinIOObject(t, ctx, store, bucket, "exports/accounts/dt=2026-09-10/s3-commit.0000.ndjson")
 		var got []string
 		scanner := bufio.NewScanner(strings.NewReader(string(body)))
 		for scanner.Scan() {
@@ -97,21 +98,29 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 			Version   int    `json:"version"`
 			Run       string `json:"run"`
 			Resources []struct {
-				Name   string `json:"name"`
-				Key    string `json:"key"`
-				Rows   int64  `json:"rows"`
-				Bytes  int64  `json:"bytes"`
-				CRC32C string `json:"crc32c"`
+				Name  string `json:"name"`
+				Rows  int64  `json:"rows"`
+				Bytes int64  `json:"bytes"`
+				Files []struct {
+					Key    string `json:"key"`
+					URI    string `json:"uri"`
+					Rows   int64  `json:"rows"`
+					Bytes  int64  `json:"bytes"`
+					CRC32C string `json:"crc32c"`
+				} `json:"files"`
 			} `json:"resources"`
 		}
 		if err := json.Unmarshal(manifestBody, &manifest); err != nil {
 			t.Fatal(err)
 		}
-		if manifest.Version != 1 || manifest.Run != "s3-commit" || len(manifest.Resources) != 1 {
+		if manifest.Version != 2 || manifest.Run != "s3-commit" || len(manifest.Resources) != 1 || len(manifest.Resources[0].Files) != 1 {
 			t.Fatalf("success manifest = %s", manifestBody)
 		}
 		resource := manifest.Resources[0]
-		if resource.Name != "accounts" || resource.Key != "exports/accounts/dt=2026-09-10/s3-commit.ndjson" || resource.Rows != rows || resource.Bytes != bytes || len(resource.CRC32C) != 8 {
+		file := resource.Files[0]
+		const key = "exports/accounts/dt=2026-09-10/s3-commit.0000.ndjson"
+		if resource.Name != "accounts" || resource.Rows != rows || resource.Bytes != bytes ||
+			file.Key != key || file.URI != "s3://"+bucket+"/"+key || file.Rows != rows || file.Bytes != bytes || len(file.CRC32C) != 8 {
 			t.Fatalf("success manifest resource = %#v, receipts rows=%d bytes=%d", resource, rows, bytes)
 		}
 	})
@@ -134,7 +143,7 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 		if err := dst.Abort(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := store.Client.StatObject(ctx, bucket, "exports/large/dt=2026-09-10/s3-abort.ndjson", minio.StatObjectOptions{}); err == nil {
+		if _, err := store.Client.StatObject(ctx, bucket, "exports/large/dt=2026-09-10/s3-abort.0000.ndjson", minio.StatObjectOptions{}); err == nil {
 			t.Fatal("aborted object is visible")
 		}
 		for upload := range store.Client.ListIncompleteUploads(ctx, bucket, "exports", true) {
@@ -145,6 +154,66 @@ func TestS3SinkCommitAndAbort(t *testing.T) {
 		}
 		if _, err := store.Client.StatObject(ctx, bucket, "exports/_runs/s3-abort/_SUCCESS.json", minio.StatObjectOptions{}); err == nil {
 			t.Fatal("aborted run published a success marker")
+		}
+	})
+
+	t.Run("rolls into numbered objects listed in the manifest", func(t *testing.T) {
+		batches := objectTestRows(t, true)
+		defer batches.Release()
+		policy := filament.WritePolicyForIngestion(filament.IngestionFullAppend)
+		policy.Resource = "large"
+		// Each 6 MiB row passes the 5 MiB file target but not the 16 MiB part,
+		// so every rolled object is sealed as a one-part multipart upload.
+		rollCfg := maps.Clone(cfg)
+		rollCfg["part_size_mib"], rollCfg["max_file_size_mib"] = 16, 5
+		dst := s3sink.New()
+		if err := dst.Open(ctx, filament.RunSpec{
+			Run: "s3-roll", StartedAt: startedAt, Resources: []string{"large"}, Sink: filament.Ref{Config: rollCfg},
+			WritePolicies: map[string]filament.WritePolicy{"large": policy},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = dst.Abort(ctx) }()
+		const files = 3
+		for range files {
+			if _, err := dst.Apply(ctx, batches.BatchesFor("large")[0], filament.ApplyOptions{Policy: policy}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := store.Client.StatObject(ctx, bucket, "exports/large/dt=2026-09-10/s3-roll.0000.ndjson", minio.StatObjectOptions{}); err == nil {
+			t.Fatal("rolled object became visible before Commit")
+		}
+		if err := dst.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		var manifest struct {
+			Version   int `json:"version"`
+			Resources []struct {
+				Rows  int64 `json:"rows"`
+				Files []struct {
+					Key  string `json:"key"`
+					Rows int64  `json:"rows"`
+				} `json:"files"`
+			} `json:"resources"`
+		}
+		manifestBody := readMinIOObject(t, ctx, store, bucket, "exports/_runs/s3-roll/_SUCCESS.json")
+		if err := json.Unmarshal(manifestBody, &manifest); err != nil {
+			t.Fatal(err)
+		}
+		if manifest.Version != 2 || len(manifest.Resources) != 1 || manifest.Resources[0].Rows != files || len(manifest.Resources[0].Files) != files {
+			t.Fatalf("success manifest = %s", manifestBody)
+		}
+		for i, file := range manifest.Resources[0].Files {
+			key := fmt.Sprintf("exports/large/dt=2026-09-10/s3-roll.%04d.ndjson", i)
+			if file.Key != key || file.Rows != 1 {
+				t.Fatalf("file %d = %#v, want key %s with one row", i, file, key)
+			}
+			body := readMinIOObject(t, ctx, store, bucket, key)
+			var row map[string]any
+			if err := json.Unmarshal(body, &row); err != nil || len(row["name"].(string)) != 6<<20 {
+				t.Fatalf("object %s is not one complete row: %v", key, err)
+			}
 		}
 	})
 }

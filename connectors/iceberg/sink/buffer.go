@@ -2,9 +2,11 @@ package iceberg
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"slices"
+	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/ipc"
@@ -18,9 +20,13 @@ import (
 // recordBuf accumulates one resource's batches for a pending commit. It holds
 // them in memory until their byte count exceeds the configured limit, then spills
 // every batch to an Arrow IPC file (LZ4) and streams the rest straight to disk.
-// Row operations stay in memory (one byte per row) beside the batches. It is NOT
-// safe for concurrent use; the sink serializes appends per stage.
+// Row operations stay in memory (one byte per row) beside the batches. An append
+// or replace buffer instead writes its batches to data files as they arrive
+// (see files).
+// mu serializes Apply calls for the resource; Commit and Abort run after every
+// Apply has returned.
 type recordBuf struct {
+	mu         sync.Mutex
 	limitBytes int64
 	bytes      int64 // Arrow buffer bytes appended
 	count      int   // rows appended
@@ -40,6 +46,10 @@ type recordBuf struct {
 	// ops holds each spilled or retained batch's operations, in batch order; nil
 	// entries are all-insert batches.
 	ops [][]rowmodel.Operation
+
+	// files, when set, holds an append or replace buffer's rows as data files
+	// written during the run; mem, file, and ops stay empty.
+	files *streamedFiles
 }
 
 func newRecordBuf(limitBytes int64) *recordBuf {
@@ -87,15 +97,15 @@ func (rb *recordBuf) writeMode(fallback writeMode) writeMode {
 	}
 }
 
-// append adds one batch, retaining it (the pipeline releases its reference after
-// Apply) or spilling it. Every batch of a buffer must share one Arrow schema.
-func (rb *recordBuf) append(b *arrowbatch.Batch, nbytes int64) error {
+// track checks a batch's schema and records its size, row count, and kinds of
+// operations, which validate checks at commit.
+func (rb *recordBuf) track(b *arrowbatch.Batch, nbytes int64) ([]rowmodel.Operation, error) {
 	rows := b.Rows()
 	ops := b.Operations().Clone()
 	if rb.schema == nil {
 		rb.schema = rows.Schema()
 	} else if !rb.schema.Equal(rows.Schema()) {
-		return fmt.Errorf("batch schema differs from the buffer's")
+		return nil, fmt.Errorf("batch schema differs from the buffer's")
 	}
 	rb.bytes += nbytes
 	rb.count += int(rows.NumRows())
@@ -107,6 +117,29 @@ func (rb *recordBuf) append(b *arrowbatch.Batch, nbytes int64) error {
 			rb.hasDelete = true
 		}
 	}
+	return ops, nil
+}
+
+// appendFile writes a batch to the resource's data files. Append and replace
+// land rows as they are, so the operations are counted but not kept.
+func (rb *recordBuf) appendFile(ctx context.Context, b *arrowbatch.Batch, nbytes int64, files func() *streamedFiles) error {
+	if _, err := rb.track(b, nbytes); err != nil {
+		return err
+	}
+	if rb.files == nil {
+		rb.files = files()
+	}
+	return rb.files.write(ctx, b.Rows())
+}
+
+// append adds one batch, retaining it (the pipeline releases its reference after
+// Apply) or spilling it. Every batch of a buffer must share one Arrow schema.
+func (rb *recordBuf) append(b *arrowbatch.Batch, nbytes int64) error {
+	ops, err := rb.track(b, nbytes)
+	if err != nil {
+		return err
+	}
+	rows := b.Rows()
 	rb.ops = append(rb.ops, ops)
 
 	if rb.file == nil && rb.bytes > rb.limitBytes {
@@ -211,8 +244,14 @@ func (rb *recordBuf) stream(fn func(rows arrow.RecordBatch, ops []rowmodel.Opera
 	return rdr.Err()
 }
 
-// close releases retained batches and removes any temp file. Idempotent.
-func (rb *recordBuf) close() {
+// close releases retained batches, removes any temp file, and deletes data
+// files no commit was attempted for. Idempotent.
+func (rb *recordBuf) close(ctx context.Context) error {
+	var err error
+	if rb.files != nil {
+		err = rb.files.abort(ctx)
+		rb.files = nil
+	}
 	for _, b := range rb.mem {
 		b.Release()
 	}
@@ -222,4 +261,5 @@ func (rb *recordBuf) close() {
 		_ = os.Remove(rb.file.Name())
 		rb.file = nil
 	}
+	return err
 }

@@ -24,6 +24,10 @@ import (
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
 
+// idlePoll caps how long an idle read waits for a first delivery, so the
+// runner sees a pause, stop or yield promptly whatever the epoch boundary allows.
+const idlePoll = time.Second
+
 // Delivery is one accepted delivery and its identity in the stream.
 type Delivery struct {
 	inbox.Delivery
@@ -130,7 +134,7 @@ func (s *session) Read(ctx context.Context, out filament.StreamRecordSink, bound
 	var bytes int64
 	var deadline time.Time
 	for read < s.cfg.Batch.MaxRecords && bytes < s.cfg.Batch.MaxBytes {
-		wait := boundary.MaxWait
+		wait := min(boundary.MaxWait, idlePoll)
 		if read > 0 {
 			if wait = time.Until(deadline); wait <= 0 {
 				break

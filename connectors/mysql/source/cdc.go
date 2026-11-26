@@ -41,6 +41,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/arrowbatch"
 	"github.com/galaxy-io/filament/checkpoint"
+	mysqlconnection "github.com/galaxy-io/filament/connectors/mysql/internal/connection"
 	"github.com/galaxy-io/filament/rowmodel"
 )
 
@@ -590,7 +591,7 @@ func (s *Source) snapshotBootstrap(ctx context.Context, run *cdcRun, resources [
 // LOCK TABLES cannot share a session with the snapshot: starting a transaction
 // releases table locks held by that session.
 func (s *Source) lockTables(ctx context.Context, tables []string) (func(), error) {
-	lockDB, err := sql.Open("mysql", s.dsn)
+	lockDB, err := mysqlconnection.Open(ctx, s.conn)
 	if err != nil {
 		return nil, fmt.Errorf("mysql cdc: open lock session: %w", err)
 	}
@@ -709,7 +710,7 @@ func posCmp(a, b gomysql.Position) int {
 // binlogConfig builds the replication client config from the connection settings
 // captured at Configure.
 func (s *Source) binlogConfig() replication.BinlogSyncerConfig {
-	return replication.BinlogSyncerConfig{
+	cfg := replication.BinlogSyncerConfig{
 		ServerID:   s.serverID,
 		Flavor:     "mysql",
 		Host:       s.binlogHost,
@@ -721,4 +722,8 @@ func (s *Source) binlogConfig() replication.BinlogSyncerConfig {
 		// Timestamps render in UTC, matching the query path's pinned session zone.
 		TimestampStringLocation: time.UTC,
 	}
+	if s.conn.Tunnel != nil {
+		cfg.Dialer = s.conn.Tunnel.DialContext
+	}
+	return cfg
 }

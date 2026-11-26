@@ -42,8 +42,9 @@ type WebhookEndpointConfig struct {
 	// Unix milliseconds until which the replaced signing key still verifies.
 	// Zero when no replaced key is active.
 	PreviousKeyExpiresAt int64 `protobuf:"varint,12,opt,name=previous_key_expires_at,json=previousKeyExpiresAt,proto3" json:"previous_key_expires_at,omitempty"`
-	// Whether a pipeline that reads this source is running or paused. While
-	// false, new deliveries get 503 so senders retry until a pipeline starts.
+	// Whether a stream reads this source, in any state. A paused or stopped
+	// pipeline still accepts and its deliveries wait in the inbox. While false,
+	// new deliveries get 503 so senders retry until a pipeline first runs.
 	Accepting bool `protobuf:"varint,13,opt,name=accepting,proto3" json:"accepting,omitempty"`
 	// Absolute URL deliveries go to, without the resource:
 	// <public base URL>/hooks/<source_connection_id>. Empty when the server has

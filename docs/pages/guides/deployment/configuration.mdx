@@ -30,6 +30,20 @@ empty, or invalid configured directories stop startup. The variable does not mou
 [private catalog setup](/pages/connectors/building-a-connector/http-manifests#load-a-private-catalog-at-startup)
 for the directory structure and override behavior.
 
+### Reverse SSH tunnels
+
+| Variable | Default | Description |
+|---|---|---|
+| `SSH_REVERSE_TUNNEL_HOST` | unset | Host where reverse SSH tunnels listen. Set it to add the reverse SSH tunnel method to database connections, which dial this host on the port entered for the connection. Unset leaves the method out |
+
+Set it on every worker. A reverse tunnel is opened from inside the database's
+network to a server you run, and Filament connects to the port that tunnel
+opens. Filament does not run that server or register keys on it.
+
+The port is not an access control. Any connection can name any port on the
+host, the same as it can in the ordinary host and port fields. Restrict which
+workloads reach each port with network policy.
+
 ### Connector allowlist
 
 | Variable | Default | Description |
@@ -189,14 +203,15 @@ In a split deployment, webhooks require the shared PostgreSQL datastore and NATS
 The server verifies signed deliveries and stores them in a dedicated inbox.
 Workers consume the inbox after acceptance. The control plane purges it.
 Standalone uses SQLite and embedded NATS for the same flow. Set `WEBHOOKS_ENABLED=true`
-to serve `/hooks/`. Standalone defaults to a 64 MiB inbox, a 2 MiB message
+to serve `/hooks/`. Standalone serves it on its one listener. Standalone defaults to a 64 MiB inbox, a 2 MiB message
 limit, and one replica. The other webhook variables below also apply to it.
 
 | Variable | Default | Description |
 |---|---|---|
 | `WEBHOOKS_ENABLED` | `false` | Enable the `/hooks/` delivery path and inbox retention |
+| `WEBHOOK_ADDR` | `:8088` | Listen address for `/hooks/` on the server. It carries only deliveries and health checks, never the API or UI |
 | `WEBHOOK_MAX_IN_FLIGHT` | `64` | Maximum concurrent deliveries per server replica. Excess requests return `503` with `Retry-After` |
-| `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach, such as `https://filament.example.com`. The API and UI show delivery URLs when set. Unset makes the delivery URL unavailable in the UI |
+| `WEBHOOK_PUBLIC_BASE_URL` | unset | Public origin senders reach on the webhook listener, such as `https://webhooks.example.com`. The API and UI show delivery URLs when set. Unset makes the delivery URL unavailable in the UI |
 | `WEBHOOK_INBOX_MAX_BYTES` | — | Required in a split deployment. Standalone defaults to 64 MiB. Increasing it expands the existing stream on startup. A lower value does not shrink the stream |
 | `WEBHOOK_INBOX_MAX_MESSAGE_BYTES` | — | Required in a split deployment. Standalone defaults to 2 MiB and allows up to 32 MiB. Increasing it expands the existing stream on startup. A lower value limits this server but does not shrink the stream |
 | `WEBHOOK_INBOX_REPLICAS` | — | Required in a split deployment. Standalone uses one replica. Changing it on an existing stream requires a coordinated migration |
@@ -214,8 +229,11 @@ defaults to 1 MiB. The server refuses to start otherwise. The bundled Compose
 file and the chart's vendored NATS raise it to 2 MiB to match the default
 limit. Set it on any other NATS deployment.
 
-Expose only the `/hooks/` path to webhook senders. Every other path on the
-server listener is the API and UI.
+The server serves deliveries on `WEBHOOK_ADDR`, apart from the API and UI on
+`SERVER_ADDR`. Expose the webhook listener to senders and keep the API listener
+private. The chart creates a separate webhook Service when webhooks are enabled
+and a separate Ingress for `/hooks/` when `server.webhooks.ingress.enabled` is
+true. Set `server.webhooks.publicBaseURL` to that Ingress host.
 
 ### Authentication
 

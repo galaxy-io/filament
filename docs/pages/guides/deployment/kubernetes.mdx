@@ -102,8 +102,16 @@ For each run, the control plane creates a Kubernetes Job that starts the worker
 image. It passes `TENANT_ID` and `RUN_ID` to the worker. The worker loads shared
 settings from a Secret and ConfigMap, then loads the run from the datastore.
 
-Each pipeline can set its own CPU, memory, node selectors, and tolerations.
-This lets Kubernetes place and size each run independently.
+Each pipeline can set its own CPU, memory, node selectors, tolerations, and
+pod annotations. This lets Kubernetes place and size each run independently.
+
+Annotations are set on the worker pod and none are added by default. Use them
+for cluster components that read pod annotations. For example,
+`karpenter.sh/do-not-disrupt` set to `true` keeps Karpenter from consolidating
+a node while a bounded run is in progress. It does not prevent every node
+termination, such as an expired or failed node. A continuous worker never
+finishes, so the same annotation would keep its node out of consolidation for
+as long as the stream runs.
 
 The chart also runs the worker image as a persistent Deployment that answers
 the server's connector calls. It shares the Jobs' image and ServiceAccount and

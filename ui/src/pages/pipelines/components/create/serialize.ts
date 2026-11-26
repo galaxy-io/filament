@@ -39,6 +39,7 @@ import { mapPipelineNotifierStateToInput } from "@/pages/pipelines/components/no
 import {
   createResourceColumnSelections,
   createResourcePartitionSelections,
+  createResourceSinkConfigs,
 } from "@/pages/pipelines/components/resource/utils";
 import { parseWorkerConfiguration } from "@/pages/pipelines/components/worker/utils";
 
@@ -131,6 +132,7 @@ const createSinkEdges = ({
         cursors: isBounded ? createCursors([row], readMode) : [],
         columns: createColumns(row),
         partitions: createPartitions(row, readMode),
+        sinkConfigs: createResourceSinkConfigs({ resource: row.name, config: row.sinkConfig }),
       });
     });
 

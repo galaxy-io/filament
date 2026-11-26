@@ -106,6 +106,11 @@ func TestRetryPolicyRestartsYieldedAttemptAtOnce(t *testing.T) {
 	if delay != 0 || exhausted {
 		t.Fatalf("yielded attempt: delay %s exhausted %v", delay, exhausted)
 	}
+	state.Attempt.Reason = filament.AttemptReasonShutdown
+	state.Attempt.Lease.Attempt.Token++
+	if delay, exhausted := s.retryPolicy(state); delay != 0 || exhausted {
+		t.Fatalf("shut down attempt: delay %s exhausted %v", delay, exhausted)
+	}
 	state.Attempt.Reason = "network unavailable"
 	state.Attempt.Lease.Attempt.Token++
 	if delay, _ := s.retryPolicy(state); delay != 5*time.Second {

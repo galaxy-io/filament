@@ -68,6 +68,7 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
               cursors: edge.data?.cursors ?? [],
               columns: edge.data?.columns ?? [],
               partitions: edge.data?.partitions ?? [],
+              sinkConfigs: edge.data?.sinkConfigs ?? [],
             }),
           ],
         }),
@@ -92,6 +93,8 @@ export const usePipelineCanvasPanelResourceOptions = (edge: CanvasEdge) => {
   return {
     ...resources,
     ...modeOptions,
+    sinkConnection,
+    sinkConfig,
     verdict,
     isLoading: isLoadingValidation || isLoadingColumns,
   };

@@ -6,6 +6,7 @@ package registry
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -138,6 +139,21 @@ func (r *providerRegistry[P, S]) only(fresh *providerRegistry[P, S], names []str
 	return nil
 }
 
+// configured copies every registration into fresh with a factory that passes
+// each new provider through configure.
+func (r *providerRegistry[P, S]) configured(fresh *providerRegistry[P, S], configure func(P)) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for name, registered := range r.factories {
+		fresh.factories[name] = registration[P]{isPreview: registered.isPreview, factory: func() P {
+			provider := registered.factory()
+			configure(provider)
+			return provider
+		}}
+	}
+	maps.Copy(fresh.aliases, r.aliases)
+}
+
 func (r *providerRegistry[P, S]) snapshot() []registration[P] {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -235,6 +251,15 @@ func (r *Sources) Only(names []string) (*Sources, error) {
 		return nil, err
 	}
 	return only, nil
+}
+
+// Configured returns an independent registry whose sources each pass through
+// configure when they are created, for a spec as well as for a run. The
+// receiver is not mutated.
+func (r *Sources) Configured(configure func(filament.Source)) *Sources {
+	configured := NewSources()
+	r.providers.configured(configured.providers, configure)
+	return configured
 }
 
 // Register adds a factory under name. It panics on a nil factory or a duplicate
@@ -339,6 +364,14 @@ func (r *Sinks) Only(names []string) (*Sinks, error) {
 		return nil, err
 	}
 	return only, nil
+}
+
+// Configured returns an independent registry whose sinks each pass through
+// configure when they are created, for a spec as well as for a run.
+func (r *Sinks) Configured(configure func(filament.Sink)) *Sinks {
+	configured := NewSinks()
+	r.providers.configured(configured.providers, configure)
+	return configured
 }
 
 // Register adds a factory under name. Panics on nil factory or duplicate name.

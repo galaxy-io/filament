@@ -3,6 +3,7 @@ package gcs
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/galaxy-io/filament"
@@ -58,7 +59,7 @@ func (s *Sink) beginApply(resource string) (*uploadSession, string, string, erro
 	if s.state != stateOpen || s.session == nil {
 		return nil, "", "", fmt.Errorf("gcs sink: write requires an open run")
 	}
-	key, err := s.layout.Object(resource)
+	key, err := s.layout.Object(resource, 0)
 	if err != nil {
 		return nil, "", "", fmt.Errorf("gcs sink: %w", err)
 	}
@@ -107,18 +108,34 @@ func (s *Sink) finalizeEncoders(ctx context.Context, session *uploadSession) err
 			resourceEncoder.mu.Unlock()
 			continue
 		}
-		key, err := layout.Object(resource)
+		key, err := layout.Object(resource, 0)
 		if err != nil {
 			session.releaseEncodedBuffer(encoded)
 			resourceEncoder.mu.Unlock()
 			return fmt.Errorf("gcs sink: finalize %s: %w", resource, err)
 		}
 		// Append consumes encoded even when the handoff fails.
+		size := int64(len(encoded))
 		err = session.Append(ctx, resource, key, encoded, 0, encodedCRC)
 		resourceEncoder.mu.Unlock()
 		if err != nil {
 			return fmt.Errorf("gcs sink: finalize %s: %w", resource, err)
 		}
+		s.mu.Lock()
+		if s.commitBytes == nil {
+			s.commitBytes = make(map[string]int64)
+		}
+		s.commitBytes[resource] += size
+		s.mu.Unlock()
 	}
 	return nil
+}
+
+// CommitBytes reports the bytes this run wrote that no receipt carried: each
+// object's format trailer, and the output a gzip or Parquet encoder held back
+// until its file was finalized.
+func (s *Sink) CommitBytes() map[string]int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return maps.Clone(s.commitBytes)
 }

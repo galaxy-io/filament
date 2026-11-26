@@ -24,7 +24,7 @@ func (s *Source) Spec() filament.ConnectorSpec {
 			filament.IngestionCDCAppend,
 			filament.IngestionCDCMerge,
 		),
-		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(), []filament.ConfigField{
+		Config: filament.ConfigSchema{Fields: append(mysqlconnection.Fields(s.reverseTunnelHost), []filament.ConfigField{
 			{Name: "replication", Type: filament.FieldEnum, Default: string(filament.ReplicationStandard), Enum: []filament.EnumOption{
 				{Value: string(filament.ReplicationStandard), Label: "Standard"},
 				{Value: string(filament.ReplicationCDC), Label: "Change Data Capture (CDC)"},

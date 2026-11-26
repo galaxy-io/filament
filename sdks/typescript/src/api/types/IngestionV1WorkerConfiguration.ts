@@ -5,11 +5,16 @@ import type * as Filament from "../index.js";
 /**
  * WorkerConfiguration is how a pipeline's workers are shaped. It is a subset of
  *  a Kubernetes pod spec so a manifest fragment pastes in unchanged. Resources
- *  merge per key when a run overrides a pipeline; node_selector and tolerations
- *  replace wholesale.
+ *  and annotations merge per key when a run overrides a pipeline; node_selector
+ *  and tolerations replace wholesale.
  */
 export interface IngestionV1WorkerConfiguration {
     resources?: Filament.IngestionV1WorkerResources | undefined;
     nodeSelector?: Record<string, string> | undefined;
     tolerations?: Filament.IngestionV1WorkerToleration[] | undefined;
+    /**
+     * Annotations are set on the worker pod for cluster components that read
+     *  them. None are set by default.
+     */
+    annotations?: Record<string, string> | undefined;
 }

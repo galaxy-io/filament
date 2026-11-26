@@ -45,6 +45,22 @@ type Schematized interface {
 	EnsureSchema(ctx context.Context, resource string, schema RecordSchema) error
 }
 
+// CommitBytesReporter is the optional sink contract for bytes a sink writes
+// during Commit that no WriteReceipt reported, such as a file format's trailer
+// or output an encoder held back. After a successful Commit the runner adds
+// them to the resource and run byte totals. CommitBytes reports the boundary
+// that just committed, keyed by resource.
+type CommitBytesReporter interface {
+	CommitBytes() map[string]int64
+}
+
+// EpochBounded is the optional sink contract for a continuous epoch boundary
+// that depends on the pipeline's sink config. It replaces
+// SinkCapabilities.PreferredEpochBoundary. Options.EpochBoundary still wins.
+type EpochBounded interface {
+	EpochBoundary(cfg Config) (Boundary, error)
+}
+
 // SinkSpec is a sink's self-description: identity, config schema, and
 // capabilities. It powers the catalog.
 type SinkSpec struct {
@@ -87,4 +103,7 @@ type SinkCapabilities struct {
 	// PreferredFlushInterval is used when the pipeline does not explicitly
 	// choose a flush interval. Zero uses the engine default.
 	PreferredFlushInterval time.Duration
+	// PreferredEpochBoundary is used for continuous runs when the run does not
+	// set Options.EpochBoundary. Nil uses the engine default for the session kind.
+	PreferredEpochBoundary *Boundary
 }

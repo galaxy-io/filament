@@ -46,4 +46,11 @@ export interface IngestionV1PipelineEdge {
      *  every partition, and an empty selection backfills none.
      */
     partitions?: Filament.IngestionV1ResourcePartitionSelection[] | undefined;
+    /**
+     * sink_configs holds the sink's resource-scoped config for each resource.
+     *  An all-resource edge may configure several resources; a resource-specific
+     *  edge may configure only its own resource. An omitted resource uses the
+     *  sink's defaults.
+     */
+    sinkConfigs?: Filament.IngestionV1ResourceSinkConfig[] | undefined;
 }

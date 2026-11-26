@@ -121,11 +121,19 @@ encryption to protect resolved connection credentials in transit.
 | server.serviceAccount.annotations | object | `{}` | Annotations for the chart-created server ServiceAccount, e.g. an IRSA role ARN. |
 | server.serviceAccount.name | string | `""` | Existing ServiceAccount name for the server. When set, the chart does not create one. |
 | server.webhooks.enabled | bool | `false` | Enable signed webhook ingestion on the server. |
+| server.webhooks.ingress.annotations | object | `{}` | Annotations for the webhook Ingress. |
+| server.webhooks.ingress.className | string | `""` | IngressClass name, e.g. `nginx` or `alb`. Empty uses the cluster default. |
+| server.webhooks.ingress.enabled | bool | `false` | Enable a separate Ingress that exposes only `/hooks/`. |
+| server.webhooks.ingress.hosts | list | `["webhooks.example.com"]` | Hostnames served by the webhook Ingress. |
+| server.webhooks.ingress.tls | list | `[]` | Webhook Ingress TLS configuration, passed through verbatim. |
 | server.webhooks.maxBytes | int | `1073741824` | Durable JetStream inbox capacity in bytes. |
 | server.webhooks.maxInFlight | int | `64` | Maximum concurrent webhook requests per server replica. |
 | server.webhooks.maxMessageBytes | int | `2097152` | Largest stored webhook message in bytes, including its envelope. |
-| server.webhooks.publicBaseURL | string | `""` | Public origin webhook senders reach, e.g. `https://filament.example.com`. The UI shows full delivery URLs when set. |
+| server.webhooks.port | int | `8088` | Port the server serves `/hooks/` on, separate from the API port. |
+| server.webhooks.publicBaseURL | string | `""` | Public origin webhook senders reach, normally the webhook ingress host, e.g. `https://webhooks.example.com`. The UI shows full delivery URLs when set. |
 | server.webhooks.replicas | int | `1` | JetStream replicas for the webhook inbox. |
+| server.webhooks.service.annotations | object | `{}` | Annotations for the webhook Service, e.g. cloud load balancer settings. |
+| server.webhooks.service.type | string | `"ClusterIP"` | Webhook Service type. |
 
 ## Control plane parameters
 
@@ -203,6 +211,12 @@ encryption to protect resolved connection credentials in transit.
 | secrets.gcp.region | string | `""` | GCP region containing Secret Manager secrets, stored as `GCP_REGION`. Required when `secrets.type` is `gcp-secret-manager`. |
 | secrets.prefix | string | `""` | Root name external secret stores give every secret, stored in the ConfigMap as `SECRETS_PREFIX`. Defaults to `filament`: AWS names secrets `filament/<tenant>/...` and GCP `filament-<hash>`, and a prefix replaces that word. The separator is added for you. Unused by datastore. |
 | secrets.type | string | `"datastore"` | Secret storage provider. `datastore` keeps secrets in the persistence store and emits no `SECRET_PROVIDER`; external provider names are stored in the ConfigMap as `SECRET_PROVIDER`. |
+
+## SSH parameters
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| ssh.reverse.host | string | `""` | Host where reverse SSH tunnels listen, stored in the worker ConfigMap as `SSH_REVERSE_TUNNEL_HOST`. Setting it adds the reverse SSH tunnel method to database connections, which dial this host on the port entered for the connection. Empty leaves the method out. |
 
 ## Event bus parameters
 

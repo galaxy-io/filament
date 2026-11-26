@@ -14,6 +14,8 @@ import {
   type TimeseriesPoint,
 } from "@/gen/metrics/v1/metrics_pb";
 
+import { isPipelineRunBlocked } from "@/components/runs/utils";
+
 import {
   OBSERVABILITY_DAY_BUCKET_MIDPOINT_MS,
   OBSERVABILITY_GRANULARITY_TO_DURATION_MS_MAP,
@@ -107,6 +109,9 @@ export const createObservabilityStatusFilter = (statuses: RunStatus[]) =>
 
 export const getObservabilityPipelineHealth = (pipeline: Pipeline): ObservabilityPipelineHealth => {
   const { lastRun } = pipeline;
+  if (lastRun && isPipelineRunBlocked(lastRun)) {
+    return ObservabilityPipelineHealth.FAILING;
+  }
   if (lastRun && isRunActive(lastRun)) {
     return ObservabilityPipelineHealth.RUNNING;
   }
