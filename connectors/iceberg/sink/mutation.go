@@ -3,6 +3,7 @@ package iceberg
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -154,17 +155,16 @@ func selectRows(ctx context.Context, rows arrow.RecordBatch, mask []bool, target
 }
 
 // keyOf renders row i's primary key as one string, for last-write-wins folding.
-// Columns are joined with 0x1f, which cannot appear in a key value's text form.
+// Each column's text is length-prefixed, so the rendering stays unambiguous
+// whatever bytes a key value contains: a string key can hold any byte,
+// including a would-be separator.
 func keyOf(rows arrow.RecordBatch, keyIdx []int, i int) string {
-	if len(keyIdx) == 1 {
-		return rows.Column(keyIdx[0]).ValueStr(i)
-	}
 	var b strings.Builder
-	for n, k := range keyIdx {
-		if n > 0 {
-			b.WriteByte(0x1f)
-		}
-		b.WriteString(rows.Column(k).ValueStr(i))
+	for _, k := range keyIdx {
+		s := rows.Column(k).ValueStr(i)
+		b.WriteString(strconv.Itoa(len(s)))
+		b.WriteByte(':')
+		b.WriteString(s)
 	}
 	return b.String()
 }
