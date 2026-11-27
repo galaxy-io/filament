@@ -56,7 +56,7 @@ Messages that have not been sent yet have no `date_sent`, and calls that never s
 
 - **Auth**. Every request sends the Account SID and Auth Token with HTTP Basic auth. Authentication and permission errors fail the read.
 - **Pagination**. All three resources page through `next_page_uri`, a relative path that carries the filters and the page token. Pages hold up to 1000 records. The walk stops when the next page URI is missing or null.
-- **Fields**. Date fields arrive as RFC 2822 strings and land as timestamps with time zones. Duration, price, and segment counts arrive as quoted digit strings and land as numbers. Nested objects land as JSON columns.
+- **Fields**. Date fields arrive as RFC 2822 strings and land as timestamps with time zones. Duration and segment counts arrive as quoted digit strings and land as numbers. Price arrives as a quoted digit string and lands as an exact decimal, so amounts stay exact. Nested objects land as JSON columns.
 - **Rate limiting**. Twilio limits the REST API by concurrent in-flight requests, about 100 per account, rather than by requests per second. Exceeding it returns HTTP 429 with a `Retry-After` header. The HTTP engine retries throttled requests and honors `Retry-After`.
 - **Trial accounts**. A trial account holds one phone number and can only message verified numbers. Calls are limited to 10 minutes. Trial messages carry a trial prefix.
 - **Twilio only**. Twilio API version `2010-04-01` is the only supported version.

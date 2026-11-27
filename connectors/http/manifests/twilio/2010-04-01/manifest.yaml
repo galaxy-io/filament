@@ -48,7 +48,7 @@ resources:
       messaging_service_sid: string?
       num_segments: int64?
       num_media: int64?
-      price: float64?
+      price: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       price_unit: string?
       error_code: int64?
       error_message: string?
@@ -89,7 +89,7 @@ resources:
       from_formatted: string?
       to_formatted: string?
       duration: int64?
-      price: float64?
+      price: {type: decimal, nullable: true, precision: 38, scale: 9, rounding: half_even}
       price_unit: string?
       phone_number_sid: string?
       answered_by: string?
