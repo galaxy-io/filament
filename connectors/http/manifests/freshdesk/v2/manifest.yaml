@@ -35,13 +35,19 @@ connection:
   rate_limit:
     # Trial accounts allow 50 calls per minute, Growth 100, Pro 400, and
     # Enterprise 700, with tighter per-endpoint caps (Tickets List is 40 per
-    # minute on Growth). Paced well inside the trial budget; the engine
-    # retries 429 responses using the Retry-After header.
-    requests_per_second: 0.5
+    # minute on Growth). Ticket reads send include=description, which costs
+    # at least one extra credit per request, so they are paced to stay
+    # inside the trial credit budget; the engine retries 429 responses
+    # using the Retry-After header.
+    requests_per_second: 0.4
     burst: 2
 resources:
   - name: tickets
     path: /tickets
+    # Conversations fan out from the tickets enumerated in a run. Restart
+    # the tickets read on resume so a retried run rebuilds the full parent
+    # set instead of skipping conversations for tickets from earlier pages.
+    restart_on_resume: true
     query:
       # Accounts created after 30 November 2018 omit the ticket body from
       # list responses unless include=description is sent. Each include costs
@@ -49,6 +55,10 @@ resources:
       include: description
       order_by: updated_at
       order_type: asc
+      # Without updated_since the ticket list only returns tickets created
+      # in the last 30 days. Full reads send this lower bound; incremental
+      # reads replace it with the watermark.
+      updated_since: "1970-01-01T00:00:00Z"
     response:
       records: $
     primary_key: [id]
@@ -160,7 +170,7 @@ resources:
       domains: json?
       health_score: string?
       account_tier: string?
-      renewal_date: date?
+      renewal_date: timestamptz?
       industry: string?
       custom_fields: json?
       created_at: timestamptz
