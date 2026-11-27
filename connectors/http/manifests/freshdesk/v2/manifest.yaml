@@ -1,0 +1,263 @@
+version: 1
+name: freshdesk
+display_name: Freshdesk
+description: Customer support platform that turns email, chat, phone, and social messages into trackable tickets so support teams can prioritize and resolve customer requests.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-freshdesk-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-freshdesk-light.svg
+api_version: "v2"
+config:
+  domain:
+    type: string
+    required: true
+    help: Your Freshdesk subdomain (e.g. 'mycompany' for mycompany.freshdesk.com).
+  api_key:
+    type: secret
+    required: true
+    help: API key from your Freshdesk profile settings.
+defaults:
+  method: GET
+  query:
+    per_page: "100"
+  response:
+    pagination:
+      link: next
+connection:
+  base_url: "https://{{ config.domain }}.freshdesk.com/api/v2"
+  auth:
+    # Freshdesk takes the API key as the HTTP Basic username with any
+    # non-empty password; X is the documented convention.
+    basic:
+      username: config.api_key
+      password: "X"
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    # Trial accounts allow 50 calls per minute, Growth 100, Pro 400, and
+    # Enterprise 700, with tighter per-endpoint caps (Tickets List is 40 per
+    # minute on Growth). Each include consumes two additional credits, so
+    # ticket reads with include=description cost three credits per request
+    # and are paced to stay inside the trial credit budget; the engine
+    # retries 429 responses using the Retry-After header.
+    requests_per_second: 0.25
+    burst: 2
+resources:
+  - name: tickets
+    path: /tickets
+    # Conversations fan out from the tickets enumerated in a run. Restart
+    # pagination on resume and commit the watermark only when the tickets
+    # read completes (see incremental below), so a retried run
+    # re-enumerates the window and rebuilds the parent set instead of
+    # skipping conversations for tickets from earlier pages.
+    restart_on_resume: true
+    query:
+      # Accounts created after 30 November 2018 omit the ticket body from
+      # list responses unless include=description is sent. Each include
+      # costs two extra API credits.
+      include: description
+      order_by: updated_at
+      order_type: asc
+      # Without updated_since the ticket list only returns tickets created
+      # in the last 30 days. Full reads send this lower bound; incremental
+      # reads replace it with the watermark.
+      updated_since: "1970-01-01T00:00:00Z"
+    response:
+      records: $
+    primary_key: [id]
+    capture:
+      ticket_id: id
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_since
+      inject_into: query
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: tickets_updated_at
+      comparator: time
+      overlap_seconds: 60
+      # Commit the watermark only when the tickets read completes, so a
+      # failed run does not advance it past tickets whose conversations
+      # were never fetched.
+      commit_on_complete: true
+    fields:
+      id: int64
+      subject: string?
+      description: string?
+      description_text: string?
+      type: string?
+      status: int64?
+      priority: int64?
+      source: int64?
+      spam: bool?
+      requester_id: int64?
+      responder_id: int64?
+      group_id: int64?
+      company_id: int64?
+      product_id: int64?
+      email_config_id: int64?
+      fr_escalated: bool?
+      is_escalated: bool?
+      nr_escalated: bool?
+      fr_due_by: timestamptz?
+      due_by: timestamptz?
+      nr_due_by: timestamptz?
+      due_by_in_hours: float64?
+      sentiment_score: float64?
+      initial_sentiment_score: float64?
+      tags: json?
+      cc_emails: json?
+      fwd_emails: json?
+      reply_cc_emails: json?
+      to_emails: json?
+      custom_fields: json?
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: contacts
+    path: /contacts
+    response:
+      records: $
+    primary_key: [id]
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_since
+      inject_into: query
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: contacts_updated_at
+      comparator: time
+      overlap_seconds: 60
+    fields:
+      id: int64
+      name: string?
+      email: string?
+      phone: string?
+      mobile: string?
+      twitter_id: string?
+      facebook_id: string?
+      unique_external_id: string?
+      company_id: int64?
+      job_title: string?
+      time_zone: string?
+      language: string?
+      address: string?
+      description: string?
+      active: bool?
+      blocked: bool?
+      blocked_at: timestamptz?
+      deleted: bool?
+      view_all_tickets: bool?
+      tags: json?
+      other_emails: json?
+      other_phone_numbers: json?
+      other_companies: json?
+      custom_fields: json?
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: companies
+    path: /companies
+    response:
+      records: $
+    primary_key: [id]
+    incremental:
+      cursor_field: updated_at
+      start_param: updated_since
+      inject_into: query
+      initial: "1970-01-01T00:00:00Z"
+      checkpoint_key: companies_updated_at
+      comparator: time
+      overlap_seconds: 60
+    fields:
+      id: int64
+      name: string
+      description: string?
+      note: string?
+      domains: json?
+      health_score: string?
+      account_tier: string?
+      renewal_date: timestamptz?
+      industry: string?
+      custom_fields: json?
+      created_at: timestamptz
+      updated_at: timestamptz
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: agents
+    path: /agents
+    response:
+      records: $
+    primary_key: [id]
+    fields:
+      id: int64
+      available: bool?
+      available_since: timestamptz?
+      occasional: bool?
+      signature: string?
+      ticket_scope: int64?
+      type: string?
+      focus_mode: bool?
+      deactivated: bool?
+      last_active_at: timestamptz?
+      group_ids: json?
+      role_ids: json?
+      skill_ids: json?
+      contact: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: groups
+    path: /groups
+    response:
+      records: $
+    primary_key: [id]
+    fields:
+      id: int64
+      name: string
+      description: string?
+      agent_ids: json?
+      auto_ticket_assign: int64?
+      business_hour_id: int64?
+      escalate_to: int64?
+      unassigned_for: string?
+      group_type: string?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: conversations
+    path: /tickets/{ticket_id}/conversations
+    params:
+      ticket_id: parent.ticket_id
+    for_each: tickets
+    response:
+      records: $
+    primary_key: [ticket_id, id]
+    fields:
+      ticket_id: {path: parent.ticket_id, type: int64}
+      id: int64
+      body: string?
+      body_text: string?
+      from_email: string?
+      to_emails: json?
+      cc_emails: json?
+      bcc_emails: json?
+      user_id: int64?
+      incoming: bool?
+      private: bool?
+      source: int64?
+      support_email: string?
+      category: int64?
+      thread_id: int64?
+      thread_message_id: int64?
+      last_edited_at: timestamptz?
+      last_edited_user_id: int64?
+      attachments: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      raw: {path: $, type: json, mode: remainder}
+
+discovery:
+  mode: static
+  default_resources: [tickets, contacts, companies, agents, groups]
