@@ -153,9 +153,12 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 		}
 		if signal == filament.SignalCancel && a.isRunStale(state) {
 			graceCtx, cancelGrace := context.WithTimeout(ctx, a.cancelGrace())
-			ackErr := awaitWorkerAcknowledgement(graceCtx, ack, a.store, tenant, state.Run, signal)
+			ackErr := awaitWorkerSignalFact(graceCtx, ack, signal)
 			cancelGrace()
 			if ackErr == nil {
+				if err := awaitRunStatus(ctx, a.store, tenant, state.Run, filament.RunCanceled); err != nil {
+					return nil, signalRunError(err)
+				}
 				return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
 			}
 			if errors.Is(ackErr, context.DeadlineExceeded) && ctx.Err() == nil {
@@ -166,6 +169,12 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 				fresh, loadErr := a.store.LoadRun(ctx, tenant, state.Run)
 				if loadErr != nil {
 					return nil, signalRunError(loadErr)
+				}
+				if fresh.Status == filament.RunCanceled {
+					return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+				}
+				if runStatusTerminal(fresh.Status) {
+					return nil, signalRunError(fmt.Errorf("%w: run reached %v before cancel", runcommands.ErrSignalTransition, fresh.Status))
 				}
 				if !a.isRunStale(fresh) {
 					if err := awaitWorkerAcknowledgement(ctx, ack, a.store, tenant, state.Run, signal); err != nil {
@@ -273,11 +282,24 @@ func awaitWorkerAcknowledgement(
 	run filament.RunID,
 	signal filament.Signal,
 ) error {
-	want := events.RunPaused.Name()
 	wantStatus := filament.RunPaused
 	if signal == filament.SignalCancel {
-		want = events.RunCanceled.Name()
 		wantStatus = filament.RunCanceled
+	}
+	if err := awaitWorkerSignalFact(ctx, sub, signal); err != nil {
+		return err
+	}
+	return awaitRunStatus(ctx, store, tenant, run, wantStatus)
+}
+
+func awaitWorkerSignalFact(
+	ctx context.Context,
+	sub eventbus.Subscription,
+	signal filament.Signal,
+) error {
+	want := events.RunPaused.Name()
+	if signal == filament.SignalCancel {
+		want = events.RunCanceled.Name()
 	}
 	for {
 		select {
@@ -293,7 +315,7 @@ func awaitWorkerAcknowledgement(
 				continue
 			}
 			if fact.Name == want {
-				return awaitRunStatus(ctx, store, tenant, run, wantStatus)
+				return nil
 			}
 			switch fact.Data.(type) {
 			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPartialEvent,
