@@ -35,23 +35,25 @@ connection:
   rate_limit:
     # Trial accounts allow 50 calls per minute, Growth 100, Pro 400, and
     # Enterprise 700, with tighter per-endpoint caps (Tickets List is 40 per
-    # minute on Growth). Ticket reads send include=description, which costs
-    # at least one extra credit per request, so they are paced to stay
-    # inside the trial credit budget; the engine retries 429 responses
-    # using the Retry-After header.
-    requests_per_second: 0.4
+    # minute on Growth). Each include consumes two additional credits, so
+    # ticket reads with include=description cost three credits per request
+    # and are paced to stay inside the trial credit budget; the engine
+    # retries 429 responses using the Retry-After header.
+    requests_per_second: 0.25
     burst: 2
 resources:
   - name: tickets
     path: /tickets
     # Conversations fan out from the tickets enumerated in a run. Restart
-    # the tickets read on resume so a retried run rebuilds the full parent
-    # set instead of skipping conversations for tickets from earlier pages.
+    # pagination on resume and commit the watermark only when the tickets
+    # read completes (see incremental below), so a retried run
+    # re-enumerates the window and rebuilds the parent set instead of
+    # skipping conversations for tickets from earlier pages.
     restart_on_resume: true
     query:
       # Accounts created after 30 November 2018 omit the ticket body from
-      # list responses unless include=description is sent. Each include costs
-      # extra API credits.
+      # list responses unless include=description is sent. Each include
+      # costs two extra API credits.
       include: description
       order_by: updated_at
       order_type: asc
@@ -72,6 +74,10 @@ resources:
       checkpoint_key: tickets_updated_at
       comparator: time
       overlap_seconds: 60
+      # Commit the watermark only when the tickets read completes, so a
+      # failed run does not advance it past tickets whose conversations
+      # were never fetched.
+      commit_on_complete: true
     fields:
       id: int64
       subject: string?
