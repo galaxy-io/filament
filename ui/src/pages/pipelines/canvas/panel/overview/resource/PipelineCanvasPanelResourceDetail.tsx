@@ -272,6 +272,7 @@ const PipelineCanvasPanelResourceDetail: FC<PipelineCanvasPanelResourceDetailPro
               emptyHeader="No configuration"
               emptyMessage="No configuration options are available for this resource."
               hasInset
+              isOpenInitial={false}
             >
               <Flex
                 alignItems={AlignItems.START}
