@@ -10,6 +10,7 @@ use (
 	./connectors/object
 	./connectors/redshift
 	./connectors/snowflake
+	./connectors/sqlserver
 	./identity/keycloak
 	./identity/zitadel
 	./secret/aws

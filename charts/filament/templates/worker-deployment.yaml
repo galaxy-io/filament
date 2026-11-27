@@ -64,6 +64,13 @@ spec:
               port: http
             periodSeconds: 20
             timeoutSeconds: 3
+          env:
+            - name: NATS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "filament.secretName" . }}
+                  key: NATS_URL
+                  optional: true
           envFrom:
             - configMapRef:
                 name: {{ include "filament.worker.fullname" . }}

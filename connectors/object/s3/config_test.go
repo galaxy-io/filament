@@ -20,11 +20,11 @@ func TestFileOptionsAndObjectKey(t *testing.T) {
 		wantCompress encoder.Compression
 		key          string
 	}{
-		{"", "", encoder.FileFormatNDJSON, encoder.CompressionNone, "exports/accounts/dt=2026-09-10/run.ndjson"},
-		{"ndjson", "gzip", encoder.FileFormatNDJSON, encoder.CompressionGZIP, "exports/accounts/dt=2026-09-10/run.ndjson.gz"},
-		{"jsonl", "none", encoder.FileFormatJSONL, encoder.CompressionNone, "exports/accounts/dt=2026-09-10/run.jsonl"},
-		{"json", "gzip", encoder.FileFormatJSON, encoder.CompressionGZIP, "exports/accounts/dt=2026-09-10/run.json.gz"},
-		{"parquet", "snappy", encoder.FileFormatParquet, encoder.CompressionSnappy, "exports/accounts/dt=2026-09-10/run.parquet"},
+		{"", "", encoder.FileFormatNDJSON, encoder.CompressionNone, "exports/accounts/dt=2026-09-10/run.0001.ndjson"},
+		{"ndjson", "gzip", encoder.FileFormatNDJSON, encoder.CompressionGZIP, "exports/accounts/dt=2026-09-10/run.0001.ndjson.gz"},
+		{"jsonl", "none", encoder.FileFormatJSONL, encoder.CompressionNone, "exports/accounts/dt=2026-09-10/run.0001.jsonl"},
+		{"json", "gzip", encoder.FileFormatJSON, encoder.CompressionGZIP, "exports/accounts/dt=2026-09-10/run.0001.json.gz"},
+		{"parquet", "snappy", encoder.FileFormatParquet, encoder.CompressionSnappy, "exports/accounts/dt=2026-09-10/run.0001.parquet"},
 	} {
 		cfg, err := parseConfig(filament.NewConfig(map[string]any{
 			"bucket": "bucket", "prefix": "exports", "file_format": test.format, "compression": test.compression,
@@ -37,7 +37,7 @@ func TestFileOptionsAndObjectKey(t *testing.T) {
 		}
 		options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
 		layout := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun)
-		if got, err := layout.Object("accounts"); err != nil || got != test.key {
+		if got, err := layout.Object("accounts", 1); err != nil || got != test.key {
 			t.Fatalf("object key = %q, %v, want %q", got, err, test.key)
 		}
 		if got, want := layout.Success(), "exports/_runs/run/_SUCCESS.json"; got != want {
@@ -50,6 +50,14 @@ func TestFileOptionsAndObjectKey(t *testing.T) {
 	if _, err := parseConfig(filament.NewConfig(map[string]any{"bucket": "bucket", "file_format": "parquet", "compression": "gzip"})); err == nil {
 		t.Fatal("parseConfig accepted unsupported Parquet compression")
 	}
+	for _, size := range []int{minFileSizeMiB - 1, maxFileSizeMiB + 1} {
+		if _, err := parseConfig(filament.NewConfig(map[string]any{"bucket": "bucket", "max_file_size_mib": size})); err == nil {
+			t.Fatalf("parseConfig accepted max_file_size_mib %d", size)
+		}
+	}
+	if cfg, err := parseConfig(filament.NewConfig(map[string]any{"bucket": "bucket"})); err != nil || cfg.maxFileSize != defaultFileSizeMiB<<20 {
+		t.Fatalf("default max file size = %d, %v", cfg.maxFileSize, err)
+	}
 }
 
 func TestLegacyEncodingCompatibility(t *testing.T) {
@@ -59,10 +67,10 @@ func TestLegacyEncodingCompatibility(t *testing.T) {
 		compression encoder.Compression
 		key         string
 	}{
-		{map[string]any{"encoding": "json_gzip"}, encoder.FileFormatNDJSON, encoder.CompressionGZIP, "accounts/dt=2026-09-10/run.ndjson.gz"},
-		{map[string]any{"encoding": "json"}, encoder.FileFormatNDJSON, encoder.CompressionNone, "accounts/dt=2026-09-10/run.ndjson"},
-		{map[string]any{"file_type": "jsonl"}, encoder.FileFormatNDJSON, encoder.CompressionNone, "accounts/dt=2026-09-10/run.ndjson"},
-		{map[string]any{"file_type": "parquet"}, encoder.FileFormatParquet, encoder.CompressionSnappy, "accounts/dt=2026-09-10/run.parquet"},
+		{map[string]any{"encoding": "json_gzip"}, encoder.FileFormatNDJSON, encoder.CompressionGZIP, "accounts/dt=2026-09-10/run.0000.ndjson.gz"},
+		{map[string]any{"encoding": "json"}, encoder.FileFormatNDJSON, encoder.CompressionNone, "accounts/dt=2026-09-10/run.0000.ndjson"},
+		{map[string]any{"file_type": "jsonl"}, encoder.FileFormatNDJSON, encoder.CompressionNone, "accounts/dt=2026-09-10/run.0000.ndjson"},
+		{map[string]any{"file_type": "parquet"}, encoder.FileFormatParquet, encoder.CompressionSnappy, "accounts/dt=2026-09-10/run.0000.parquet"},
 	}
 	for _, test := range tests {
 		test.config["bucket"] = "bucket"
@@ -74,7 +82,7 @@ func TestLegacyEncodingCompatibility(t *testing.T) {
 			t.Fatalf("legacy options parsed as %q/%q", cfg.fileFormat, cfg.compression)
 		}
 		options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
-		if got, err := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun).Object("accounts"); err != nil || got != test.key {
+		if got, err := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun).Object("accounts", 0); err != nil || got != test.key {
 			t.Fatalf("legacy object key = %q, %v, want %q", got, err, test.key)
 		}
 	}
@@ -85,18 +93,18 @@ func TestPartitionTemplate(t *testing.T) {
 		partition string
 		key       string
 	}{
-		{"dt={{.Date}}", "exports/accounts/dt=2026-09-10/run.ndjson"},
-		{"", "exports/accounts/run.ndjson"},
-		{"/month={{.StartedAt.Format \"2006-01\"}}/", "exports/accounts/month=2026-09/run.ndjson"},
-		{"{{.StartedAt.Format \"2006/01/02\"}}", "exports/accounts/2026/09/10/run.ndjson"},
-		{"{{.Resource}}/{{.Run}}", "exports/accounts/accounts/run/run.ndjson"},
+		{"dt={{.Date}}", "exports/accounts/dt=2026-09-10/run.0000.ndjson"},
+		{"", "exports/accounts/run.0000.ndjson"},
+		{"/month={{.StartedAt.Format \"2006-01\"}}/", "exports/accounts/month=2026-09/run.0000.ndjson"},
+		{"{{.StartedAt.Format \"2006/01/02\"}}", "exports/accounts/2026/09/10/run.0000.ndjson"},
+		{"{{.Resource}}/{{.Run}}", "exports/accounts/accounts/run/run.0000.ndjson"},
 	} {
 		cfg, err := parseConfig(filament.NewConfig(map[string]any{"bucket": "bucket", "prefix": "exports", "partition": test.partition}))
 		if err != nil {
 			t.Fatalf("partition %q: %v", test.partition, err)
 		}
 		options := encoder.Options{FileFormat: cfg.fileFormat, Compression: cfg.compression}
-		if got, err := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun).Object("accounts"); err != nil || got != test.key {
+		if got, err := object.NewLayout(cfg.prefix, cfg.partition, options.Extension(), testRun).Object("accounts", 0); err != nil || got != test.key {
 			t.Fatalf("partition %q key = %q, %v, want %q", test.partition, got, err, test.key)
 		}
 	}

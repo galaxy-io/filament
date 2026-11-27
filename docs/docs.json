@@ -157,6 +157,8 @@
             "pages": [
               "pages/connectors/sources/postgres",
               "pages/connectors/sources/mysql",
+              "pages/connectors/sources/sqlserver",
+              "pages/connectors/sources/azuresql",
               "pages/connectors/sources/kafka",
               "pages/connectors/sources/nats",
               "pages/connectors/sources/webhook",

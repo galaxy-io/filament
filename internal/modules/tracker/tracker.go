@@ -35,6 +35,9 @@ type Module struct {
 	// boundary records whether the sink acknowledgement is durable enough to
 	// persist each resource's accumulated cursor.
 	boundary map[ckKey]filament.CheckpointPolicy
+	// folds holds each bounded run's dedup mark and unsaved batch totals.
+	folds map[runKey]*runFold
+	now   func() time.Time // the clock, replaced in tests
 }
 
 // bmAccount counts written rows per bitmap shard against the shard's expected total. A
@@ -125,8 +128,9 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 			filament.Field{Key: "resource_name", Value: f.Resource},
 			filament.Field{Key: "stream_sequence", Value: msg.Seq()})
 	}
-	// Notification reports do not change run state or its dedup cursor.
-	if _, ok := f.Data.(events.NotifierAttemptedEvent); ok {
+	// Facts apply would ignore (notification reports, per-batch observability)
+	// change neither run state nor the dedup mark, so they cost no store call.
+	if !folds(f.Data) {
 		return nil
 	}
 	// Continuous lifecycle and progress are owned by runtime persistence.
@@ -137,13 +141,29 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	if mode == filament.ExecutionContinuous {
 		return nil
 	}
+	// Batch totals fold in memory and reach the store in bulk (batches.go).
+	if d, ok := f.Data.(events.BatchWrittenEvent); ok {
+		hw, err := m.highWater(ctx, f.Tenant, f.Run)
+		if err != nil {
+			return err
+		}
+		if hw > 0 && msg.Seq() <= hw {
+			m.logDuplicate(f, msg.Seq())
+			return nil
+		}
+		return m.foldBatch(ctx, f.Envelope, msg.Seq(), d)
+	}
+	// Every other fold sees the run's batch totals saved first.
+	if err := m.flushTotals(ctx, f.Tenant, f.Run); err != nil {
+		return err
+	}
 	// Terminal folds promote checkpoints and are idempotent. Apply them before
 	// advancing the dedup high-water mark so a failed promotion can be retried.
 	if status, terminal := terminalFactStatus(f.Data); terminal {
 		if err := m.apply(ctx, f); err != nil {
 			return err
 		}
-		seen, err := m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+		seen, err := m.advance(ctx, f.Tenant, f.Run, msg.Seq())
 		if err != nil {
 			return err
 		}
@@ -168,28 +188,31 @@ func (m *Module) onFact(ctx context.Context, msg eventbus.Message) error {
 	// Check the high-water mark without advancing it, so a fold that fails is
 	// redelivered and applied instead of being skipped as already seen. Advance
 	// only after the fold succeeds, as the terminal path does.
-	hw, ok, err := m.ds.DedupHighWater(ctx, string(f.Tenant), f.Run)
+	hw, err := m.highWater(ctx, f.Tenant, f.Run)
 	if err != nil {
 		return err
 	}
-	if ok && msg.Seq() <= hw {
-		if m.log != nil {
-			m.log.Debug("duplicate fact ignored",
-				filament.Field{Key: "event.name", Value: "tracker.fact.duplicate"},
-				filament.Field{Key: "fact_name", Value: f.Name},
-				filament.Field{Key: "run_id", Value: string(f.Run)},
-				filament.Field{Key: "stream_sequence", Value: msg.Seq()})
-		}
+	if hw > 0 && msg.Seq() <= hw {
+		m.logDuplicate(f, msg.Seq())
 		return nil // already applied — idempotent no-op
 	}
 	if err := m.apply(ctx, f); err != nil {
 		return err
 	}
-	// A crash between apply and this advance re-applies the fact on redelivery.
-	// Non-terminal folds are not idempotent (batch.written adds to the run totals),
-	// so that window can double count those totals.
-	_, err = m.ds.DedupSeen(ctx, string(f.Tenant), f.Run, msg.Seq())
+	// The mark advances in memory before the store write, so a failed write
+	// does not get the fact applied twice on redelivery within this process.
+	_, err = m.advance(ctx, f.Tenant, f.Run, msg.Seq())
 	return err
+}
+
+func (m *Module) logDuplicate(f events.Fact, seq uint64) {
+	if m.log != nil {
+		m.log.Debug("duplicate fact ignored",
+			filament.Field{Key: "event.name", Value: "tracker.fact.duplicate"},
+			filament.Field{Key: "fact_name", Value: f.Name},
+			filament.Field{Key: "run_id", Value: string(f.Run)},
+			filament.Field{Key: "stream_sequence", Value: seq})
+	}
 }
 
 func terminalFactStatus(data any) (string, bool) {
@@ -243,17 +266,20 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return m.terminal(ctx, env, "failed", false, func(r *filament.RunState) {
 			r.Status = filament.RunFailed
 			r.Error = d.Error
+			raiseTotals(r, d.Records, d.Bytes)
 		})
 
 	case events.RunPartialEvent:
 		return m.terminal(ctx, env, "partial", false, func(r *filament.RunState) {
 			r.Status = filament.RunPartial
 			r.Error = d.Error
+			raiseTotals(r, d.Records, d.Bytes)
 		})
 
 	case events.RunCanceledEvent:
 		return m.terminal(ctx, env, "canceled", false, func(r *filament.RunState) {
 			r.Status = filament.RunCanceled
+			raiseTotals(r, d.Records, d.Bytes)
 		})
 
 	case events.RunPausedEvent:
@@ -429,6 +455,11 @@ func (m *Module) evictRun(run filament.RunID) {
 	for key := range m.modes {
 		if key.run == run {
 			delete(m.modes, key)
+		}
+	}
+	for key := range m.folds {
+		if key.run == run {
+			delete(m.folds, key)
 		}
 	}
 }
