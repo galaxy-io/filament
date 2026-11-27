@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/galaxy-io/filament"
 	cliapp "github.com/galaxy-io/filament/cmd/internal/cli/app"
 	climodel "github.com/galaxy-io/filament/cmd/internal/cli/model"
 )
@@ -15,7 +16,7 @@ func (a *cliApp) runCommand() *cobra.Command {
 	var cmd *cobra.Command
 	cmd = a.dynamicCommand(
 		"run <pipeline> [--resources LIST] [--sync-mode MODE] [--write-mode MODE] [--unset KIND-FIELD] | --source-connector NAME --sink-connector NAME [flags]",
-		"Run a saved pipeline or an inline transfer, or list past runs", a.printRunHelp,
+		"Run a saved pipeline or an inline transfer, list past runs, or cancel a run", a.printRunHelp,
 		func(ctx context.Context, args []string) error {
 			if len(args) > 0 {
 				return a.startRun(ctx, args)
@@ -28,7 +29,7 @@ func (a *cliApp) runCommand() *cobra.Command {
 		},
 	)
 	cmd.PersistentPreRunE = a.prepareTarget
-	cmd.AddCommand(a.runListCommand())
+	cmd.AddCommand(a.runListCommand(), a.runCancelCommand())
 	return cmd
 }
 
@@ -159,4 +160,24 @@ func (a *cliApp) runListCommand() *cobra.Command {
 	}
 	page.add(cmd)
 	return cmd
+}
+
+// runCancelCommand cancels a requested, paused, partial, or running run: run cancel <run-id>.
+func (a *cliApp) runCancelCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "cancel <run-id>",
+		Short: "Cancel an active or queued run",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			runID := strings.TrimSpace(args[0])
+			if runID == "" {
+				return fmt.Errorf("run id is required")
+			}
+			if err := a.service.SignalRun(cmd.Context(), climodel.RunRef{ID: runID}, filament.SignalCancel); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintf(a.statusWriter(), "Run %s canceled.\n", runID)
+			return err
+		},
+	}
 }

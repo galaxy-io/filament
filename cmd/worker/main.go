@@ -15,6 +15,7 @@ import (
 
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/boot"
+	"github.com/galaxy-io/filament/internal/heartbeat"
 	"github.com/galaxy-io/filament/runner"
 
 	"github.com/galaxy-io/filament/cmd/internal/connectors"
@@ -109,18 +110,18 @@ func run(ctx context.Context) error {
 		filament.Field{Key: "sink_connector", Value: state.Request.Sink.Connector},
 		filament.Field{Key: "resource_count", Value: len(state.Request.Resources)})
 
-	hb := &heartbeat{
-		bus: bus,
-		mx:  deps.Metrics,
-		log: deps.Log.With(
+	hb := heartbeat.New(
+		bus,
+		deps.Metrics,
+		deps.Log.With(
 			filament.Field{Key: "component", Value: "heartbeat"},
 			filament.Field{Key: "run_id", Value: string(runID)},
 		),
-		tenant:   state.Tenant,
-		run:      state.Run,
-		pipeline: state.Request.PipelineID,
-	}
-	stopHeartbeat := hb.start(ctx, heartbeatInterval())
+		state.Tenant,
+		state.Run,
+		state.Request.PipelineID,
+	)
+	stopHeartbeat := hb.Start(ctx, heartbeat.Interval())
 
 	err = runner.RunOne(ctx, runner.Deps{
 		Bus:           bus,

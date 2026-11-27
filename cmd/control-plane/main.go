@@ -174,23 +174,23 @@ func healthAddress() string {
 }
 
 // controlModules assembles the control plane's modules around the dispatcher,
-// which is nil under worker dispatch. The reaper mounts only under kubernetes
-// dispatch: staleness means death only where heartbeats exist, and a
-// long-lived worker's runs don't emit them. The workload probe holds kills for
-// workers that are up but silent and for Requested runs that were never
-// dispatched.
+// which is nil under worker dispatch. Both one-shot and long-lived workers emit
+// periodic run.heartbeat facts, so the reaper mounts in every dispatch mode:
+// with a WorkloadProbe when the dispatcher exposes one (holding live-but-silent
+// pods and sweeping finished Requested pods), and in staleness-only mode for
+// Running runs when no workload probe exists (worker dispatch).
 func controlModules(sched *scheduler.Module, dispatcher module.Module) ([]module.Module, *reaper.Module) {
 	mods := []module.Module{tracker.New(), sched, notifier.New()}
 	if dispatcher != nil {
 		mods = append(mods, dispatcher)
 	}
-	prober, ok := dispatcher.(interface {
+	var opts []reaper.Option
+	if prober, ok := dispatcher.(interface {
 		Workload(context.Context, filament.RunID) (filament.Workload, error)
-	})
-	if !ok {
-		return mods, nil
+	}); ok {
+		opts = append(opts, reaper.WithWorkloadProbe(prober.Workload))
 	}
-	reap := reaper.NewFromEnv(reaper.WithWorkloadProbe(prober.Workload))
+	reap := reaper.NewFromEnv(opts...)
 	return append(mods, reap), reap
 }
 

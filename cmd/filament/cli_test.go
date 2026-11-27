@@ -95,3 +95,15 @@ func TestUnreachableRemoteContextFailsBeforeRendererExecution(t *testing.T) {
 		t.Fatalf("error = %v, want cannot reach https://filament.example.test", err)
 	}
 }
+
+func TestRunCancelCommandWired(t *testing.T) {
+	t.Parallel()
+	app := cliApp{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	command, _, err := app.rootCommand().Find([]string{"run", "cancel"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if command.Name() != "cancel" {
+		t.Fatalf("command = %q, want cancel", command.Name())
+	}
+}

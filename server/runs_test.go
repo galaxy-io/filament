@@ -200,3 +200,61 @@ func TestLoadRunSnapshotOnlySuppressesNotFound(t *testing.T) {
 		t.Fatalf("loadRunSnapshot() = (_, %v, %v), want (_, false, nil)", ok, err)
 	}
 }
+
+func TestSignalRunCancelsStaleDeadWorkerRun(t *testing.T) {
+	ctx := identity.WithTenant(context.Background(), "tenant-1")
+	store := sqlite.NewMemory()
+	state := filament.RunState{
+		Run:       "run-dead",
+		Tenant:    "tenant-1",
+		Status:    filament.RunRunning,
+		StartedAt: time.Now().Add(-10 * time.Minute),
+	}
+	if err := store.SaveRun(ctx, state); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(30 * time.Millisecond)
+
+	bus := inproc.New()
+	sub, err := bus.Subscribe(events.RunPattern("tenant-1", "run-dead"), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close() }()
+
+	api := &Server{
+		store:            store,
+		bus:              bus,
+		staleRunAfter:    20 * time.Millisecond,
+		staleCancelGrace: 25 * time.Millisecond,
+	}
+	if _, err := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{
+		RunId:  "run-dead",
+		Signal: ingestionv1.RunSignal_RUN_SIGNAL_CANCEL,
+	})); err != nil {
+		t.Fatalf("SignalRun cancel stale dead-worker run: %v", err)
+	}
+
+	got, err := store.LoadRun(ctx, "tenant-1", "run-dead")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != filament.RunCanceled || got.EndedAt == nil {
+		t.Fatalf("run after stale cancel = %#v, want RunCanceled with EndedAt set", got)
+	}
+
+	sawCanceled := false
+	drainDeadline := time.After(500 * time.Millisecond)
+	for !sawCanceled {
+		select {
+		case msg := <-sub.C():
+			fact, decErr := events.Decode(msg)
+			_ = msg.Ack()
+			if decErr == nil && fact.Name == events.RunCanceled.Name() {
+				sawCanceled = true
+			}
+		case <-drainDeadline:
+			t.Fatal("expected run.canceled event to be published for observers")
+		}
+	}
+}

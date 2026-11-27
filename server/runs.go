@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -149,11 +151,97 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 		if ack == nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("worker acknowledgement subscription is missing"))
 		}
+		if signal == filament.SignalCancel && a.isRunStale(state) {
+			graceCtx, cancelGrace := context.WithTimeout(ctx, a.cancelGrace())
+			ackErr := awaitWorkerAcknowledgement(graceCtx, ack, a.store, tenant, state.Run, signal)
+			cancelGrace()
+			if ackErr == nil {
+				return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+			}
+			if errors.Is(ackErr, context.DeadlineExceeded) && ctx.Err() == nil {
+				if err := a.forceCancelStaleRun(ctx, transitions, tenant, state.Run); err != nil {
+					return nil, signalRunError(err)
+				}
+				return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+			}
+			return nil, signalRunError(ackErr)
+		}
 		if err := awaitWorkerAcknowledgement(ctx, ack, a.store, tenant, state.Run, signal); err != nil {
 			return nil, signalRunError(err)
 		}
 	}
 	return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+}
+
+const (
+	defaultStaleRunAfter    = 5 * time.Minute
+	defaultStaleCancelGrace = 2 * time.Second
+)
+
+func (a *Server) staleThreshold() time.Duration {
+	if a.staleRunAfter > 0 {
+		return a.staleRunAfter
+	}
+	if v := os.Getenv("REAPER_STALE_AFTER_SECONDS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return defaultStaleRunAfter
+}
+
+func (a *Server) cancelGrace() time.Duration {
+	if a.staleCancelGrace > 0 {
+		return a.staleCancelGrace
+	}
+	return defaultStaleCancelGrace
+}
+
+func (a *Server) isRunStale(state filament.RunState) bool {
+	ref := state.UpdatedAt
+	if ref.IsZero() {
+		ref = state.StartedAt
+	}
+	if ref.IsZero() {
+		return false
+	}
+	return time.Since(ref) >= a.staleThreshold()
+}
+
+// forceCancelStaleRun transitions an unresponsive stale Running run directly
+// to RunCanceled and publishes run.canceled so any attached observer unblocks
+// and the active replication route is released.
+func (a *Server) forceCancelStaleRun(
+	ctx context.Context,
+	transitions filament.RunTransitionStore,
+	tenant filament.TenantID,
+	run filament.RunID,
+) error {
+	_, err := transitions.TransitionRun(
+		ctx,
+		tenant,
+		run,
+		[]filament.RunStatus{filament.RunRunning},
+		filament.RunCanceled,
+		filament.RunTransitionOptions{Ended: true},
+	)
+	if errors.Is(err, filament.ErrVersionConflict) {
+		current, loadErr := a.store.LoadRun(ctx, tenant, run)
+		if loadErr != nil {
+			return loadErr
+		}
+		if current.Status == filament.RunCanceled {
+			return nil
+		}
+		return fmt.Errorf("%w: run reached %v before cancel", runcommands.ErrSignalTransition, current.Status)
+	}
+	if err != nil {
+		return err
+	}
+	_ = events.Emit(ctx, a.bus, events.RunCanceled,
+		events.Envelope{Tenant: tenant, Run: run, At: time.Now()},
+		events.RunCanceledEvent{})
+	return nil
 }
 
 func awaitWorkerAcknowledgement(
