@@ -37,7 +37,7 @@ IDs are Twilio SID strings. Messages carry their sender, recipient, status, and 
 
 ### Coverage limits
 
-- **Media, feedback, and scheduled messages**. Message media files, delivery feedback, and scheduled sends live under separate sub-resources and are not included.
+- **Media and feedback**. Message media files and delivery feedback live under separate sub-resources and are not included.
 - **Recordings, transcriptions, notifications, and payments**. These per-call sub-resources are not included.
 - **Message bodies are synced**. The `body` column holds the text content of each message, including user content.
 - **Visibility**. Reads reflect what the token's account can see. Removed records are not available as deletion events.

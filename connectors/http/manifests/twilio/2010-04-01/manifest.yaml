@@ -43,7 +43,7 @@ resources:
       date_updated: timestamptz
       status: string
       direction: string
-      from: string
+      from: string?
       to: string
       messaging_service_sid: string?
       num_segments: int64?
@@ -65,6 +65,7 @@ resources:
       comparator: time
       value_date_format: "2006-01-02"
       overlap_seconds: 86400
+      commit_on_complete: true
 
   - name: calls
     path: "/2010-04-01/Accounts/{{ config.account_sid }}/Calls.json"
@@ -111,6 +112,7 @@ resources:
       comparator: time
       value_date_format: "2006-01-02"
       overlap_seconds: 86400
+      commit_on_complete: true
 
   - name: incoming_phone_numbers
     path: "/2010-04-01/Accounts/{{ config.account_sid }}/IncomingPhoneNumbers.json"

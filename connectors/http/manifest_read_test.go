@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -233,6 +234,59 @@ resources:
 				t.Fatalf("err = %v, want a cursor field error", err)
 			}
 		})
+	}
+}
+
+// A scheduled Twilio message has a null sender and a null date_sent. The
+// messages manifest declares from as nullable, so a full read must accept
+// that row and keep going instead of stopping the resource read.
+func TestTwilioScheduledMessageNullSenderSurvivesFullRead(t *testing.T) {
+	data, err := os.ReadFile("manifests/twilio/2010-04-01/manifest.yaml")
+	if err != nil {
+		t.Fatalf("read Twilio manifest: %v", err)
+	}
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"messages":[
+			{"sid":"SMscheduled","account_sid":"ACtest","api_version":"2010-04-01","date_created":"Fri, 18 Oct 2019 17:00:00 +0000","date_sent":null,"date_updated":"Fri, 18 Oct 2019 17:00:00 +0000","status":"scheduled","direction":"outbound-api","from":null,"to":"+15551234567","uri":"/2010-04-01/Accounts/ACtest/Messages/SMscheduled.json","subresource_uris":{}},
+			{"sid":"SMsent","account_sid":"ACtest","api_version":"2010-04-01","date_created":"Fri, 18 Oct 2019 17:00:00 +0000","date_sent":"Fri, 18 Oct 2019 17:02:00 +0000","date_updated":"Fri, 18 Oct 2019 17:02:00 +0000","status":"delivered","direction":"outbound-api","from":"+15559876543","to":"+15551234567","uri":"/2010-04-01/Accounts/ACtest/Messages/SMsent.json","subresource_uris":{}}
+		]}`)
+	}))
+	defer api.Close()
+	manifestText := strings.Replace(string(data), "base_url: https://api.twilio.com", "base_url: "+api.URL, 1)
+	source := NewManifest([]byte(manifestText))
+	if err := source.Configure(t.Context(), filament.NewConfig(map[string]any{"account_sid": "ACtest", "auth_token": "test-token"})); err != nil {
+		t.Fatal(err)
+	}
+	defer source.Teardown(t.Context())
+	sink := &scanSink{}
+	opts := extractOptions{Resources: []string{"messages"}, IncrementalResources: map[string]bool{"messages": false}}
+	if err := source.connector.Extract(t.Context(), sink, opts); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want 2", len(sink.records))
+	}
+	rows := map[string]map[string]any{}
+	for _, rec := range sink.records {
+		var row map[string]any
+		if err := json.Unmarshal(rec.Data, &row); err != nil {
+			t.Fatalf("unmarshal record: %v", err)
+		}
+		rows[row["sid"].(string)] = row
+	}
+	scheduled, ok := rows["SMscheduled"]
+	if !ok {
+		t.Fatal("scheduled row missing")
+	}
+	if v, ok := scheduled["from"]; !ok || v != nil {
+		t.Fatalf("scheduled from = %v, want nil", v)
+	}
+	if v, ok := scheduled["date_sent"]; !ok || v != nil {
+		t.Fatalf("scheduled date_sent = %v, want nil", v)
+	}
+	if got := rows["SMsent"]["from"]; got != "+15559876543" {
+		t.Fatalf("sent from = %v, want +15559876543", got)
 	}
 }
 
