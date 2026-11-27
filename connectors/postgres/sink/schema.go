@@ -341,7 +341,7 @@ func qualifyCastTarget(schema, formatted string) string {
 // castFor reports the destination type to cast a staged value of staged type
 // to, or "" when the value lands as-is. The destination type is already
 // schema-qualified by the caller.
-func castFor(staged, dest string, builtin bool, assignable bool) string {
+func castFor(staged, dest string, builtin, assignable bool) string {
 	if dest == "" || builtin || assignable || baseType(dest) == baseType(staged) {
 		return ""
 	}
