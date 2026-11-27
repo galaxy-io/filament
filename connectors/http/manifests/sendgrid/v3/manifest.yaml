@@ -1,0 +1,291 @@
+version: 1
+name: sendgrid
+display_name: SendGrid
+description: Cloud email delivery and marketing platform for sending transactional and campaign messages, managing contacts and templates, and tracking suppression lists and delivery statistics.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-sendgrid-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-sendgrid-light.svg
+api_version: "v3"
+config:
+  api_key:
+    type: secret
+    required: true
+    help: SendGrid API key from Settings > API Keys (SG.…). Grant read permissions on Template Engine, Stats, Suppressions, and Marketing.
+  base_url:
+    type: enum
+    enum:
+      - https://api.sendgrid.com
+      - https://api.eu.sendgrid.com
+    default: https://api.sendgrid.com
+    help: SendGrid API host. Select https://api.eu.sendgrid.com for EU regional subusers pinned to European data residency.
+  stats_start_date:
+    type: string
+    scope: pipeline
+    default: "2020-01-01"
+    format: date
+    help: Earliest date (YYYY-MM-DD) for the first global_stats read. Subsequent incremental runs advance from the saved date watermark.
+defaults:
+  method: GET
+field_sets:
+  suppression_event:
+    email: string
+    # SendGrid renders suppression created timestamps as Unix epoch seconds.
+    # Typed int64 so raw epoch seconds survive intact and pair directly with
+    # the numeric incremental comparator on start_time.
+    created: int64
+connection:
+  base_url: "{{ config.base_url }}"
+  auth:
+    bearer: config.api_key
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  # SendGrid v3 endpoints enforce per-endpoint rate limits (Marketing endpoints
+  # cap as low as 2-3 requests/second, while v3 Web API endpoints return
+  # X-RateLimit-Remaining and X-RateLimit-Reset as Unix epoch seconds).
+  rate_limit:
+    requests_per_second: 5
+    dynamic:
+      remaining_header: X-RateLimit-Remaining
+      reset_header: X-RateLimit-Reset
+      reset_format: unix_seconds
+      min_floor_rps: 1
+resources:
+  # First top-level resource, so it doubles as the TestConnection probe.
+  - name: templates
+    path: /v3/templates
+    query:
+      generations: legacy,dynamic
+      page_size: "100"
+    response:
+      records: $.result
+      pagination:
+        next_url: _metadata.next
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      generation: string?
+      updated_at: string?
+      versions: json?
+      warnings: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: lists
+    path: /v3/marketing/lists
+    query:
+      page_size: "100"
+    response:
+      records: $.result
+      pagination:
+        next_url: _metadata.next
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      contact_count: int64?
+      _metadata: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: contacts
+    # SendGrid's GET /v3/marketing/contacts returns up to 50 most recent
+    # contacts with _metadata.self; full contact exports above 50 rows use
+    # SendGrid's asynchronous export job (/v3/marketing/contacts/exports).
+    path: /v3/marketing/contacts
+    response:
+      records: $.result
+      pagination: none
+    primary_key: [id]
+    fields:
+      id: string
+      email: string?
+      first_name: string?
+      last_name: string?
+      address_line_1: string?
+      address_line_2: string?
+      city: string?
+      state_province_region: string?
+      postal_code: string?
+      country: string?
+      phone_number: string?
+      list_ids: json?
+      custom_fields: json?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      _metadata: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: singlesends
+    path: /v3/marketing/singlesends
+    query:
+      page_size: "100"
+    response:
+      records: $.result
+      pagination:
+        next_url: _metadata.next
+    primary_key: [id]
+    fields:
+      id: string
+      name: string
+      status: string?
+      categories: json?
+      # SendGrid's list endpoint can return the literal string "now" in addition
+      # to ISO-8601 timestamps or null, so keep send_at as string? to avoid
+      # failing sink timestamp coercion.
+      send_at: string?
+      is_abtest: bool?
+      created_at: timestamptz?
+      updated_at: timestamptz?
+      _metadata: json?
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: bounces
+    path: /v3/suppression/bounces
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [email]
+    use_fields: [suppression_event]
+    fields:
+      reason: string?
+      status: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: bounces_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: blocks
+    path: /v3/suppression/blocks
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [email]
+    use_fields: [suppression_event]
+    fields:
+      reason: string?
+      status: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: blocks_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: spam_reports
+    path: /v3/suppression/spam_reports
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [email]
+    use_fields: [suppression_event]
+    fields:
+      ip: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: spam_reports_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: unsubscribes
+    path: /v3/suppression/unsubscribes
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [email]
+    use_fields: [suppression_event]
+    fields:
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: unsubscribes_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: invalid_emails
+    path: /v3/suppression/invalid_emails
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [email]
+    use_fields: [suppression_event]
+    fields:
+      reason: string?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: created
+      start_param: start_time
+      inject_into: query
+      initial: "0"
+      checkpoint_key: invalid_emails_created
+      comparator: numeric
+      overlap_seconds: 300
+
+  - name: global_stats
+    path: /v3/stats
+    query:
+      aggregated_by: day
+      start_date: "{{ config.stats_start_date }}"
+    response:
+      records: $
+      pagination:
+        offset:
+          offset: query.offset
+          limit: query.limit
+          page_size: 500
+    primary_key: [date]
+    fields:
+      date: string
+      stats: json?
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: date
+      start_param: start_date
+      inject_into: query
+      checkpoint_key: global_stats_date
+      comparator: lex
+discovery:
+  mode: static
+  default_resources:
+    - templates
+    - lists
+    - singlesends
+    - bounces
+    - blocks
+    - spam_reports
+    - unsubscribes
+    - invalid_emails
+    - global_stats
