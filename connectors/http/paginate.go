@@ -65,10 +65,8 @@ func (c *Connector) paginate(
 		if err != nil {
 			// Stale-cursor fallback: if we resumed and the first request fails,
 			// retry from scratch.
-			if !strictCursor && pag != nil && resumeState != (pagination.State{}) && pageCount == 0 {
-				c.logger.Warn("stale cursor, falling back to full extraction",
-					"resource", res.Name, "error", err)
-				state = pag.Initial()
+			if restarted, freshSeen, ok := c.staleCursorRestart(res, pag, resumeState, pageCount, strictCursor, err); ok {
+				state, seen = restarted, freshSeen
 				resumeState = pagination.State{}
 				continue
 			}
@@ -142,7 +140,74 @@ func (c *Connector) paginate(
 		if state.Done {
 			return totalRecords, pageCount, nil
 		}
+
+		// A continuation token that repeats means the walk is not
+		// advancing: the API echoes the same cursor or next URL forever
+		// (or cycles back to an earlier one), so the loop would refetch
+		// the same pages until the run context is cancelled. Strict mode
+		// already errors on this in responseCursor; mirror that guard
+		// here for the paginator path.
+		if continuationRepeats(seen, state) {
+			return totalRecords, pageCount, fmt.Errorf("pagination cycle on %s: continuation token repeated", res.Name)
+		}
 	}
+}
+
+// staleCursorRestart reports whether a failed first request on a resumed
+// walk should restart from scratch. The restarted walk is a new walk, so
+// it returns a fresh state with a reseeded cycle guard: tokens from the
+// resumed walk (including the stale resume token) must not false-positive
+// the guard when the restarted walk legitimately revisits them.
+func (c *Connector) staleCursorRestart(
+	res manifest.Resource,
+	pag pagination.Paginator,
+	resumeState pagination.State,
+	pageCount int,
+	strictCursor bool,
+	err error,
+) (pagination.State, map[string]bool, bool) {
+	if strictCursor || pag == nil || resumeState == (pagination.State{}) || pageCount != 0 {
+		return pagination.State{}, nil, false
+	}
+	c.logger.Warn("stale cursor, falling back to full extraction",
+		"resource", res.Name, "error", err)
+	state := pag.Initial()
+	seen := map[string]bool{}
+	seedCycleGuard(seen, state)
+	return state, seen, true
+}
+
+// continuationToken returns the opaque token a paginator state carries into
+// the next request. Page and offset strategies advance numerically and carry
+// no token, so they return "".
+func continuationToken(s pagination.State) string {
+	if s.Cursor != "" {
+		return s.Cursor
+	}
+	return s.NextURL
+}
+
+// seedCycleGuard records the token a walk starts from, so a first page that
+// hands it straight back counts as no progress.
+func seedCycleGuard(seen map[string]bool, state pagination.State) {
+	if tok := continuationToken(state); tok != "" {
+		seen[tok] = true
+	}
+}
+
+// continuationRepeats reports whether the next state's token was already
+// used by this walk, recording it otherwise. Tokenless states (page and
+// offset strategies) never repeat.
+func continuationRepeats(seen map[string]bool, state pagination.State) bool {
+	tok := continuationToken(state)
+	if tok == "" {
+		return false
+	}
+	if seen[tok] {
+		return true
+	}
+	seen[tok] = true
+	return false
 }
 
 // decodeBody is the paginators' view of a response body. Numbers stay
@@ -183,6 +248,9 @@ func (c *Connector) initialPaginationState(
 			seen[state.Cursor] = true
 		}
 	}
+	// Seed the cycle guard with the token this walk starts from so a
+	// first page that hands it straight back counts as no progress.
+	seedCycleGuard(seen, state)
 	return state, seen
 }
 
