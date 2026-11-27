@@ -21,7 +21,7 @@ type table struct {
 	stage     string
 	mode      filament.WriteMode
 	mergeSQL  string
-	// columns is the destination's column order, lowercased, for a write into
+	// columns is the destination's column order, for a write into
 	// a live table the sink did not necessarily create. Nil means the write
 	// target was built from the source schema, so source order already matches.
 	columns []string
@@ -205,7 +205,7 @@ func (s *Sink) destinationColumns(ctx context.Context, conn *pooledConnection, r
 		if err != nil {
 			return nil, fmt.Errorf("%s sink: inspect columns for %q: %w", s.Name(), resource, err)
 		}
-		columns = append(columns, strings.ToLower(fmt.Sprint(values[0])))
+		columns = append(columns, fmt.Sprint(values[0]))
 	}
 }
 
