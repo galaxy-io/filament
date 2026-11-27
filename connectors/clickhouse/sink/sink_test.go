@@ -7,7 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2/lib/column"
+	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/array"
 	"github.com/apache/arrow-go/v18/arrow/decimal128"
+	"github.com/apache/arrow-go/v18/arrow/memory"
 	"github.com/shopspring/decimal"
 
 	"github.com/galaxy-io/filament"
@@ -303,5 +307,133 @@ func TestExistsTableQueryUsesClickHouseStatementSyntax(t *testing.T) {
 	want := "EXISTS TABLE `tpch`.`nation`"
 	if got != want {
 		t.Fatalf("exists query = %q, want %q", got, want)
+	}
+}
+
+// Postgres infinity reaches the sink as the int32 and int64 sentinels. In a
+// NOT NULL column a nil would be stored as 1970-01-01, so the sentinels clamp
+// to the widest values the driver can write; in a nullable column they stay
+// nil and land as NULL.
+func TestInfinitySentinelValues(t *testing.T) {
+	mem := memory.NewCheckedAllocator(memory.DefaultAllocator)
+	defer mem.AssertSize(t, 0)
+
+	db := array.NewDate32Builder(mem)
+	db.AppendValues([]arrow.Date32{math.MaxInt32, math.MinInt32, 19723}, nil) // 19723 = 2024-01-01
+	dates := db.NewArray()
+	defer dates.Release()
+
+	tb := array.NewTimestampBuilder(mem, &arrow.TimestampType{Unit: arrow.Microsecond, TimeZone: "UTC"})
+	tb.AppendValues([]arrow.Timestamp{math.MaxInt64, math.MinInt64, 1704067200000000}, nil)
+	instants := tb.NewArray()
+	defer instants.Release()
+
+	nb := array.NewTimestampBuilder(mem, &arrow.TimestampType{Unit: arrow.Microsecond})
+	nb.AppendValues([]arrow.Timestamp{math.MaxInt64, math.MinInt64, 1704067200000000}, nil)
+	naive := nb.NewArray()
+	defer naive.Release()
+
+	maxDate := time.Date(2299, 12, 31, 0, 0, 0, 0, time.UTC)
+	minDate := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
+	maxInstant := time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC)
+	ordinaryDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	ordinaryInstant := time.Unix(1704067200, 0).UTC()
+
+	tests := []struct {
+		name  string
+		field arrow.Field
+		col   arrow.Array
+		want  []any
+	}{
+		{
+			name:  "date not null",
+			field: arrow.Field{Name: "d", Type: arrow.FixedWidthTypes.Date32},
+			col:   dates,
+			want:  []any{maxDate, minDate, ordinaryDate},
+		},
+		{
+			name:  "date nullable",
+			field: arrow.Field{Name: "d", Type: arrow.FixedWidthTypes.Date32, Nullable: true},
+			col:   dates,
+			want:  []any{nil, nil, ordinaryDate},
+		},
+		{
+			name:  "timestamp with zone not null",
+			field: arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond, TimeZone: "UTC"}},
+			col:   instants,
+			want:  []any{maxInstant, minDate, ordinaryInstant},
+		},
+		{
+			name:  "timestamp with zone nullable",
+			field: arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond, TimeZone: "UTC"}, Nullable: true},
+			col:   instants,
+			want:  []any{nil, nil, ordinaryInstant},
+		},
+		{
+			name:  "timestamp naive not null",
+			field: arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond}},
+			col:   naive,
+			want:  []any{"2262-04-11 23:47:16", "1900-01-01 00:00:00", "2024-01-01 00:00:00"},
+		},
+		{
+			name:  "timestamp naive nullable",
+			field: arrow.Field{Name: "ts", Type: &arrow.TimestampType{Unit: arrow.Microsecond}, Nullable: true},
+			col:   naive,
+			want:  []any{nil, nil, "2024-01-01 00:00:00"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fn := valueFor(tt.field)
+			for i, want := range tt.want {
+				if got := fn(tt.col, i); got != want {
+					t.Errorf("row %d = %#v, want %#v", i, got, want)
+				}
+			}
+		})
+	}
+}
+
+// The clamped values must survive the real clickhouse-go columns unchanged:
+// a bound the driver wrapped or rejected would just move the corruption.
+func TestInfinityClampSurvivesDriverColumns(t *testing.T) {
+	sc := &column.ServerContext{Timezone: time.UTC}
+
+	dates, err := column.Type("Date32").Column("d", sc)
+	if err != nil {
+		t.Fatalf("make Date32 column: %v", err)
+	}
+	for _, v := range []time.Time{
+		time.Date(2299, 12, 31, 0, 0, 0, 0, time.UTC),
+		time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC),
+	} {
+		if err := dates.AppendRow(v); err != nil {
+			t.Fatalf("append %v: %v", v, err)
+		}
+	}
+	if got := dates.Row(0, false); got != time.Date(2299, 12, 31, 0, 0, 0, 0, time.UTC) {
+		t.Fatalf("Date32 +infinity clamp stored as %v", got)
+	}
+	if got := dates.Row(1, false); got != time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC) {
+		t.Fatalf("Date32 -infinity clamp stored as %v", got)
+	}
+
+	stamps, err := column.Type("DateTime64(6)").Column("ts", sc)
+	if err != nil {
+		t.Fatalf("make DateTime64 column: %v", err)
+	}
+	for _, v := range []time.Time{
+		time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC),
+		time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC),
+	} {
+		if err := stamps.AppendRow(v); err != nil {
+			t.Fatalf("append %v: %v", v, err)
+		}
+	}
+	if got := stamps.Row(0, false); got != time.Date(2262, 4, 11, 23, 47, 16, 0, time.UTC) {
+		t.Fatalf("DateTime64 +infinity clamp stored as %v", got)
+	}
+	if got := stamps.Row(1, false); got != time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC) {
+		t.Fatalf("DateTime64 -infinity clamp stored as %v", got)
 	}
 }
