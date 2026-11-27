@@ -1,0 +1,67 @@
+---
+title: "Twilio source connector"
+sidebarTitle: "Twilio"
+description: "Read messages, calls, and phone numbers from Twilio with Filament."
+icon: "https://upload.wikimedia.org/wikipedia/commons/7/7e/Twilio-logo-red.svg"
+---
+
+Connector ID `twilio`
+
+The Twilio source reads SMS messages, phone calls, and incoming phone numbers from Twilio. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It has not yet been validated against a live Twilio account. The manifest and its shared timestamp fix are covered by the existing engine tests. Live validation is the next step. It targets Twilio API version `2010-04-01`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `account_sid` | Connection | | Required. Account SID from the Twilio Console. |
+| `auth_token` | Connection | | Required. Secret. Auth Token from the Twilio Console. |
+
+Find the Account SID and Auth Token on the Twilio Console dashboard. The token reads what its account can see.
+
+Connection testing calls `GET /2010-04-01/Accounts/{account_sid}/Messages.json`. Every request goes to
+`https://api.twilio.com`, with the `2010-04-01` version on each path.
+
+## Resources
+
+All resources are selected by default.
+
+| Resource | Endpoint | Parent |
+|---|---|---|
+| `messages` | `GET /2010-04-01/Accounts/{account_sid}/Messages.json` |  |
+| `calls` | `GET /2010-04-01/Accounts/{account_sid}/Calls.json` |  |
+| `incoming_phone_numbers` | `GET /2010-04-01/Accounts/{account_sid}/IncomingPhoneNumbers.json` |  |
+
+IDs are Twilio SID strings. Messages carry their sender, recipient, status, and body. Calls carry their caller, recipient, status, duration, and price. Phone numbers carry their configuration URLs and capabilities. Nested objects land as JSON columns, and every resource includes a `raw` column for unmapped fields.
+
+### Coverage limits
+
+- **Media and feedback**. Message media files and delivery feedback live under separate sub-resources and are not included.
+- **Recordings, transcriptions, notifications, and payments**. These per-call sub-resources are not included.
+- **Message bodies are synced**. The `body` column holds the text content of each message, including user content.
+- **Visibility**. Reads reflect what the token's account can see. Removed records are not available as deletion events.
+
+## Modes
+
+All resources report their read mode in the connector settings. Use **full upsert** to refresh rows, or **full replace** to remove rows no longer returned.
+
+`messages` supports incremental reads on `date_sent` and `calls` on `start_time`. The cursor is an RFC 2822 date. The first run reads from 2000-01-01. Later runs filter with DateSent> and StartTime>, the operator keys Twilio defines, on a date one day before the last stored watermark, so the watermark day is re-read. Edits to records from that day are caught, but edits to older records are not, and periodic full reads are needed to refresh them. Overlap re-reads land as upserts and never duplicate rows. Twilio has no filter on the update time, so a record edited after its event date is only re-read when it falls inside the overlap day. Incremental reads do not detect deleted messages or calls. Run a periodic full replace to remove them.
+
+Messages that have not been sent yet have no `date_sent`, and calls that never started have no `start_time`. Full reads accept those rows with a null cursor. A row with a missing cursor fails the incremental run. Incremental reads therefore cover sent and received messages and started calls only.
+
+`incoming_phone_numbers` is a full read. Twilio offers no date filter for it.
+
+## Behavior
+
+- **Auth**. Every request sends the Account SID and Auth Token with HTTP Basic auth. Authentication and permission errors fail the read.
+- **Pagination**. All three resources page through `next_page_uri`, a relative path that carries the filters and the page token. Pages hold up to 1000 records. The walk stops when the next page URI is missing or null.
+- **Fields**. Date fields arrive as RFC 2822 strings and land as timestamps with time zones. Duration and segment counts arrive as quoted digit strings and land as numbers. Price arrives as a quoted digit string and lands as an exact decimal, so amounts stay exact. Nested objects land as JSON columns.
+- **Rate limiting**. Twilio limits the REST API by concurrent in-flight requests, about 100 per account, rather than by requests per second. Exceeding it returns HTTP 429 with a `Retry-After` header. The HTTP engine retries throttled requests and honors `Retry-After`.
+- **Trial accounts**. A trial account holds one phone number and can only message verified numbers. Calls are limited to 10 minutes. Trial messages carry a trial prefix.
+- **Twilio only**. Twilio API version `2010-04-01` is the only supported version.
+
+See [Twilio Messages API](https://www.twilio.com/docs/messaging/api/message-resource),
+[Twilio Calls API](https://www.twilio.com/docs/voice/api/call-resource),
+[Twilio IncomingPhoneNumber API](https://static0.twilio.com/docs/phone-numbers/api/incomingphonenumber-resource), and
+[API concurrency](https://www.twilio.com/en-us/blog/high-volume-voice-considerations) for service limits.

@@ -189,6 +189,7 @@
               "pages/connectors/sources/servicetitan",
               "pages/connectors/sources/slack",
               "pages/connectors/sources/stripe",
+              "pages/connectors/sources/twilio",
               "pages/connectors/sources/typeform",
               "pages/connectors/sources/zoho",
               "pages/connectors/sources/zendesk",

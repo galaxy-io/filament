@@ -1,10 +1,12 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -163,6 +165,128 @@ func TestStatementPaginationCommitsOnlyCompleteScan(t *testing.T) {
 				t.Fatalf("resume plan=%v err=%v", plan, err)
 			}
 		})
+	}
+}
+
+func TestNullableCursorSurvivesFullReadButFailsIncremental(t *testing.T) {
+	const nullableCursorManifest = `
+version: 1
+name: nullable-cursor
+display_name: Nullable Cursor
+description: Nullable cursor fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+connection:
+  base_url: https://example.com
+resources:
+  - name: items
+    path: /items
+    primary_key: [id]
+    fields:
+      id: string
+      updated: timestamptz?
+    response:
+      records: $.items
+    incremental:
+      cursor_field: updated
+      start_param: since
+      inject_into: query
+      comparator: time
+      initial: '2026-01-01T00:00:00Z'
+      overlap_seconds: 86400
+`
+	for _, mode := range []string{"full", "incremental"} {
+		t.Run(mode, func(t *testing.T) {
+			api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, `{"items":[{"id":"a","updated":"2026-01-05T00:00:00Z"},{"id":"b","updated":null}]}`)
+			}))
+			defer api.Close()
+			source := NewManifest([]byte(strings.Replace(nullableCursorManifest, "base_url: https://example.com", "base_url: "+api.URL, 1)))
+			if err := source.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+				t.Fatal(err)
+			}
+			defer source.Teardown(t.Context())
+			opts := extractOptions{Resources: []string{"items"}, IncrementalResources: map[string]bool{"items": mode == "incremental"}}
+			sink := &scanSink{}
+			err := source.connector.Extract(t.Context(), sink, opts)
+			if mode == "full" {
+				if err != nil {
+					t.Fatalf("extract: %v", err)
+				}
+				if len(sink.records) != 2 {
+					t.Fatalf("records = %d, want 2", len(sink.records))
+				}
+				var row map[string]any
+				if err := json.Unmarshal(sink.records[1].Data, &row); err != nil {
+					t.Fatalf("unmarshal record: %v", err)
+				}
+				v, ok := row["updated"]
+				if !ok {
+					t.Fatalf("null cursor row is missing the updated key")
+				}
+				if v != nil {
+					t.Fatalf("null cursor row updated = %v, want nil", v)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), "cursor field") {
+				t.Fatalf("err = %v, want a cursor field error", err)
+			}
+		})
+	}
+}
+
+// A scheduled Twilio message has a null sender and a null date_sent. The
+// messages manifest declares from as nullable, so a full read must accept
+// that row and keep going instead of stopping the resource read.
+func TestTwilioScheduledMessageNullSenderSurvivesFullRead(t *testing.T) {
+	data, err := os.ReadFile("manifests/twilio/2010-04-01/manifest.yaml")
+	if err != nil {
+		t.Fatalf("read Twilio manifest: %v", err)
+	}
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"messages":[
+			{"sid":"SMscheduled","account_sid":"ACtest","api_version":"2010-04-01","date_created":"Fri, 18 Oct 2019 17:00:00 +0000","date_sent":null,"date_updated":"Fri, 18 Oct 2019 17:00:00 +0000","status":"scheduled","direction":"outbound-api","from":null,"to":"+15551234567","uri":"/2010-04-01/Accounts/ACtest/Messages/SMscheduled.json","subresource_uris":{}},
+			{"sid":"SMsent","account_sid":"ACtest","api_version":"2010-04-01","date_created":"Fri, 18 Oct 2019 17:00:00 +0000","date_sent":"Fri, 18 Oct 2019 17:02:00 +0000","date_updated":"Fri, 18 Oct 2019 17:02:00 +0000","status":"delivered","direction":"outbound-api","from":"+15559876543","to":"+15551234567","uri":"/2010-04-01/Accounts/ACtest/Messages/SMsent.json","subresource_uris":{}}
+		]}`)
+	}))
+	defer api.Close()
+	manifestText := strings.Replace(string(data), "base_url: https://api.twilio.com", "base_url: "+api.URL, 1)
+	source := NewManifest([]byte(manifestText))
+	if err := source.Configure(t.Context(), filament.NewConfig(map[string]any{"account_sid": "ACtest", "auth_token": "test-token"})); err != nil {
+		t.Fatal(err)
+	}
+	defer source.Teardown(t.Context())
+	sink := &scanSink{}
+	opts := extractOptions{Resources: []string{"messages"}, IncrementalResources: map[string]bool{"messages": false}}
+	if err := source.connector.Extract(t.Context(), sink, opts); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want 2", len(sink.records))
+	}
+	rows := map[string]map[string]any{}
+	for _, rec := range sink.records {
+		var row map[string]any
+		if err := json.Unmarshal(rec.Data, &row); err != nil {
+			t.Fatalf("unmarshal record: %v", err)
+		}
+		rows[row["sid"].(string)] = row
+	}
+	scheduled, ok := rows["SMscheduled"]
+	if !ok {
+		t.Fatal("scheduled row missing")
+	}
+	if v, ok := scheduled["from"]; !ok || v != nil {
+		t.Fatalf("scheduled from = %v, want nil", v)
+	}
+	if v, ok := scheduled["date_sent"]; !ok || v != nil {
+		t.Fatalf("scheduled date_sent = %v, want nil", v)
+	}
+	if got := rows["SMsent"]["from"]; got != "+15559876543" {
+		t.Fatalf("sent from = %v, want +15559876543", got)
 	}
 }
 

@@ -2,6 +2,7 @@ package incremental
 
 import (
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/galaxy-io/filament/connectors/http/manifest"
@@ -41,6 +42,25 @@ func TestTrackerValuePrefixOnQueryInjection(t *testing.T) {
 
 	if got := tr.Current(); got != "2026-09-01T00:00:00Z" {
 		t.Fatalf("checkpoint = %q, want the raw watermark", got)
+	}
+}
+
+// A missing or null cursor fails the incremental run. This is the runtime
+// failure that lets the validator allow nullable cursor fields: full reads
+// tolerate the null, incremental runs do not.
+func TestTrackerObserveCheckedRejectsMissingCursor(t *testing.T) {
+	tr, err := New(prefixSpec(), "patients", "2026-09-01T00:00:00Z")
+	if err != nil {
+		t.Fatalf("new tracker: %v", err)
+	}
+	for _, record := range []map[string]any{
+		{},
+		{"lastUpdated": nil},
+		{"lastUpdated": ""},
+	} {
+		if _, err := tr.ObserveChecked(record); err == nil || !strings.Contains(err.Error(), "cursor field") {
+			t.Fatalf("ObserveChecked(%v) = %v, want a cursor field error", record, err)
+		}
 	}
 }
 

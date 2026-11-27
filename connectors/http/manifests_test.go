@@ -46,3 +46,33 @@ func TestLinearManifestUsesExclusiveIncrementalBoundary(t *testing.T) {
 		t.Fatalf("exclusive Linear incremental filters = %d, want 4", got)
 	}
 }
+
+// Twilio returns messages and calls newest first, so a paused incremental
+// run must not commit the newest cursor seen so far. Both resources commit
+// the checkpoint only when the scan completes, and both keep the top-level
+// paginated row cursor the validator requires for that mode.
+func TestTwilioIncrementalCommitsOnComplete(t *testing.T) {
+	m, err := manifest.Load("manifests/twilio/2010-04-01/manifest.yaml")
+	if err != nil {
+		t.Fatalf("load Twilio manifest: %v", err)
+	}
+	for _, name := range []string{"messages", "calls"} {
+		t.Run(name, func(t *testing.T) {
+			var res *manifest.Resource
+			for i := range m.Resources {
+				if m.Resources[i].Name == name {
+					res = &m.Resources[i]
+				}
+			}
+			if res == nil {
+				t.Fatalf("resource %s missing", name)
+			}
+			if res.Incremental == nil || !res.Incremental.CommitOnComplete {
+				t.Fatalf("resource %s must set commit_on_complete", name)
+			}
+			if res.Parent != nil || res.Incremental.ResponseCursor != "" {
+				t.Fatalf("resource %s must keep a top-level paginated row cursor for commit_on_complete", name)
+			}
+		})
+	}
+}

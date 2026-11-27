@@ -61,6 +61,8 @@ func TestExtractFixedDecimalRounding(t *testing.T) {
 	}{
 		{"strict", `{type: decimal, precision: 38, scale: 9}`, "33.3333333333", "", true},
 		{"extra digits", `{type: decimal, precision: 38, scale: 9, rounding: half_even}`, "33.3333333333", "33.333333333", false},
+		{"quoted price", `{type: decimal, precision: 38, scale: 9, rounding: half_even}`, `"-0.00750"`, "-0.007500000", false},
+		{"quoted price positive", `{type: decimal, precision: 38, scale: 9, rounding: half_even}`, `"0.01400"`, "0.014000000", false},
 		{"half to even", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "1.245", "1.24", false},
 		{"half away from odd", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "1.255", "1.26", false},
 		{"negative half", `{type: decimal, precision: 3, scale: 2, rounding: half_even}`, "-1.255", "-1.26", false},
