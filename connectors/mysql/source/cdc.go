@@ -386,17 +386,18 @@ func (d *rowDecoder) appendBinlogRow(w arrowbatch.RowWriter, row []any) error {
 	return nil
 }
 
-// keyOf renders the primary-key tuple, columns joined with 0x1F, to compare an
-// update's before and after images.
+// keyOf renders the primary-key tuple with each value length-prefixed, to
+// compare an update's before and after images. Length prefixes keep the
+// rendering unambiguous whatever bytes a key value contains.
 func (d *rowDecoder) keyOf(row []any) string {
 	var b strings.Builder
-	for i, pk := range d.pks {
-		if i > 0 {
-			b.WriteByte(0x1f)
-		}
+	for _, pk := range d.pks {
 		for c, f := range d.schema.Fields {
 			if f.Name == pk.name && c < len(row) {
-				b.Write(valueBytes(row[c]))
+				v := valueBytes(row[c])
+				b.WriteString(strconv.Itoa(len(v)))
+				b.WriteByte(':')
+				b.Write(v)
 			}
 		}
 	}
