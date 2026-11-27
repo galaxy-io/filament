@@ -159,6 +159,20 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 				return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
 			}
 			if errors.Is(ackErr, context.DeadlineExceeded) && ctx.Err() == nil {
+				// Re-load the run before forcing cancellation: a live worker blocked
+				// in a slow sink write still emits background liveness heartbeats or
+				// batch flushes that refresh UpdatedAt. Only force-cancel if the run
+				// remained stale throughout the grace window.
+				fresh, loadErr := a.store.LoadRun(ctx, tenant, state.Run)
+				if loadErr != nil {
+					return nil, signalRunError(loadErr)
+				}
+				if !a.isRunStale(fresh) {
+					if err := awaitWorkerAcknowledgement(ctx, ack, a.store, tenant, state.Run, signal); err != nil {
+						return nil, signalRunError(err)
+					}
+					return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
+				}
 				if err := a.forceCancelStaleRun(ctx, transitions, tenant, state.Run); err != nil {
 					return nil, signalRunError(err)
 				}
@@ -230,17 +244,24 @@ func (a *Server) forceCancelStaleRun(
 		if loadErr != nil {
 			return loadErr
 		}
-		if current.Status == filament.RunCanceled {
-			return nil
+		if current.Status != filament.RunCanceled {
+			return fmt.Errorf("%w: run reached %v before cancel", runcommands.ErrSignalTransition, current.Status)
 		}
-		return fmt.Errorf("%w: run reached %v before cancel", runcommands.ErrSignalTransition, current.Status)
-	}
-	if err != nil {
+		// Already RunCanceled (e.g. retry after a transient publish failure):
+		// fall through to repair run.canceled publication.
+	} else if err != nil {
 		return err
 	}
-	_ = events.Emit(ctx, a.bus, events.RunCanceled,
+	if pubErr := events.Emit(ctx, a.bus, events.RunCanceled,
 		events.Envelope{Tenant: tenant, Run: run, At: time.Now()},
-		events.RunCanceledEvent{})
+		events.RunCanceledEvent{}); pubErr != nil {
+		if a.log != nil {
+			a.log.Error("stale run cancel event publish failed", pubErr,
+				filament.Field{Key: "event.name", Value: "server.run_canceled.publish_failed"},
+				filament.Field{Key: "run_id", Value: string(run)})
+		}
+		return fmt.Errorf("%w: %v", runcommands.ErrSignalPublish, pubErr)
+	}
 	return nil
 }
 

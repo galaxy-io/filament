@@ -258,3 +258,69 @@ func TestSignalRunCancelsStaleDeadWorkerRun(t *testing.T) {
 		}
 	}
 }
+
+type fakeContinuousStore struct {
+	filament.ContinuousRunStore
+	base  filament.DataStore
+	state filament.StreamState
+}
+
+func (f *fakeContinuousStore) LoadRun(ctx context.Context, tenant filament.TenantID, id filament.RunID) (filament.RunState, error) {
+	return f.base.LoadRun(ctx, tenant, id)
+}
+
+func (f *fakeContinuousStore) LoadStreamState(_ context.Context, _ filament.StreamStateRequest) (filament.StreamState, error) {
+	return f.state, nil
+}
+
+func (f *fakeContinuousStore) SetDesiredState(_ context.Context, ch filament.DesiredStateChange) error {
+	f.state.Desired = ch.Desired
+	f.state.Revision++
+	return nil
+}
+
+func (f *fakeContinuousStore) StreamProgress(_ context.Context, _ filament.TenantID, _ filament.RunID) (int64, int64, time.Time, error) {
+	return 0, 0, time.Time{}, nil
+}
+
+func TestSignalRunCancelsContinuousRun(t *testing.T) {
+	ctx := identity.WithTenant(context.Background(), "tenant-1")
+	base := sqlite.NewMemory()
+	streamRef := filament.StreamRef{ID: "stream-1", Generation: 1}
+	runState := filament.RunState{
+		Run:    "run-cont-stale",
+		Tenant: "tenant-1",
+		Status: filament.RunRunning,
+		Request: filament.RunRequest{
+			PipelineID:        "pipe-cont",
+			CheckpointRoute:   "route-1",
+			ReplicationStream: &streamRef,
+			Options:           filament.RunOptions{Execution: filament.ExecutionContinuous},
+		},
+	}
+	if err := base.SaveRun(ctx, runState); err != nil {
+		t.Fatal(err)
+	}
+	cs := &fakeContinuousStore{
+		base: base,
+		state: filament.StreamState{
+			Run:      "run-cont-stale",
+			Revision: 1,
+			Desired:  filament.StreamEnabled,
+		},
+	}
+	api := &Server{store: cs, bus: inproc.New()}
+	resp, err := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{
+		RunId:  "run-cont-stale",
+		Signal: ingestionv1.RunSignal_RUN_SIGNAL_CANCEL,
+	}))
+	if err != nil {
+		t.Fatalf("SignalRun cancel continuous run: %v", err)
+	}
+	if cs.state.Desired != filament.StreamStopped {
+		t.Fatalf("continuous desired state = %v, want StreamStopped", cs.state.Desired)
+	}
+	if resp.Msg.GetExecutionStatus().GetDesiredState() != ingestionv1.ExecutionDesiredState_EXECUTION_DESIRED_STATE_STOPPED {
+		t.Fatalf("response desired state = %v, want STOPPED", resp.Msg.GetExecutionStatus().GetDesiredState())
+	}
+}

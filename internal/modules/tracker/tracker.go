@@ -332,9 +332,16 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return m.applyBatchWritten(ctx, env, d)
 
 	case events.HeartbeatEvent:
+		// Ignore late heartbeats after a run has already reached a terminal state.
+		if cur, err := m.ds.LoadRun(ctx, env.Tenant, env.Run); err == nil && isTerminalRunStatus(cur.Status) {
+			return nil
+		}
 		// Usage counters are cumulative (CPU) or high-water (memory), so max
 		// keeps the fold idempotent under redelivery and reordering.
 		return m.mutate(ctx, env, func(r *filament.RunState) {
+			if isTerminalRunStatus(r.Status) {
+				return
+			}
 			r.CPUSeconds = max(r.CPUSeconds, d.CPUSeconds)
 			r.MemoryPeakBytes = max(r.MemoryPeakBytes, d.MemoryPeakBytes, d.MemoryBytes)
 		})
@@ -353,7 +360,14 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	}
 }
 
+func isTerminalRunStatus(s filament.RunStatus) bool {
+	return s == filament.RunCompleted || s == filament.RunFailed || s == filament.RunCanceled
+}
+
 func (m *Module) applyBatchWritten(ctx context.Context, env events.Envelope, d events.BatchWrittenEvent) error {
+	if cur, err := m.ds.LoadRun(ctx, env.Tenant, env.Run); err == nil && isTerminalRunStatus(cur.Status) {
+		return nil
+	}
 	m.rememberBoundary(env, d.CheckpointPolicy)
 	// Incremental progress: accumulate per-resource and run totals as chunks
 	// land, so observers see counts climb before the run finishes.
@@ -496,6 +510,9 @@ func (m *Module) uncommittedFailures(run filament.RunID, failed []string) map[st
 
 // applyCheckpoint persists a cursor fact's checkpoint.
 func (m *Module) applyCheckpoint(ctx context.Context, env events.Envelope, cp *filament.CheckpointData) error {
+	if cur, err := m.ds.LoadRun(ctx, env.Tenant, env.Run); err == nil && isTerminalRunStatus(cur.Status) {
+		return nil
+	}
 	if cp == nil {
 		return nil
 	}

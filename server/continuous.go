@@ -73,10 +73,10 @@ func (a *Server) signalContinuous(ctx context.Context, r filament.RunState, req 
 		desired = filament.StreamPaused
 	case ingestionv1.RunSignal_RUN_SIGNAL_RESUME:
 		desired = filament.StreamEnabled
-	case ingestionv1.RunSignal_RUN_SIGNAL_STOP:
+	case ingestionv1.RunSignal_RUN_SIGNAL_STOP, ingestionv1.RunSignal_RUN_SIGNAL_CANCEL:
 		desired = filament.StreamStopped
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("continuous execution supports pause, resume and stop"))
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("continuous execution supports pause, resume, stop and cancel"))
 	}
 	if req.ExpectedRevision != nil && *req.ExpectedRevision != state.Revision {
 		return nil, connect.NewError(connect.CodeAborted, filament.ErrVersionConflict)

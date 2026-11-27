@@ -126,6 +126,9 @@ func (m *Module) advance(ctx context.Context, tenant filament.TenantID, run fila
 // so a tracker restart can drop them; the run's terminal fact carries the
 // engine's totals and corrects the stored ones.
 func (m *Module) foldBatch(ctx context.Context, env events.Envelope, seq uint64, d events.BatchWrittenEvent) error {
+	if cur, err := m.ds.LoadRun(ctx, env.Tenant, env.Run); err == nil && isTerminalRunStatus(cur.Status) {
+		return nil
+	}
 	f := m.fold(runKey{env.Tenant, env.Run})
 	next := f.pending.plus(env, seq, d)
 	var dedupErr error
