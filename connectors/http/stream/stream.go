@@ -23,7 +23,9 @@
 package stream
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -35,6 +37,26 @@ import (
 // EmitFunc is invoked for each parsed record. Returning an error aborts the
 // stream and surfaces from Reader.Read.
 type EmitFunc func(record map[string]any) error
+
+// decodeRecord decodes one JSON object the way the buffered paths do, with
+// UseNumber, so an integer id above float64's exact range (2^53) survives as
+// its exact digits instead of a rounded float64. Anything after the object is
+// an error, matching json.Unmarshal.
+func decodeRecord(data []byte) (map[string]any, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber()
+	var record map[string]any
+	if err := dec.Decode(&record); err != nil {
+		return nil, err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("unexpected data after JSON object")
+		}
+		return nil, err
+	}
+	return record, nil
+}
 
 // Reader consumes a streaming response body and emits decoded records.
 // Implementations must respect ctx cancellation.

@@ -55,8 +55,8 @@ func (r *chunkedArrayReader) Read(ctx context.Context, body io.Reader, emit Emit
 				"size", len(raw), "max", r.maxElementBytes)
 			continue
 		}
-		var record map[string]any
-		if err := json.Unmarshal(raw, &record); err != nil {
+		record, err := decodeRecord(raw)
+		if err != nil {
 			return fmt.Errorf("chunked_array: unmarshal element: %w", err)
 		}
 		if err := emit(record); err != nil {
