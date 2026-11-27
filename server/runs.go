@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -151,127 +149,11 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 		if ack == nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("worker acknowledgement subscription is missing"))
 		}
-		if signal == filament.SignalCancel && a.isRunStale(state) {
-			graceCtx, cancelGrace := context.WithTimeout(ctx, a.cancelGrace())
-			ackErr := awaitWorkerSignalFact(graceCtx, ack, signal)
-			cancelGrace()
-			if ackErr == nil {
-				if err := awaitRunStatus(ctx, a.store, tenant, state.Run, filament.RunCanceled); err != nil {
-					return nil, signalRunError(err)
-				}
-				return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
-			}
-			if errors.Is(ackErr, context.DeadlineExceeded) && ctx.Err() == nil {
-				// Re-load the run before forcing cancellation: a live worker blocked
-				// in a slow sink write still emits background liveness heartbeats or
-				// batch flushes that refresh UpdatedAt. Only force-cancel if the run
-				// remained stale throughout the grace window.
-				fresh, loadErr := a.store.LoadRun(ctx, tenant, state.Run)
-				if loadErr != nil {
-					return nil, signalRunError(loadErr)
-				}
-				if fresh.Status == filament.RunCanceled {
-					return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
-				}
-				if runStatusTerminal(fresh.Status) {
-					return nil, signalRunError(fmt.Errorf("%w: run reached %v before cancel", runcommands.ErrSignalTransition, fresh.Status))
-				}
-				if !a.isRunStale(fresh) {
-					if err := awaitWorkerAcknowledgement(ctx, ack, a.store, tenant, state.Run, signal); err != nil {
-						return nil, signalRunError(err)
-					}
-					return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
-				}
-				if err := a.forceCancelStaleRun(ctx, transitions, tenant, state.Run); err != nil {
-					return nil, signalRunError(err)
-				}
-				return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
-			}
-			return nil, signalRunError(ackErr)
-		}
 		if err := awaitWorkerAcknowledgement(ctx, ack, a.store, tenant, state.Run, signal); err != nil {
 			return nil, signalRunError(err)
 		}
 	}
 	return connect.NewResponse(&ingestionv1.SignalRunResponse{}), nil
-}
-
-const (
-	defaultStaleRunAfter    = 5 * time.Minute
-	defaultStaleCancelGrace = 2 * time.Second
-)
-
-func (a *Server) staleThreshold() time.Duration {
-	if a.staleRunAfter > 0 {
-		return a.staleRunAfter
-	}
-	if v := os.Getenv("REAPER_STALE_AFTER_SECONDS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return time.Duration(n) * time.Second
-		}
-	}
-	return defaultStaleRunAfter
-}
-
-func (a *Server) cancelGrace() time.Duration {
-	if a.staleCancelGrace > 0 {
-		return a.staleCancelGrace
-	}
-	return defaultStaleCancelGrace
-}
-
-func (a *Server) isRunStale(state filament.RunState) bool {
-	ref := state.UpdatedAt
-	if ref.IsZero() {
-		ref = state.StartedAt
-	}
-	if ref.IsZero() {
-		return false
-	}
-	return time.Since(ref) >= a.staleThreshold()
-}
-
-// forceCancelStaleRun transitions an unresponsive stale Running run directly
-// to RunCanceled and publishes run.canceled so any attached observer unblocks
-// and the active replication route is released.
-func (a *Server) forceCancelStaleRun(
-	ctx context.Context,
-	transitions filament.RunTransitionStore,
-	tenant filament.TenantID,
-	run filament.RunID,
-) error {
-	_, err := transitions.TransitionRun(
-		ctx,
-		tenant,
-		run,
-		[]filament.RunStatus{filament.RunRunning},
-		filament.RunCanceled,
-		filament.RunTransitionOptions{Ended: true},
-	)
-	if errors.Is(err, filament.ErrVersionConflict) {
-		current, loadErr := a.store.LoadRun(ctx, tenant, run)
-		if loadErr != nil {
-			return loadErr
-		}
-		if current.Status != filament.RunCanceled {
-			return fmt.Errorf("%w: run reached %v before cancel", runcommands.ErrSignalTransition, current.Status)
-		}
-		// Already RunCanceled (e.g. retry after a transient publish failure):
-		// fall through to repair run.canceled publication.
-	} else if err != nil {
-		return err
-	}
-	if pubErr := events.Emit(ctx, a.bus, events.RunCanceled,
-		events.Envelope{Tenant: tenant, Run: run, At: time.Now()},
-		events.RunCanceledEvent{}); pubErr != nil {
-		if a.log != nil {
-			a.log.Error("stale run cancel event publish failed", pubErr,
-				filament.Field{Key: "event.name", Value: "server.run_canceled.publish_failed"},
-				filament.Field{Key: "run_id", Value: string(run)})
-		}
-		return fmt.Errorf("%w: %v", runcommands.ErrSignalPublish, pubErr)
-	}
-	return nil
 }
 
 func awaitWorkerAcknowledgement(
@@ -282,24 +164,11 @@ func awaitWorkerAcknowledgement(
 	run filament.RunID,
 	signal filament.Signal,
 ) error {
+	want := events.RunPaused.Name()
 	wantStatus := filament.RunPaused
 	if signal == filament.SignalCancel {
-		wantStatus = filament.RunCanceled
-	}
-	if err := awaitWorkerSignalFact(ctx, sub, signal); err != nil {
-		return err
-	}
-	return awaitRunStatus(ctx, store, tenant, run, wantStatus)
-}
-
-func awaitWorkerSignalFact(
-	ctx context.Context,
-	sub eventbus.Subscription,
-	signal filament.Signal,
-) error {
-	want := events.RunPaused.Name()
-	if signal == filament.SignalCancel {
 		want = events.RunCanceled.Name()
+		wantStatus = filament.RunCanceled
 	}
 	for {
 		select {
@@ -315,7 +184,7 @@ func awaitWorkerSignalFact(
 				continue
 			}
 			if fact.Name == want {
-				return nil
+				return awaitRunStatus(ctx, store, tenant, run, wantStatus)
 			}
 			switch fact.Data.(type) {
 			case events.RunCompletedEvent, events.RunFailedEvent, events.RunPartialEvent,

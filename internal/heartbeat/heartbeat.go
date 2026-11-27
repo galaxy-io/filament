@@ -8,7 +8,6 @@ import (
 	"context"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/galaxy-io/filament"
@@ -18,41 +17,6 @@ import (
 )
 
 const defaultHeartbeatSeconds = 30
-
-var (
-	processCPUMu   sync.Mutex
-	processLastCPU float64
-	processCPUInit bool
-)
-
-// recordProcessCPUDelta returns the non-negative process-wide CPU delta since
-// the previous sample across all emitters in this process, preventing multi-run
-// worker processes from re-adding cumulative cgroup CPU from earlier runs.
-func recordProcessCPUDelta(sampleCPU float64) float64 {
-	processCPUMu.Lock()
-	defer processCPUMu.Unlock()
-	if !processCPUInit {
-		processCPUInit = true
-		// First sample in the process: in one-shot pod mode process start was 0;
-		// in long-lived mode subsequent ticks add strictly incremental deltas.
-		delta := max(0, sampleCPU-processLastCPU)
-		processLastCPU = sampleCPU
-		return delta
-	}
-	delta := max(0, sampleCPU-processLastCPU)
-	if sampleCPU > processLastCPU {
-		processLastCPU = sampleCPU
-	}
-	return delta
-}
-
-// resetProcessCPUForTest resets process-wide CPU tracking in unit tests.
-func resetProcessCPUForTest() {
-	processCPUMu.Lock()
-	processLastCPU = 0
-	processCPUInit = false
-	processCPUMu.Unlock()
-}
 
 // Emitter publishes periodic run.heartbeat facts for one active run.
 type Emitter struct {
@@ -64,7 +28,7 @@ type Emitter struct {
 	pipeline string
 
 	readUsage func() (usage.Sample, bool)
-	baseCPU   float64
+	lastCPU   float64
 }
 
 // New constructs a heartbeat emitter for the given run.
@@ -105,22 +69,6 @@ func (h *Emitter) Start(ctx context.Context, every time.Duration) (stop func()) 
 	if h == nil || h.bus == nil || every <= 0 {
 		return func() {}
 	}
-	read := h.readUsage
-	if read == nil {
-		read = usage.Read
-	}
-	if s, ok := read(); ok {
-		h.baseCPU = s.CPUSeconds
-		// Prime process baseline if not yet initialized so long-lived worker idle
-		// startup CPU is recorded once rather than per run.
-		processCPUMu.Lock()
-		if !processCPUInit {
-			processCPUInit = true
-			processLastCPU = s.CPUSeconds
-		}
-		processCPUMu.Unlock()
-	}
-
 	done := make(chan struct{})
 	finished := make(chan struct{})
 	go func() {
@@ -159,7 +107,7 @@ func (h *Emitter) beat(ctx context.Context, livenessTick bool) {
 	var ev events.HeartbeatEvent
 	if ok {
 		ev = events.HeartbeatEvent{
-			CPUSeconds:      max(0, s.CPUSeconds-h.baseCPU),
+			CPUSeconds:      s.CPUSeconds,
 			MemoryBytes:     s.MemoryBytes,
 			MemoryPeakBytes: s.MemoryPeakBytes,
 		}
@@ -185,8 +133,9 @@ func (h *Emitter) beat(ctx context.Context, livenessTick bool) {
 		{Key: "tenant", Value: string(h.tenant)},
 		{Key: "pipeline", Value: h.pipeline},
 	}
-	if delta := recordProcessCPUDelta(s.CPUSeconds); delta > 0 {
+	if delta := s.CPUSeconds - h.lastCPU; delta > 0 {
 		h.mx.Counter("filament_worker_cpu_seconds_total", labels...).Add(delta)
 	}
+	h.lastCPU = s.CPUSeconds
 	h.mx.Gauge("filament_worker_memory_bytes", labels...).Set(float64(s.MemoryBytes))
 }

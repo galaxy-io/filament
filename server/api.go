@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"connectrpc.com/connect"
 
@@ -39,10 +38,8 @@ type Server struct {
 	alchemy   *alchemy.Client
 	runtimes  runtimeCache
 	// defaultTenant scopes every request when identity is disabled.
-	defaultTenant    filament.TenantID
-	log              filament.Logger
-	staleRunAfter    time.Duration
-	staleCancelGrace time.Duration
+	defaultTenant filament.TenantID
+	log           filament.Logger
 }
 
 // Option configures a Server.
