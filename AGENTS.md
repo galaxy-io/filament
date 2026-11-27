@@ -56,7 +56,7 @@ Configuration is explicit environment variables, one per value, read in `cmd/int
 
 - Local defaults match `docker-compose.yaml` and are set inside the `just server` and `just control-plane` recipes. `just infra` starts Postgres and NATS, and `just infra zitadel|keycloak` adds an identity provider.
 - Health is `/livez`, `/startupz` and `/readyz` from `cmd/internal/health`. The server listens on `SERVER_ADDR` and the control plane's health server on `HEALTH_ADDR`.
-- OTel export is off unless an `OTEL_EXPORTER_OTLP_*` endpoint is set. Each module registers its own instruments, and metric names start with `filament_`.
+- OTel export is off unless an `OTEL_EXPORTER_OTLP_*` endpoint is set. Every metric is declared once in `telemetry/catalog.go` with the event that records it, with a UCUM unit. Names follow OTel style (`filament.<thing>[.<qualifier>]`, no unit or `_total` suffix), and attribute keys use a semantic-convention key such as `error.type` where one exists, else `filament.*`. `cmd/internal/otel` binds them to OTel instruments at boot. A new metric also needs a row in `docs/pages/guides/deployment/metrics.mdx`.
 - Images are built from `cmd/*/Dockerfile` with `CGO_ENABLED=0` by `just binaries` and `just images`.
 
 ## Repository

@@ -18,6 +18,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/cmd/internal/health"
 	"github.com/galaxy-io/filament/server"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/webhooks"
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
@@ -60,7 +61,7 @@ func (w *webhookReceiver) listen(ctx context.Context, api *server.Server, health
 // webhooksFromEnv provisions the durable inbox only when explicitly
 // enabled. Deliveries are authenticated by their signature, not by Connect
 // user authentication.
-func webhooksFromEnv(ctx context.Context, store any, secrets filament.Secrets, metrics filament.Metrics) (*webhookReceiver, func(), error) {
+func webhooksFromEnv(ctx context.Context, store any, secrets filament.Secrets, metrics *telemetry.Set) (*webhookReceiver, func(), error) {
 	enabled, err := parseWebhookEnabled(os.Getenv("WEBHOOKS_ENABLED"))
 	if err != nil || !enabled {
 		return nil, nil, err

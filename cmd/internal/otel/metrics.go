@@ -2,92 +2,91 @@ package otel
 
 import (
 	"context"
-	"math"
-	"sync/atomic"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	noopmetric "go.opentelemetry.io/otel/metric/noop"
 
-	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
-type metrics struct{ m metric.Meter }
+// backend makes one OTel instrument per declared metric. Instrument creation
+// fails only on invalid names; the miss falls back to otel's noop so the
+// returned instrument is always callable.
+type backend struct{ m metric.Meter }
 
-var _ filament.Metrics = metrics{}
+var _ telemetry.Backend = backend{}
 
-// Instrument creation fails only on invalid names; the miss falls back to
-// otel's noop so the returned instrument is always callable.
-
-func (x metrics) Counter(name string, labels ...filament.Label) filament.Counter {
-	c, err := x.m.Float64Counter(name)
+func (b backend) Counter(d telemetry.Desc) telemetry.Counter {
+	c, err := b.m.Float64Counter(d.Name, metric.WithDescription(d.Help), metric.WithUnit(d.Unit))
 	if err != nil {
-		c, _ = noopmetric.Meter{}.Float64Counter(name)
+		c, _ = noopmetric.Meter{}.Float64Counter(d.Name)
 	}
-	return counter{c: c, opt: attrs(labels)}
+	return counter{c: c, keys: d.Attributes}
 }
 
-func (x metrics) Gauge(name string, labels ...filament.Label) filament.Gauge {
-	g, err := x.m.Float64Gauge(name)
-	if err != nil {
-		g, _ = noopmetric.Meter{}.Float64Gauge(name)
+func (b backend) Histogram(d telemetry.Desc) telemetry.Histogram {
+	opts := []metric.Float64HistogramOption{metric.WithDescription(d.Help), metric.WithUnit(d.Unit)}
+	if len(d.Buckets) > 0 {
+		opts = append(opts, metric.WithExplicitBucketBoundaries(d.Buckets...))
 	}
-	return &gauge{g: g, opt: attrs(labels)}
+	h, err := b.m.Float64Histogram(d.Name, opts...)
+	if err != nil {
+		h, _ = noopmetric.Meter{}.Float64Histogram(d.Name)
+	}
+	return histogram{h: h, keys: d.Attributes}
 }
 
-func (x metrics) Histogram(name string, labels ...filament.Label) filament.Histogram {
-	h, err := x.m.Float64Histogram(name)
+func (b backend) Gauge(d telemetry.Desc) telemetry.Gauge {
+	g, err := b.m.Float64Gauge(d.Name, metric.WithDescription(d.Help), metric.WithUnit(d.Unit))
 	if err != nil {
-		h, _ = noopmetric.Meter{}.Float64Histogram(name)
+		g, _ = noopmetric.Meter{}.Float64Gauge(d.Name)
 	}
-	return histogram{h: h, opt: attrs(labels)}
+	return gauge{g: g, keys: d.Attributes}
 }
 
-func attrs(labels []filament.Label) metric.MeasurementOption {
-	kvs := make([]attribute.KeyValue, len(labels))
-	for i, l := range labels {
-		kvs[i] = attribute.String(l.Key, l.Value)
+type counter struct {
+	c    metric.Float64Counter
+	keys []string
+}
+
+func (c counter) Add(ctx context.Context, v float64, values ...string) {
+	c.c.Add(ctx, v, attrs(c.keys, values))
+}
+
+type histogram struct {
+	h    metric.Float64Histogram
+	keys []string
+}
+
+func (h histogram) Observe(ctx context.Context, v float64, values ...string) {
+	h.h.Record(ctx, v, attrs(h.keys, values))
+}
+
+type gauge struct {
+	g    metric.Float64Gauge
+	keys []string
+}
+
+func (g gauge) Set(ctx context.Context, v float64, values ...string) {
+	g.g.Record(ctx, v, attrs(g.keys, values))
+}
+
+// attrs pairs a metric's attribute keys with one measurement's values. A
+// value with no key, a key with no value, or an empty value is left out.
+func attrs(keys, values []string) metric.MeasurementOption {
+	n := min(len(keys), len(values))
+	kvs := make([]attribute.KeyValue, 0, n)
+	for i := range n {
+		if values[i] != "" {
+			kvs = append(kvs, attribute.String(keys[i], values[i]))
+		}
+	}
+	if len(kvs) == 0 {
+		return unattributed
 	}
 	return metric.WithAttributeSet(attribute.NewSet(kvs...))
 }
 
-type counter struct {
-	c   metric.Float64Counter
-	opt metric.MeasurementOption
-}
-
-func (c counter) Inc()          { c.c.Add(context.Background(), 1, c.opt) }
-func (c counter) Add(v float64) { c.c.Add(context.Background(), v, c.opt) }
-
-// gauge tracks its own value so Inc/Dec can report an absolute measurement.
-type gauge struct {
-	g   metric.Float64Gauge
-	opt metric.MeasurementOption
-	val atomic.Uint64 // float64 bits
-}
-
-func (g *gauge) Set(v float64) {
-	g.val.Store(math.Float64bits(v))
-	g.g.Record(context.Background(), v, g.opt)
-}
-
-func (g *gauge) Inc() { g.add(1) }
-func (g *gauge) Dec() { g.add(-1) }
-
-func (g *gauge) add(d float64) {
-	for {
-		old := g.val.Load()
-		v := math.Float64frombits(old) + d
-		if g.val.CompareAndSwap(old, math.Float64bits(v)) {
-			g.g.Record(context.Background(), v, g.opt)
-			return
-		}
-	}
-}
-
-type histogram struct {
-	h   metric.Float64Histogram
-	opt metric.MeasurementOption
-}
-
-func (h histogram) Observe(v float64) { h.h.Record(context.Background(), v, h.opt) }
+// unattributed is the option of a measurement with no attributes.
+var unattributed = metric.WithAttributeSet(*attribute.EmptySet())

@@ -157,6 +157,8 @@ func eventFieldsToProto(data any) *ingestionv1.RunEventFields {
 		fields.Error = d.Error
 	case events.BatchBufferedEvent:
 		fields.Records, fields.Bytes = d.Records, d.Bytes
+	case events.BatchRejectedEvent:
+		fields.Records = d.Records
 	case events.BatchWrittenEvent:
 		fields.Records, fields.Bytes, fields.Uri, fields.Crc = d.Records, d.Bytes, d.URI, d.CRC
 		fields.Checkpoint = checkpointToProto(d.Checkpoint)

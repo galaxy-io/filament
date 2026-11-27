@@ -233,6 +233,7 @@
         "pages": [
           "pages/guides/deployment/overview",
           "pages/guides/deployment/configuration",
+          "pages/guides/deployment/metrics",
           "pages/guides/deployment/kubernetes",
           "pages/guides/deployment/railway",
           "pages/guides/deployment/render",

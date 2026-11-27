@@ -126,3 +126,11 @@ app.kubernetes.io/component: server
 {{- define "filament.webhook.fullname" -}}
 {{- printf "%s-webhook" (include "filament.fullname" .) | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{- define "filament.otelResourceAttributes" -}}
+{{- $pairs := list -}}
+{{- range $key, $value := . -}}
+{{- $pairs = append $pairs (printf "%s=%s" $key $value) -}}
+{{- end -}}
+{{- join "," $pairs -}}
+{{- end -}}

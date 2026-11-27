@@ -21,6 +21,7 @@ import (
 	"github.com/galaxy-io/filament/internal/runs"
 	scheduledomain "github.com/galaxy-io/filament/internal/schedule"
 	"github.com/galaxy-io/filament/module"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // defaultInterval is how often the timer claims due schedules.
@@ -32,7 +33,7 @@ type Module struct {
 	bus      eventbus.Bus
 	ds       filament.DataStore
 	log      filament.Logger
-	mx       filament.Metrics
+	mx       *telemetry.Set
 	interval time.Duration
 	compiler *compile.Compiler
 }
@@ -63,13 +64,14 @@ func (m *Module) Name() string { return "scheduler" }
 func (m *Module) Subscriptions() []host.Subscription { return nil }
 
 // Mount captures the providers this module uses. Cheap, no I/O.
-func (m *Module) Mount(_ context.Context, d module.Deps) error {
+func (m *Module) Mount(ctx context.Context, d module.Deps) error {
 	m.bus = d.Bus
 	m.ds = d.DataStore
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "scheduler"})
 	}
 	m.mx = d.Metrics
+	m.mx.Started(ctx, telemetry.Scheduler)
 	m.compiler = &compile.Compiler{Store: d.DataStore, Worker: d.Worker}
 	return nil
 }
@@ -85,9 +87,7 @@ func (m *Module) Start(ctx context.Context) {
 				return
 			case now := <-ticker.C:
 				if _, err := m.runDue(ctx, now); err != nil {
-					if m.mx != nil {
-						m.mx.Counter("filament_schedule_tick_failures_total").Inc()
-					}
+					m.mx.ScheduleTickFailed(ctx)
 					if m.log != nil {
 						m.log.Error("scheduler tick failed", err,
 							filament.Field{Key: "event.name", Value: "scheduler.tick.failed"})
@@ -132,9 +132,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 				continue
 			}
 			if active {
-				if m.mx != nil {
-					m.mx.Counter("filament_schedule_overlap_skips_total").Inc()
-				}
+				m.mx.ScheduleOverlapSkipped(ctx)
 				occurrence := ""
 				if st.NextFire != nil {
 					occurrence = st.NextFire.UTC().Format(time.RFC3339Nano)
@@ -159,9 +157,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 		runID, err := m.fire(ctx, st, occurrence)
 		if err != nil {
 			failed++
-			if m.mx != nil {
-				m.mx.Counter("filament_schedule_submit_failures_total").Inc()
-			}
+			m.mx.ScheduleSubmitFailed(ctx)
 			errs = append(errs, fmt.Errorf("submit schedule %q: %w", st.ID, err))
 			if err := m.store.ReleaseScheduleClaim(ctx, st.Spec.Tenant, st.ID); err != nil {
 				errs = append(errs, fmt.Errorf("release claim %q: %w", st.ID, err))
@@ -192,9 +188,7 @@ func (m *Module) runDue(ctx context.Context, now time.Time) (int, error) {
 				filament.Field{Key: "schedule_id", Value: string(st.ID)},
 				filament.Field{Key: "run_id", Value: string(runID)})
 		}
-		if m.mx != nil {
-			m.mx.Counter("filament_schedule_fires_total").Inc()
-		}
+		m.mx.ScheduleFired(ctx)
 		fired++
 		if m.log != nil {
 			m.log.Info("scheduled occurrence fired",
@@ -271,9 +265,7 @@ func (m *Module) advance(ctx context.Context, st filament.ScheduleState, now tim
 // persistently failing reconcile.
 func (m *Module) reconcileScheduledRuns(ctx context.Context, st filament.ScheduleState) {
 	if err := runs.ReconcileScheduled(ctx, m.ds, m.compiler, st); err != nil {
-		if m.mx != nil {
-			m.mx.Counter("filament_schedule_reconcile_failures_total").Inc()
-		}
+		m.mx.ScheduleReconcileFailed(ctx)
 		if m.log != nil {
 			m.log.Error("scheduled run reconciliation failed", err,
 				filament.Field{Key: "event.name", Value: "schedule.reconcile.failed"},

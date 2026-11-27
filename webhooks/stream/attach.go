@@ -11,6 +11,7 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/registry"
 	"github.com/galaxy-io/filament/streamkit"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/webhooks"
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
@@ -38,7 +39,7 @@ func Shared(i *inbox.Inbox) Attacher {
 // supplies the attacher and the process metrics, so a connector never reads
 // process configuration.
 type InboxReader interface {
-	SetWebhookInbox(Attacher, filament.Metrics)
+	SetWebhookInbox(Attacher, *telemetry.Set)
 }
 
 // Sources gives Attach and Metrics to every resolved source that reads the
@@ -46,7 +47,7 @@ type InboxReader interface {
 type Sources struct {
 	filament.SourceRegistry
 	Attach  Attacher
-	Metrics filament.Metrics
+	Metrics *telemetry.Set
 }
 
 // Resolve returns a fresh source, attached when it reads the inbox.
@@ -65,14 +66,14 @@ func (s Sources) Resolve(name string) (filament.Source, error) {
 // InboxReader. It attaches on first use and Close releases the attachment.
 type Link struct {
 	attach  Attacher
-	metrics filament.Metrics
+	metrics *telemetry.Set
 	inbox   *inbox.Inbox
 	close   func()
 }
 
 // SetWebhookInbox sets how the source attaches and where it counts rejected
 // deliveries. It implements InboxReader.
-func (l *Link) SetWebhookInbox(a Attacher, m filament.Metrics) { l.attach, l.metrics = a, m }
+func (l *Link) SetWebhookInbox(a Attacher, m *telemetry.Set) { l.attach, l.metrics = a, m }
 
 // Reject records a delivery the connector cannot turn into rows. The session
 // skips it: its sequence still counts toward coverage, so one malformed body
@@ -83,10 +84,7 @@ func (l *Link) Reject(ctx context.Context, d Delivery, err error) {
 		"event.name", "webhook.delivery.rejected",
 		"source_connection_id", d.Endpoint, "resource", d.Resource,
 		"delivery_id", d.ID, "error", err)
-	if l.metrics != nil {
-		l.metrics.Counter("filament_webhook_rejected_deliveries_total",
-			filament.Label{Key: "resource", Value: d.Resource}).Inc()
-	}
+	l.metrics.WebhookDeliveryRejected(ctx, d.Resource)
 }
 
 // Inbox attaches once and returns the inbox.

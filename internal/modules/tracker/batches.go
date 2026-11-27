@@ -149,7 +149,7 @@ func (m *Module) foldBatch(ctx context.Context, env events.Envelope, seq uint64,
 			return err
 		}
 		if err := m.saveCheckpoint(ctx, env.Tenant, env.Run, cp); err != nil {
-			m.observeCheckpointFailure()
+			m.observeCheckpointFailure(ctx)
 			if m.log != nil {
 				m.log.Error("checkpoint persistence failed", err,
 					filament.Field{Key: "event.name", Value: "tracker.checkpoint.persist_failed"},
@@ -202,7 +202,7 @@ func (m *Module) saveTotals(ctx context.Context, f *runFold, t batchTotals) erro
 	f.flushedAt = m.clock()
 	for _, name := range t.order {
 		rt := t.resources[name]
-		m.observeBatch(events.Envelope{Resource: name}, pipeline, rt.records, rt.bytes)
+		m.observeBatch(ctx, events.Envelope{Resource: name}, pipeline, rt.records, rt.bytes)
 	}
 	return nil
 }

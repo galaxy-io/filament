@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/webhooks/inbox"
 	"github.com/galaxy-io/filament/webhooks/stream"
 )
@@ -146,32 +147,12 @@ func TestWebhookDeliveriesProjectLikeResponses(t *testing.T) {
 	}
 }
 
-type countingMetrics struct{ counts map[string]float64 }
-
-func (m *countingMetrics) Counter(name string, labels ...filament.Label) filament.Counter {
-	key := name
-	for _, l := range labels {
-		key += "," + l.Key + "=" + l.Value
-	}
-	return countingCounter{m, key}
-}
-func (m *countingMetrics) Gauge(string, ...filament.Label) filament.Gauge         { return nil }
-func (m *countingMetrics) Histogram(string, ...filament.Label) filament.Histogram { return nil }
-
-type countingCounter struct {
-	m   *countingMetrics
-	key string
-}
-
-func (c countingCounter) Inc()          { c.m.counts[c.key]++ }
-func (c countingCounter) Add(v float64) { c.m.counts[c.key] += v }
-
 // A delivery that does not decode as its resource is rejected and counted,
 // whole, and the deliveries after it are still written.
 func TestWebhookUndecodableDeliveriesAreSkipped(t *testing.T) {
 	src := configuredWebhookSource(t, filament.IngestionBoth)
-	metrics := &countingMetrics{counts: map[string]float64{}}
-	src.SetWebhookInbox(nil, metrics)
+	counted := &countingBackend{counts: map[string]float64{}}
+	src.SetWebhookInbox(nil, telemetry.New(counted))
 	sink := &collectSink{}
 	rows := newRowSink(context.Background(), src, sink)
 	err := src.writeDeliveries(context.Background(), rows, []stream.Delivery{
@@ -188,20 +169,40 @@ func TestWebhookUndecodableDeliveriesAreSkipped(t *testing.T) {
 	if len(sink.records) != 1 || sink.records[0].ID != "u3" {
 		t.Fatalf("rows = %+v, want only u3", sink.records)
 	}
-	want := map[string]float64{
-		"filament_webhook_rejected_deliveries_total,resource=events":         1,
-		"filament_webhook_rejected_deliveries_total,resource=events_webhook": 1,
-		"filament_webhook_rejected_deliveries_total,resource=batch_webhook":  1,
+	const rejected = "filament.webhook.rejections"
+	resources := []string{"events", "events_webhook", "batch_webhook"}
+	if len(counted.counts) != len(resources) {
+		t.Fatalf("counts = %v, want one per resource in %v", counted.counts, resources)
 	}
-	if len(metrics.counts) != len(want) {
-		t.Fatalf("counts = %v, want %v", metrics.counts, want)
-	}
-	for key, n := range want {
-		if metrics.counts[key] != n {
-			t.Fatalf("counts = %v, want %v", metrics.counts, want)
+	for _, resource := range resources {
+		if got := counted.counts[rejected+","+resource]; got != 1 {
+			t.Fatalf("%s for %s = %v, want 1", rejected, resource, got)
 		}
 	}
 }
+
+// countingBackend counts what counters are told, by metric name and attribute values.
+type countingBackend struct{ counts map[string]float64 }
+
+func (b *countingBackend) Counter(d telemetry.Desc) telemetry.Counter {
+	return countingCounter{b, d.Name}
+}
+func (*countingBackend) Histogram(telemetry.Desc) telemetry.Histogram { return discarded{} }
+func (*countingBackend) Gauge(telemetry.Desc) telemetry.Gauge         { return discarded{} }
+
+type countingCounter struct {
+	b    *countingBackend
+	name string
+}
+
+func (c countingCounter) Add(_ context.Context, v float64, values ...string) {
+	c.b.counts[strings.Join(append([]string{c.name}, values...), ",")] += v
+}
+
+type discarded struct{}
+
+func (discarded) Observe(context.Context, float64, ...string) {}
+func (discarded) Set(context.Context, float64, ...string)     {}
 
 // A manifest that only receives webhooks makes no requests, so testing its
 // connection succeeds without a probe. The base URL is unreachable on purpose.

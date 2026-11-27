@@ -15,6 +15,7 @@ import (
 	"github.com/galaxy-io/filament/rowmodel"
 	"github.com/galaxy-io/filament/schema"
 	"github.com/galaxy-io/filament/streamkit"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // DefaultLeaseTTL bounds worker ownership between renewals.
@@ -30,6 +31,7 @@ type ContinuousConfig struct {
 	messageSchemas map[string]schema.MessageLayout
 	Bus            eventbus.Bus
 	Log            filament.Logger
+	Metrics        *telemetry.Set
 	events         *emitter
 	pipelineEvents *continuousPipelineEvents
 	Enabled        bool
@@ -507,6 +509,7 @@ func startContinuousEvents(ctx context.Context, cfg *ContinuousConfig) func(erro
 		return func(error) {}
 	}
 	cfg.events = newEmitter(ctx, cfg.Bus, cfg.Log, cfg.Spec.Tenant, cfg.Spec.Run)
+	cfg.events.measure(cfg.Metrics, cfg.Spec.PipelineID)
 	return func(result error) {
 		defer cfg.events.finish()()
 		cfg.events.schemaBlocked(result)

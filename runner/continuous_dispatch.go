@@ -60,7 +60,7 @@ func ExecuteContinuousAttempt(ctx context.Context, deps Deps, spec filament.RunS
 	if err != nil {
 		return err
 	}
-	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, NewSink: func() (filament.Sink, error) { return deps.Sinks.Resolve(spec.Sink.Connector) }, Codecs: codecs, Boundary: boundary, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
+	cfg := ContinuousConfig{Bus: deps.Bus, Log: deps.Log, Metrics: deps.Metrics, Enabled: true, Spec: spec, Store: store, Source: source, Sink: sink, NewSink: func() (filament.Sink, error) { return deps.Sinks.Resolve(spec.Sink.Connector) }, Codecs: codecs, Boundary: boundary, LeaseTTL: DefaultLeaseTTL, DrainTimeout: DefaultDrainTimeout}
 	if err := validateContinuous(cfg); err != nil {
 		return err
 	}

@@ -13,6 +13,7 @@ import (
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/runner"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 // Module subscribes to run.requested and creates one worker Job per run.
@@ -21,7 +22,7 @@ type Module struct {
 	ds     filament.DataStore
 	client *client
 	log    filament.Logger
-	mx     filament.Metrics
+	mx     *telemetry.Set
 }
 
 // New returns an unmounted k8s dispatcher.
@@ -50,7 +51,7 @@ func (m *Module) Subscriptions() []host.Subscription {
 }
 
 // Mount validates the config and builds the Kubernetes client.
-func (m *Module) Mount(_ context.Context, d module.Deps) error {
+func (m *Module) Mount(ctx context.Context, d module.Deps) error {
 	if d.DataStore == nil {
 		return errors.New("k8sdispatch: datastore is required")
 	}
@@ -66,6 +67,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "dispatch"})
 	}
 	m.mx = d.Metrics
+	m.mx.Started(ctx, telemetry.Dispatcher)
 	m.client = c
 	return nil
 }
@@ -111,17 +113,14 @@ func (m *Module) Dispatch(ctx context.Context, spec filament.RunSpec) (filament.
 	}
 	job, err := m.jobForSpec(spec)
 	if err != nil {
+		m.mx.DispatchFailed(ctx, telemetry.ErrorTypeInvalidSpec)
 		return nil, err
 	}
 	if err := m.client.createJob(ctx, m.cfg.Namespace, job); err != nil {
-		if m.mx != nil {
-			m.mx.Counter("filament_dispatch_failures_total").Inc()
-		}
+		m.mx.DispatchFailed(ctx, dispatchErrorType(err))
 		return nil, err
 	}
-	if m.mx != nil {
-		m.mx.Counter("filament_runs_dispatched_total").Inc()
-	}
+	m.mx.RunDispatched(ctx)
 	if m.log != nil {
 		m.log.Info("run dispatched",
 			filament.Field{Key: "event.name", Value: "dispatch.run.dispatched"},

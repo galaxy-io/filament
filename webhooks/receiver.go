@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/galaxy-io/filament"
+	"github.com/galaxy-io/filament/telemetry"
 	"github.com/galaxy-io/filament/webhooks/inbox"
 )
 
@@ -45,7 +46,7 @@ type Receiver struct {
 	Now       func() time.Time
 	// Slots bounds concurrent deliveries. A full receiver answers 503.
 	Slots   chan struct{}
-	Metrics filament.Metrics
+	Metrics *telemetry.Set
 }
 
 // Mount adds the delivery routes to mux.
@@ -66,9 +67,7 @@ func (h *Receiver) Mount(mux *http.ServeMux) {
 // acknowledged and dropped.
 func (h *Receiver) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	outcome := h.serve(w, r)
-	if h.Metrics != nil {
-		h.Metrics.Counter("filament_webhook_requests_total", filament.Label{Key: "outcome", Value: outcome}).Inc()
-	}
+	h.Metrics.WebhookRequest(r.Context(), outcome)
 }
 
 func (h *Receiver) serve(w http.ResponseWriter, r *http.Request) string {

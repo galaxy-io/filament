@@ -558,7 +558,7 @@ a placeholder that names no webhook resource.
   no API resources. Connection-scoped fields therefore cannot declare
   `visible_when` in a manifest with a webhook block.
 - A delivery whose body does not decode as its resource, or fails a field type,
-  is skipped whole and counted in `filament_webhook_rejected_deliveries_total`.
+  is skipped whole and counted in `filament.webhook.rejections`.
   It stays in the inbox until retention purges it.
 - Only manifests in the catalog or `HTTP_MANIFESTS_DIR` receive webhooks. The
   manifest-path source, which loads its manifest from connection config, cannot,

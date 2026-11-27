@@ -56,6 +56,7 @@ func (m *Module) Mount(_ context.Context, d module.Deps) error {
 		Sinks:         d.Sinks,
 		Log:           d.Log,
 		Tracer:        d.Tracer,
+		Metrics:       d.Metrics,
 		Functions:     d.Functions,
 		FunctionBatch: d.FunctionBatch,
 	}

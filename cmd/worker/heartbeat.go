@@ -10,17 +10,18 @@ import (
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/internal/usage"
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 const defaultHeartbeatSeconds = 30
 
 // heartbeat samples the pod's cgroup usage on an interval, publishing each
 // sample as a run.heartbeat fact and mirroring it onto the OTel instruments.
-// Instruments are labeled by tenant and pipeline, never run — per-run detail
-// belongs to the facts; per-run label cardinality would drown the backend.
+// Instruments are labeled by pipeline, never run — per-run detail belongs to
+// the facts; per-run label cardinality would drown the backend.
 type heartbeat struct {
 	bus      eventbus.Bus
-	mx       filament.Metrics
+	mx       *telemetry.Set
 	log      filament.Logger
 	tenant   filament.TenantID
 	run      filament.RunID
@@ -79,18 +80,8 @@ func (h *heartbeat) beat(ctx context.Context) {
 			filament.Field{Key: "memory_bytes", Value: s.MemoryBytes},
 			filament.Field{Key: "memory_peak_bytes", Value: s.MemoryPeakBytes})
 	}
-	if h.mx == nil {
-		return
-	}
-	labels := []filament.Label{
-		{Key: "tenant", Value: string(h.tenant)},
-		{Key: "pipeline", Value: h.pipeline},
-	}
-	if delta := s.CPUSeconds - h.lastCPU; delta > 0 {
-		h.mx.Counter("filament_worker_cpu_seconds_total", labels...).Add(delta)
-	}
+	h.mx.WorkerUsage(ctx, h.pipeline, s.CPUSeconds-h.lastCPU, s.MemoryBytes)
 	h.lastCPU = s.CPUSeconds
-	h.mx.Gauge("filament_worker_memory_bytes", labels...).Set(float64(s.MemoryBytes))
 }
 
 // heartbeatInterval is HEARTBEAT_SECONDS or the default.

@@ -1,0 +1,192 @@
+---
+title: "Metrics"
+sidebarTitle: "Metrics"
+description: "Every metric the Filament server, control plane, and workers export over OTLP, with its type, unit, and attributes."
+---
+
+Filament exports OpenTelemetry metrics over OTLP once an endpoint is set. See
+[Logs and OpenTelemetry](/pages/guides/deployment/configuration#logs-and-opentelemetry)
+for the variables. Every metric name starts with `filament.` and every unit is
+a [UCUM](https://ucum.org/ucum) code. The instrumentation scope is
+`github.com/galaxy-io/filament`, versioned with the build.
+
+Each process sets `service.version` to its build version and
+`service.instance.id` to its hostname, so replicas export their own series.
+`OTEL_RESOURCE_ATTRIBUTES` overrides either. No metric carries a tenant or a
+run. Set a tenant for the whole deployment as a resource attribute, for example
+`OTEL_RESOURCE_ATTRIBUTES=io.getgalaxy.tenant.id=acme`.
+
+## Attributes
+
+| Attribute | Values |
+|---|---|
+| `filament.pipeline.id` | The pipeline's ID |
+| `filament.run.status` | The run's terminal status, such as `completed` or `failed` |
+| `filament.source.type`, `filament.sink.type` | The connector names |
+| `filament.resource.name` | The resource's name |
+| `filament.webhook.outcome` | How a webhook delivery was answered |
+| `error.type` | Why something failed, from a fixed set per metric. See [Error types](#error-types) |
+
+An attribute that does not apply to a measurement is left off. `error.type` is
+set on `filament.runs` and `filament.run.duration` only when the status is
+`failed`.
+
+## Prometheus names
+
+Prometheus's default OTLP translation replaces dots with underscores, appends
+the unit (`_seconds`, `_bytes`), and appends `_total` to counters. Units in
+curly braces add no suffix. `filament.run.duration` becomes
+`filament_run_duration_seconds`, `filament.runs` becomes
+`filament_runs_total`, and `filament.pipeline.id` becomes
+`filament_pipeline_id`.
+
+## Runs
+
+The control plane records these as runs move through their lifecycle.
+
+| Metric | Type | Unit | Attributes | What it measures |
+|---|---|---|---|---|
+| `filament.run.submissions` | Counter | `{run}` |  | Runs accepted and requested |
+| `filament.dispatches` | Counter | `{run}` |  | Runs handed to a worker |
+| `filament.dispatch.failures` | Counter | `{failure}` | `error.type` | Runs that could not be handed to a worker |
+| `filament.run.reaps` | Counter | `{run}` |  | Stale runs the reaper failed |
+| `filament.run.queue.duration` | Histogram | `s` | `filament.pipeline.id` | How long a run waited from submission to starting on a worker |
+| `filament.runs` | Counter | `{run}` | `filament.run.status`, `filament.source.type`, `filament.sink.type`, `filament.pipeline.id`, `error.type` | Runs that reached a terminal status |
+| `filament.run.duration` | Histogram | `s` | `filament.run.status`, `filament.pipeline.id`, `error.type` | How long a run took from start to its terminal status |
+| `filament.pipeline.last_success.time` | Gauge | `s` | `filament.pipeline.id` | When a pipeline's last run completed, as a Unix timestamp |
+| `filament.pipeline.last_failure.time` | Gauge | `s` | `filament.pipeline.id` | When a pipeline's last run failed, as a Unix timestamp |
+
+`filament.run.queue.duration` has buckets from 0.1 seconds to an hour. It
+measures runs that are not continuous. A run resumed from a pause keeps its
+first start, so it is measured once.
+
+## Data read and written
+
+The control plane counts the records of a run that is not continuous from the
+facts its worker publishes. That covers the records the source hands to the run,
+the records written, and the records dropped before the sink. A worker for such
+a run lives only as long as the run, so it counts nothing itself. A continuous
+run's worker is long-lived and counts its own records.
+
+| Metric | Type | Unit | Attributes | What it measures |
+|---|---|---|---|---|
+| `filament.source.records` | Counter | `{record}` | `filament.pipeline.id`, `filament.resource.name` | Records read from sources |
+| `filament.sink.records` | Counter | `{record}` | `filament.pipeline.id`, `filament.resource.name` | Records written to sinks |
+| `filament.records.rejected` | Counter | `{record}` | `filament.pipeline.id`, `filament.resource.name`, `error.type` | Records read from sources but not written to sinks |
+| `filament.sink.io` | Counter | `By` | `filament.pipeline.id`, `filament.resource.name` | Bytes written to sinks |
+| `filament.checkpoint.failures` | Counter | `{failure}` |  | Cursor writes that failed and were only logged |
+
+Once a run has ended, `filament.source.records` equals
+`filament.sink.records` plus `filament.records.rejected`. A rejected record was
+not written in that run and is read again by the next one. A record is read once
+the pipeline queues it. Records a source produces for a resource after that
+resource is quarantined are dropped before they are queued, so they count as
+neither read nor rejected. Records a sink wrote and then aborted, such as a
+failed run's uncommitted writes, stay in `filament.sink.records`.
+
+## Schedules
+
+The scheduler in the control plane records these.
+
+| Metric | Type | Unit | Attributes | What it measures |
+|---|---|---|---|---|
+| `filament.schedule.fires` | Counter | `{run}` |  | Scheduled runs the scheduler requested |
+| `filament.schedule.skips` | Counter | `{run}` |  | Scheduled runs skipped because the last one was still running |
+| `filament.schedule.tick.failures` | Counter | `{failure}` |  | Scheduler ticks that failed |
+| `filament.schedule.submit.failures` | Counter | `{failure}` |  | Scheduled runs that could not be requested |
+| `filament.schedule.reconcile.failures` | Counter | `{failure}` |  | Schedule reconciliations that failed |
+
+## Webhooks
+
+The server counts deliveries as it receives them. The control plane reports the inbox on each retention sweep, and workers count the deliveries they cannot read.
+
+| Metric | Type | Unit | Attributes | What it measures |
+|---|---|---|---|---|
+| `filament.webhook.requests` | Counter | `{request}` | `filament.webhook.outcome` | Webhook deliveries received, by how they were answered |
+| `filament.webhook.rejections` | Counter | `{delivery}` | `filament.resource.name` | Stored deliveries a source could not turn into rows |
+| `filament.webhook.inbox.purges` | Counter | `{delivery}` |  | Deliveries removed from the inbox after their rows were written |
+| `filament.webhook.inbox.expirations` | Counter | `{delivery}` |  | Deliveries removed from the inbox unread, past retention |
+| `filament.webhook.inbox.oldest_wait.duration` | Gauge | `s` |  | How long the oldest delivery still in the inbox has waited |
+| `filament.webhook.inbox.messages` | Gauge | `{message}` |  | Deliveries held in the inbox |
+| `filament.webhook.inbox.size` | Gauge | `By` |  | Bytes held in the inbox |
+
+## Workers
+
+Each worker samples its own pod on the heartbeat interval.
+
+| Metric | Type | Unit | Attributes | What it measures |
+|---|---|---|---|---|
+| `filament.worker.cpu.time` | Counter | `s` | `filament.pipeline.id` | CPU time used by workers |
+| `filament.worker.memory.usage` | Gauge | `By` | `filament.pipeline.id` | Memory a worker is using |
+
+## Error types
+
+`error.type` is one of a fixed set of values. `_OTHER` is a failure none of the
+others describes.
+
+### Runs and rejected records
+
+| Value | What failed |
+|---|---|
+| `source_auth` | The source's OAuth authorization expired or was revoked, or its saved refresh-token secret could not be bound |
+| `source_config` | Resolving or configuring the source, binding its replication stream, or selecting its columns or partitions. Configuring includes connecting, so an unreachable source is here too |
+| `source_read` | Planning resources, resolving the extractor, or extraction, including a source that panicked or reported a failed resource |
+| `schema_mismatch` | A schema change the schema policy blocked, or the sink could not create or evolve a destination for the schema |
+| `transform` | Parsing or compiling the transform, or applying it to a batch, including an alchemy function |
+| `sink_write` | Opening, beginning, writing to, or committing the sink, a write the sink's write policy refused, an incomplete receipt, a failed integrity check, or aborting a failed resource |
+| `timeout` | A deadline passed or a network operation timed out |
+| `canceled` | The run's context was canceled outside a cancel request, such as a worker shutting down |
+| `worker_lost` | The reaper failed a run whose worker made no progress and is gone |
+| `internal` | Filament itself, such as restoring progress or reconciling a replication stream in its datastore, or a resource with no write policy |
+| `_OTHER` | Anything else, such as resolving secret references or the sink connector, loading resource schemas, or resolving the ingestion plan |
+
+A rejected record takes the value of the failure that stopped it: its own
+write or transform, its resource's quarantine, or the run's failure. Records
+are rejected only once the pipeline holds them, so rejections use
+`source_read`, `schema_mismatch`, `transform`, `sink_write`, `internal`,
+`timeout`, `canceled`, and `_OTHER`.
+
+### Dispatch failures
+
+| Value | What the Kubernetes API answered |
+|---|---|
+| `forbidden` | Forbidden or unauthorized, including a resource quota that refused the Job |
+| `invalid_spec` | The Job was invalid or a bad request, or Filament could not build it |
+| `timeout` | A timeout, or the request's deadline passed |
+| `api_error` | Any other API error |
+| `_OTHER` | Anything else, such as an unreachable API server or a Job name already taken by another run |
+
+## Alerting
+
+`filament.pipeline.last_success.time` is the freshness signal. Alert when the
+current time minus its value passes the longest gap a pipeline may go without a
+completed run. Each control plane replica reports the last run it saw, so take
+the newest value for a pipeline.
+
+```promql
+time() - max by (filament_pipeline_id) (filament_pipeline_last_success_time_seconds)
+```
+
+`filament.pipeline.last_failure.time` is when a pipeline's last run failed. A
+pipeline whose newest failure is later than its newest success is failing now.
+
+## Counting with `increase`
+
+A counter is first exported when it is first added to, and Prometheus's
+`increase` and `rate` cannot see the first value of a new series. The counters
+with no attributes, and `filament.dispatch.failures`, are exported at zero from
+the start, so every increase of theirs is counted.
+
+A counter with `filament.pipeline.id` starts a series the first time something
+happens to that pipeline, so `increase` misses the first event of each series.
+For something rare, such as a failed run, that is most of them. To count over a
+window, add the increase of the series that existed before it to the last value
+of the series created inside it.
+
+```promql
+sum(increase(filament_runs_total{filament_run_status="failed"}[1h])
+    and filament_runs_total offset 1h)
+
+sum(last_over_time(filament_runs_total{filament_run_status="failed"}[1h])
+    unless filament_runs_total offset 1h)
+```

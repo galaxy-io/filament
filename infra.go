@@ -632,13 +632,6 @@ type Logger interface {
 	With(kv ...Field) Logger
 }
 
-// Metrics vends the three instrument kinds by name and labels.
-type Metrics interface {
-	Counter(name string, labels ...Label) Counter
-	Gauge(name string, labels ...Label) Gauge
-	Histogram(name string, labels ...Label) Histogram
-}
-
 // Tracer starts spans; the returned context carries the span for nesting.
 type Tracer interface {
 	Start(ctx context.Context, name string) (context.Context, Span)
@@ -651,25 +644,6 @@ type Field struct {
 	Key   string
 	Value any
 }
-
-// Label is a metric label.
-type Label struct{ Key, Value string }
-
-// Counter is a monotonically increasing metric.
-type Counter interface {
-	Inc()
-	Add(float64)
-}
-
-// Gauge is a metric that can move in both directions.
-type Gauge interface {
-	Set(float64)
-	Inc()
-	Dec()
-}
-
-// Histogram records a distribution of observed values.
-type Histogram interface{ Observe(float64) }
 
 // Span is one traced operation; End it exactly once.
 type Span interface {

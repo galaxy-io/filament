@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -10,6 +11,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/galaxy-io/filament/telemetry"
 )
 
 type client struct {
@@ -64,4 +67,22 @@ func (c *client) listJobs(ctx context.Context, namespace, selector string) ([]ba
 		return nil, fmt.Errorf("k8sdispatch: list jobs in %q: %w", namespace, err)
 	}
 	return list.Items, nil
+}
+
+// dispatchErrorType classifies a failed Job create for the error.type
+// attribute by the status the Kubernetes API answered with.
+func dispatchErrorType(err error) string {
+	var status apierrors.APIStatus
+	switch {
+	case apierrors.IsTimeout(err), apierrors.IsServerTimeout(err), telemetry.ErrorType(err) == telemetry.ErrorTypeTimeout:
+		return telemetry.ErrorTypeTimeout
+	case apierrors.IsForbidden(err), apierrors.IsUnauthorized(err):
+		return telemetry.ErrorTypeForbidden
+	case apierrors.IsInvalid(err), apierrors.IsBadRequest(err):
+		return telemetry.ErrorTypeInvalidSpec
+	case errors.As(err, &status):
+		return telemetry.ErrorTypeAPI
+	default:
+		return telemetry.ErrorTypeOther
+	}
 }

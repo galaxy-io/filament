@@ -258,7 +258,9 @@ Earlier chart versions stored `AUTH_PAT` in the runtime Secret; move it to the p
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | observability.otel.endpoint | string | `""` | OTLP endpoint metrics and traces are exported to, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_ENDPOINT`. Use an `http://` scheme for plaintext in-cluster collectors. Empty disables export. |
+| observability.otel.exportTraces | bool | `true` | Export traces as well as metrics. Set false when the endpoint takes metrics only, such as Prometheus's OTLP receiver; stored in the ConfigMaps as `OTEL_TRACES_EXPORTER=none`. |
 | observability.otel.protocol | string | `""` | OTLP transport, stored in the ConfigMaps as `OTEL_EXPORTER_OTLP_PROTOCOL`. Valid values are `grpc` (collector port 4317) and `http/protobuf` (port 4318). Empty defaults to `grpc`. |
+| observability.otel.resourceAttributes | object | `{}` | Resource attributes added to every metric and span, stored in the ConfigMaps as `OTEL_RESOURCE_ATTRIBUTES` (for example `io.getgalaxy.tenant.id: acme`). Only used when `endpoint` is set. |
 
 ## Alchemy parameters
 
