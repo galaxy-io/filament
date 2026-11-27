@@ -1,7 +1,8 @@
 import { type FC, useMemo } from "react";
 
-import { FlowArrowIcon } from "@phosphor-icons/react";
+import { FlowArrowIcon, PlusIcon } from "@phosphor-icons/react";
 
+import Button, { ButtonSize, ButtonVariant } from "@galaxy-io/dls/buttons/Button";
 import Skeleton from "@galaxy-io/dls/feedback/Skeleton";
 import Box from "@galaxy-io/dls/layout/Box";
 import ErrorLayout, { ErrorLayoutSize } from "@galaxy-io/dls/layout/ErrorLayout";
@@ -12,19 +13,26 @@ import type { Connection } from "@/gen/ingestion/v1/connections_pb";
 import PipelineCard from "@/components/pipelines/PipelineCard";
 
 import ConnectionDrawerSection from "@/pages/connections/components/drawer/ConnectionDrawerSection";
+import { CONNECTOR_KIND_TO_PIPELINE_SEED_MAP } from "@/pages/connections/constants";
 import { useConnectionPipelines } from "@/pages/connections/hooks/useConnectionPipelines";
 
+import { useFilamentFlowOpen } from "@/module/hooks";
+import { Flow } from "@/module/types";
+
 interface ConnectionDrawerPipelinesProps {
-  connectionId: Connection["id"];
+  connection: Connection;
 }
 
-const ConnectionDrawerPipelines: FC<ConnectionDrawerPipelinesProps> = ({ connectionId }) => {
+const ConnectionDrawerPipelines: FC<ConnectionDrawerPipelinesProps> = ({ connection }) => {
+  const openFlow = useFilamentFlowOpen();
   const { pipelines, connectionIdsByPipelineId, isError, isLoading } = useConnectionPipelines();
 
   const connectedPipelines = useMemo(
     () =>
-      pipelines.filter((pipeline) => connectionIdsByPipelineId.get(pipeline.id)?.has(connectionId)),
-    [pipelines, connectionIdsByPipelineId, connectionId],
+      pipelines.filter((pipeline) =>
+        connectionIdsByPipelineId.get(pipeline.id)?.has(connection.id),
+      ),
+    [pipelines, connectionIdsByPipelineId, connection.id],
   );
 
   const renderContent = () => {
@@ -64,6 +72,22 @@ const ConnectionDrawerPipelines: FC<ConnectionDrawerPipelinesProps> = ({ connect
       count={isLoading || isError ? undefined : connectedPipelines.length}
       emptyHeader="No pipelines"
       emptyMessage="This connection is not used in any pipelines."
+      actions={
+        <Button
+          icon={PlusIcon}
+          ariaLabel="Create pipeline"
+          tooltip="Create pipeline"
+          variant={ButtonVariant.TERTIARY}
+          size={ButtonSize.SMALL}
+          isDisabled={!!connection.deletedAt}
+          onClick={() =>
+            openFlow(
+              Flow.CREATE_PIPELINE,
+              CONNECTOR_KIND_TO_PIPELINE_SEED_MAP[connection.kind](connection.id),
+            )
+          }
+        />
+      }
       isOpenInitial
       isFlush
     >
