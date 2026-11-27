@@ -123,6 +123,7 @@ const PipelineCanvasPanelNodeDetail: FC<PipelineCanvasPanelNodeDetailProps> = ({
               emptyHeader="No configuration"
               emptyMessage="This connector has no pipeline configuration."
               hasInset
+              isOpenInitial={false}
             >
               <PipelineNodeConfigFields
                 {...nodeConfig}
