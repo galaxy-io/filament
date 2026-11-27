@@ -210,20 +210,33 @@ func columnType(f rowmodel.Field, keepNative bool) string {
 // destinationCasts returns, per column in fields order, the destination type
 // to cast staged values to, or "" when a staged value lands as-is. A cast is
 // needed only for a user-defined destination type - an enum, a domain, an
-// extension type - because Postgres has no assignment cast from the staged
-// text form to it, so the fold fails with 42804. A pg_catalog built-in
+// extension type - where Postgres has no assignment cast from the staged
+// form to it, so the fold fails with 42804. A pg_catalog built-in
 // (varchar, numeric, timestamptz) takes the staged value through its
 // assignment cast, and the same type under another spelling needs none.
+// A domain whose base type does take the staged value by assignment -
+// text into a domain over varchar(n), for example - keeps the uncast
+// assignment path, so an over-length value errors like assignment or COPY
+// would instead of being silently truncated by the explicit cast.
 // Only the legacy path needs this: a schema policy blocks user-defined
 // native types before any write, so a destination under one can only hold
 // them in legacy mode.
 func (t *Sink) destinationCasts(ctx context.Context, resource string, fields []rowmodel.Field, staged []string) ([]string, error) {
+	// checkOID is the destination type's assignment target: the base type
+	// for a domain, the element type for an array, unwrapped one level
+	// each, so a domain over varchar and an array of enums both resolve
+	// to the type the staged value is actually assigned to.
 	const q = `SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod),
-		t.typnamespace = 'pg_catalog'::regnamespace
+		t.typnamespace = 'pg_catalog'::regnamespace,
+		tn.nspname,
+		COALESCE(NULLIF(et.typbasetype, 0), et.oid)
 		FROM pg_catalog.pg_attribute a
 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
 		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 		JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+		JOIN pg_catalog.pg_namespace tn ON tn.oid = t.typnamespace
+		JOIN pg_catalog.pg_type bt ON bt.oid = CASE WHEN t.typtype = 'd' THEN t.typbasetype ELSE t.oid END
+		JOIN pg_catalog.pg_type et ON et.oid = CASE WHEN bt.typelem <> 0 THEN bt.typelem ELSE bt.oid END
 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped`
 	query := t.pool.Query
 	if t.session.active != nil {
@@ -235,14 +248,16 @@ func (t *Sink) destinationCasts(ctx context.Context, resource string, fields []r
 	}
 	defer rows.Close()
 	type destType struct {
-		typ     string
-		builtin bool
+		typ      string
+		builtin  bool
+		schema   string
+		checkOID uint32
 	}
 	byName := make(map[string]destType)
 	for rows.Next() {
 		var name string
 		var d destType
-		if err := rows.Scan(&name, &d.typ, &d.builtin); err != nil {
+		if err := rows.Scan(&name, &d.typ, &d.builtin, &d.schema, &d.checkOID); err != nil {
 			return nil, fmt.Errorf("resolve destination types: %w", err)
 		}
 		byName[name] = d
@@ -253,18 +268,81 @@ func (t *Sink) destinationCasts(ctx context.Context, resource string, fields []r
 	casts := make([]string, len(fields))
 	for i, f := range fields {
 		d, ok := byName[f.Name]
-		if !ok {
+		if !ok || d.builtin {
 			continue
 		}
-		casts[i] = castFor(staged[i], d.typ, d.builtin)
+		assignable, err := t.assignmentCastExists(ctx, staged[i], d.checkOID)
+		if err != nil {
+			return nil, err
+		}
+		casts[i] = castFor(staged[i], qualifyCastTarget(d.schema, d.typ), d.builtin, assignable)
 	}
 	return casts, nil
 }
 
+// assignmentCastExists reports whether a staged value of the given type
+// lands in the destination type by assignment: either it is the same type,
+// or pg_cast holds an assignment or implicit cast from it. The check runs
+// against the destination's unwrapped base type, so a domain over varchar
+// answers for its base type. Element types are compared for arrays:
+// pg_cast holds no array-to-array rows, array casts are derived from the
+// element cast.
+func (t *Sink) assignmentCastExists(ctx context.Context, staged string, checkOID uint32) (bool, error) {
+	const q = `SELECT COALESCE(to_regtype($1) = $2::oid, false) OR EXISTS (
+		SELECT 1 FROM pg_catalog.pg_cast
+		WHERE castsource = to_regtype($1) AND casttarget = $2::oid AND castcontext IN ('a', 'i')
+	)`
+	query := t.pool.QueryRow
+	if t.session.active != nil {
+		query = t.session.active.tx.QueryRow
+	}
+	var ok bool
+	if err := query(ctx, q, stagedElementType(staged), checkOID).Scan(&ok); err != nil {
+		return false, fmt.Errorf("resolve assignment cast: %w", err)
+	}
+	return ok, nil
+}
+
+// stagedElementType strips the array suffix from a staged column type, so
+// the assignment-cast check compares element types.
+func stagedElementType(staged string) string {
+	for strings.HasSuffix(staged, "[]") {
+		staged = strings.TrimSuffix(staged, "[]")
+	}
+	return staged
+}
+
+// qualifyCastTarget builds the schema-qualified CAST target for a
+// user-defined destination type from its schema and the format_type
+// spelling, keeping any array suffix and type modifier. The schema comes
+// from pg_type, not from format_type: format_type qualifies only when the
+// type is not visible on the current search_path, and the merge runs under
+// a different one, so an unqualified name could resolve to the staging
+// temp table's row type instead of the destination type.
+func qualifyCastTarget(schema, formatted string) string {
+	arrays := ""
+	for strings.HasSuffix(formatted, "[]") {
+		arrays += "[]"
+		formatted = strings.TrimSuffix(formatted, "[]")
+	}
+	modifier := ""
+	if i := strings.IndexByte(formatted, '('); i >= 0 {
+		modifier = formatted[i:]
+		formatted = formatted[:i]
+	}
+	name := formatted
+	if i := strings.LastIndexByte(formatted, '.'); i >= 0 {
+		name = formatted[i+1:]
+	}
+	name = strings.Trim(name, `"`)
+	return pgx.Identifier{schema, name}.Sanitize() + modifier + arrays
+}
+
 // castFor reports the destination type to cast a staged value of staged type
-// to, or "" when the value lands as-is.
-func castFor(staged, dest string, builtin bool) string {
-	if dest == "" || builtin || baseType(dest) == baseType(staged) {
+// to, or "" when the value lands as-is. The destination type is already
+// schema-qualified by the caller.
+func castFor(staged, dest string, builtin bool, assignable bool) string {
+	if dest == "" || builtin || assignable || baseType(dest) == baseType(staged) {
 		return ""
 	}
 	return dest
@@ -288,9 +366,11 @@ func tempTableSQL(name string, idents, types []string, ordered bool) string {
 // upsertSQL folds the temp table into the destination: the last row per key wins
 // within the batch, then INSERT … ON CONFLICT DO UPDATE by primary key makes the
 // write idempotent (an at-least-once resume re-delivers rows past the last
-// persisted cursor). A staged column whose destination type is user-defined is
-// cast to it in the SELECT list, so enum and domain columns fold instead of
-// failing with 42804.
+// persisted cursor). A staged column whose destination type is user-defined
+// and takes no assignment cast is cast to it in the SELECT list, so enum
+// and domain columns fold instead of failing with 42804. A destination
+// that takes the staged value by assignment keeps the uncast path, so an
+// over-length value errors instead of being silently truncated.
 func upsertSQL(tbl *table) string {
 	keys := pick(tbl.idents, tbl.keyIdx)
 	keySet := map[string]bool{}

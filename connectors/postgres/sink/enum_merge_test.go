@@ -19,12 +19,12 @@ import (
 func TestMergePreexistingEnumAndDomainColumns(t *testing.T) {
 	t.Run("enum column", func(t *testing.T) {
 		ctx, s, policy := mergeSink(t)
-		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_enum"}.Sanitize()+` (id integer PRIMARY KEY, m mood)`); err != nil {
+		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_enum"}.Sanitize()+` (id integer PRIMARY KEY, m `+pgx.Identifier{s.schema, "mood"}.Sanitize()+`)`); err != nil {
 			t.Fatal(err)
 		}
 		model := rowmodel.Schema{Resource: "t_enum", Engine: engine, Fields: []rowmodel.Field{
 			{Name: "id", Logical: rowmodel.LogicalInt32, Native: "integer"},
-			{Name: "m", Logical: rowmodel.LogicalString, Native: "mood"},
+			{Name: "m", Logical: rowmodel.LogicalString, Native: pgx.Identifier{s.schema, "mood"}.Sanitize()},
 		}, PrimaryKey: []string{"id"}}
 		if err := s.EnsureSchema(ctx, "t_enum", model); err != nil {
 			t.Fatal(err)
@@ -45,12 +45,12 @@ func TestMergePreexistingEnumAndDomainColumns(t *testing.T) {
 
 	t.Run("domain column", func(t *testing.T) {
 		ctx, s, policy := mergeSink(t)
-		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_dom"}.Sanitize()+` (id integer PRIMARY KEY, c_pos pos_int)`); err != nil {
+		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_dom"}.Sanitize()+` (id integer PRIMARY KEY, c_pos `+pgx.Identifier{s.schema, "pos_int"}.Sanitize()+`)`); err != nil {
 			t.Fatal(err)
 		}
 		model := rowmodel.Schema{Resource: "t_dom", Engine: engine, Fields: []rowmodel.Field{
 			{Name: "id", Logical: rowmodel.LogicalInt32, Native: "integer"},
-			{Name: "c_pos", Logical: rowmodel.LogicalString, Native: "pos_int"},
+			{Name: "c_pos", Logical: rowmodel.LogicalString, Native: pgx.Identifier{s.schema, "pos_int"}.Sanitize()},
 		}, PrimaryKey: []string{"id"}}
 		if err := s.EnsureSchema(ctx, "t_dom", model); err != nil {
 			t.Fatal(err)
@@ -78,11 +78,11 @@ func TestMergePreexistingEnumAndDomainColumns(t *testing.T) {
 
 	t.Run("enum primary key", func(t *testing.T) {
 		ctx, s, policy := mergeSink(t)
-		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_enum_pk"}.Sanitize()+` (m mood PRIMARY KEY, v integer)`); err != nil {
+		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_enum_pk"}.Sanitize()+` (m `+pgx.Identifier{s.schema, "mood"}.Sanitize()+` PRIMARY KEY, v integer)`); err != nil {
 			t.Fatal(err)
 		}
 		model := rowmodel.Schema{Resource: "t_enum_pk", Engine: engine, Fields: []rowmodel.Field{
-			{Name: "m", Logical: rowmodel.LogicalString, Native: "mood"},
+			{Name: "m", Logical: rowmodel.LogicalString, Native: pgx.Identifier{s.schema, "mood"}.Sanitize()},
 			{Name: "v", Logical: rowmodel.LogicalInt32, Native: "integer"},
 		}, PrimaryKey: []string{"m"}}
 		if err := s.EnsureSchema(ctx, "t_enum_pk", model); err != nil {
@@ -97,19 +97,91 @@ func TestMergePreexistingEnumAndDomainColumns(t *testing.T) {
 		}
 		mergeCount(t, ctx, s, "t_enum_pk", 0)
 	})
+
+	t.Run("domain over length-constrained string", func(t *testing.T) {
+		ctx, s, policy := mergeSink(t)
+		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_short"}.Sanitize()+` (id integer PRIMARY KEY, c_short `+pgx.Identifier{s.schema, "short_text"}.Sanitize()+`)`); err != nil {
+			t.Fatal(err)
+		}
+		model := rowmodel.Schema{Resource: "t_short", Engine: engine, Fields: []rowmodel.Field{
+			{Name: "id", Logical: rowmodel.LogicalInt32, Native: "integer"},
+			{Name: "c_short", Logical: rowmodel.LogicalString, Native: pgx.Identifier{s.schema, "short_text"}.Sanitize()},
+		}, PrimaryKey: []string{"id"}}
+		if err := s.EnsureSchema(ctx, "t_short", model); err != nil {
+			t.Fatal(err)
+		}
+		if err := mergeApply(t, ctx, s, policy, "t_short", model, rowmodel.OpInsert, func(b *arrowbatch.Builder) { b.Int32(1); b.String("abc") }); err != nil {
+			t.Fatal(err)
+		}
+		if got := mergeOne(t, ctx, s, `SELECT c_short::text FROM `+pgx.Identifier{s.schema, "t_short"}.Sanitize()+` WHERE id = 1`); got != "abc" {
+			t.Fatalf("c_short = %q, want abc", got)
+		}
+		// An over-length value must fail on the length check, not be
+		// silently truncated by the merge cast and not fail with 42804:
+		// text takes the short_text domain by assignment, so the fold
+		// keeps the uncast assignment path.
+		err := mergeApply(t, ctx, s, policy, "t_short", model, rowmodel.OpInsert, func(b *arrowbatch.Builder) { b.Int32(2); b.String("abcd") })
+		if err == nil {
+			t.Fatal("oversized string accepted")
+		}
+		if strings.Contains(err.Error(), "42804") {
+			t.Fatalf("oversized string failed as a cast error: %v", err)
+		}
+		if !strings.Contains(err.Error(), "value too long") {
+			t.Fatalf("oversized string did not fail on length: %v", err)
+		}
+		mergeCount(t, ctx, s, "t_short", 1)
+	})
+
+	t.Run("enum type named like the staging table", func(t *testing.T) {
+		ctx, s, policy := mergeSink(t)
+		// A destination type whose name matches the staging temp table
+		// (_filament_<resource>) must still resolve to the type, not the
+		// temp table's row type: the cast target is schema-qualified.
+		// The type has to live on the search_path for the collision to
+		// happen at all, so it is created in public and dropped again
+		// here rather than left to the schema cleanup.
+		typ := pgx.Identifier{"public", "_filament_t_enum"}.Sanitize()
+		if _, err := s.pool.Exec(ctx, `DROP TYPE IF EXISTS `+typ); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.pool.Exec(ctx, `CREATE TYPE `+typ+` AS ENUM ('calm', 'panic')`); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			_, _ = s.pool.Exec(ctx, `DROP TYPE IF EXISTS `+typ+` CASCADE`)
+		})
+		if _, err := s.pool.Exec(ctx, `CREATE TABLE `+pgx.Identifier{s.schema, "t_enum"}.Sanitize()+` (id integer PRIMARY KEY, m `+typ+`)`); err != nil {
+			t.Fatal(err)
+		}
+		model := rowmodel.Schema{Resource: "t_enum", Engine: engine, Fields: []rowmodel.Field{
+			{Name: "id", Logical: rowmodel.LogicalInt32, Native: "integer"},
+			{Name: "m", Logical: rowmodel.LogicalString, Native: typ},
+		}, PrimaryKey: []string{"id"}}
+		if err := s.EnsureSchema(ctx, "t_enum", model); err != nil {
+			t.Fatal(err)
+		}
+		if err := mergeApply(t, ctx, s, policy, "t_enum", model, rowmodel.OpInsert, func(b *arrowbatch.Builder) { b.Int32(1); b.String("calm") }); err != nil {
+			t.Fatal(err)
+		}
+		if got := mergeOne(t, ctx, s, `SELECT m::text FROM `+pgx.Identifier{s.schema, "t_enum"}.Sanitize()+` WHERE id = 1`); got != "calm" {
+			t.Fatalf("m = %q, want calm", got)
+		}
+	})
 }
 
 // mergeSink opens a legacy-mode merge sink on its own scratch schema and
-// creates the pre-existing types from the issue repro. The DO blocks keep a
-// rerun against the same scratch database from failing on the second create.
+// creates the pre-existing types from the issue repro inside that schema,
+// so each subtest owns its definitions and the schema cleanup drops them.
 // Each subtest takes its own sink because a failed Apply retains the failure
 // on the session lifecycle and prevents its reuse.
 func mergeSink(t *testing.T) (context.Context, *Sink, filament.WritePolicy) {
 	t.Helper()
 	ctx, s, spec := driftSink(t, "", filament.IngestionCDCMerge, false)
 	for _, ddl := range []string{
-		`DO $$ BEGIN CREATE TYPE mood AS ENUM ('calm', 'alert', 'panic'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-		`DO $$ BEGIN CREATE DOMAIN pos_int AS integer CHECK (VALUE > 0); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+		`CREATE TYPE ` + pgx.Identifier{s.schema, "mood"}.Sanitize() + ` AS ENUM ('calm', 'alert', 'panic')`,
+		`CREATE DOMAIN ` + pgx.Identifier{s.schema, "pos_int"}.Sanitize() + ` AS integer CHECK (VALUE > 0)`,
+		`CREATE DOMAIN ` + pgx.Identifier{s.schema, "short_text"}.Sanitize() + ` AS varchar(3)`,
 	} {
 		if _, err := s.pool.Exec(ctx, ddl); err != nil {
 			t.Fatal(err)

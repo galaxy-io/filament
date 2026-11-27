@@ -15,11 +15,12 @@ import (
 	testcontainers "github.com/galaxy-io/filament/tests/testcontainers"
 )
 
-// TestPostgresPersistenceContracts makes the production datastore and secret
-// provider contracts mandatory in the Docker suite. Those package tests accept
-// a DSN and NATS URL for local development, but otherwise skip; this wrapper
-// supplies ephemeral Postgres and NATS servers and rejects any nested skip so
-// CI cannot silently lose the persistence coverage again.
+// TestPostgresPersistenceContracts makes the production datastore, secret
+// provider, and postgres sink contracts mandatory in the Docker suite.
+// Those package tests accept a DSN and NATS URL for local development, but
+// otherwise skip; this wrapper supplies ephemeral Postgres and NATS servers
+// and rejects any nested skip so CI cannot silently lose the persistence
+// coverage again.
 func TestPostgresPersistenceContracts(t *testing.T) {
 	pg := testcontainers.Postgres(t, testcontainers.WithDatabase("filament_contracts"))
 	nats := testcontainers.NATSContainer(t)
@@ -28,7 +29,7 @@ func TestPostgresPersistenceContracts(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, goBinary, "test", "-v", "-count=1", "-p=1", "./datastore/postgres", "./secret/postgres")
+	cmd := exec.CommandContext(ctx, goBinary, "test", "-v", "-count=1", "-p=1", "./datastore/postgres", "./secret/postgres", "./connectors/postgres/sink")
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(),
 		"GOWORK=off",
