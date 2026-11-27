@@ -171,17 +171,25 @@ func parseTime(w arrowbatch.RowWriter, raw json.RawMessage) error {
 }
 
 // parseTimestamp reads an ISO 8601 / RFC 3339 instant (or a Unix epoch number,
-// seconds or milliseconds, integer or fractional) as microseconds since the
-// epoch, UTC.
+// seconds, milliseconds or microseconds, integer or fractional) as
+// microseconds since the epoch, UTC.
 func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 	if len(raw) > 0 && raw[0] != '"' {
 		f, err := strconv.ParseFloat(string(raw), 64)
 		if err != nil {
 			return fmt.Errorf("%s is not a timestamp", raw)
 		}
-		if f > 1e12 { // milliseconds
+		// The number carries no unit, so guess it from the magnitude.
+		// Each band ends where the next finer unit's values for any
+		// plausible date begin: seconds reach 1e10 in November 2286,
+		// while milliseconds reach it in April 1970. A single threshold
+		// at 1e12 instead reads every millisecond value before
+		// September 2001 as seconds.
+		switch mag := math.Abs(f); {
+		case mag >= 1e13: // microseconds
+		case mag >= 1e10: // milliseconds
 			f *= 1000
-		} else {
+		default: // seconds
 			f *= 1_000_000
 		}
 		w.Timestamp(int64(math.Round(f)))
