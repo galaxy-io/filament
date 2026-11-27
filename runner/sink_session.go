@@ -30,6 +30,8 @@ type boundarySink struct {
 	schemaMu  sync.Mutex
 	schemas   map[string]rowmodel.Schema
 	policy    schema.Policy
+	// commitBytes is the last committed sink's CommitBytes report.
+	commitBytes map[string]int64
 }
 
 func newBoundarySink(sink filament.Sink, factory func() (filament.Sink, error)) filament.Sink {
@@ -111,11 +113,20 @@ func (s *boundarySink) Commit(ctx context.Context) error {
 	if err := s.current.Commit(ctx); err != nil {
 		return err
 	}
+	// A single-write sink is closed below, so take its report now.
+	s.commitBytes = nil
+	if reporter, ok := s.current.(filament.CommitBytesReporter); ok {
+		s.commitBytes = reporter.CommitBytes()
+	}
 	if !s.reusable {
 		return s.Close(ctx)
 	}
 	return nil
 }
+
+// CommitBytes reports what the last committed boundary's sink wrote outside
+// its receipts.
+func (s *boundarySink) CommitBytes() map[string]int64 { return s.commitBytes }
 
 func (s *boundarySink) Abort(ctx context.Context) error {
 	if s.current == nil {

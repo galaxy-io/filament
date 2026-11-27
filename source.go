@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/galaxy-io/filament/rowmodel"
 )
 
 // Source is the connector contract for reading data: describe itself,
@@ -165,6 +167,11 @@ func ResolveCursorVersionPolicy(ctx context.Context, src Source, resource string
 	}
 	if !selected.Eligible {
 		return VersionPolicy{}, fmt.Errorf("incremental %q cursor column %q is not eligible for durable versioning", resource, selected.Name)
+	}
+	if selected.Logical != rowmodel.LogicalTimestamp && selected.Logical != rowmodel.LogicalTimestampTZ {
+		// A rowversion cursor orders the read but is no portable row version,
+		// so the sink keeps insertion order.
+		return VersionPolicy{}, nil
 	}
 	return VersionPolicy{
 		Strategy: VersionCursor,

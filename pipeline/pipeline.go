@@ -33,7 +33,7 @@ import (
 )
 
 // defaultBatchRows is used when Config.Options.BatchMaxRows is unset.
-const defaultBatchRows = 256
+const defaultBatchRows = 8_192
 
 // defaultFlushInterval bounds how long a partial batch waits before flushing.
 const defaultFlushInterval = time.Second

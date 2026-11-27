@@ -115,6 +115,26 @@ func TestBuilderOpsAndLastMeta(t *testing.T) {
 	}
 }
 
+func TestBuilderCopiesBorrowedKey(t *testing.T) {
+	c := &collect{}
+	b := NewBuilder(Schema(testSchema()), nil, Options{MaxRows: 2}, c)
+	key := make([]string, 1)
+	for i := range 4 {
+		key[0] = string(rune('a' + i))
+		b.Int64(int64(i))
+		b.Null()
+		b.Null()
+		b.Null()
+		if err := b.EndRow(rowmodel.Meta{Key: key}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	key[0] = "overwritten"
+	if len(c.chunks) != 2 || c.chunks[0].Last.Key[0] != "b" || c.chunks[1].Last.Key[0] != "d" {
+		t.Fatalf("chunk keys = %v, %v", c.chunks[0].Last.Key, c.chunks[1].Last.Key)
+	}
+}
+
 func TestBuilderMaxBytes(t *testing.T) {
 	c := &collect{}
 	b := NewBuilder(Schema(testSchema()), nil, Options{MaxRows: 100, MaxBytes: 40}, c)

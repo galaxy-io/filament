@@ -14,6 +14,7 @@ require (
 	github.com/galaxy-io/filament/connectors/object v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/connectors/redshift v0.0.0
 	github.com/galaxy-io/filament/connectors/snowflake v0.0.0
+	github.com/galaxy-io/filament/connectors/sqlserver v0.0.0
 	github.com/galaxy-io/filament/identity/keycloak v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/identity/zitadel v0.0.0-00010101000000-000000000000
 	github.com/galaxy-io/filament/secret/aws v0.0.0-00010101000000-000000000000
@@ -166,6 +167,8 @@ require (
 	github.com/goccy/go-yaml v1.17.1 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
+	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
+	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-tpm v0.9.8 // indirect
@@ -196,6 +199,7 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
+	github.com/microsoft/go-mssqldb v1.11.2 // indirect
 	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
@@ -318,6 +322,12 @@ replace github.com/galaxy-io/filament/connectors/object => ../connectors/object
 replace github.com/galaxy-io/filament/connectors/redshift => ../connectors/redshift
 
 replace github.com/galaxy-io/filament/connectors/snowflake => ../connectors/snowflake
+
+replace github.com/galaxy-io/filament/connectors/sqlserver => ../connectors/sqlserver
+
+// The SQL Server source needs go-mssqldb's RawRows API, carried by a fork until
+// it is released.
+replace github.com/microsoft/go-mssqldb => github.com/atterpac/go-mssqldb v0.1.0
 
 replace github.com/galaxy-io/filament/identity/keycloak => ../identity/keycloak
 
