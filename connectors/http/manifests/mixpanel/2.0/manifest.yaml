@@ -1,0 +1,135 @@
+version: 1
+name: mixpanel
+display_name: Mixpanel
+description: Event analytics platform that tracks how users interact with web and mobile products, so teams can analyze funnels, retention, and user behavior.
+dark_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mixpanel-dark.svg
+light_logo_url: https://cdn.getgalaxy.io/sources/source-icon-mixpanel-light.svg
+api_version: "2.0"
+config:
+  service_account_username:
+    type: string
+    required: true
+    help: Username of a Mixpanel service account with access to the project (Organization Settings > Service Accounts).
+  service_account_secret:
+    type: secret
+    required: true
+    help: Secret of that service account. Mixpanel shows it once, when the service account is created.
+  project_id:
+    type: string
+    required: true
+    help: Project ID from Project Settings > Overview.
+  region:
+    type: enum
+    enum: [us, eu, in]
+    default: us
+    help: Data residency of the project. EU and India projects are served from their own hosts.
+defaults:
+  method: GET
+connection:
+  # Engage is served by the main API host. Raw event export lives on a
+  # separate data host per region, set on the events resource.
+  base_url: https://mixpanel.com/api/2.0
+  base_url_field: region
+  base_urls:
+    us: https://mixpanel.com/api/2.0
+    eu: https://eu.mixpanel.com/api/2.0
+    in: https://in.mixpanel.com/api/2.0
+  auth:
+    basic:
+      username: config.service_account_username
+      password: config.service_account_secret
+  headers:
+    Accept: application/json
+  timeout_seconds: 120
+  # Raw export and the Query API (Engage) each allow 60 queries per hour per
+  # project. One limiter serves the run, so it sizes against that hourly
+  # ceiling: a burst of 20 plus 40 per hour never exceeds 60 in any hour.
+  # Mixpanel answers 429 when the limit is hit.
+  rate_limit:
+    requests_per_second: 0.0111
+    burst: 20
+resources:
+  # First top-level, non-streaming resource, so it doubles as the connection
+  # probe.
+  - name: profiles
+    path: /engage
+    method: POST
+    query:
+      project_id: "{{ config.project_id }}"
+    body:
+      encoding: form
+      template: {}
+    response:
+      records: $.results
+      pagination:
+        page:
+          # Engage pages start at 0, and every later page must repeat the
+          # session_id the first response returned. 1000 is the largest page
+          # Engage serves, so a shorter page ends the walk.
+          number: body.page
+          size: body.page_size
+          page_size: 1000
+          start: 0
+          session: {response: session_id, request: body.session_id}
+    primary_key: [distinct_id]
+    fields:
+      distinct_id: {path: $distinct_id, type: string}
+      email: {path: $properties.$email, type: string, nullable: true}
+      name: {path: $properties.$name, type: string, nullable: true}
+      first_name: {path: $properties.$first_name, type: string, nullable: true}
+      last_name: {path: $properties.$last_name, type: string, nullable: true}
+      phone: {path: $properties.$phone, type: string, nullable: true}
+      city: {path: $properties.$city, type: string, nullable: true}
+      region: {path: $properties.$region, type: string, nullable: true}
+      country_code: {path: $properties.$country_code, type: string, nullable: true}
+      timezone: {path: $properties.$timezone, type: string, nullable: true}
+      created: {path: $properties.$created, type: timestamptz, nullable: true}
+      last_seen: {path: $properties.$last_seen, type: timestamptz, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: events
+    path: /export
+    base_urls:
+      us: https://data.mixpanel.com/api/2.0
+      eu: https://data-eu.mixpanel.com/api/2.0
+      in: https://data-in.mixpanel.com/api/2.0
+    # The export is one newline-delimited JSON response per date window.
+    mode: stream
+    # An empty window comes back as the body "terminated early".
+    stream: {type: ndjson, empty_body: terminated early}
+    headers:
+      Accept: text/plain
+    query:
+      project_id: "{{ config.project_id }}"
+      from_date: "{{ state.from_date }}"
+      to_date: "{{ state.to_date }}"
+    # Mixpanel identifies an event by these four properties and recommends
+    # deduplicating raw exports on them. The Ingestion API generates
+    # $insert_id when a sender omits it. The export itself is not
+    # deduplicated, and the overlap rereads the previous day.
+    primary_key: [event, distinct_id, time, insert_id]
+    fields:
+      event: string
+      distinct_id: {path: properties.distinct_id, type: string}
+      # Unix seconds. The engine reads numeric timestamptz values as epoch
+      # seconds.
+      time: {path: properties.time, type: timestamptz}
+      insert_id: {path: properties.$insert_id, type: string}
+      raw: {path: $, type: json, mode: remainder}
+    incremental:
+      cursor_field: time
+      start_param: from_date
+      end_param: to_date
+      inject_into: state
+      comparator: time
+      # from_date and to_date are whole days and both inclusive. Mixpanel
+      # rejects a to_date after today, read in UTC for projects created
+      # after 2023-01-01 and in the project time zone before that, so the
+      # end stays one day behind the run. Each run rereads the previous day
+      # for events that arrive late.
+      value_date_format: "2006-01-02"
+      end_lag_seconds: 86400
+      overlap_seconds: 86400
+      # Mixpanel rejects a from_date before 2011-07-10. The first incremental
+      # run rewinds initial by the overlap, so initial is the day after.
+      initial: "2011-07-11T00:00:00Z"

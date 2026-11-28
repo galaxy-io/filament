@@ -179,6 +179,7 @@
               "pages/connectors/sources/linear",
               "pages/connectors/sources/mailchimp",
               "pages/connectors/sources/metronome",
+              "pages/connectors/sources/mixpanel",
               "pages/connectors/sources/monday",
               "pages/connectors/sources/notion",
               "pages/connectors/sources/pipedrive",

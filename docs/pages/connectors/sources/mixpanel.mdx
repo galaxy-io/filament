@@ -1,0 +1,94 @@
+---
+title: "Mixpanel source connector"
+sidebarTitle: "Mixpanel"
+description: "Read raw events and user profiles from Mixpanel with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-mixpanel-dark.svg"
+---
+
+Connector ID `mixpanel`
+
+The Mixpanel source reads raw events through the Export API and user profiles
+through the Engage API. It uses an
+[HTTP manifest](/pages/connectors/building-a-connector/http-manifests).
+This connector is in preview. It targets Mixpanel API version `2.0`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `service_account_username` | Connection | | Required. Username of a Mixpanel service account. |
+| `service_account_secret` | Connection | | Required. Secret. Secret of that service account. |
+| `project_id` | Connection | | Required. ID of the project to read. |
+| `region` | Connection | `us` | `us`, `eu`, or `in`, matching the project's data residency. |
+
+Create a service account under **Organization Settings → Service Accounts** and
+give it access to the project. Mixpanel shows the secret once, when the service
+account is created. The project ID is listed under **Project Settings →
+Overview**. See
+[service accounts](https://developer.mixpanel.com/reference/service-accounts).
+
+Events are read from the regional export host (`data.mixpanel.com`,
+`data-eu.mixpanel.com`, or `data-in.mixpanel.com`). Profiles are read from
+`mixpanel.com`, `eu.mixpanel.com`, or `in.mixpanel.com`. Connection testing
+calls `POST /api/2.0/engage`.
+
+## Resources
+
+| Resource | Endpoint |
+|---|---|
+| `profiles` | `POST /api/2.0/engage` |
+| `events` | `GET /api/2.0/export` |
+
+Each `profiles` row is one user profile keyed by `distinct_id`, with common
+`$`-prefixed properties such as email, name, location, and `last_seen` as
+columns.
+
+Each `events` row is one exported event. Mixpanel identifies an event by its
+name, `distinct_id`, `time`, and `$insert_id`, so those four columns form the
+key. `time` is Unix seconds and is written as a timestamp.
+
+Both resources include a `raw` column with the remaining properties, including
+custom event and profile properties.
+
+### Coverage limits
+
+- **Cohorts, annotations, and reports**. Cohorts, annotations, saved reports,
+  and query endpoints such as Insights, Funnels, and Retention are not read.
+- **Group profiles**. Only user profiles are read.
+- **Large projects**. Each run exports its window in one request. For very
+  large projects, Mixpanel's
+  [Data Pipelines](https://docs.mixpanel.com/docs/data-pipelines) export
+  to a warehouse may suit better.
+
+## Modes
+
+`events` supports incremental reads on `time`. Each run requests whole days,
+from the day before the last event read through yesterday. Rereading that day
+picks up events that arrive late. Events sent later through the Import API
+with an older timestamp are not picked up. A full read starts at 2011-07-11,
+and the first incremental read one day earlier, the earliest date Mixpanel
+accepts.
+
+The window ends a day before the run starts. Mixpanel rejects an end date after
+today, and projects created before 2023 interpret dates in the project time
+zone. Events from the current day are read on the next run.
+
+`profiles` performs full reads. Use **full upsert** to refresh profiles, or
+**full replace** to remove profiles no longer returned.
+
+The raw export is not deduplicated, and the reread day returns events again.
+Use a mode that upserts on the key to avoid duplicate events.
+
+## Behavior
+
+- **Auth**. Requests use HTTP Basic auth with the service account and send
+  `project_id` as a query parameter. Authentication and permission errors fail
+  the read.
+- **Pagination**. Profiles are read 1,000 per page, starting at page 0, and
+  every later page repeats the `session_id` from the first response. Events
+  arrive as newline-delimited JSON in one response per run.
+- **Empty projects**. A project with no events returns the body
+  `terminated early`, which is read as zero events.
+- **Rate limiting**. The Export and Query APIs each allow 60 queries per hour.
+  Requests are paced to stay under that limit. See
+  [rate limits](https://developer.mixpanel.com/reference/rate-limits).
