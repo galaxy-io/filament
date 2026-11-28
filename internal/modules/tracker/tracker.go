@@ -19,6 +19,7 @@ import (
 // Module consumes every ingestion fact and persists the derived run state.
 type Module struct {
 	ds  filament.DataStore
+	bus eventbus.Bus
 	log filament.Logger
 	mx  filament.Metrics
 
@@ -37,7 +38,10 @@ type Module struct {
 	boundary map[ckKey]filament.CheckpointPolicy
 	// folds holds each bounded run's dedup mark and unsaved batch totals.
 	folds map[runKey]*runFold
-	now   func() time.Time // the clock, replaced in tests
+	// unannounced holds the outcome fact of a folded command until it is
+	// published (commands.go).
+	unannounced map[runKey]events.Fact
+	now         func() time.Time // the clock, replaced in tests
 }
 
 // bmAccount counts written rows per bitmap shard against the shard's expected total. A
@@ -70,6 +74,7 @@ func New() *Module {
 	return &Module{
 		cp: map[ckKey]filament.Checkpoint{}, since: map[ckKey]int{}, every: map[filament.RunID]int{},
 		bm: map[ckKey]*bmAccount{}, boundary: map[ckKey]filament.CheckpointPolicy{},
+		unannounced: map[runKey]events.Fact{},
 	}
 }
 
@@ -93,6 +98,7 @@ func (m *Module) Subscriptions() []host.Subscription {
 // Mount captures the providers this module uses. Cheap, no I/O.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
+	m.bus = d.Bus
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "tracker"})
 	}
@@ -232,18 +238,18 @@ func terminalFactStatus(data any) (string, bool) {
 	}
 }
 
-// apply folds one fact into persisted run/resource/checkpoint state. Facts not
-// listed here (page-fetched, batch-buffered, integrity-verified, rate-limited,
+// apply folds one fact into persisted run/resource/checkpoint state. Pause,
+// resume, and cancel commands fold in commands.go. Other facts not listed here
+// (page-fetched, batch-buffered, integrity-verified, rate-limited,
 // schedule-fired) carry no durable state change and are ignored.
 func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	env := f.Envelope
+	if stale, err := m.staleOutcome(ctx, f); err != nil || stale {
+		return err
+	}
 	switch d := f.Data.(type) {
 	case events.RunStartedEvent:
-		return m.mutate(ctx, env, func(r *filament.RunState) {
-			r.Status = filament.RunRunning
-			// The store keeps the first stamp, so a redelivered fact cannot move it.
-			r.StartedAt = env.At
-		})
+		return m.applyStarted(ctx, env)
 
 	case events.RunCompletedEvent:
 		// A run that isolated resource failures committed only its healthy
@@ -349,7 +355,7 @@ func (m *Module) apply(ctx context.Context, f events.Fact) error {
 		return nil
 
 	default:
-		return nil // facts this module doesn't fold are acked and ignored
+		return m.applyCommand(ctx, env, f.Data) // commands.go, or ignored
 	}
 }
 

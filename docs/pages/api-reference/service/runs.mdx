@@ -135,9 +135,12 @@ The allowed transition depends on current state:
 - repeated signals that already match the intended state are idempotent where
   safe, while invalid transitions return `failed_precondition`.
 
-Running signals require both an event bus and datastore support for atomic run
-transitions. A request may also end with `deadline_exceeded` or `canceled` while
-waiting for worker acknowledgement.
+Signals require an event bus. The control plane's tracker applies a pause,
+resume, or cancel that needs no worker, and the call returns once the tracker
+has applied it, so it waits for a running control plane. A request may also end with
+`deadline_exceeded` or `canceled` while waiting for the tracker or for worker
+acknowledgement. A command the tracker has not reached yet is still applied
+unless the run has moved on.
 
 Continuous runs accept `PAUSE`, `RESUME`, and `STOP`. These update the desired
 state and return the current execution status while the worker responds.

@@ -108,8 +108,8 @@ runs use the pipeline setting.
 
 `SignalRun` supports all three controls:
 
-- Pausing a requested run changes its state immediately. Pausing a running run
-  sends a worker command and waits for the worker's acknowledgement.
+- Pausing a requested run needs no worker. Pausing a running run sends a worker
+  command and waits for the worker's acknowledgement.
 - A fully checkpointed running route drains accepted rows, commits them, and
   pauses with progress preserved. A checkpoint-free route aborts and later
   restarts. A route with mixed checkpoint coverage rejects pause because neither
@@ -117,11 +117,21 @@ runs use the pipeline setting.
 - Resuming a paused or partial run returns it to requested. Only checkpointed
   progress is retained; restart-only work has its execution totals reset.
 - Canceling a running run stops extraction and aborts the sink before the worker
-  acknowledges cancellation. Requested, paused, and partial runs can be
-  canceled directly.
+  acknowledges cancellation. Requested, paused, and partial runs are canceled
+  without a worker.
 
 Signals are state-aware and idempotent where repeating the same intent is safe.
 Invalid transitions, such as resuming a completed non-CDC run, are rejected.
+
+A pause, resume, or cancel that needs no worker is published as a command event
+such as `run.pause_commanded`. The control plane's tracker applies it in order
+with every other event, so the tracker stays the only writer of run state, and
+`SignalRun` returns once the tracker has applied it. When another event moves
+the run first, such as a worker starting a requested run, the command changes
+nothing. The tracker publishes `run.command_skipped`, and the call returns
+`failed_precondition`. A worker that started just
+before a pause or cancel was applied is sent the same stop request a running
+run gets.
 
 ## Resync
 
@@ -152,5 +162,6 @@ retry events. Examples include `run.pause_requested`, `run.paused`,
 `cursor.checkpoint_saved`.
 
 These events record worker execution and let the tracker update totals and progress.
-The API also persists intake and control transitions directly, as described in
+The API persists a new requested run directly. Pause, resume, and cancel reach
+stored state through the tracker, as described in
 [Architecture](/pages/guides/concepts/architecture).

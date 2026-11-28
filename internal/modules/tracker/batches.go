@@ -21,6 +21,7 @@ func folds(data any) bool {
 	case events.RunStartedEvent,
 		events.RunCompletedEvent, events.RunFailedEvent, events.RunPartialEvent,
 		events.RunCanceledEvent, events.RunPausedEvent,
+		events.RunPauseCommandedEvent, events.RunResumeCommandedEvent, events.RunCancelCommandedEvent,
 		events.ResourceStartedEvent, events.ResourceCompletedEvent, events.ResourceFailedEvent,
 		events.BatchWrittenEvent, events.HeartbeatEvent, events.CheckpointSavedEvent:
 		return true
