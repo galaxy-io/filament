@@ -336,8 +336,16 @@ type Resource struct {
 	Name            string   `yaml:"name"`
 	EmitAs          string   `yaml:"emit_as,omitempty"`
 	Path            string   `yaml:"path"`
-	Method          string   `yaml:"method"`
-	Mode            string   `yaml:"mode"` // paginated | stream | export | webhook (default paginated)
+	// BaseURL replaces connection.base_url for this resource, for APIs that
+	// serve some endpoints from a separate host. BaseURLs instead picks the
+	// host with the connection's base_url_field selection, so a regional
+	// connection can route this resource to the matching regional host.
+	// Both render once at configuration from config and env, and requests
+	// to that host carry the connection's authentication.
+	BaseURL  string            `yaml:"base_url,omitempty"`
+	BaseURLs map[string]string `yaml:"base_urls,omitempty"`
+	Method   string            `yaml:"method"`
+	Mode     string            `yaml:"mode"` // paginated | stream | export | webhook (default paginated)
 	// Events lists the event types a webhook resource reads when the
 	// manifest routes deliveries by type. See WebhookSpec.Route.
 	Events         []string  `yaml:"events,omitempty"`
@@ -518,6 +526,16 @@ type PaginationSpec struct {
 	PageParam      string `yaml:"page_param,omitempty"`
 	SizeParam      string `yaml:"size_param,omitempty"`
 	TotalPagesPath string `yaml:"total_pages_path,omitempty"`
+	// FirstPage overrides the first page number, 1 by default, for APIs
+	// whose pages start at 0.
+	FirstPage *int `yaml:"first_page,omitempty"`
+	// SessionPath reads a token from each page's response, and SessionParam
+	// sends it with the next page request at SessionInjectInto
+	// (query | body | header). APIs such as Mixpanel Engage require the
+	// session_id from the first page on every later page.
+	SessionPath       string `yaml:"session_path,omitempty"`
+	SessionParam      string `yaml:"session_param,omitempty"`
+	SessionInjectInto string `yaml:"session_inject_into,omitempty"`
 
 	// link_header
 	Rel string `yaml:"rel,omitempty"`
@@ -601,25 +619,43 @@ func (p *PaginationSpec) UnmarshalYAML(node *yaml.Node) error {
 		p.HasMorePath = spec.More
 		p.Type, p.OffsetParam, p.LimitParam, p.PageSize, p.OffsetInjectInto = "offset", offsetParam, limitParam, spec.PageSize, offsetTarget
 	case "page":
-		var spec struct {
-			Number     string `yaml:"number"`
-			Size       string `yaml:"size"`
-			PageSize   int    `yaml:"page_size"`
-			TotalPages string `yaml:"total_pages"`
-			More       string `yaml:"more"`
-		}
-		if err := value.Decode(&spec); err != nil {
-			return err
-		}
-		numberTarget, numberParam := paginationTarget(spec.Number)
-		sizeTarget, sizeParam := paginationTarget(spec.Size)
-		if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
-			return fmt.Errorf("page pagination fields must share a query or body target")
-		}
-		p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
-		p.InjectInto, p.HasMorePath = numberTarget, spec.More
+		return p.decodePage(value)
 	default:
 		return fmt.Errorf("unknown pagination strategy %q", strategy)
+	}
+	return nil
+}
+
+// decodePage compiles the concise page strategy.
+func (p *PaginationSpec) decodePage(value *yaml.Node) error {
+	var spec struct {
+		Number     string `yaml:"number"`
+		Size       string `yaml:"size"`
+		PageSize   int    `yaml:"page_size"`
+		TotalPages string `yaml:"total_pages"`
+		More       string `yaml:"more"`
+		Start      *int   `yaml:"start"`
+		Session    *struct {
+			Response string `yaml:"response"`
+			Request  string `yaml:"request"`
+		} `yaml:"session"`
+	}
+	if err := value.Decode(&spec); err != nil {
+		return err
+	}
+	numberTarget, numberParam := paginationTarget(spec.Number)
+	sizeTarget, sizeParam := paginationTarget(spec.Size)
+	if numberTarget != sizeTarget || (numberTarget != "query" && numberTarget != "body") {
+		return fmt.Errorf("page pagination fields must share a query or body target")
+	}
+	p.Type, p.PageParam, p.SizeParam, p.PageSize, p.TotalPagesPath = "page", numberParam, sizeParam, spec.PageSize, spec.TotalPages
+	p.InjectInto, p.HasMorePath, p.FirstPage = numberTarget, spec.More, spec.Start
+	if spec.Session != nil {
+		target, param, ok := strings.Cut(spec.Session.Request, ".")
+		if !ok || (target != "query" && target != "body" && target != "header") {
+			return fmt.Errorf("page.session.request must be query.<name>, body.<path>, or header.<name>")
+		}
+		p.SessionPath, p.SessionParam, p.SessionInjectInto = spec.Session.Response, param, target
 	}
 	return nil
 }
@@ -645,8 +681,19 @@ type IncrementalSpec struct {
 	CursorField    string `yaml:"cursor_field"`
 	// CursorPath is resolved from the projected field declaration after parsing.
 	// It is runtime-only; manifests continue to name the output cursor field.
-	CursorPath    string `yaml:"-"`
-	StartParam    string `yaml:"start_param"`
+	CursorPath string `yaml:"-"`
+	StartParam string `yaml:"start_param"`
+	// EndParam names the request parameter that receives the extraction's
+	// upper bound, the time the extraction started. It goes to the same
+	// target as start_param, rendered with value_date_format and without the
+	// value prefix or suffix. Mixpanel's raw export, for example, rejects a
+	// window without an end date and one that ends after today.
+	EndParam string `yaml:"end_param,omitempty"`
+	// EndLagSeconds moves the end_param bound back from the run start. APIs
+	// that reject an end date after "today" in an account time zone, such as
+	// Mixpanel, take 86400 so a run just after midnight UTC never asks for
+	// tomorrow in a zone behind UTC.
+	EndLagSeconds int    `yaml:"end_lag_seconds,omitempty"`
 	InjectInto    string `yaml:"inject_into"` // query | body | header
 	Initial       string `yaml:"initial,omitempty"`
 	CheckpointKey string `yaml:"checkpoint_key,omitempty"`
@@ -728,6 +775,12 @@ type StreamSpec struct {
 	// MaxElementBytes caps per-element size for chunked_array. Zero means
 	// no cap (relies on the connector-level response size cap).
 	MaxElementBytes int `yaml:"max_element_bytes,omitempty"`
+	// EmptyBody (ndjson only) is the exact body an API sends for a result
+	// with no records instead of an empty response. Mixpanel's raw export
+	// answers an empty window with "terminated early". A body equal to it
+	// once surrounding whitespace is trimmed reads as zero records. Any
+	// other body goes through the strict line parser.
+	EmptyBody string `yaml:"empty_body,omitempty"`
 }
 
 // Load reads, parses, validates, and version-checks a manifest at path.

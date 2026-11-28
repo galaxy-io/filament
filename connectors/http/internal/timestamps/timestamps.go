@@ -9,6 +9,7 @@ package timestamps
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 )
@@ -43,4 +44,26 @@ func Normalize(s string) (string, error) {
 		return "", err
 	}
 	return t.Format(time.RFC3339Nano), nil
+}
+
+// epochMillisAbove separates the two epoch units numbers arrive in. Unix
+// seconds stay below it until the year 33658; milliseconds pass it from
+// September 2001.
+const epochMillisAbove = 1e12
+
+// EpochMicros reads a Unix epoch number, in seconds or milliseconds, integer
+// or fractional, as microseconds since the epoch. Values above 1e12 are
+// milliseconds. timestamptz columns and time cursors both read JSON numbers
+// with this rule.
+func EpochMicros(f float64) int64 {
+	if f > epochMillisAbove {
+		return int64(math.Round(f * 1000))
+	}
+	return int64(math.Round(f * 1_000_000))
+}
+
+// NormalizeEpoch renders a Unix epoch number, read with EpochMicros, as the
+// RFC3339Nano form Normalize produces.
+func NormalizeEpoch(f float64) string {
+	return time.UnixMicro(EpochMicros(f)).UTC().Format(time.RFC3339Nano)
 }

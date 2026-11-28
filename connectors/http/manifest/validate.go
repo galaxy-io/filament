@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -228,6 +229,7 @@ func (m *Manifest) validateSemantics() error {
 		}
 		names[r.Name] = struct{}{}
 
+		validateResourceBaseURL(&agg, path, m.Connection, *r)
 		if r.Path == "" && r.Mode != "export" && r.Mode != ModeWebhook {
 			_ = agg.Addf(path+".path", "is required")
 		}
@@ -377,13 +379,14 @@ func (m *Manifest) validateSemantics() error {
 		if err := checkEnum(r.Pagination.InjectInto, ValidPaginationInject); err != nil {
 			_ = agg.Addf(path+".pagination.inject_into", "%v", err)
 		}
+		validatePageOptions(&agg, path+".pagination", r.Pagination)
 		if r.Pagination.Strict && (r.Pagination.Type != "cursor" || r.Pagination.HasMorePath == "" || r.Response.RecordsPath == "") {
 			_ = agg.Addf(path+".pagination", "strict cursor pagination requires more and records paths")
 		}
 		if r.Incremental != nil && r.Incremental.ResponseCursor != "" {
 			spec := r.Incremental
-			if spec.CursorField != "" || spec.Comparator != "" || spec.OverlapSeconds != 0 {
-				_ = agg.Addf(path+".incremental", "response_cursor cannot use a row cursor, comparator, or overlap")
+			if spec.CursorField != "" || spec.Comparator != "" || spec.OverlapSeconds != 0 || spec.EndParam != "" {
+				_ = agg.Addf(path+".incremental", "response_cursor cannot use a row cursor, comparator, overlap, or end_param")
 			}
 			if r.Parent != nil || r.Stream != nil || r.EmitAs != "" || r.CaptureOnly {
 				_ = agg.Addf(path+".incremental", "response_cursor requires a top-level, non-streaming resource")
@@ -431,10 +434,37 @@ func (m *Manifest) validateSemantics() error {
 			if paginationInjectionCollides(r.Pagination, *r.Incremental) {
 				_ = agg.Addf(path+".incremental.start_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, r.Incremental.StartParam)
 			}
+			for _, bound := range []struct{ field, param string }{{"start_param", r.Incremental.StartParam}, {"end_param", r.Incremental.EndParam}} {
+				if sessionInjectionCollides(r.Pagination, r.Incremental.InjectInto, bound.param) {
+					_ = agg.Addf(path+".incremental."+bound.field, "conflicts with pagination.session.request %s.%s; the incremental bound would replace the session token on every page after the first", r.Incremental.InjectInto, bound.param)
+				}
+			}
+			if r.Incremental.EndLagSeconds != 0 && r.Incremental.EndParam == "" {
+				_ = agg.Addf(path+".incremental.end_lag_seconds", "requires end_param")
+			}
+			if end := r.Incremental.EndParam; end != "" {
+				if r.Incremental.Comparator != "time" {
+					_ = agg.Addf(path+".incremental.end_param", "requires comparator time")
+				}
+				if end == r.Incremental.StartParam {
+					_ = agg.Addf(path+".incremental.end_param", "must differ from start_param")
+				}
+				endSpec := *r.Incremental
+				endSpec.StartParam = end
+				if paginationInjectionCollides(r.Pagination, endSpec) {
+					_ = agg.Addf(path+".incremental.end_param", "conflicts with the pagination injection target %s.%s", r.Incremental.InjectInto, end)
+				}
+			}
 		}
 		if r.Stream != nil {
 			if err := checkEnum(r.Stream.Type, ValidStreamTypes); err != nil {
 				_ = agg.Addf(path+".stream.type", "%v", err)
+			}
+			if r.Stream.EmptyBody != "" && r.Stream.Type != "ndjson" {
+				_ = agg.Addf(path+".stream.empty_body", "requires stream type ndjson")
+			}
+			if r.Stream.EmptyBody != "" && strings.TrimSpace(r.Stream.EmptyBody) != r.Stream.EmptyBody {
+				_ = agg.Addf(path+".stream.empty_body", "must not start or end with whitespace")
 			}
 		}
 	}
@@ -673,6 +703,74 @@ func paginationInjectionCollides(pagination PaginationSpec, incremental Incremen
 		}
 	}
 	return target == incremental.InjectInto && param == incremental.StartParam
+}
+
+// sessionInjectionCollides reports whether an incremental bound would be sent
+// at the same target and name as the page session token.
+func sessionInjectionCollides(pagination PaginationSpec, target, param string) bool {
+	return param != "" && pagination.SessionParam != "" && pagination.SessionInjectInto == target && pagination.SessionParam == param
+}
+
+// validatePageOptions checks the page-only start and session options. A
+// session token must not overwrite the page number or size it travels with.
+func validatePageOptions(agg *errs.ManifestErrors, at string, p PaginationSpec) {
+	session := p.SessionPath != "" || p.SessionParam != "" || p.SessionInjectInto != ""
+	if (p.FirstPage != nil || session) && p.Type != "page" {
+		_ = agg.Addf(at, "start and session require page pagination")
+		return
+	}
+	if p.FirstPage != nil && *p.FirstPage < 0 {
+		_ = agg.Addf(at+".start", "must be 0 or greater")
+	}
+	if !session {
+		return
+	}
+	if p.SessionPath == "" || p.SessionParam == "" {
+		_ = agg.Addf(at+".session", "requires response and request")
+	}
+	if err := checkEnum(p.SessionInjectInto, []string{"query", "body", "header"}); err != nil {
+		_ = agg.Addf(at+".session.request", "%v", err)
+	}
+	pageTarget := p.InjectInto
+	if pageTarget == "" {
+		pageTarget = "query"
+	}
+	if p.SessionInjectInto == pageTarget && (p.SessionParam == p.PageParam || p.SessionParam == p.SizeParam) {
+		_ = agg.Addf(at+".session.request", "conflicts with the page number or size parameter")
+	}
+}
+
+// validateResourceBaseURL checks a resource's own host. base_urls must name a
+// host for every connection.base_urls key so each regional selection resolves.
+func validateResourceBaseURL(agg *errs.ManifestErrors, at string, conn Connection, r Resource) {
+	if r.BaseURL == "" && len(r.BaseURLs) == 0 {
+		return
+	}
+	if r.BaseURL != "" && len(r.BaseURLs) > 0 {
+		_ = agg.Addf(at+".base_url", "cannot be combined with base_urls")
+	}
+	if r.Mode == "export" || r.Mode == ModeWebhook {
+		_ = agg.Addf(at+".base_url", "is not supported for mode %s", r.Mode)
+	}
+	scopes := []string{"config", "env"}
+	validateTemplateScopes(agg, at+".base_url", r.BaseURL, scopes)
+	if len(r.BaseURLs) == 0 {
+		return
+	}
+	if conn.BaseURLField == "" {
+		_ = agg.Addf(at+".base_urls", "requires connection.base_url_field")
+	}
+	for _, key := range slices.Sorted(maps.Keys(conn.BaseURLs)) {
+		if _, ok := r.BaseURLs[key]; !ok {
+			_ = agg.Addf(at+".base_urls", "missing a host for %s", key)
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(r.BaseURLs)) {
+		if _, ok := conn.BaseURLs[key]; !ok {
+			_ = agg.Addf(at+".base_urls."+key, "is not a connection.base_urls key")
+		}
+		validateTemplateScopes(agg, at+".base_urls."+key, r.BaseURLs[key], scopes)
+	}
 }
 
 // validateTemplate parses s and records any syntax/semantic issue against

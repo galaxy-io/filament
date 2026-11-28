@@ -211,6 +211,12 @@ appear before dependent fields.
 - `base_url` can reference connector config, as PostHog does for `host`. It is
   resolved once when the connector is configured, not separately for every
   request.
+- A resource served from another host sets its own `base_url`. Use
+  `base_urls` with the same keys as `connection.base_urls` when that host also
+  depends on the selected region. Requests to that host carry the connection's
+  authentication, so the rendered host must use HTTPS and share the
+  connection host's registrable domain (`data.mixpanel.com` next to
+  `mixpanel.com`). Configure rejects any other host.
 - `auth` supports no auth, bearer tokens, a custom header, basic auth, and
   OAuth 2 client credentials or a supplied refresh token. OAuth tokens are
   cached through the shared `oauth` package. Token URLs must resolve to HTTPS
@@ -272,6 +278,9 @@ Choose the pagination style that matches the API:
   `body.<path>` for both `number` and `size`. Only `query.`, `body.`, and
   `header.` act as prefixes, so a dotted parameter name like `pagination.page`
   stays a query parameter as written.
+  Pages start at 1. Set `start: 0` for APIs that count from zero. Add
+  `session {response, request}` when every page after the first must repeat a
+  token from the previous response, as Mixpanel Engage does with `session_id`.
 
 ### Read child endpoints
 
@@ -325,7 +334,10 @@ An `incremental` block turns a resource into an incremental read:
   bound goes on the request.
 - `initial`: the first-run lower bound.
 - `checkpoint_key`: the durable key (defaults to `cursor_field`).
-- `comparator: lex (default) | numeric | time`.
+- `comparator: lex (default) | numeric | time`. A `time` cursor reads ISO 8601
+  strings, and reads a JSON number as a Unix epoch the way `timestamptz`
+  fields do, in seconds or in milliseconds above `1e12`. A string of digits
+  is not read as an epoch.
 - `overlap_seconds` rewinds the lower bound for a lookback window and is
   valid for `time` **or** `numeric` comparators.
 - `value_date_format` reformats a `time` watermark on the wire only, as a
@@ -333,8 +345,20 @@ An `incremental` block turns a resource into an incremental read:
   RFC3339. The checkpoint keeps the normalized RFC3339 value. Filament rejects a
   layout that renders the same value for every watermark, and a bad initial
   watermark fails at setup.
+- `end_param` names a second parameter for APIs that require a window end,
+  such as Mixpanel's raw export. It receives the time the run started, in the
+  same place as `start_param` and in `value_date_format`, without the value
+  prefix or suffix. It requires the `time` comparator.
+- `end_lag_seconds` moves that end back from the run start. The end is taken
+  in UTC, so an API that rejects an end date after "today" in the account's
+  time zone can get a date that is still tomorrow there. Mixpanel projects
+  behind UTC hit this just after midnight UTC, so use `end_lag_seconds: 86400`
+  and reread the previous day with `overlap_seconds`.
+- A full refresh of a resource with `end_param` sends the window too. The
+  start comes from `initial`, without the overlap, and the end is as above.
+  Filament saves no watermark on a full refresh.
 
-The lower bound remains fixed during one extraction. Filament saves the largest
+The lower bound, and the upper bound when set, remain fixed during one extraction. Filament saves the largest
 cursor value it sees. A missing or invalid cursor fails the run because skipping
 that value could cause later runs to miss records.
 
@@ -384,6 +408,11 @@ array is retained if projected separately, otherwise it remains in `raw`.
 `discovery` supports `mode: static | dynamic`, though every shipped manifest
 is static. A `stream` mode (`ndjson | sse | chunked_array`) exists per
 resource as an alternative to pagination. No shipped manifest uses it.
+For an `ndjson` stream, `empty_body` names the exact body an API sends
+instead of an empty response when there are no records. Mixpanel's raw
+export sends `terminated early` for a window without events. A body equal to
+`empty_body`, ignoring surrounding whitespace, reads as zero records. Any
+other line that isn't JSON still fails the run.
 
 For static discovery, `default_resources: [issues, comments]` sets the initial
 selection when creating a pipeline. All resources remain listed and selectable.

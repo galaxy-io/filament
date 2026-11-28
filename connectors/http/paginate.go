@@ -550,12 +550,7 @@ func (c *Connector) sendRecords(
 			return n, captured, err
 		}
 		if tracker != nil && res.Incremental.CommitOnComplete {
-			field, _ := manifest.IncrementalCursorField(res)
-			value, _, err := paths.AsString(rec, field.Path)
-			if err != nil {
-				return n, captured, err
-			}
-			below, err := tracker.Below(value)
+			below, err := tracker.RecordBelow(rec)
 			if err != nil {
 				return n, captured, err
 			}

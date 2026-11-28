@@ -39,3 +39,20 @@ func TestNormalizeRendersRFC3339(t *testing.T) {
 		t.Errorf("Normalize = %q, want %q", got, want)
 	}
 }
+
+func TestEpochMicrosUnits(t *testing.T) {
+	for _, tc := range []struct {
+		in   float64
+		want string
+	}{
+		{1795822894, "2026-11-27T23:41:34Z"},
+		{1795822894.25, "2026-11-27T23:41:34.25Z"},
+		{1795822894123, "2026-11-27T23:41:34.123Z"},
+		{1e12, "33658-09-27T01:46:40Z"},
+		{0, "1970-01-01T00:00:00Z"},
+	} {
+		if got := NormalizeEpoch(tc.in); got != tc.want {
+			t.Errorf("NormalizeEpoch(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
