@@ -17,7 +17,7 @@ var (
 	ValidBodyEncodings = []string{"json", "form", "multipart", "raw", "none", ""}
 	ValidResponseRoots = []string{"array", "object", ""}
 
-	ValidPaginationTypes  = []string{"cursor", "offset", "page", "link_header", "next_url", "none", ""}
+	ValidPaginationTypes  = []string{"cursor", "offset", "page", "link_header", "next_url", "last_record", "none", ""}
 	ValidPaginationInject = []string{"body", "query", "header", ""}
 
 	ValidIncrementalInject = []string{"query", "body", "header", "state"}

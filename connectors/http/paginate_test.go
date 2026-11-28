@@ -359,3 +359,108 @@ func TestHTTPLinkHeaderWalksRepeatedLinkFields(t *testing.T) {
 		t.Fatalf("ids=%v, want [1 2] — the rel=\"next\" field after the first was not followed", ids)
 	}
 }
+
+const lastRecordTestManifest = `
+version: 1
+name: test
+display_name: Test
+description: Generic HTTP runtime fixture.
+dark_logo_url: https://example.com/dark.svg
+light_logo_url: https://example.com/light.svg
+config:
+  api_key:
+    type: string
+    required: true
+  api_token:
+    type: secret
+    required: true
+connection:
+  base_url: https://example.com
+  auth:
+    header:
+      name: Authorization
+      value: OAuth oauth_consumer_key="{{ config.api_key }}", oauth_token="{{ config.api_token }}"
+  headers: {Accept: application/json}
+resources:
+  - name: items
+    path: /items
+    query:
+      limit: "2"
+    pagination:
+      last_record:
+        field: id
+        request: query.before
+        page_size: 2
+    primary_key: [id]
+    fields:
+      id: string
+    response:
+      records: $
+`
+
+// TestLastRecordPaginationWalksBeforeCursor pages a root-array API that caps
+// at two rows per request and offers no next-page token. The first full page
+// must continue with before set to the last record's id, and the short second
+// page must end the walk. Every request must carry the templated OAuth
+// Authorization header, never the credentials in the URL.
+func TestLastRecordPaginationWalksBeforeCursor(t *testing.T) {
+	var calls atomic.Int64
+	var befores []string
+	var authorizations []string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		befores = append(befores, r.URL.Query().Get("before"))
+		authorizations = append(authorizations, r.Header.Get("Authorization"))
+		if got := r.URL.Query().Get("key"); got != "" {
+			t.Errorf("request carried key in the URL query: %q", got)
+		}
+		if got := r.URL.Query().Get("token"); got != "" {
+			t.Errorf("request carried token in the URL query: %q", got)
+		}
+		switch r.URL.Query().Get("before") {
+		case "":
+			fmt.Fprint(w, `[{"id":"a1"},{"id":"a2"}]`)
+		case "a2":
+			fmt.Fprint(w, `[{"id":"a3"}]`)
+		default:
+			fmt.Fprint(w, `[]`)
+		}
+	}))
+	t.Cleanup(api.Close)
+
+	src := NewManifest([]byte(strings.Replace(lastRecordTestManifest,
+		"base_url: https://example.com", "base_url: "+api.URL, 1)))
+	if err := src.Configure(t.Context(), filament.NewConfig(map[string]any{
+		"api_key": "test-key", "api_token": "test-token",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = src.Teardown(context.Background()) })
+
+	var sink collectSink
+	if err := src.Extract(context.Background(), &sink, filament.ExtractOpts{
+		Resources: []string{"items"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if calls.Load() != 2 {
+		t.Fatalf("requests=%d, want 2 (one full page plus one short page)", calls.Load())
+	}
+	if len(befores) != 2 || befores[0] != "" || befores[1] != "a2" {
+		t.Fatalf("before params=%v, want [\"\" \"a2\"]", befores)
+	}
+	const wantAuth = `OAuth oauth_consumer_key="test-key", oauth_token="test-token"`
+	for i, got := range authorizations {
+		if got != wantAuth {
+			t.Fatalf("request %d Authorization=%q, want %q", i, got, wantAuth)
+		}
+	}
+	var ids []string
+	for _, rec := range sink.records {
+		ids = append(ids, rec.ID)
+	}
+	if strings.Join(ids, ",") != "a1,a2,a3" {
+		t.Fatalf("ids=%v, want [a1 a2 a3]", ids)
+	}
+}

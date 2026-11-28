@@ -592,6 +592,16 @@
                 "total_pages": { "type": "string" },
                 "more": { "type": "string", "minLength": 1 }
               }
+            },
+            "last_record": {
+              "type": "object",
+              "required": ["field", "request", "page_size"],
+              "additionalProperties": false,
+              "properties": {
+                "field": { "type": "string", "minLength": 1 },
+                "request": { "type": "string", "minLength": 3 },
+                "page_size": { "type": "integer", "minimum": 1 }
+              }
             }
           }
         }
