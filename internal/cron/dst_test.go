@@ -26,6 +26,8 @@ func TestNextDaylightSaving(t *testing.T) {
 		{"london spring forward fires after gap", "Europe/London", "30 1 * * *", "2026-03-28T01:30:05Z", "2026-03-29T01:00:00Z"},
 		{"new york hour range skips repeated 01:00", "America/New_York", "0 1-3 * * *", "2026-11-01T05:00:05Z", "2026-11-01T07:00:00Z"},
 		{"new york minute list skips repeated 01:00", "America/New_York", "0,30 1 * * *", "2026-11-01T05:30:05Z", "2026-11-02T06:00:00Z"},
+		{"new york full minute range skips repeated hour", "America/New_York", "0-59 1 * * *", "2026-11-01T05:59:05Z", "2026-11-02T06:00:00Z"},
+		{"new york full hour range skips repeated 01:30", "America/New_York", "30 0-23 * * *", "2026-11-01T05:30:05Z", "2026-11-01T07:30:00Z"},
 		{"london hour list fires at end of gap", "Europe/London", "0 1,2 * * *", "2026-03-29T00:00:05Z", "2026-03-29T01:00:00Z"},
 		{"london hour list fires once on gap day", "Europe/London", "0 1,2 * * *", "2026-03-29T01:00:00Z", "2026-03-30T00:00:00Z"},
 
