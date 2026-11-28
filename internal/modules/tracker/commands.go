@@ -19,7 +19,7 @@ import (
 // own fold finishes a paused or canceled run, as it does when a worker
 // publishes it.
 func (m *Module) applyCommand(ctx context.Context, env events.Envelope, data any) error {
-	signal, ok := commandSignal(data)
+	signal, ok := runcommands.CommandSignal(data)
 	if !ok {
 		return nil
 	}
@@ -46,6 +46,17 @@ func (m *Module) applyCommand(ctx context.Context, env events.Envelope, data any
 		return err
 	}
 	transition, ok := runcommands.PlanTransition(state, signal)
+	if !ok && (signal == filament.SignalPause && state.Status == filament.RunPaused ||
+		signal == filament.SignalCancel && state.Status == filament.RunCanceled) {
+		// Already applied, by this command before a restart lost its outcome,
+		// or by another command. A repeated outcome is dropped by the broker
+		// or folds as stale. A resume is not repeated, because a second
+		// run.requested would dispatch the run twice.
+		m.mu.Lock()
+		m.unannounced[key] = runcommands.Outcome(env, signal)
+		m.mu.Unlock()
+		return m.announce(ctx, key)
+	}
 	if !ok {
 		// Another fact moved the run first, for example run.started before a
 		// cancel. The caller's Signal reports the conflict.
@@ -63,26 +74,9 @@ func (m *Module) applyCommand(ctx context.Context, env events.Envelope, data any
 		return err
 	}
 	m.mu.Lock()
-	if m.unannounced == nil {
-		m.unannounced = make(map[runKey]events.Fact)
-	}
 	m.unannounced[key] = runcommands.Outcome(env, signal)
 	m.mu.Unlock()
 	return m.announce(ctx, key)
-}
-
-// commandSignal returns the signal a command fact carries.
-func commandSignal(data any) (filament.Signal, bool) {
-	switch data.(type) {
-	case events.RunPauseCommandedEvent:
-		return filament.SignalPause, true
-	case events.RunResumeCommandedEvent:
-		return filament.SignalResume, true
-	case events.RunCancelCommandedEvent:
-		return filament.SignalCancel, true
-	default:
-		return 0, false
-	}
 }
 
 // announce publishes the outcome of a command the tracker applied and has not
@@ -104,4 +98,64 @@ func (m *Module) announce(ctx context.Context, key runKey) error {
 	delete(m.unannounced, key)
 	m.mu.Unlock()
 	return nil
+}
+
+// staleOutcome reports a pause or cancel outcome whose run no longer has the
+// status the command stored, because a later command already moved it. Such
+// an outcome must not fold, or it would restore the earlier status.
+func (m *Module) staleOutcome(ctx context.Context, f events.Fact) (bool, error) {
+	var want filament.RunStatus
+	switch d := f.Data.(type) {
+	case events.RunPausedEvent:
+		if !d.Commanded {
+			return false, nil
+		}
+		want = filament.RunPaused
+	case events.RunCanceledEvent:
+		if !d.Commanded {
+			return false, nil
+		}
+		want = filament.RunCanceled
+	default:
+		return false, nil
+	}
+	state, err := m.ds.LoadRun(ctx, f.Tenant, f.Run)
+	if errors.Is(err, filament.ErrNotFound) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return state.Status != want, nil
+}
+
+// applyStarted folds run.started. A worker admitted before a pause or cancel
+// command folded still runs, so the tracker asks it to stop the way SignalRun
+// asks a running worker, and the worker acknowledges with its own fact. The
+// request is published before the fold, so a failed save redelivers both.
+func (m *Module) applyStarted(ctx context.Context, env events.Envelope) error {
+	state, err := m.ds.LoadRun(ctx, env.Tenant, env.Run)
+	if err != nil && !errors.Is(err, filament.ErrNotFound) {
+		return err
+	}
+	if err == nil && m.bus != nil {
+		stop := events.Envelope{Tenant: env.Tenant, Run: env.Run, At: env.At}
+		var request events.Fact
+		switch state.Status {
+		case filament.RunPaused:
+			request = events.NewFact(events.RunPauseRequested, stop, events.RunPauseRequestedEvent{})
+		case filament.RunCanceled:
+			request = events.NewFact(events.RunCancelRequested, stop, events.RunCancelRequestedEvent{})
+		}
+		if request.Name != "" {
+			if err := events.Publish(ctx, m.bus, request); err != nil {
+				return fmt.Errorf("tracker: publish %s for run %q: %w", request.Name, env.Run, err)
+			}
+		}
+	}
+	return m.mutate(ctx, env, func(r *filament.RunState) {
+		r.Status = filament.RunRunning
+		// The store keeps the first stamp, so a redelivered fact cannot move it.
+		r.StartedAt = env.At
+	})
 }

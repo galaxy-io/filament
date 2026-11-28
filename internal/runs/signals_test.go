@@ -191,3 +191,24 @@ func TestSignalReportsCommandTheTrackerCouldNotApply(t *testing.T) {
 		t.Fatalf("Signal = %v, want a version conflict", err)
 	}
 }
+
+func TestSkippedOnlyWhenTheCommandCanNoLongerApply(t *testing.T) {
+	for _, tt := range []struct {
+		status filament.RunStatus
+		signal filament.Signal
+		want   bool
+	}{
+		{filament.RunPaused, filament.SignalCancel, false}, // a pause folded first, the cancel still applies
+		{filament.RunCanceled, filament.SignalCancel, false},
+		{filament.RunRunning, filament.SignalCancel, true},
+		{filament.RunRunning, filament.SignalPause, true},
+		{filament.RunCanceled, filament.SignalPause, true},
+		{filament.RunRequested, filament.SignalResume, false},
+		{filament.RunRunning, filament.SignalResume, false}, // resumed and dispatched
+		{filament.RunCanceled, filament.SignalResume, true},
+	} {
+		if got := skipped(filament.RunState{Status: tt.status}, tt.signal); got != tt.want {
+			t.Errorf("skipped(status %d, signal %d) = %v, want %v", tt.status, tt.signal, got, tt.want)
+		}
+	}
+}

@@ -244,13 +244,12 @@ func terminalFactStatus(data any) (string, bool) {
 // schedule-fired) carry no durable state change and are ignored.
 func (m *Module) apply(ctx context.Context, f events.Fact) error {
 	env := f.Envelope
+	if stale, err := m.staleOutcome(ctx, f); err != nil || stale {
+		return err
+	}
 	switch d := f.Data.(type) {
 	case events.RunStartedEvent:
-		return m.mutate(ctx, env, func(r *filament.RunState) {
-			r.Status = filament.RunRunning
-			// The store keeps the first stamp, so a redelivered fact cannot move it.
-			r.StartedAt = env.At
-		})
+		return m.applyStarted(ctx, env)
 
 	case events.RunCompletedEvent:
 		// A run that isolated resource failures committed only its healthy

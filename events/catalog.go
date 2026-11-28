@@ -63,11 +63,17 @@ type (
 	RunCanceledEvent struct {
 		Records int64 `json:"records,omitempty"`
 		Bytes   int64 `json:"bytes,omitempty"`
+		// Commanded marks the outcome of a cancel command, published by the
+		// tracker after it stored the status. It never moves the status.
+		Commanded bool `json:"commanded,omitempty"`
 	}
 	// RunPausedEvent marks a run suspended for a later continuation. Committed
 	// reports whether the sink reached a boundary that can promote checkpoints.
 	RunPausedEvent struct {
 		Committed bool `json:"committed"`
+		// Commanded marks the outcome of a pause command, published by the
+		// tracker after it stored the status. It never moves the status.
+		Commanded bool `json:"commanded,omitempty"`
 	}
 	// RunPauseRequestedEvent asks the worker owning a running run to stop
 	// extraction, drain accepted records, and acknowledge with RunPaused.

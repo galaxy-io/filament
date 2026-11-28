@@ -79,6 +79,23 @@ type signalHarness struct {
 	returned func(error)
 }
 
+// newSignalHarness mounts a tracker over store on a fresh bus and subscribes
+// to every fact the bus carries.
+func newSignalHarness(t *testing.T, ctx context.Context, store filament.DataStore) *signalHarness {
+	t.Helper()
+	bus := inproc.New()
+	sub, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sub.Close() })
+	m := New()
+	if err := m.Mount(ctx, module.Deps{DataStore: store, Bus: bus}); err != nil {
+		t.Fatal(err)
+	}
+	return &signalHarness{t: t, ctx: ctx, bus: bus, sub: sub, m: m}
+}
+
 func (h *signalHarness) start(store signalStore, state filament.RunState, signal filament.Signal) <-chan error {
 	done := make(chan error, 1)
 	go func() {
@@ -161,18 +178,9 @@ func TestSignalSurvivesConcurrentTrackerFold(t *testing.T) {
 							t.Fatal(err)
 						}
 
-						bus := inproc.New()
-						sub, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
-						if err != nil {
-							t.Fatal(err)
-						}
-						defer func() { _ = sub.Close() }()
 						wrapped := &loadHook{signalStore: store}
-						m := New()
-						if err := m.Mount(ctx, module.Deps{DataStore: wrapped, Bus: bus}); err != nil {
-							t.Fatal(err)
-						}
-						h := &signalHarness{t: t, ctx: ctx, bus: bus, sub: sub, m: m}
+						h := newSignalHarness(t, ctx, wrapped)
+						m, sub := h.m, h.sub
 						// A successful signal is acknowledged to the caller, so
 						// the stored status must already be the target then.
 						h.returned = func(err error) {
@@ -262,17 +270,7 @@ func foldSignal(t *testing.T, store signalStore, state filament.RunState, signal
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
-	bus := inproc.New()
-	sub, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = sub.Close() }()
-	m := New()
-	if err := m.Mount(ctx, module.Deps{DataStore: store, Bus: bus}); err != nil {
-		t.Fatal(err)
-	}
-	h := &signalHarness{t: t, ctx: ctx, bus: bus, sub: sub, m: m}
+	h := newSignalHarness(t, ctx, store)
 	return h.await(h.start(store, state, signal))
 }
 
@@ -401,5 +399,123 @@ func TestCommandFoldedAfterRunStartedIsIgnored(t *testing.T) {
 	}
 	if got.Status != filament.RunRunning || got.EndedAt != nil {
 		t.Fatalf("status %d, ended %v; want the running run untouched", got.Status, got.EndedAt)
+	}
+}
+
+func mountedWithBus(t *testing.T, ds filament.DataStore) (*Module, *inproc.Bus) {
+	t.Helper()
+	bus := inproc.New()
+	m := New()
+	if err := m.Mount(t.Context(), module.Deps{DataStore: ds, Bus: bus}); err != nil {
+		t.Fatal(err)
+	}
+	return m, bus
+}
+
+func awaitFact(t *testing.T, sub eventbus.Subscription, name string) events.Fact {
+	t.Helper()
+	for {
+		select {
+		case msg := <-sub.C():
+			if fact, err := events.Decode(msg); err == nil && fact.Name == name {
+				return fact
+			}
+		case <-time.After(time.Second):
+			t.Fatalf("%s was not published", name)
+		}
+	}
+}
+
+// A pause outcome folded after a resume already moved the run must not pause
+// it again. That ordering arises when a second signal's command reaches the
+// stream before the first command's outcome.
+func TestStaleCommandedOutcomeDoesNotRestoreStatus(t *testing.T) {
+	m, ds := mounted(t)
+	env := events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}
+	if err := ds.SaveRun(t.Context(), filament.RunState{Tenant: "t1", Run: "r1", Status: filament.RunRequested, RequestedAt: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	deliver(t, m, 1, events.RunPauseCommanded, env, events.RunPauseCommandedEvent{})
+	deliver(t, m, 2, events.RunResumeCommanded, env, events.RunResumeCommandedEvent{})
+	deliver(t, m, 3, events.RunPaused, env, events.RunPausedEvent{Commanded: true})
+	got, err := ds.LoadRun(t.Context(), "t1", "r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != filament.RunRequested || got.EndedAt != nil {
+		t.Fatalf("status %d, ended %v; want the resumed run left requested", got.Status, got.EndedAt)
+	}
+}
+
+// A tracker that restarted after storing a pause, and so lost the outcome it
+// had not published, republishes it when the command is redelivered.
+func TestRedeliveredCommandRepublishesOutcomeAfterRestart(t *testing.T) {
+	store := sqlite.NewMemory()
+	if err := store.SaveRun(t.Context(), filament.RunState{Tenant: "t1", Run: "r1", Status: filament.RunPaused, RequestedAt: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	m, bus := mountedWithBus(t, store)
+	sub, err := bus.Subscribe(events.SubjectPattern(events.RunPaused), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close() }()
+	at := time.Now()
+	deliver(t, m, 1, events.RunPauseCommanded, events.Envelope{Tenant: "t1", Run: "r1", At: at}, events.RunPauseCommandedEvent{})
+	fact := awaitFact(t, sub, events.RunPaused.Name())
+	if d, ok := fact.Data.(events.RunPausedEvent); !ok || !d.Commanded || !fact.At.Equal(at) {
+		t.Fatalf("outcome = %#v, want a commanded run.paused with the command's emit time", fact)
+	}
+}
+
+// A worker admitted before a cancel folded still runs. Its run.started must
+// ask it to stop instead of leaving it running unseen.
+func TestRunStartedAfterCancelAsksWorkerToStop(t *testing.T) {
+	for _, tt := range []struct {
+		status  filament.RunStatus
+		request string
+	}{
+		{filament.RunCanceled, events.RunCancelRequested.Name()},
+		{filament.RunPaused, events.RunPauseRequested.Name()},
+	} {
+		store := sqlite.NewMemory()
+		if err := store.SaveRun(t.Context(), filament.RunState{Tenant: "t1", Run: "r1", Status: tt.status, RequestedAt: time.Now()}); err != nil {
+			t.Fatal(err)
+		}
+		m, bus := mountedWithBus(t, store)
+		sub, err := bus.Subscribe(events.RunPattern("t1", "r1"), eventbus.SubOpts{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		deliver(t, m, 1, events.RunStarted, events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}, events.RunStartedEvent{})
+		awaitFact(t, sub, tt.request)
+		_ = sub.Close()
+		got, err := store.LoadRun(t.Context(), "t1", "r1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Status != filament.RunRunning {
+			t.Fatalf("status %d after run.started, want running until the worker acknowledges", got.Status)
+		}
+	}
+}
+
+// noTransitions hides the RunTransitionStore capability.
+type noTransitions struct{ filament.DataStore }
+
+// A store that cannot apply transitions must not stall the tracker: the
+// command is acked and the run is left alone.
+func TestCommandIgnoredWithoutTransitionStore(t *testing.T) {
+	store := sqlite.NewMemory()
+	if err := store.SaveRun(t.Context(), filament.RunState{Tenant: "t1", Run: "r1", Status: filament.RunRequested, RequestedAt: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	m := New()
+	if err := m.Mount(t.Context(), module.Deps{DataStore: noTransitions{store}}); err != nil {
+		t.Fatal(err)
+	}
+	deliver(t, m, 1, events.RunCancelCommanded, events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}, events.RunCancelCommandedEvent{})
+	if got, _ := store.LoadRun(t.Context(), "t1", "r1"); got.Status != filament.RunRequested {
+		t.Fatalf("status %d, want requested", got.Status)
 	}
 }

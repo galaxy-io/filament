@@ -125,6 +125,12 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 	if a.bus == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
 	}
+	// The tracker applies pause, resume and cancel through this capability.
+	// Without it a command would never fold and the call would wait out its
+	// deadline.
+	if _, ok := a.store.(filament.RunTransitionStore); !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
+	}
 	signal, err := runSignalFromProto(req.Msg.GetSignal())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
