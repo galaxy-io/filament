@@ -544,3 +544,31 @@ func TestSkippedCommandPublishesItsDecision(t *testing.T) {
 		t.Fatalf("status %d, want running", got.Status)
 	}
 }
+
+// A tracker that restarted after storing a resume, and so lost the
+// run.requested it had not published, cannot tell that resume from another
+// caller's. It reports a skip at requested instead of dispatching twice.
+func TestRedeliveredResumeAfterRestartReportsSkip(t *testing.T) {
+	store := sqlite.NewMemory()
+	if err := store.SaveRun(t.Context(), filament.RunState{Tenant: "t1", Run: "r1", Status: filament.RunRequested, RequestedAt: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	m, bus := mountedWithBus(t, store)
+	sub, err := bus.Subscribe(events.RunPattern("t1", "r1"), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close() }()
+	deliver(t, m, 1, events.RunResumeCommanded, events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}, events.RunResumeCommandedEvent{})
+	fact := awaitFact(t, sub, events.RunCommandSkipped.Name())
+	if skip := fact.Data.(events.RunCommandSkippedEvent); skip.Status != filament.RunRequested {
+		t.Fatalf("skip status %d, want requested", skip.Status)
+	}
+	select {
+	case msg := <-sub.C():
+		if f, _ := events.Decode(msg); f.Name == events.RunRequested.Name() {
+			t.Fatal("redelivered resume published run.requested, which could dispatch the run twice")
+		}
+	case <-time.After(100 * time.Millisecond):
+	}
+}

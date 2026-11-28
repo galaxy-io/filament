@@ -84,7 +84,7 @@ func Signal(
 		return SignalResult{}, fmt.Errorf("%w: pause requires either all or no resources to be checkpointable", ErrSignalTransition)
 	}
 	if command.transition {
-		return SignalResult{}, publishCommand(ctx, bus, state, signal, command.to)
+		return SignalResult{}, publishCommand(ctx, bus, state, signal)
 	}
 	if !command.publish {
 		return SignalResult{WorkerAcknowledgement: command.worker}, nil
@@ -104,7 +104,6 @@ func publishCommand(
 	bus eventbus.Bus,
 	state filament.RunState,
 	signal filament.Signal,
-	to filament.RunStatus,
 ) error {
 	sub, err := bus.Subscribe(events.RunPattern(state.Tenant, state.Run), eventbus.SubOpts{})
 	if err != nil {
@@ -115,20 +114,21 @@ func publishCommand(
 	if err := events.Publish(ctx, bus, command); err != nil {
 		return fmt.Errorf("%w: %v", ErrSignalPublish, err)
 	}
-	return awaitDecision(ctx, sub, command, Outcome(command.Envelope, signal), to)
+	return awaitDecision(ctx, sub, command, Outcome(command.Envelope, signal))
 }
 
 // awaitDecision waits for the tracker's decision on command. Both decision
 // facts reuse the command's envelope, so the emit time ties them to this
-// command and not to another caller's. A skip whose run already has the
-// command's target status succeeded in effect, for example a second resume of
-// a run the first resume already requested.
+// command and not to another caller's. Only the outcome is success. A skip is
+// a conflict even when the run already has the command's target status: a
+// resume skipped at requested may be one the tracker applied before a restart
+// lost its run.requested, so the run might never be dispatched. Resuming a
+// requested run again republishes run.requested.
 func awaitDecision(
 	ctx context.Context,
 	sub eventbus.Subscription,
 	command events.Fact,
 	outcome events.Fact,
-	to filament.RunStatus,
 ) error {
 	for {
 		select {
@@ -147,8 +147,8 @@ func awaitDecision(
 				return nil
 			}
 			if skip, ok := fact.Data.(events.RunCommandSkippedEvent); ok && skip.Command == command.Name {
-				if skip.Status == to {
-					return nil
+				if skip.Status == filament.RunRequested {
+					return fmt.Errorf("run is already requested, so %s was not applied; resume it again if it does not start: %w", command.Name, filament.ErrVersionConflict)
 				}
 				return fmt.Errorf("run is in status %d, so %s no longer applies: %w", skip.Status, command.Name, filament.ErrVersionConflict)
 			}

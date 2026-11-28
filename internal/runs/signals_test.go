@@ -203,14 +203,35 @@ func TestSignalReportsCommandTheTrackerSkipped(t *testing.T) {
 	}
 }
 
-// A second resume of a run another resume already requested succeeds.
-func TestSignalSucceedsWhenSkippedAtTheTarget(t *testing.T) {
+// A resume skipped at requested is reported, not taken for success: the
+// tracker cannot tell its own resume that a restart cut off before
+// run.requested from another caller's, and only the caller can repair it.
+func TestSignalReportsResumeSkippedAtRequested(t *testing.T) {
 	state := filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunPaused}
 	err := decide(t, state, filament.SignalResume, func(command events.Fact) []events.Fact {
 		return []events.Fact{Skipped(command, filament.RunRequested)}
 	})
+	if !errors.Is(err, filament.ErrVersionConflict) {
+		t.Fatalf("Signal = %v, want a conflict the caller can repair by resuming again", err)
+	}
+}
+
+// After that report, resuming the requested run republishes run.requested.
+func TestResumeOfRequestedRunRepublishesDispatch(t *testing.T) {
+	bus := inproc.New()
+	sub, err := bus.Subscribe(events.SubjectPattern(events.RunRequested), eventbus.SubOpts{})
 	if err != nil {
-		t.Fatalf("Signal = %v, want success", err)
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close() }()
+	state := filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunRequested}
+	if _, err := Signal(context.Background(), bus, state, filament.SignalResume); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-sub.C():
+	case <-time.After(time.Second):
+		t.Fatal("resume of a requested run did not republish run.requested")
 	}
 }
 
