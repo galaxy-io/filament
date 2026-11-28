@@ -188,6 +188,7 @@
               "pages/connectors/sources/resend",
               "pages/connectors/sources/servicetitan",
               "pages/connectors/sources/slack",
+              "pages/connectors/sources/sentry",
               "pages/connectors/sources/stripe",
               "pages/connectors/sources/typeform",
               "pages/connectors/sources/zoho",
