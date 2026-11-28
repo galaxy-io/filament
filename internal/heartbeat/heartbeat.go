@@ -40,6 +40,25 @@ func New(
 	run filament.RunID,
 	pipeline string,
 ) *Emitter {
+	return newEmitter(bus, mx, log, tenant, run, pipeline, usage.Read)
+}
+
+func newEmitter(
+	bus eventbus.Bus,
+	mx filament.Metrics,
+	log filament.Logger,
+	tenant filament.TenantID,
+	run filament.RunID,
+	pipeline string,
+	readUsage func() (usage.Sample, bool),
+) *Emitter {
+	if readUsage == nil {
+		readUsage = usage.Read
+	}
+	var baselineCPU float64
+	if s, ok := readUsage(); ok {
+		baselineCPU = s.CPUSeconds
+	}
 	return &Emitter{
 		bus:       bus,
 		mx:        mx,
@@ -47,7 +66,8 @@ func New(
 		tenant:    tenant,
 		run:       run,
 		pipeline:  pipeline,
-		readUsage: usage.Read,
+		readUsage: readUsage,
+		lastCPU:   baselineCPU,
 	}
 }
 

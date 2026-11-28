@@ -162,11 +162,11 @@ func (a *cliApp) runListCommand() *cobra.Command {
 	return cmd
 }
 
-// runCancelCommand cancels a requested, paused, partial, or running run: run cancel <run-id>.
+// runCancelCommand cancels a bounded run or stops a continuous run: run cancel <run-id>.
 func (a *cliApp) runCancelCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "cancel <run-id>",
-		Short: "Cancel an active or queued run",
+		Short: "Cancel an active or queued run (or stop a continuous run)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			runID := strings.TrimSpace(args[0])

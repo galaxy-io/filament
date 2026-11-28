@@ -200,3 +200,72 @@ func TestLoadRunSnapshotOnlySuppressesNotFound(t *testing.T) {
 		t.Fatalf("loadRunSnapshot() = (_, %v, %v), want (_, false, nil)", ok, err)
 	}
 }
+
+type continuousSignalStore struct {
+	*sqlite.Store
+	noStreams
+	streamState filament.StreamState
+	changes     []filament.DesiredStateChange
+}
+
+func (s *continuousSignalStore) LoadStreamState(_ context.Context, req filament.StreamStateRequest) (filament.StreamState, error) {
+	state := s.streamState
+	state.Stream = req.Stream
+	return state, nil
+}
+
+func (s *continuousSignalStore) SetDesiredState(_ context.Context, change filament.DesiredStateChange) error {
+	s.changes = append(s.changes, change)
+	s.streamState.Desired = change.Desired
+	s.streamState.Revision++
+	return nil
+}
+
+func (s *continuousSignalStore) StreamProgress(context.Context, filament.TenantID, filament.RunID) (int64, int64, time.Time, error) {
+	return 0, 0, time.Time{}, nil
+}
+
+func TestSignalRunMapsCancelToStopForContinuousRuns(t *testing.T) {
+	t.Parallel()
+
+	ctx := identity.WithTenant(context.Background(), "tenant-1")
+	streamRef := filament.StreamRef{ID: "stream-1", Generation: 1}
+	store := &continuousSignalStore{
+		Store: sqlite.NewMemory(),
+		streamState: filament.StreamState{
+			Run:      "run-cont-1",
+			Revision: 4,
+			Desired:  filament.StreamEnabled,
+		},
+	}
+	runState := filament.RunState{
+		Run:    "run-cont-1",
+		Tenant: "tenant-1",
+		Status: filament.RunRunning,
+		Request: filament.RunRequest{
+			Tenant:            "tenant-1",
+			PipelineID:        "pipe-1",
+			CheckpointRoute:   "route-1",
+			ReplicationStream: &streamRef,
+			Options:           filament.RunOptions{Execution: filament.ExecutionContinuous},
+		},
+	}
+	if err := store.SaveRun(ctx, runState); err != nil {
+		t.Fatal(err)
+	}
+
+	api := &Server{store: store}
+	resp, err := api.SignalRun(ctx, connect.NewRequest(&ingestionv1.SignalRunRequest{
+		RunId:  "run-cont-1",
+		Signal: ingestionv1.RunSignal_RUN_SIGNAL_CANCEL,
+	}))
+	if err != nil {
+		t.Fatalf("SignalRun(CANCEL) on continuous run: %v", err)
+	}
+	if len(store.changes) != 1 || store.changes[0].Desired != filament.StreamStopped {
+		t.Fatalf("desired state changes = %#v, want single transition to StreamStopped", store.changes)
+	}
+	if got := resp.Msg.GetExecutionStatus().GetDesiredState(); got != ingestionv1.ExecutionDesiredState_EXECUTION_DESIRED_STATE_STOPPED {
+		t.Fatalf("execution desired state = %v, want STOPPED", got)
+	}
+}
