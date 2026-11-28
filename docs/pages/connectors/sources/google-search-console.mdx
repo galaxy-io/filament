@@ -1,0 +1,59 @@
+---
+title: "Google Search Console source connector"
+sidebarTitle: "Google Search Console"
+description: "Read verified properties, sitemaps, and search analytics traffic performance from Google Search Console with Filament."
+icon: "https://cdn.getgalaxy.io/sources/source-icon-google-search-console-dark.svg"
+---
+
+Connector ID `google_search_console`
+
+The Google Search Console source reads sites, sitemaps, and search analytics data from the Google Search Console API. It uses an [HTTP manifest](/pages/connectors/building-a-connector/http-manifests). This connector is in preview. It targets API version `v1`.
+
+## Configuration
+
+| Field | Scope | Default | Description |
+|---|---|---|---|
+| `client_id` | Connection | | Required. Google OAuth 2.0 Client ID created in Google Cloud Console. |
+| `client_secret` | Connection | | Required. Secret. Google OAuth 2.0 Client Secret. |
+| `refresh_token` | Connection | | Required. Secret. Google OAuth 2.0 Refresh Token authorized with the `https://www.googleapis.com/auth/webmasters.readonly` scope. |
+| `start_date` | Pipeline | | Optional. Inclusive start date in `YYYY-MM-DD` format for search analytics queries. |
+| `end_date` | Pipeline | | Optional. End date in `YYYY-MM-DD` format for search analytics queries. |
+| `base_url` | Connection | `https://searchconsole.googleapis.com` | Optional. Google Search Console API base URL. |
+
+Connection testing sends `GET /webmasters/v3/sites`.
+
+## Resources
+
+All resources are selected by default. Top-level resources list verified sites. Child resources fan out across each verified site property.
+
+| Resource | Endpoint | Primary Key | Parent |
+|---|---|---|---|
+| `sites` | `GET /webmasters/v3/sites` | `site_url` | |
+| `sitemaps` | `GET /webmasters/v3/sites/{site_url}/sitemaps` | `site_url`, `path` | `sites` |
+| `search_analytics` | `POST /webmasters/v3/sites/{site_url}/searchAnalytics/query` | `site_url`, `date`, `query`, `page`, `country`, `device` | `sites` |
+
+`sites` lists all Search Console web properties accessible to the authenticated credentials and captures the permission level for each property.
+
+`sitemaps` retrieves all submitted sitemaps for each site, including processing status, warning counts, error counts, and last download timestamps.
+
+`search_analytics` queries search traffic performance metrics including clicks, impressions, click-through rate, and average search position across date, query, page, country, and device dimensions.
+
+## Modes
+
+`sites` and `sitemaps` run in full read mode. Use full upsert to refresh rows or full replace to reconcile active records.
+
+`search_analytics` supports incremental reads using the `date` cursor. It tracks the latest date watermark and applies a 3-day overlap lookback to refresh late-arriving metrics.
+
+## Limitations
+
+Single-URL inspection endpoints are excluded because they carry strict daily project quotas and target individual URLs rather than bulk analytical tables.
+
+Google Search Console metrics experience an inherent reporting delay of two to three days before settling. The incremental date watermark applies a multi-day overlap to refresh recent days during extraction.
+
+## Behavior
+
+- **Auth**. Authenticates via OAuth 2.0 using the configured refresh token to mint short-lived access tokens from `https://oauth2.googleapis.com/token`.
+- **Path encoding**. Property identifiers contain colons and slashes. The connector percent-encodes site identifiers before inserting them into API paths.
+- **Pagination**. The `search_analytics` resource paginates through query results using `startRow` and `rowLimit` in the JSON request body.
+- **Rate limiting**. Requests pace at 5 requests per second with backoff for HTTP 429 and HTTP 503 responses.
+- Every resource includes a `raw` remainder column preserving unmapped upstream payload fields.

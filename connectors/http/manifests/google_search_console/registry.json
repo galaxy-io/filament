@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "google_search_console",
+  "default_version": "v1",
+  "versions": {
+    "v1": {
+      "is_preview": true
+    }
+  }
+}

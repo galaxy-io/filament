@@ -1,0 +1,149 @@
+version: 1
+name: google_search_console
+display_name: Google Search Console
+description: Search performance platform that tracks website presence, search traffic metrics, indexing status, and sitemap crawling in Google Search.
+api_version: "v1"
+dark_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-google-search-console-dark.svg"
+light_logo_url: "https://cdn.getgalaxy.io/sources/source-icon-google-search-console-light.svg"
+
+config:
+  client_id:
+    type: string
+    required: true
+    help: Google OAuth 2.0 Client ID
+  client_secret:
+    type: secret
+    required: true
+    help: Google OAuth 2.0 Client Secret
+  refresh_token:
+    type: secret
+    required: true
+    help: Google OAuth 2.0 Refresh Token with webmasters.readonly scope
+  start_date:
+    type: string
+    scope: pipeline
+    default: ""
+    format: date
+    help: "Inclusive start date (YYYY-MM-DD) for search analytics queries"
+  end_date:
+    type: string
+    scope: pipeline
+    default: ""
+    format: date
+    help: "End date (YYYY-MM-DD) for search analytics queries"
+  base_url:
+    type: string
+    default: "https://searchconsole.googleapis.com"
+    pattern: "^(https://.*|http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?(/.*)?)$"
+    help: "Optional Google Search Console API base URL"
+
+connection:
+  base_url: "{{ config.base_url }}"
+  auth:
+    oauth2:
+      token_url: "https://oauth2.googleapis.com/token"
+      client_id: "config.client_id"
+      client_secret: "config.client_secret"
+      grant_type: "refresh_token"
+      refresh_token: "config.refresh_token"
+  headers:
+    Accept: application/json
+  timeout_seconds: 60
+  rate_limit:
+    requests_per_second: 5
+    burst: 10
+    responses:
+      - status: 429
+        backoff_seconds: 30
+      - status: 503
+        backoff_seconds: 15
+
+defaults:
+  method: GET
+  response:
+    error:
+      path: error
+      when_present: true
+      code_path: error.code
+      message_path: error.message
+
+resources:
+  - name: sites
+    path: /webmasters/v3/sites
+    primary_key: [site_url]
+    response:
+      records: $.siteEntry
+      cardinality: many
+      pagination: none
+    fields:
+      site_url: {path: siteUrl, type: string}
+      permission_level: {path: permissionLevel, type: string}
+      raw: {path: $, type: json, mode: remainder}
+    capture:
+      site_url: siteUrl
+
+  - name: sitemaps
+    path: /webmasters/v3/sites/{{ parent.site_url | url_encode }}/sitemaps
+    for_each: sites
+    primary_key: [site_url, path]
+    response:
+      records: $.sitemap
+      cardinality: many
+      pagination: none
+    fields:
+      site_url: {path: parent.site_url, type: string}
+      path: string
+      type: string?
+      last_submitted: {path: lastSubmitted, type: timestamptz, nullable: true}
+      last_downloaded: {path: lastDownloaded, type: timestamptz, nullable: true}
+      is_pending: {path: isPending, type: bool, nullable: true}
+      is_sitemaps_index: {path: isSitemapsIndex, type: bool, nullable: true}
+      warnings: {path: warnings, type: int64, nullable: true}
+      errors: {path: errors, type: int64, nullable: true}
+      contents: {path: contents, type: json, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
+
+  - name: search_analytics
+    path: /webmasters/v3/sites/{{ parent.site_url | url_encode }}/searchAnalytics/query
+    method: POST
+    for_each: sites
+    body:
+      encoding: json
+      template:
+        startDate: '{{ config.start_date | default "2026-01-01" }}'
+        endDate: '{{ config.end_date | default "2026-12-31" }}'
+        dimensions:
+          - date
+          - query
+          - page
+          - country
+          - device
+        rowLimit: 1000
+    pagination:
+      offset:
+        offset: body.startRow
+        limit: body.rowLimit
+        page_size: 1000
+    incremental:
+      cursor_field: date
+      start_param: startDate
+      inject_into: body
+      comparator: time
+      overlap_seconds: 259200
+      value_date_format: "2006-01-02"
+    primary_key: [site_url, date, query, page, country, device]
+    response:
+      records: $.rows
+      cardinality: many
+    fields:
+      site_url: {path: parent.site_url, type: string}
+      date: {path: keys.0, type: string}
+      query: {path: keys.1, type: string}
+      page: {path: keys.2, type: string}
+      country: {path: keys.3, type: string}
+      device: {path: keys.4, type: string}
+      clicks: {path: clicks, type: float64, nullable: true}
+      impressions: {path: impressions, type: float64, nullable: true}
+      ctr: {path: ctr, type: float64, nullable: true}
+      position: {path: position, type: float64, nullable: true}
+      raw: {path: $, type: json, mode: remainder}
