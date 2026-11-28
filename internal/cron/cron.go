@@ -23,6 +23,10 @@ type Schedule struct {
 
 	domRestricted bool // day-of-month field was not "*"
 	dowRestricted bool // day-of-week field was not "*"
+
+	// wild is set when the minute or hour field starts with '*'. Such a
+	// schedule follows real time across clock changes. See Next.
+	wild bool
 }
 
 // maxSearch bounds Next's minute-by-minute scan at ~5 years — enough to reach the
@@ -60,20 +64,86 @@ func Parse(expr string) (Schedule, error) {
 
 	s.domRestricted = fields[2] != "*"
 	s.dowRestricted = fields[4] != "*"
+	s.wild = strings.HasPrefix(fields[0], "*") || strings.HasPrefix(fields[1], "*")
 	return s, nil
 }
 
 // Next returns the first fire time strictly after t, and whether one was found
 // within the search bound. The result is in t's location.
+//
+// Clock changes in t's location, such as daylight saving, follow the classic
+// cron rule from crontab(5). A schedule whose minute or hour field starts with
+// '*', such as "*/15 1 * * *" or "30 * * * *", follows real time. It fires at
+// every minute whose local time matches, so it fires again in a repeated hour
+// and not at all in a skipped one. Every other schedule, such as "30 1 * * *",
+// "0,30 1 * * *" or "0 1-3 * * *", is a fixed local time and fires once for
+// each local time it matches:
+//
+//   - A local time that happens twice fires only the first time.
+//   - A local time skipped by a forward change fires at the first instant after
+//     the gap, which is 03:00 when the clock jumps from 02:00 to 03:00.
 func (s Schedule) Next(t time.Time) (time.Time, bool) {
 	t = t.Truncate(time.Minute).Add(time.Minute)
+	p := periodOf(t)
 	for range maxSearch {
-		if s.matches(t) {
+		if !p.end.IsZero() && !t.Before(p.end) {
+			p = periodOf(t)
+		}
+		if s.fires(t, p) {
 			return t, true
 		}
 		t = t.Add(time.Minute)
 	}
 	return time.Time{}, false
+}
+
+// fires reports whether the schedule fires at minute t, which lies in p.
+func (s Schedule) fires(t time.Time, p period) bool {
+	if s.wild || p.shift == 0 {
+		return s.matches(t)
+	}
+	since := t.Sub(p.start)
+	if p.shift < 0 && since < -p.shift {
+		// The clock went back at p.start, so t's local time already happened
+		// and a fixed-time schedule fired then.
+		return false
+	}
+	if p.shift > 0 && since < time.Minute && s.matchesSkipped(p) {
+		return true
+	}
+	return s.matches(t)
+}
+
+// matchesSkipped reports whether a local time skipped by the forward change at
+// p.start matches. Those are the minutes from p.start to p.start+p.shift read
+// at the old offset.
+func (s Schedule) matchesSkipped(p period) bool {
+	old := time.FixedZone("", p.before)
+	end := p.start.Add(p.shift)
+	for m := p.start.In(old); m.Before(end); m = m.Add(time.Minute) {
+		if s.matches(m) {
+			return true
+		}
+	}
+	return false
+}
+
+// period is the span of one UTC offset in a location.
+type period struct {
+	start, end time.Time     // zero when the span has no bound on that side
+	before     int           // offset in seconds just before start
+	shift      time.Duration // offset change at start; > 0 skips local times, < 0 repeats them
+}
+
+func periodOf(t time.Time) period {
+	var p period
+	p.start, p.end = t.ZoneBounds()
+	if !p.start.IsZero() {
+		_, offset := t.Zone()
+		_, p.before = p.start.Add(-time.Second).Zone()
+		p.shift = time.Duration(offset-p.before) * time.Second
+	}
+	return p
 }
 
 // matches reports whether t satisfies every field. Day-of-month and day-of-week
