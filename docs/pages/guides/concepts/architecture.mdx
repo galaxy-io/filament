@@ -80,15 +80,18 @@ stored progress, totals, and checkpoints. Continuous progress is saved directly
 through the streaming runtime's epoch commits. Its activity events report that
 certified progress; replaying events is not what makes it durable.
 
-The control plane writes request, pause, resume, and cancellation state directly.
-Worker events record what actually happened during execution. Keeping those
-steps separate lets the API accept a control request while a worker is still
-responding to it.
+The API and scheduler write a new run's requested state directly. After that
+the tracker is the only writer of a bounded run's state. A pause, resume, or cancel that
+needs no worker is published as a command event, and the tracker applies it in
+order with the worker's events, so a slower update cannot restore the status
+the command replaced. Worker events record what actually happened during
+execution. Keeping those steps separate lets the API accept a control request
+while a worker is still responding to it.
 
 ```mermaid
 flowchart LR
     API[API or scheduler] --> State[(run state)]
-    API -- requested/control fact --> Bus[(event bus)]
+    API -- requested/command fact --> Bus[(event bus)]
     Bus --> Runner[runner.RunOne]
     Runner -- execution facts --> Bus
     Bus --> Tracker[tracker]

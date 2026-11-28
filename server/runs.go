@@ -125,10 +125,6 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 	if a.bus == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("event bus is not configured"))
 	}
-	transitions, ok := a.store.(filament.RunTransitionStore)
-	if !ok {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("datastore does not support atomic run transitions"))
-	}
 	signal, err := runSignalFromProto(req.Msg.GetSignal())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -141,7 +137,7 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 		}
 		defer func() { _ = ack.Close() }()
 	}
-	result, err := runcommands.Signal(ctx, a.bus, transitions, state, signal)
+	result, err := runcommands.Signal(ctx, a.bus, a.store, state, signal)
 	if err != nil {
 		return nil, signalRunError(err)
 	}

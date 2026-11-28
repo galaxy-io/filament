@@ -59,6 +59,9 @@ func TestRunControlEventsAreCataloged(t *testing.T) {
 		{name: RunPaused.Name(), data: RunPausedEvent{}},
 		{name: RunPauseRequested.Name(), data: RunPauseRequestedEvent{}},
 		{name: RunCancelRequested.Name(), data: RunCancelRequestedEvent{}},
+		{name: RunPauseCommanded.Name(), data: RunPauseCommandedEvent{}},
+		{name: RunResumeCommanded.Name(), data: RunResumeCommandedEvent{}},
+		{name: RunCancelCommanded.Name(), data: RunCancelCommandedEvent{}},
 	} {
 		b, err := Marshal(Fact{Envelope: env(), Name: event.name, Data: event.data})
 		if err != nil {

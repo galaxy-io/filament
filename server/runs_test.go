@@ -15,6 +15,8 @@ import (
 	"github.com/galaxy-io/filament/eventbus/inproc"
 	"github.com/galaxy-io/filament/events"
 	"github.com/galaxy-io/filament/identity"
+	"github.com/galaxy-io/filament/internal/modules/tracker"
+	"github.com/galaxy-io/filament/module"
 )
 
 type loadRunErrorStore struct {
@@ -22,10 +24,43 @@ type loadRunErrorStore struct {
 	err error
 }
 
+// runTracker folds every fact on bus into store until the test ends, as the
+// control plane's tracker does. Pause, resume, and cancel of a run that is not
+// executing reach the store only through it.
+func runTracker(t *testing.T, store filament.DataStore, bus eventbus.Bus) {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	m := tracker.New()
+	if err := m.Mount(ctx, module.Deps{DataStore: store, Bus: bus}); err != nil {
+		t.Fatal(err)
+	}
+	fold := m.Subscriptions()[0].Handler
+	sub, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for msg := range sub.C() {
+			if err := fold(ctx, msg); err != nil && ctx.Err() == nil {
+				t.Errorf("tracker fold: %v", err)
+			}
+		}
+	}()
+	t.Cleanup(func() {
+		cancel()
+		_ = sub.Close()
+		<-done
+	})
+}
+
 func TestSignalRunPauseResumeAndCancelStateMachine(t *testing.T) {
 	ctx := identity.WithTenant(context.Background(), "tenant-1")
 	store := sqlite.NewMemory()
-	api := &Server{store: store, bus: inproc.New()}
+	bus := inproc.New()
+	runTracker(t, store, bus)
+	api := &Server{store: store, bus: bus}
 	ended := time.Now()
 	state := filament.RunState{
 		Run: "run-1", Tenant: "tenant-1", Status: filament.RunRequested,

@@ -112,8 +112,10 @@ type ReplicationStreamRunStore interface {
 }
 
 // RunTransitionStore applies lifecycle commands with a compare-and-swap on
-// the current status. It is separate from DataStore so adapters can reject run
-// signaling explicitly instead of emulating an unsafe LoadRun/SaveRun race.
+// the current status. The tracker calls it when it folds a pause, resume, or
+// cancel command fact, because a resume clears first-write-wins stamps that
+// SaveRun keeps. It is separate from DataStore so adapters can reject run
+// signaling explicitly instead of emulating it with LoadRun and SaveRun.
 type RunTransitionStore interface {
 	TransitionRun(
 		ctx context.Context,
@@ -127,8 +129,8 @@ type RunTransitionStore interface {
 
 // RunTransitionOptions controls the attempt-local state reset performed by a
 // lifecycle transition. Ended stamps ended_at (first-write-wins) at transition
-// time; set it only on transitions into terminal states, so the row carries an
-// end time even if the async fact fold never lands.
+// time. Set it only on transitions into terminal states, so the row carries an
+// end time before the outcome fact is folded.
 type RunTransitionOptions struct {
 	ResetExecution   bool
 	PreserveProgress bool
