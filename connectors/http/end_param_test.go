@@ -167,3 +167,31 @@ func TestFullRefreshWithoutEndParamSendsNoWindow(t *testing.T) {
 		t.Fatalf("full refresh sent a window: %v", seen)
 	}
 }
+
+// Mixpanel's export carries event time as Unix seconds. An incremental read
+// with a numeric time cursor advances the watermark instead of failing on
+// the first record.
+func TestEndParamWithEpochCursor(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, `{"event":"a","properties":{"insert_id":"1","time":1795736494}}`)
+		fmt.Fprintln(w, `{"event":"b","properties":{"insert_id":"2","time":1795822894}}`)
+	}))
+	defer api.Close()
+
+	src := NewManifest([]byte(strings.ReplaceAll(endParamManifest, "BASE", api.URL)))
+	if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+		t.Fatal(err)
+	}
+	defer src.Teardown(t.Context())
+	sink := &scanSink{}
+	opts := extractOptions{Resources: []string{"events"}, IncrementalResources: map[string]bool{"events": true}}
+	if err := src.connector.Extract(t.Context(), sink, opts); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.records) != 2 {
+		t.Fatalf("records = %d, want 2", len(sink.records))
+	}
+	if got := strings.Join(sink.records[1].Key, ","); got != "2026-11-27T23:41:34Z" {
+		t.Fatalf("watermark after the second record = %q, want the epoch as RFC3339", got)
+	}
+}

@@ -334,7 +334,10 @@ An `incremental` block turns a resource into an incremental read:
   bound goes on the request.
 - `initial`: the first-run lower bound.
 - `checkpoint_key`: the durable key (defaults to `cursor_field`).
-- `comparator: lex (default) | numeric | time`.
+- `comparator: lex (default) | numeric | time`. A `time` cursor reads ISO 8601
+  strings, and reads a JSON number as a Unix epoch the way `timestamptz`
+  fields do, in seconds or in milliseconds above `1e12`. A string of digits
+  is not read as an epoch.
 - `overlap_seconds` rewinds the lower bound for a lookback window and is
   valid for `time` **or** `numeric` comparators.
 - `value_date_format` reformats a `time` watermark on the wire only, as a

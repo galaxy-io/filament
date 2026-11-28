@@ -38,6 +38,7 @@
 package incremental
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -200,34 +201,71 @@ func (t *Tracker) ObserveChecked(record map[string]any) (bool, error) {
 	if t.windowOnly {
 		return false, nil
 	}
-	cursorPath := t.spec.CursorPath
-	if cursorPath == "" {
-		cursorPath = t.spec.CursorField
-	}
-	v, _, err := paths.AsString(record, cursorPath)
+	v, err := t.Cursor(record)
 	if err != nil {
-		return false, fmt.Errorf("cursor field %q: %w", t.spec.CursorField, err)
-	}
-	if v == "" {
-		return false, fmt.Errorf("cursor field %q is empty", t.spec.CursorField)
-	}
-	// Normalize a time cursor to RFC3339 before the tracker sees it, so
-	// the stored checkpoint, the overlap window, and the wire format all
-	// see one form. Without this, an API spelling like Jira's colon-less
-	// offset fails the comparator and the first incremental run dies on
-	// its first record.
-	if t.spec.Comparator == "time" {
-		normalized, err := timestamps.Normalize(v)
-		if err != nil {
-			return false, fmt.Errorf("cursor field %q value %q is not a timestamp: %w", t.spec.CursorField, v, err)
-		}
-		v = normalized
+		return false, err
 	}
 	advanced, err := t.wm.Observe(v)
 	if err != nil {
 		return false, fmt.Errorf("cursor field %q value %q rejected by %s comparator: %w", t.spec.CursorField, v, t.wm.ComparatorName(), err)
 	}
 	return advanced, nil
+}
+
+// Cursor reads a record's cursor value in the form the tracker compares and
+// stores. A time cursor is normalized to RFC3339 so the stored checkpoint,
+// the overlap window, and the wire format all see one form, and a JSON
+// number is read as a Unix epoch with the rule timestamptz columns use
+// (seconds, or milliseconds above 1e12). Strings, including digit strings,
+// parse only as timestamps.
+func (t *Tracker) Cursor(record map[string]any) (string, error) {
+	cursorPath := t.spec.CursorPath
+	if cursorPath == "" {
+		cursorPath = t.spec.CursorField
+	}
+	if t.spec.Comparator == "time" {
+		if raw, err := paths.Value(record, cursorPath); err == nil {
+			if f, ok := epochNumber(raw); ok {
+				return timestamps.NormalizeEpoch(f), nil
+			}
+		}
+	}
+	v, _, err := paths.AsString(record, cursorPath)
+	if err != nil {
+		return "", fmt.Errorf("cursor field %q: %w", t.spec.CursorField, err)
+	}
+	if v == "" {
+		return "", fmt.Errorf("cursor field %q is empty", t.spec.CursorField)
+	}
+	// Without normalization, an API spelling like Jira's colon-less offset
+	// fails the comparator and the first incremental run dies on its first
+	// record.
+	if t.spec.Comparator == "time" {
+		normalized, err := timestamps.Normalize(v)
+		if err != nil {
+			return "", fmt.Errorf("cursor field %q value %q is not a timestamp: %w", t.spec.CursorField, v, err)
+		}
+		v = normalized
+	}
+	return v, nil
+}
+
+// epochNumber reports the value of a decoded JSON number.
+func epochNumber(raw any) (float64, bool) {
+	switch n := raw.(type) {
+	case float64:
+		return n, true
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case json.Number:
+		f, err := n.Float64()
+		return f, err == nil
+	}
+	return 0, false
 }
 
 // Current returns the running watermark (max observed or initial). A
@@ -258,6 +296,21 @@ func (t *Tracker) Below(v string) (bool, error) {
 		v = normalized
 	}
 	return t.cmp.Less(v, start)
+}
+
+// RecordBelow reports whether a record's cursor sorts before Start. It reads
+// the cursor like ObserveChecked, so a numeric epoch cursor compares as time.
+// A window-only tracker, or one without a Start, admits every record without
+// reading its cursor.
+func (t *Tracker) RecordBelow(record map[string]any) (bool, error) {
+	if t.windowOnly || t.effective() == "" {
+		return false, nil
+	}
+	v, err := t.Cursor(record)
+	if err != nil {
+		return false, err
+	}
+	return t.Below(v)
 }
 
 // Scope returns the {start_param: effective_start} pair, plus

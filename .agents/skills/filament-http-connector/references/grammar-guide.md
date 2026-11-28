@@ -387,6 +387,9 @@ incremental:
 ```
 
 The cursor must be projected, non-nullable, and compatible with its comparator.
+A `time` cursor that arrives as a JSON number (Mixpanel's `properties.time`)
+is read as a Unix epoch with the `timestamptz` rule, in seconds or in
+milliseconds above `1e12`, and stored as RFC3339. Digit strings are not.
 `initial` can set a documented first-run lower bound. `overlap_seconds` applies
 to `time` or `numeric`, not `lex`. Do not collide with pagination injection.
 Checkpoint keys default to the cursor field and must be unique across resources.
