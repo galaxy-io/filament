@@ -81,9 +81,18 @@ Coupons are read in full on every run. Redeeming a coupon changes its
 `redemptions` count without changing `updated_at`, so an `updated_at`
 watermark would miss redemptions.
 
-Chargebee sets `updated_at` only on records changed after 2016-09-28.
-Incremental reads start from that date, so a record that has not changed
-since then is not returned by an incremental read.
+## Limitations
+
+Chargebee sets `updated_at` only on records changed after 2016-09-28. On
+sites with older records that have not changed since then:
+
+- Incremental reads start from 2016-09-28, so they do not return those
+  records.
+- Full reads of `customers`, `subscriptions`, `invoices`, `credit_notes`, and
+  `transactions` fail on the first such record, because `updated_at` is a
+  required column on those resources.
+
+Coupons are not affected. Sites created after 2016-09-28 are not affected.
 
 ## Behavior
 
