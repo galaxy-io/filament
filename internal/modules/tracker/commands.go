@@ -59,7 +59,14 @@ func (m *Module) applyCommand(ctx context.Context, env events.Envelope, data any
 	}
 	if !ok {
 		// Another fact moved the run first, for example run.started before a
-		// cancel. The caller's Signal reports the conflict.
+		// cancel. The skip tells the caller's Signal, which waits for a
+		// decision on this command. A republished skip keeps its message ID.
+		if m.bus != nil {
+			command := events.Fact{Envelope: env, Name: runcommands.CommandName(signal)}
+			if err := events.Publish(ctx, m.bus, runcommands.Skipped(command, state.Status)); err != nil {
+				return fmt.Errorf("tracker: publish %s for run %q: %w", events.RunCommandSkipped.Name(), env.Run, err)
+			}
+		}
 		if m.log != nil {
 			m.log.Debug("run command not applicable",
 				filament.Field{Key: "event.name", Value: "tracker.command.skipped"},

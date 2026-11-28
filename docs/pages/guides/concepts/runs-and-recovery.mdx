@@ -128,7 +128,8 @@ such as `run.pause_commanded`. The control plane's tracker applies it in order
 with every other event, so the tracker stays the only writer of run state, and
 `SignalRun` returns once the tracker has applied it. When another event moves
 the run first, such as a worker starting a requested run, the command changes
-nothing and the call returns `failed_precondition`. A worker that started just
+nothing. The tracker publishes `run.command_skipped`, and the call returns
+`failed_precondition`. A worker that started just
 before a pause or cancel was applied is sent the same stop request a running
 run gets.
 

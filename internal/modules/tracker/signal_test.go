@@ -96,10 +96,10 @@ func newSignalHarness(t *testing.T, ctx context.Context, store filament.DataStor
 	return &signalHarness{t: t, ctx: ctx, bus: bus, sub: sub, m: m}
 }
 
-func (h *signalHarness) start(store signalStore, state filament.RunState, signal filament.Signal) <-chan error {
+func (h *signalHarness) start(state filament.RunState, signal filament.Signal) <-chan error {
 	done := make(chan error, 1)
 	go func() {
-		_, err := runcommands.Signal(h.ctx, h.bus, store, state, signal)
+		_, err := runcommands.Signal(h.ctx, h.bus, state, signal)
 		done <- err
 	}()
 	return done
@@ -196,7 +196,7 @@ func TestSignalSurvivesConcurrentTrackerFold(t *testing.T) {
 
 						var signalErr error
 						if placement == "before_load" {
-							signalErr = h.await(h.start(store, initial, tc.signal))
+							signalErr = h.await(h.start(initial, tc.signal))
 						}
 						// The signal is published while the fold holds a stale
 						// copy of the run. Facts it puts on the bus are folded
@@ -206,7 +206,7 @@ func TestSignalSurvivesConcurrentTrackerFold(t *testing.T) {
 						var early *error // Signal returned inside the fold
 						if placement == "during_load_save" {
 							wrapped.afterLoad = func() {
-								during = h.start(store, initial, tc.signal)
+								during = h.start(initial, tc.signal)
 								select {
 								case msg := <-sub.C():
 									queued = append(queued, msg)
@@ -242,7 +242,7 @@ func TestSignalSurvivesConcurrentTrackerFold(t *testing.T) {
 							}
 						}
 						if placement == "after_save" {
-							signalErr = h.await(h.start(store, initial, tc.signal))
+							signalErr = h.await(h.start(initial, tc.signal))
 						}
 
 						if signalErr != nil {
@@ -271,7 +271,7 @@ func foldSignal(t *testing.T, store signalStore, state filament.RunState, signal
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	h := newSignalHarness(t, ctx, store)
-	return h.await(h.start(store, state, signal))
+	return h.await(h.start(state, signal))
 }
 
 func TestFoldedCancelStampsEndedAt(t *testing.T) {
@@ -517,5 +517,30 @@ func TestCommandIgnoredWithoutTransitionStore(t *testing.T) {
 	deliver(t, m, 1, events.RunCancelCommanded, events.Envelope{Tenant: "t1", Run: "r1", At: time.Now()}, events.RunCancelCommandedEvent{})
 	if got, _ := store.LoadRun(t.Context(), "t1", "r1"); got.Status != filament.RunRequested {
 		t.Fatalf("status %d, want requested", got.Status)
+	}
+}
+
+// A skipped command tells its caller so: the skip carries the command's name,
+// its emit time, and the status that ruled it out.
+func TestSkippedCommandPublishesItsDecision(t *testing.T) {
+	store := sqlite.NewMemory()
+	if err := store.SaveRun(t.Context(), filament.RunState{Tenant: "t1", Run: "r1", Status: filament.RunRunning, RequestedAt: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	m, bus := mountedWithBus(t, store)
+	sub, err := bus.Subscribe(events.SubjectPattern(events.RunCommandSkipped), eventbus.SubOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sub.Close() }()
+	at := time.Now()
+	deliver(t, m, 1, events.RunCancelCommanded, events.Envelope{Tenant: "t1", Run: "r1", At: at}, events.RunCancelCommandedEvent{})
+	fact := awaitFact(t, sub, events.RunCommandSkipped.Name())
+	skip, ok := fact.Data.(events.RunCommandSkippedEvent)
+	if !ok || skip.Command != events.RunCancelCommanded.Name() || skip.Status != filament.RunRunning || !fact.At.Equal(at) {
+		t.Fatalf("skip = %#v, want the cancel's skip at status running with its emit time", fact)
+	}
+	if got, _ := store.LoadRun(t.Context(), "t1", "r1"); got.Status != filament.RunRunning {
+		t.Fatalf("status %d, want running", got.Status)
 	}
 }

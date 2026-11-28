@@ -64,14 +64,14 @@ var signalCommands = map[signalKey]signalCommand{
 //
 // Signal never writes run state. A transition of a run that is not executing
 // is published as a command fact and folded by the tracker, the only writer of
-// run state. Signal returns once the tracker has published the command's
-// outcome fact, so a later signal from the same caller is ordered after it.
-// It returns the context's error if that ends first. The command stays on the
+// run state. Signal returns with the tracker's decision for that command: its
+// outcome fact, or a skip when another fact moved the run first. A later
+// signal from the same caller is therefore ordered after the decision. Signal
+// returns the context's error if that ends first. The command stays on the
 // bus then and is still folded.
 func Signal(
 	ctx context.Context,
 	bus eventbus.Bus,
-	store filament.DataStore,
 	state filament.RunState,
 	signal filament.Signal,
 ) (SignalResult, error) {
@@ -84,7 +84,7 @@ func Signal(
 		return SignalResult{}, fmt.Errorf("%w: pause requires either all or no resources to be checkpointable", ErrSignalTransition)
 	}
 	if command.transition {
-		return SignalResult{}, publishCommand(ctx, bus, store, state, signal)
+		return SignalResult{}, publishCommand(ctx, bus, state, signal, command.to)
 	}
 	if !command.publish {
 		return SignalResult{WorkerAcknowledgement: command.worker}, nil
@@ -97,14 +97,14 @@ func Signal(
 }
 
 // publishCommand publishes the command fact for state and waits for the
-// tracker's outcome. The subscription opens first so the outcome cannot be
+// tracker's decision. The subscription opens first so the decision cannot be
 // missed.
 func publishCommand(
 	ctx context.Context,
 	bus eventbus.Bus,
-	store filament.DataStore,
 	state filament.RunState,
 	signal filament.Signal,
+	to filament.RunStatus,
 ) error {
 	sub, err := bus.Subscribe(events.RunPattern(state.Tenant, state.Run), eventbus.SubOpts{})
 	if err != nil {
@@ -115,30 +115,21 @@ func publishCommand(
 	if err := events.Publish(ctx, bus, command); err != nil {
 		return fmt.Errorf("%w: %v", ErrSignalPublish, err)
 	}
-	return awaitOutcome(ctx, store, sub, state, signal, Outcome(command.Envelope, signal))
+	return awaitDecision(ctx, sub, command, Outcome(command.Envelope, signal), to)
 }
 
-// maxFoldPoll caps the interval between reads while Signal waits for a fold.
-const maxFoldPoll = 250 * time.Millisecond
-
-// awaitOutcome waits for the outcome fact of this command, matched by name and
-// the command's emit time. Between deliveries it reads the run, because a
-// command the tracker skips publishes nothing. It reports a conflict once the
-// run is in a status the command cannot apply from, since the tracker plans
-// from the status it loads.
-func awaitOutcome(
+// awaitDecision waits for the tracker's decision on command. Both decision
+// facts reuse the command's envelope, so the emit time ties them to this
+// command and not to another caller's. A skip whose run already has the
+// command's target status succeeded in effect, for example a second resume of
+// a run the first resume already requested.
+func awaitDecision(
 	ctx context.Context,
-	store filament.DataStore,
 	sub eventbus.Subscription,
-	state filament.RunState,
-	signal filament.Signal,
+	command events.Fact,
 	outcome events.Fact,
+	to filament.RunStatus,
 ) error {
-	// The fold usually lands within milliseconds, but a tracker working
-	// through a backlog can take seconds, so the reads back off.
-	wait := 10 * time.Millisecond
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
 	for {
 		select {
 		case <-ctx.Done():
@@ -149,50 +140,28 @@ func awaitOutcome(
 			}
 			fact, err := events.Decode(msg)
 			_ = msg.Ack()
-			if err == nil && fact.Name == outcome.Name && fact.At.Equal(outcome.At) {
+			if err != nil || !fact.At.Equal(command.At) {
+				continue
+			}
+			if fact.Name == outcome.Name {
 				return nil
 			}
-			continue
-		case <-timer.C:
+			if skip, ok := fact.Data.(events.RunCommandSkippedEvent); ok && skip.Command == command.Name {
+				if skip.Status == to {
+					return nil
+				}
+				return fmt.Errorf("run is in status %d, so %s no longer applies: %w", skip.Status, command.Name, filament.ErrVersionConflict)
+			}
 		}
-		current, err := store.LoadRun(ctx, state.Tenant, state.Run)
-		if err != nil {
-			return err
-		}
-		if skipped(current, signal) {
-			return fmt.Errorf("run moved to status %d before signal %d applied: %w", current.Status, signal, filament.ErrVersionConflict)
-		}
-		timer.Reset(wait)
-		wait = min(2*wait, maxFoldPoll)
 	}
 }
 
-// skipped reports that the tracker can no longer apply signal's command to a
-// run in current's status: the command does not apply from there and the run
-// has not reached the command's target, or for a resume moved past it.
-func skipped(current filament.RunState, signal filament.Signal) bool {
-	if _, ok := PlanTransition(current, signal); ok {
-		return false
-	}
-	switch signal {
-	case filament.SignalPause:
-		return current.Status != filament.RunPaused
-	case filament.SignalCancel:
-		return current.Status != filament.RunCanceled
-	default:
-		return current.Status != filament.RunRequested && !resumedPast(current.Status)
-	}
-}
-
-// resumedPast reports a status a resumed run can reach once dispatched, before
-// Signal next reads it.
-func resumedPast(status filament.RunStatus) bool {
-	switch status {
-	case filament.RunRunning, filament.RunCompleted, filament.RunFailed, filament.RunPartial:
-		return true
-	default:
-		return false
-	}
+// Skipped is the fact the tracker publishes when it folds command but the
+// run's status no longer admits it. It reuses the command's envelope so the
+// signaling caller can tell its own command apart.
+func Skipped(command events.Fact, status filament.RunStatus) events.Fact {
+	return events.NewFact(events.RunCommandSkipped, command.Envelope,
+		events.RunCommandSkippedEvent{Command: command.Name, Status: status})
 }
 
 // Transition is the change a folded command makes to the stored run.
@@ -248,6 +217,11 @@ func CommandSignal(data any) (filament.Signal, bool) {
 	default:
 		return 0, false
 	}
+}
+
+// CommandName is the name of the command fact Signal publishes for signal.
+func CommandName(signal filament.Signal) string {
+	return commandFact(filament.RunState{}, signal).Name
 }
 
 func commandFact(state filament.RunState, signal filament.Signal) events.Fact {

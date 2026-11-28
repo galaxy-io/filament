@@ -93,6 +93,14 @@ type (
 	// executing. The tracker folds it into RunCanceled if the run is still
 	// requested, paused or partial, then publishes RunCanceled.
 	RunCancelCommandedEvent struct{}
+	// RunCommandSkippedEvent reports that the tracker folded a command whose
+	// run had moved to a status the command does not apply from. Command is
+	// the command fact's name and Status the run's status at the fold. The
+	// tracker publishes it with the command's envelope.
+	RunCommandSkippedEvent struct {
+		Command string             `json:"command"`
+		Status  filament.RunStatus `json:"status"`
+	}
 	// HeartbeatEvent is the worker liveness and resource usage signal: the
 	// pod's cumulative cgroup CPU time and its current/peak working set.
 	HeartbeatEvent struct {
@@ -250,6 +258,7 @@ var (
 	RunPauseCommanded  = define[RunPauseCommandedEvent]("run.pause_commanded")
 	RunResumeCommanded = define[RunResumeCommandedEvent]("run.resume_commanded")
 	RunCancelCommanded = define[RunCancelCommandedEvent]("run.cancel_commanded")
+	RunCommandSkipped  = define[RunCommandSkippedEvent]("run.command_skipped")
 	Heartbeat          = define[HeartbeatEvent]("run.heartbeat")
 
 	ResourceStarted     = define[ResourceStartedEvent]("resource.started")

@@ -143,7 +143,7 @@ func (a *Server) SignalRun(ctx context.Context, req *connect.Request[ingestionv1
 		}
 		defer func() { _ = ack.Close() }()
 	}
-	result, err := runcommands.Signal(ctx, a.bus, a.store, state, signal)
+	result, err := runcommands.Signal(ctx, a.bus, state, signal)
 	if err != nil {
 		return nil, signalRunError(err)
 	}

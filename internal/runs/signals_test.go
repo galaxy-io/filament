@@ -66,7 +66,7 @@ func TestPauseRejectsMixedCheckpointCoverage(t *testing.T) {
 			},
 		},
 	}
-	if _, err := Signal(context.Background(), inproc.New(), sqlite.NewMemory(), state, filament.SignalPause); !errors.Is(err, ErrSignalTransition) {
+	if _, err := Signal(context.Background(), inproc.New(), state, filament.SignalPause); !errors.Is(err, ErrSignalTransition) {
 		t.Fatalf("mixed pause error = %v, want transition error", err)
 	}
 }
@@ -143,7 +143,7 @@ func TestSignalPublishesCommandWithoutWritingRunState(t *testing.T) {
 	defer func() { _ = sub.Close() }()
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	if _, err := Signal(ctx, bus, store, state, filament.SignalCancel); !errors.Is(err, context.DeadlineExceeded) {
+	if _, err := Signal(ctx, bus, state, filament.SignalCancel); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Signal with no tracker = %v, want the context's deadline", err)
 	}
 	select {
@@ -164,51 +164,71 @@ func TestSignalPublishesCommandWithoutWritingRunState(t *testing.T) {
 	}
 }
 
-// A command folded after another fact moved the run reports a conflict
-// instead of success.
-func TestSignalReportsCommandTheTrackerCouldNotApply(t *testing.T) {
-	store := sqlite.NewMemory()
-	state := filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunRequested, RequestedAt: time.Now()}
-	if err := store.SaveRun(context.Background(), state); err != nil {
-		t.Fatal(err)
-	}
+// decide runs Signal while a stand-in tracker answers the command with the
+// facts reply builds from it, in order.
+func decide(t *testing.T, state filament.RunState, signal filament.Signal, reply func(command events.Fact) []events.Fact) error {
+	t.Helper()
 	bus := inproc.New()
-	sub, err := bus.Subscribe(events.AllPattern(), eventbus.SubOpts{})
+	commands, err := bus.Subscribe(events.RunPattern(state.Tenant, state.Run), eventbus.SubOpts{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = sub.Close() }()
+	defer func() { _ = commands.Close() }()
 	go func() {
-		// The run starts before the tracker reaches the cancel.
-		<-sub.C()
-		started := state
-		started.Status = filament.RunRunning
-		_ = store.SaveRun(context.Background(), started)
+		for msg := range commands.C() {
+			command, err := events.Decode(msg)
+			if err != nil || command.Name != CommandName(signal) {
+				continue
+			}
+			for _, fact := range reply(command) {
+				_ = events.Publish(context.Background(), bus, fact)
+			}
+			return
+		}
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, err := Signal(ctx, bus, store, state, filament.SignalCancel); !errors.Is(err, filament.ErrVersionConflict) {
+	_, err = Signal(ctx, bus, state, signal)
+	return err
+}
+
+// A command the tracker skipped because the run moved reports a conflict.
+func TestSignalReportsCommandTheTrackerSkipped(t *testing.T) {
+	state := filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunRequested}
+	err := decide(t, state, filament.SignalCancel, func(command events.Fact) []events.Fact {
+		return []events.Fact{Skipped(command, filament.RunRunning)}
+	})
+	if !errors.Is(err, filament.ErrVersionConflict) {
 		t.Fatalf("Signal = %v, want a version conflict", err)
 	}
 }
 
-func TestSkippedOnlyWhenTheCommandCanNoLongerApply(t *testing.T) {
-	for _, tt := range []struct {
-		status filament.RunStatus
-		signal filament.Signal
-		want   bool
-	}{
-		{filament.RunPaused, filament.SignalCancel, false}, // a pause folded first, the cancel still applies
-		{filament.RunCanceled, filament.SignalCancel, false},
-		{filament.RunRunning, filament.SignalCancel, true},
-		{filament.RunRunning, filament.SignalPause, true},
-		{filament.RunCanceled, filament.SignalPause, true},
-		{filament.RunRequested, filament.SignalResume, false},
-		{filament.RunRunning, filament.SignalResume, false}, // resumed and dispatched
-		{filament.RunCanceled, filament.SignalResume, true},
-	} {
-		if got := skipped(filament.RunState{Status: tt.status}, tt.signal); got != tt.want {
-			t.Errorf("skipped(status %d, signal %d) = %v, want %v", tt.status, tt.signal, got, tt.want)
+// A second resume of a run another resume already requested succeeds.
+func TestSignalSucceedsWhenSkippedAtTheTarget(t *testing.T) {
+	state := filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunPaused}
+	err := decide(t, state, filament.SignalResume, func(command events.Fact) []events.Fact {
+		return []events.Fact{Skipped(command, filament.RunRequested)}
+	})
+	if err != nil {
+		t.Fatalf("Signal = %v, want success", err)
+	}
+}
+
+// Signal decides from its own command's decision only. Another caller's
+// cancel landing first, and its outcome, must not turn this pause into a
+// conflict once the tracker applied it.
+func TestSignalIgnoresOtherCommandsDecisions(t *testing.T) {
+	state := filament.RunState{Run: "run", Tenant: "tenant", Status: filament.RunRequested}
+	err := decide(t, state, filament.SignalPause, func(command events.Fact) []events.Fact {
+		other := events.Envelope{Tenant: state.Tenant, Run: state.Run, At: command.At.Add(time.Millisecond)}
+		cancel := events.NewFact(events.RunCancelCommanded, other, events.RunCancelCommandedEvent{})
+		return []events.Fact{
+			Skipped(cancel, filament.RunPaused),
+			Outcome(other, filament.SignalCancel),
+			Outcome(command.Envelope, filament.SignalPause),
 		}
+	})
+	if err != nil {
+		t.Fatalf("Signal = %v, want the pause's own outcome to decide", err)
 	}
 }

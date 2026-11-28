@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus"
 	"github.com/galaxy-io/filament/eventbus/inproc"
 )
@@ -62,6 +63,7 @@ func TestRunControlEventsAreCataloged(t *testing.T) {
 		{name: RunPauseCommanded.Name(), data: RunPauseCommandedEvent{}},
 		{name: RunResumeCommanded.Name(), data: RunResumeCommandedEvent{}},
 		{name: RunCancelCommanded.Name(), data: RunCancelCommandedEvent{}},
+		{name: RunCommandSkipped.Name(), data: RunCommandSkippedEvent{Command: RunCancelCommanded.Name(), Status: filament.RunRunning}},
 	} {
 		b, err := Marshal(Fact{Envelope: env(), Name: event.name, Data: event.data})
 		if err != nil {
