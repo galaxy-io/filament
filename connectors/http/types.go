@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -179,12 +178,7 @@ func parseTimestamp(w arrowbatch.RowWriter, raw json.RawMessage) error {
 		if err != nil {
 			return fmt.Errorf("%s is not a timestamp", raw)
 		}
-		if f > 1e12 { // milliseconds
-			f *= 1000
-		} else {
-			f *= 1_000_000
-		}
-		w.Timestamp(int64(math.Round(f)))
+		w.Timestamp(timestamps.EpochMicros(f))
 		return nil
 	}
 	s, err := unquoted(raw)

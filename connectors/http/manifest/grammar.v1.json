@@ -405,6 +405,8 @@
         "export": { "$ref": "#/$defs/export" },
         "emit_as": { "type": "string", "minLength": 1 },
         "path": { "type": "string", "minLength": 1 },
+        "base_url": { "type": "string", "format": "uri" },
+        "base_urls": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "format": "uri" } },
         "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", ""] },
         "mode": { "type": "string", "enum": ["paginated", "stream", "export", "webhook", ""] },
         "events": { "type": "array", "items": { "type": "string", "minLength": 1 } },
@@ -441,6 +443,8 @@
             "cursor_field": { "type": "string", "minLength": 1 },
             "response_cursor": { "type": "string", "minLength": 1 },
             "start_param": { "type": "string", "minLength": 1 },
+            "end_param": { "type": "string", "minLength": 1 },
+            "end_lag_seconds": { "type": "integer", "minimum": 0 },
             "inject_into": { "type": "string", "enum": ["query", "body", "header", "state"] },
             "initial": { "type": "string" },
             "checkpoint_key": { "type": "string" },
@@ -470,7 +474,8 @@
             "type": { "type": "string", "enum": ["ndjson", "sse", "chunked_array"] },
             "event_filter": { "type": "string" },
             "array_path": { "type": "string" },
-            "max_element_bytes": { "type": "integer", "minimum": 0 }
+            "max_element_bytes": { "type": "integer", "minimum": 0 },
+            "empty_body": { "type": "string", "minLength": 1 }
           }
         }
       }
@@ -590,7 +595,17 @@
                 "size": { "type": "string" },
                 "page_size": { "type": "integer", "minimum": 1 },
                 "total_pages": { "type": "string" },
-                "more": { "type": "string", "minLength": 1 }
+                "more": { "type": "string", "minLength": 1 },
+                "start": { "type": "integer", "minimum": 0 },
+                "session": {
+                  "type": "object",
+                  "required": ["response", "request"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "response": { "type": "string", "minLength": 1 },
+                    "request": { "type": "string", "minLength": 3 }
+                  }
+                }
               }
             }
           }

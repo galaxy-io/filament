@@ -186,8 +186,21 @@ func (c *Connector) Configure(ctx context.Context) error {
 		return fmt.Errorf("render base_url: %w", err)
 	}
 
+	resourceBases, err := resourceBaseURLs(m, c.creds, c.env)
+	if err != nil {
+		return err
+	}
+	for _, r := range m.Resources {
+		if rendered, ok := resourceBases[r.Name]; ok {
+			if err := checkResourceBaseURL(r.Name, rendered, baseURL); err != nil {
+				return err
+			}
+		}
+	}
+
 	c.builder = &request.Builder{
 		BaseURL:           baseURL,
+		ResourceBaseURLs:  resourceBases,
 		ConnectionHeaders: m.Connection.Headers,
 		Auth:              authn,
 	}
@@ -210,6 +223,35 @@ func (c *Connector) Configure(ctx context.Context) error {
 	// will need ctx to honour caller deadlines.
 	_ = ctx
 	return nil
+}
+
+// resourceBaseURLs renders the hosts of resources that declare their own, once
+// per configured connector like the connection base URL. base_urls follows the
+// connection's base_url_field selection.
+func resourceBaseURLs(m *manifest.Manifest, config, env map[string]string) (map[string]string, error) {
+	var out map[string]string
+	for _, r := range m.Resources {
+		baseTemplate := r.BaseURL
+		if len(r.BaseURLs) > 0 {
+			var ok bool
+			baseTemplate, ok = r.BaseURLs[config[m.Connection.BaseURLField]]
+			if !ok {
+				return nil, fmt.Errorf("invalid base URL selection for %s on resource %s", m.Connection.BaseURLField, r.Name)
+			}
+		}
+		if baseTemplate == "" {
+			continue
+		}
+		rendered, err := template.Render(baseTemplate, template.Scope{Config: config, Env: env})
+		if err != nil {
+			return nil, fmt.Errorf("render base_url for resource %s: %w", r.Name, err)
+		}
+		if out == nil {
+			out = map[string]string{}
+		}
+		out[r.Name] = rendered
+	}
+	return out, nil
 }
 
 // TestConnection performs one authenticated request against the first

@@ -130,6 +130,24 @@ See `connectors/http/manifests/posthog/unversioned/manifest.yaml`. Literal base 
 manifest set the host through config instead of the usual
 `strings.Replace(manifest, "https://api.example.com", api.URL, 1)` swap.
 
+A resource served from a different host sets its own `base_url`, or
+`base_urls` keyed like `connection.base_urls` so it follows the same regional
+selection. Every connection key needs a host. Both render once at Configure
+from `config` and `env`, and the connection's auth is sent to that host, so
+Configure checks the rendered host: HTTPS, and the same host or registrable
+domain (public suffix list) as the connection base URL. Loopback test servers
+may use plain HTTP when the connection base URL is loopback too.
+
+```yaml
+connection:
+  base_url_field: region
+  base_urls: { us: https://mixpanel.com, eu: https://eu.mixpanel.com }
+resources:
+  - name: events
+    path: /api/2.0/export
+    base_urls: { us: https://data.mixpanel.com, eu: https://data-eu.mixpanel.com }
+```
+
 ### auth — exactly one strategy key
 
 ```yaml
@@ -180,6 +198,7 @@ resources:
 ```yaml
 - name: tickets            # required, unique
   path: /v2/tickets        # required
+  base_url: https://data.example.com  # optional, replaces connection.base_url (or base_urls by region)
   method: GET              # default from defaults.method
   query: { sort: created_at }
   headers: {}
@@ -321,6 +340,13 @@ pagination:
   offset: { offset: body.offset, limit: body.limit, page_size: 500 }  # both must share query.* or body.*
 pagination:
   page: { number: query.page, size: query.per_page, page_size: 100, total_pages: meta.total_pages }
+pagination:
+  page:                                   # Mixpanel Engage style
+    number: body.page
+    size: body.page_size
+    page_size: 1000
+    start: 0                              # optional first page, default 1
+    session: { response: session_id, request: body.session_id }  # optional token carried to later pages
 pagination: none
 ```
 
@@ -333,8 +359,12 @@ a has-more field. Cursor pagination does not stop merely because a page is short
 Body injection changes the cursor field while preserving rendered filters and
 selectors. Offset targets must both be in query or both in body. Verify page
 number conventions and termination against the actual paginator before using it.
-The current page strategy starts at 1 and injects into query parameters. Offset
-starts at 0. By default, both stop on a short page. Offset and page pagination
+The page strategy starts at 1 unless `start` says otherwise, and injects into
+query parameters unless `number` and `size` use `body.`. Offset starts at 0.
+A page `session` reads a token from every response and sends it with the next
+page request, for APIs whose later pages must repeat a token from the first.
+The first page sends none, and a page that continues the walk without one
+fails. By default, both stop on a short page. Offset and page pagination
 can instead use `more: info.more_records` when the endpoint documents that signal.
 Page pagination also supports `total_pages`.
 A configured `more` path takes precedence; missing or false stops the walk.
@@ -352,9 +382,14 @@ incremental:
   overlap_seconds: 60           # optional re-read window
   value_prefix: "ge"            # optional prefix on the injected value only
   value_date_format: epoch_millis # optional wire format for time watermarks
+  end_param: until              # optional, sends the run's upper bound too
+  end_lag_seconds: 86400        # optional, moves that upper bound back
 ```
 
 The cursor must be projected, non-nullable, and compatible with its comparator.
+A `time` cursor that arrives as a JSON number (Mixpanel's `properties.time`)
+is read as a Unix epoch with the `timestamptz` rule, in seconds or in
+milliseconds above `1e12`, and stored as RFC3339. Digit strings are not.
 `initial` can set a documented first-run lower bound. `overlap_seconds` applies
 to `time` or `numeric`, not `lex`. Do not collide with pagination injection.
 Checkpoint keys default to the cursor field and must be unique across resources.
@@ -368,6 +403,18 @@ fields take an unquoted epoch-milliseconds number that a raw RFC3339
 watermark cannot express. Filament rejects a layout that renders the same
 value for every watermark, and a bad initial watermark fails at setup
 instead of reaching the API.
+`end_param` (time comparator only) names a second parameter that receives the
+extraction's upper bound, the time the run started. Use it for APIs that
+require an explicit window end, such as Mixpanel's raw export with
+`from_date` and `to_date`. It goes to the same target as `start_param`, uses
+`value_date_format`, skips `value_prefix` and `value_suffix`, and stays fixed
+for the whole run. With `inject_into: state` read both bounds through
+`{{ state.<param> }}` templates, which is how `mode: stream` resources get them.
+The end is UTC, so for an API that rejects an end date after "today" in the
+account's time zone (Mixpanel), set `end_lag_seconds: 86400` so a run just
+after midnight UTC never asks for tomorrow. A full refresh of a resource with
+`end_param` sends the window too, from `initial` (no overlap) to the end, and
+saves no watermark; without `end_param` a full refresh sends neither bound.
 See Slack for `ts` + `oldest` + `numeric`, and Granola for an update timestamp.
 Read [research.md](research.md) before deciding that incremental reads are sound.
 
@@ -442,6 +489,10 @@ manifest still uses dynamic discovery.
 The runtime also supports `mode: stream` with `ndjson`, `sse`, or `chunked_array`.
 No catalog manifest currently uses it. If needed, inspect the stream schema and
 implementation rather than treating a streaming endpoint as paginated JSON.
+`stream: {type: ndjson, empty_body: terminated early}` reads an exact
+placeholder body (trimmed) as zero records, for APIs such as Mixpanel's raw
+export that answer an empty window with text instead of an empty response.
+Every other body keeps the strict line parser.
 
 ## webhook — records the provider pushes
 
