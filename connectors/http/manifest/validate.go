@@ -460,6 +460,12 @@ func (m *Manifest) validateSemantics() error {
 			if err := checkEnum(r.Stream.Type, ValidStreamTypes); err != nil {
 				_ = agg.Addf(path+".stream.type", "%v", err)
 			}
+			if r.Stream.EmptyBody != "" && r.Stream.Type != "ndjson" {
+				_ = agg.Addf(path+".stream.empty_body", "requires stream type ndjson")
+			}
+			if r.Stream.EmptyBody != "" && strings.TrimSpace(r.Stream.EmptyBody) != r.Stream.EmptyBody {
+				_ = agg.Addf(path+".stream.empty_body", "must not start or end with whitespace")
+			}
 		}
 	}
 

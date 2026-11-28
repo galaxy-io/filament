@@ -195,3 +195,54 @@ func TestEndParamWithEpochCursor(t *testing.T) {
 		t.Fatalf("watermark after the second record = %q, want the epoch as RFC3339", got)
 	}
 }
+
+// A window with no events reads as zero records when the manifest names
+// Mixpanel's empty-export body, and fails as a malformed line without it.
+func TestStreamEmptyBodyOnAnEmptyWindow(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "terminated early")
+	}))
+	defer api.Close()
+
+	for _, tc := range []struct {
+		name, stream string
+		wantErr      bool
+	}{
+		{"with empty_body", "stream: {type: ndjson, empty_body: terminated early}", false},
+		{"without empty_body", "stream: {type: ndjson}", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			data := strings.NewReplacer("BASE", api.URL, "stream: {type: ndjson}", tc.stream).Replace(endParamManifest)
+			src := NewManifest([]byte(data))
+			if err := src.Configure(t.Context(), filament.NewConfig(nil)); err != nil {
+				t.Fatal(err)
+			}
+			defer src.Teardown(t.Context())
+			sink := &scanSink{}
+			opts := extractOptions{Resources: []string{"events"}, IncrementalResources: map[string]bool{"events": true}}
+			err := src.connector.Extract(t.Context(), sink, opts)
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, want error %v", err, tc.wantErr)
+			}
+			if len(sink.records) != 0 {
+				t.Fatalf("records = %d, want 0", len(sink.records))
+			}
+		})
+	}
+}
+
+func TestStreamEmptyBodyValidation(t *testing.T) {
+	valid := strings.ReplaceAll(endParamManifest, "BASE", "https://example.com")
+	for _, tc := range []struct{ name, stream, want string }{
+		{"sse", "stream: {type: sse, empty_body: done}", "requires stream type ndjson"},
+		{"padded", `stream: {type: ndjson, empty_body: " done"}`, "whitespace"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			invalid := strings.Replace(valid, "stream: {type: ndjson}", tc.stream, 1)
+			err := NewManifest([]byte(invalid)).manifestErr
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+		})
+	}
+}

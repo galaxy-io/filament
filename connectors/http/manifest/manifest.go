@@ -775,6 +775,12 @@ type StreamSpec struct {
 	// MaxElementBytes caps per-element size for chunked_array. Zero means
 	// no cap (relies on the connector-level response size cap).
 	MaxElementBytes int `yaml:"max_element_bytes,omitempty"`
+	// EmptyBody (ndjson only) is the exact body an API sends for a result
+	// with no records instead of an empty response. Mixpanel's raw export
+	// answers an empty window with "terminated early". A body equal to it
+	// once surrounding whitespace is trimmed reads as zero records. Any
+	// other body goes through the strict line parser.
+	EmptyBody string `yaml:"empty_body,omitempty"`
 }
 
 // Load reads, parses, validates, and version-checks a manifest at path.

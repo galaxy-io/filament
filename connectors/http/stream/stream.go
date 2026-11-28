@@ -76,12 +76,8 @@ type Factory func(spec *manifest.StreamSpec, opts Options) (Reader, error)
 var (
 	registryMu sync.RWMutex
 	registry   = map[string]Factory{
-		"": func(_ *manifest.StreamSpec, opts Options) (Reader, error) {
-			return &ndjsonReader{logger: opts.Logger, maxLine: opts.NDJSONMaxLine, maxErrors: opts.NDJSONMaxErrors}, nil
-		},
-		"ndjson": func(_ *manifest.StreamSpec, opts Options) (Reader, error) {
-			return &ndjsonReader{logger: opts.Logger, maxLine: opts.NDJSONMaxLine, maxErrors: opts.NDJSONMaxErrors}, nil
-		},
+		"":       newNDJSON,
+		"ndjson": newNDJSON,
 		"sse": func(spec *manifest.StreamSpec, opts Options) (Reader, error) {
 			return &sseReader{eventFilter: spec.EventFilter, logger: opts.Logger, maxErrors: opts.SSEMaxErrors}, nil
 		},

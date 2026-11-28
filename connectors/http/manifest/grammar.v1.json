@@ -474,7 +474,8 @@
             "type": { "type": "string", "enum": ["ndjson", "sse", "chunked_array"] },
             "event_filter": { "type": "string" },
             "array_path": { "type": "string" },
-            "max_element_bytes": { "type": "integer", "minimum": 0 }
+            "max_element_bytes": { "type": "integer", "minimum": 0 },
+            "empty_body": { "type": "string", "minLength": 1 }
           }
         }
       }

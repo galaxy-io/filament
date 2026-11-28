@@ -489,6 +489,10 @@ manifest still uses dynamic discovery.
 The runtime also supports `mode: stream` with `ndjson`, `sse`, or `chunked_array`.
 No catalog manifest currently uses it. If needed, inspect the stream schema and
 implementation rather than treating a streaming endpoint as paginated JSON.
+`stream: {type: ndjson, empty_body: terminated early}` reads an exact
+placeholder body (trimmed) as zero records, for APIs such as Mixpanel's raw
+export that answer an empty window with text instead of an empty response.
+Every other body keeps the strict line parser.
 
 ## webhook — records the provider pushes
 

@@ -408,6 +408,11 @@ array is retained if projected separately, otherwise it remains in `raw`.
 `discovery` supports `mode: static | dynamic`, though every shipped manifest
 is static. A `stream` mode (`ndjson | sse | chunked_array`) exists per
 resource as an alternative to pagination. No shipped manifest uses it.
+For an `ndjson` stream, `empty_body` names the exact body an API sends
+instead of an empty response when there are no records. Mixpanel's raw
+export sends `terminated early` for a window without events. A body equal to
+`empty_body`, ignoring surrounding whitespace, reads as zero records. Any
+other line that isn't JSON still fails the run.
 
 For static discovery, `default_resources: [issues, comments]` sets the initial
 selection when creating a pipeline. All resources remain listed and selectable.

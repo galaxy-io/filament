@@ -2,6 +2,7 @@ package stream
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"log/slog"
 
 	"github.com/galaxy-io/filament/connectors/http/errs"
+	"github.com/galaxy-io/filament/connectors/http/manifest"
 	"github.com/galaxy-io/filament/connectors/http/obs"
 )
 
@@ -30,9 +32,35 @@ type ndjsonReader struct {
 	logger    *slog.Logger
 	maxLine   int
 	maxErrors int
+	// emptyBody is the manifest's stream.empty_body: a whole body equal to
+	// it, trimmed, is a result with no records.
+	emptyBody string
 }
 
+func newNDJSON(spec *manifest.StreamSpec, opts Options) (Reader, error) {
+	r := &ndjsonReader{logger: opts.Logger, maxLine: opts.NDJSONMaxLine, maxErrors: opts.NDJSONMaxErrors}
+	if spec != nil {
+		r.emptyBody = spec.EmptyBody
+	}
+	return r, nil
+}
+
+// emptyBodySlack is how much surrounding whitespace an empty-body marker may
+// carry, such as a trailing newline, and still match.
+const emptyBodySlack = 64
+
 func (r *ndjsonReader) Read(ctx context.Context, body io.Reader, emit EmitFunc) error {
+	if r.emptyBody != "" {
+		// Peek only as far as a marker could reach, so a large export is
+		// never buffered here. A body that ends within the peek and equals
+		// the marker once trimmed has no records.
+		buffered := bufio.NewReaderSize(body, len(r.emptyBody)+emptyBodySlack)
+		head, err := buffered.Peek(len(r.emptyBody) + emptyBodySlack)
+		if err == io.EOF && string(bytes.TrimSpace(head)) == r.emptyBody {
+			return nil
+		}
+		body = buffered
+	}
 	maxLine := r.maxLine
 	if maxLine <= 0 {
 		maxLine = ndjsonDefaultMaxLine
