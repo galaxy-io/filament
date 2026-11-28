@@ -15,15 +15,18 @@ import (
 	"github.com/galaxy-io/filament"
 	"github.com/galaxy-io/filament/eventbus/host"
 	"github.com/galaxy-io/filament/events"
+	"github.com/galaxy-io/filament/internal/heartbeat"
 	"github.com/galaxy-io/filament/module"
 	"github.com/galaxy-io/filament/runner"
 )
 
 // Module is the extraction engine. One run.requested fact drives one extraction.
 type Module struct {
-	deps runner.Deps
-	ds   filament.DataStore
-	log  filament.Logger
+	deps          runner.Deps
+	ds            filament.DataStore
+	mx            filament.Metrics
+	log           filament.Logger
+	heartbeatFreq time.Duration
 }
 
 // New returns an unmounted engine. Providers are injected by Mount.
@@ -45,6 +48,7 @@ func (m *Module) Subscriptions() []host.Subscription {
 // Mount captures the providers this module uses. Cheap, no I/O.
 func (m *Module) Mount(_ context.Context, d module.Deps) error {
 	m.ds = d.DataStore
+	m.mx = d.Metrics
 	if d.Log != nil {
 		m.log = d.Log.With(filament.Field{Key: "component", Value: "dispatch"})
 	}
@@ -95,5 +99,19 @@ func (m *Module) onRunRequested(ctx context.Context, ev events.Event[events.RunR
 	}
 	spec := runner.SpecFromState(state)
 	spec.ExecutionID = ev.At.UTC().Format(time.RFC3339Nano)
+	freq := m.heartbeatFreq
+	if freq <= 0 {
+		freq = heartbeat.Interval()
+	}
+	var hbLog filament.Logger
+	if m.deps.Log != nil {
+		hbLog = m.deps.Log.With(
+			filament.Field{Key: "component", Value: "heartbeat"},
+			filament.Field{Key: "run_id", Value: string(state.Run)},
+		)
+	}
+	hb := heartbeat.New(m.deps.Bus, m.mx, hbLog, state.Tenant, state.Run, state.Request.PipelineID)
+	stopHB := hb.Start(ctx, freq)
+	defer stopHB()
 	return runner.RunOne(ctx, m.deps, spec)
 }
